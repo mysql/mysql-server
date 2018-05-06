@@ -18,11 +18,6 @@
 #                                                                             #
 ###############################################################################
 
-# This test actually passes with --embedded-server at the time of this writing,
-# but the results aren't particularly meaningful (cf. WL#7766), so let's save
-# some time.
---source include/not_embedded.inc
-
 SELECT @@session.session_track_transaction_info INTO @old_track_tx;
 SELECT @@global.session_track_transaction_info  INTO @old_track_tx_gbl;
 
@@ -56,9 +51,9 @@ SELECT @@session.session_track_transaction_info;
 SET SESSION session_track_transaction_info='CHARACTERISTICS';
 SELECT @@session.session_track_transaction_info;
 
-# Like most system variables, and unlike tx_isolation / tx_read_only,
-# session_track_transaction_info has two scopes, SESSION and GLOBAL,
-# with the default being SESSION.
+# Like most system variables, and unlike transaction_isolation/
+# transaction_read_only, session_track_transaction_info has two
+# scopes, SESSION and GLOBAL, with the default being SESSION.
 
 SET SESSION session_track_transaction_info='OFF';
 SET GLOBAL  session_track_transaction_info='STATE';

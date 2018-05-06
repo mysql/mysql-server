@@ -1,0 +1,357 @@
+# Pre-create some tables, so that DDTableBuffer is not empty
+set global innodb_flush_log_at_trx_commit=1;
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (0), (0), (-1), (-10), (0),
+(20), (30), (31);
+SELECT * FROM t1;
+a
+-10
+-1
+1
+2
+3
+4
+5
+20
+30
+31
+CREATE TABLE t2(a TINYINT UNSIGNED AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t2 VALUES(-5);
+ERROR 22003: Out of range value for column 'a' at row 1
+INSERT INTO t2 VALUES(0), (0), (0), (0), (8), (10), (0),
+(20), (30), (31);
+SELECT * FROM t2;
+a
+1
+2
+3
+4
+8
+10
+11
+20
+30
+31
+CREATE TABLE t3(a SMALLINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t3 VALUES(0), (0), (0), (0), (-1), (-10), (0),
+(20), (30), (31), (1024), (4096);
+SELECT * FROM t3;
+a
+-10
+-1
+1
+2
+3
+4
+5
+20
+30
+31
+1024
+4096
+# restart
+set global innodb_flush_log_at_trx_commit=1;
+# Scenario 1: Create two new tables, with simple DMLs on them,
+# and force a checkpoint, then some other DMLs on them
+CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, KEY b(b)) ENGINE = InnoDB;
+CREATE TABLE t5(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, KEY b(b)) ENGINE = InnoDB;
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+@start_global_value
+0
+# Invoke a checkpoint, which would persist the autoinc counters
+# of t4 and t5 into DD Table Buffer
+set global innodb_log_checkpoint_now=ON;
+INSERT INTO t4 VALUES(0, 1), (0, 2), (10, 3), (12, 4), (0, 5);
+SELECT * FROM t4;
+a	b
+1	1
+2	2
+10	3
+12	4
+13	5
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t5 VALUES(0, 1), (100, 2), (50, 3);
+INSERT INTO t5 VALUES(0, 4), (109, 5), (0, 6);
+SELECT * FROM t5;
+a	b
+1	1
+100	2
+50	3
+101	4
+109	5
+110	6
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=111 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+set global innodb_log_checkpoint_now=ON;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+@@global.innodb_log_checkpoint_now
+0
+START TRANSACTION;
+# This should insert 14, 15
+INSERT INTO t4 VALUES(0, 10), (0, 20);
+# This should insert 111, 112
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+COMMIT;
+START TRANSACTION;
+# This should insert 16, 17
+INSERT INTO t4 VALUES(0, 10), (0, 20);
+# This should insert 113, 114
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+# This will not rollback the counter
+ROLLBACK;
+# Kill and restart
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+SELECT MAX(a) AS `Expect 15` FROM t4;
+Expect 15
+15
+SELECT MAX(a) AS `Expect 112` FROM t5;
+Expect 112
+112
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB AUTO_INCREMENT=115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Scenario 2: Mix the persisted autoinc counter and corrupted bits
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+TRUNCATE TABLE t3;
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	Warning	InnoDB: The B-tree of index b is corrupted.
+test.t4	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT b FROM t4 WHERE b > 3;
+ERROR HY000: Index b is corrupted
+# This should insert 18, 19
+INSERT INTO t4 VALUES(0, 6), (0, 7);
+SELECT MAX(a) AS `Expect 19` FROM t4;
+Expect 19
+19
+INSERT INTO t1 VALUES(0), (0);
+INSERT INTO t2 VALUES(0), (0);
+INSERT INTO t3 VALUES(0), (0);
+# This should insert 115, 116
+INSERT INTO t5 VALUES(0, 10), (0, 11);
+# Kill and restart
+set global innodb_flush_log_at_trx_commit=1;
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	Warning	InnoDB: Index b is marked as corrupted
+test.t4	check	error	Corrupt
+SELECT b FROM t4 WHERE b > 3;
+ERROR HY000: Index b is corrupted
+# This should fix the corrupted index
+DROP INDEX b ON t4;
+CREATE INDEX b ON t4(b);
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+INSERT INTO t4 VALUES(0, 8), (0, 9), (30, 10);
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+@start_global_value
+0
+set global innodb_log_checkpoint_now=ON;
+SELECT MAX(a) AS `Expect 116` FROM t5;
+Expect 116
+116
+DELETE FROM t5;
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	Warning	InnoDB: The B-tree of index b is corrupted.
+test.t5	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT @start_global_value;
+@start_global_value
+0
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+@@global.innodb_log_checkpoint_now
+0
+# This should insert 117, 118
+INSERT INTO t5 VALUES(0, 10), (0, 20);
+# Kill and restart
+set global innodb_flush_log_at_trx_commit=1;
+SELECT b FROM t5 WHERE b > 3;
+ERROR HY000: Index b is corrupted
+# This should fix the corrupted index
+DROP INDEX b ON t5;
+CREATE INDEX b ON t5(b);
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+# This should insert 31, 32
+INSERT INTO t4 VALUES(0, 11), (0, 12);
+SELECT MAX(a) AS `Expect 32` FROM t4;
+Expect 32
+32
+# restart
+set global innodb_flush_log_at_trx_commit=1;
+# This should insert 119, 120
+INSERT INTO t5 VALUES(0, 12), (0, 13);
+SELECT MAX(a) AS `Expect 120` FROM t5;
+Expect 120
+120
+CREATE TABLE t6 (
+id    INT AUTO_INCREMENT PRIMARY KEY,
+name  VARCHAR(100)
+) ENGINE=InnoDB AUTO_INCREMENT=99;
+SET GLOBAL debug="+d,innodb_evict_autoinc_table";
+# Evict table from dictionary cache
+SET GLOBAL innodb_ft_aux_table="test/t6";
+ERROR 42000: Variable 'innodb_ft_aux_table' can't be set to the value of 'test/t6'
+SET GLOBAL debug="-d,innodb_evict_autoinc_table";
+INSERT INTO t6(name) VALUES('mysql');
+SELECT * FROM t6;
+id	name
+99	mysql
+DROP TABLE t1, t2, t3, t4, t5, t6;
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, b INT, KEY(a))
+PARTITION BY RANGE (b)
+( PARTITION p0 VALUES LESS THAN (4),
+PARTITION p1 VALUES LESS THAN (100));
+SELECT * FROM t1;
+a	b
+set session debug = "+d,partition_truncate_no_reset";
+TRUNCATE TABLE t1;
+set session debug = "-d,partition_truncate_no_reset";
+ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
+DROP TABLE t1;
+#
+# Scenario 4: Test ALTER TABLE .. AUTO_INCREMENT to a smaller value
+# and maybe crash
+#
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 23` FROM t1;
+Expect 23
+23
+DROP TABLE t1;
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+# Write file to make mysql-test-run.pl expect crash
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint(4) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 38` FROM t1;
+Expect 38
+38
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (50) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 23` FROM t1;
+Expect 23
+23
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (50));
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 35` FROM t1;
+Expect 35
+35
+DELETE FROM t1 WHERE a >= 30;
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+# Write file to make mysql-test-run.pl expect crash
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart mysqld after the crash and reconnect.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (50) ENGINE = InnoDB) */
+INSERT INTO t1 VALUES(0), (0), (0);
+SELECT MAX(a) `Expect 38` FROM t1;
+Expect 38
+38
+DROP TABLE t1;

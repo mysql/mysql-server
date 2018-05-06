@@ -8,7 +8,7 @@ create table t1 (a int unsigned auto_increment not null primary key)
 engine=ndbcluster;
 alter table t1 algorithm=inplace, add column b varchar(16);
 Warnings:
-Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 show tables;
 Tables_in_test
 t1
@@ -18,7 +18,7 @@ t1	CREATE TABLE `t1` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 (b) values('String to find');
 CREATE TABLE dummy (dummyk INT PRIMARY KEY) ENGINE = NDB;
 DROP TABLE dummy;

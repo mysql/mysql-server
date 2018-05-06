@@ -1,22 +1,19 @@
 drop table if exists t1, t2;
-select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
-NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
-NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
+select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
+NULL	1	1	1	1	TRUE	TRUE	1	1
 Warnings:
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+explain select null,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-Note	1003	/* select#1 */ select NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
+Note	1003	/* select#1 */ select NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
 NULL	NULL	NULL	NULL
@@ -38,11 +35,10 @@ field(NULL,"a","b","c")
 select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
 2 between null and 1	2 between 3 AND NULL	NULL between 1 and 2	2 between NULL and 3	2 between 1 AND null
 0	0	NULL	NULL	NULL
-explain extended select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
+explain select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (2 between NULL and 1) AS `2 between null and 1`,(2 between 3 and NULL) AS `2 between 3 AND NULL`,(NULL between 1 and 2) AS `NULL between 1 and 2`,(2 between NULL and 3) AS `2 between NULL and 3`,(2 between 1 and NULL) AS `2 between 1 AND null`
 SELECT NULL AND NULL, 1 AND NULL, NULL AND 1, NULL OR NULL, 0 OR NULL, NULL OR 0;
 NULL AND NULL	1 AND NULL	NULL AND 1	NULL OR NULL	0 OR NULL	NULL OR 0
@@ -56,20 +52,18 @@ NULL AND 0	0 and NULL
 select inet_ntoa(null),inet_aton(null);
 inet_ntoa(null)	inet_aton(null)
 NULL	NULL
-explain extended select inet_ntoa(null),inet_aton(null);
+explain select inet_ntoa(null),inet_aton(null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`
 select inet6_ntoa(null),inet6_aton(null);
 inet6_ntoa(null)	inet6_aton(null)
 NULL	NULL
-explain extended select inet6_ntoa(null), inet6_aton(null);
+explain select inet6_ntoa(null), inet6_aton(null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select inet6_ntoa(NULL) AS `inet6_ntoa(null)`,inet6_aton(NULL) AS `inet6_aton(null)`
 create table t1 (x int);
 insert into t1 values (null);
@@ -92,7 +86,7 @@ indexed_field
 NULL
 NULL
 DROP TABLE t1;
-create table t1 (a int, b int) engine=myisam;
+create table t1 (a int, b int);
 insert into t1 values(20,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
 t2.b=t3.a;
@@ -110,8 +104,6 @@ NULL	this is null
 NULL	this is null
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
@@ -167,6 +159,9 @@ create table t1 (a int not null, b int not null, index idx(a));
 insert into t1 values
 (1,1), (2,2), (3,3), (4,4), (5,5), (6,6),
 (7,7), (8,8), (9,9), (10,10), (11,11), (12,12);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where a between 2 and 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx	idx	4	NULL	2	100.00	Using index condition
@@ -193,24 +188,25 @@ insert into t1 select i*2 from t1;
 insert into t1 select i*2 from t1;
 insert into t1 select i*2 from t1;
 insert into t1 values(null);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where i=2 or i is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref_or_null	i	i	5	const	9	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref_or_null	i	i	5	const	10	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` = 2) or isnull(`test`.`t1`.`i`))
 select count(*) from t1 where i=2 or i is null;
 count(*)
 10
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t1 change i i int not null;
 Warnings:
 Warning	1265	Data truncated for column 'i' at row 513
 SET sql_mode = default;
 explain select * from t1 where i=2 or i is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i	i	4	const	7	100.00	Using index
+1	SIMPLE	t1	NULL	ref	i	i	4	const	9	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (`test`.`t1`.`i` = 2)
 select count(*) from t1 where i=2 or i is null;
@@ -298,7 +294,7 @@ t1	CREATE TABLE `t1` (
   `c36` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c37` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `c38` varchar(10) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
 case 'str' when 'STR' then 'str' when null then 'null' end as c01,
@@ -311,12 +307,12 @@ field('str1', null, 'STR1') as c05,
 c01	c02	c03	c04	c05	c08	c09
 str	str	0	1	2	1	1
 set names latin1;
-create table bug19145a (e enum('a','b','c')          default 'b' , s set('x', 'y', 'z')          default 'y' ) engine=MyISAM;
-create table bug19145b (e enum('a','b','c')          default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
-create table bug19145c (e enum('a','b','c') not null default 'b' , s set('x', 'y', 'z') not null default 'y' ) engine=MyISAM;
-create table bug19145setnotnulldefaultnull (e enum('a','b','c')          default null, s set('x', 'y', 'z') not null default null) engine=MyISAM;
+create table bug19145a (e enum('a','b','c')          default 'b' , s set('x', 'y', 'z')          default 'y' );
+create table bug19145b (e enum('a','b','c')          default null, s set('x', 'y', 'z')          default null);
+create table bug19145c (e enum('a','b','c') not null default 'b' , s set('x', 'y', 'z') not null default 'y' );
+create table bug19145setnotnulldefaultnull (e enum('a','b','c')          default null, s set('x', 'y', 'z') not null default null);
 ERROR 42000: Invalid default value for 's'
-create table bug19145enumnotnulldefaultnull (e enum('a','b','c') not null default null, s set('x', 'y', 'z')          default null) engine=MyISAM;
+create table bug19145enumnotnulldefaultnull (e enum('a','b','c') not null default null, s set('x', 'y', 'z')          default null);
 ERROR 42000: Invalid default value for 'e'
 alter table bug19145a alter column e set default null;
 alter table bug19145a alter column s set default null;
@@ -335,21 +331,21 @@ bug19145a	CREATE TABLE `bug19145a` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145b;
 Table	Create Table
 bug19145b	CREATE TABLE `bug19145b` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145c;
 Table	Create Table
 bug19145c	CREATE TABLE `bug19145c` (
   `e` enum('a','b','c') NOT NULL DEFAULT 'b',
   `s` set('x','y','z') NOT NULL DEFAULT 'y',
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug19145a;
 drop table bug19145b;
 drop table bug19145c;
@@ -376,3 +372,8 @@ Field	Type	Null	Key	Default	Extra
 IFNULL(NULL, b)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t1, t2;
 # End of 5.0 tests
+#
+# WL#7247: Removal of \N
+#
+SELECT \N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\N' at line 1

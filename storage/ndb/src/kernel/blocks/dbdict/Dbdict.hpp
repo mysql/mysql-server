@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,13 +32,12 @@
 #include <trigger_definitions.h>
 #include <pc.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
 #include <CArray.hpp>
 #include <KeyTable.hpp>
 #include <KeyTable2.hpp>
-#include <KeyTable2Ref.hpp>
 #include <SimulatedBlock.hpp>
 #include <SimpleProperties.hpp>
 #include <SignalCounter.hpp>
@@ -92,6 +98,9 @@
 #include <signaldata/BuildFKImpl.hpp>
 #include <signaldata/DropFK.hpp>
 #include <signaldata/DropFKImpl.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 464
 
@@ -236,9 +245,9 @@ public:
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
-  typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
-  typedef DLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> AttributeRecord_list;
-  typedef LocalDLFifoListImpl<AttributeRecord_pool, AttributeRecord, AttributeRecord> LocalAttributeRecord_list;
+  typedef DLMHashTable<AttributeRecord_pool> AttributeRecord_hash;
+  typedef DLFifoList<AttributeRecord_pool> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord_pool> LocalAttributeRecord_list;
 
   AttributeRecord_pool c_attributeRecordPool;
   AttributeRecord_hash c_attributeRecordHash;
@@ -251,11 +260,14 @@ public:
   struct TableRecord;
   typedef Ptr<TableRecord> TableRecordPtr;
   typedef ArrayPool<TableRecord> TableRecord_pool;
-  typedef DLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> TableRecord_list;
-  typedef LocalDLFifoListImpl<TableRecord_pool, TableRecord, TableRecord> LocalTableRecord_list;
+  typedef DLFifoList<TableRecord_pool> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord_pool> LocalTableRecord_list;
 
   struct TableRecord {
-    TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
+    TableRecord(){
+      m_upgrade_trigger_handling.m_upgrade = false;
+      fullyReplicatedTriggerId = RNIL;
+    }
     static bool isCompatible(Uint32 type) { return DictTabInfo::isTable(type) || DictTabInfo::isIndex(type); }
 
     Uint32 maxRowsLow;
@@ -298,7 +310,10 @@ public:
       TR_RowGCI       = 0x2,
       TR_RowChecksum  = 0x4,
       TR_Temporary    = 0x8,
-      TR_ForceVarPart = 0x10
+      TR_ForceVarPart = 0x10,
+      TR_ReadBackup   = 0x20,
+      TR_FullyReplicated = 0x40
+
     };
     Uint8 m_extra_row_gci_bits;
     Uint8 m_extra_row_author_bits;
@@ -396,6 +411,7 @@ public:
     /**   Trigger ids of index (volatile data) */
     Uint32 triggerId;      // ordered index (1)
     Uint32 buildTriggerId; // temp during build
+    Uint32 fullyReplicatedTriggerId; //
 
     struct UpgradeTriggerHandling
     {
@@ -418,7 +434,9 @@ public:
     RopeHandle ngData;
     RopeHandle rangeData;
 
+    Uint32 partitionBalance;
     Uint32 fragmentCount;
+    Uint32 partitionCount;
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */
@@ -635,9 +653,9 @@ public:
     };
   };
   typedef Ptr<File> FilePtr;
-  typedef RecordPool<File, RWPool> File_pool;
-  typedef DLListImpl<File_pool, File> File_list;
-  typedef LocalDLListImpl<File_pool, File> Local_file_list;
+  typedef RecordPool<RWPool<File> > File_pool;
+  typedef DLList<File_pool> File_list;
+  typedef LocalDLList<File_pool> Local_file_list;
 
   struct Filegroup {
     Filegroup(){}
@@ -669,7 +687,7 @@ public:
     };
   };
   typedef Ptr<Filegroup> FilegroupPtr;
-  typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
+  typedef RecordPool<RWPool<Filegroup> > Filegroup_pool;
 
   File_pool c_file_pool;
   Filegroup_pool c_filegroup_pool;
@@ -748,9 +766,9 @@ public:
 
   typedef Ptr<DictObject> DictObjectPtr;
   typedef ArrayPool<DictObject> DictObject_pool;
-  typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
-  typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
-  typedef SLList<DictObject> DictObject_list;
+  typedef DLMHashTable<DictObject_pool, HashedByName<DictObject> > DictObjectName_hash;
+  typedef DLMHashTable<DictObject_pool, HashedById<DictObject> > DictObjectId_hash;
+  typedef SLList<DictObject_pool> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
   DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
@@ -898,6 +916,7 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execLIST_TABLES_REQ(Signal* signal);
+  void execLIST_TABLES_CONF(Signal* signal);
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
@@ -993,9 +1012,11 @@ private:
   void execALTER_TABLE_REQ(Signal* signal);
 
   Uint32 get_fragmentation(Signal*, Uint32 tableId);
-  Uint32 create_fragmentation(Signal* signal, TableRecordPtr,
-                              const Uint16*, Uint32 cnt,
-                              Uint32 flags = 0);
+  Uint32 create_fragmentation(Signal* signal,
+                              TableRecordPtr,
+                              const Uint16*,
+                              Uint32 cnt,
+                              Uint32 flags);
   void execCREATE_FRAGMENTATION_REQ(Signal*);
   void execCREATE_FRAGMENTATION_REF(Signal*);
   void execCREATE_FRAGMENTATION_CONF(Signal*);
@@ -1171,6 +1192,10 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RestartRecord {
+    RestartRecord() { m_complete = false; }
+
+    bool m_complete;
+
     /**    Global check point identity       */
     Uint32 gciToRestart;
 
@@ -1197,11 +1222,50 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RetrieveRecord {
-    RetrieveRecord():
-      busyState(false) {};
+    RetrieveRecord()
+    {
+      totalRequests = 0;
+      totalWaiters = 0;
+      totalBusy = 0;
+      longestWaitMillis = 0;
+      longestProcessTimeMillis = 0;
+      NdbTick_Invalidate(&startProcessTime);
+      monitorRunning = false;
+      busyState = false;
+    }
 
     /**    Only one retrieve table definition at a time       */
     bool busyState;
+
+     /**
+     *  Total requests
+     */
+    Uint64 totalRequests;
+
+    /**
+     * Total num made to wait
+     */
+    Uint64 totalWaiters;
+
+    /**
+     * Total num told 'busy'
+     */
+    Uint64 totalBusy;
+
+    /**
+     * Longest wait in millis
+     */
+    Uint64 longestWaitMillis;
+
+
+    /**
+     * Longest req processing in millis
+     */
+    Uint64 longestProcessTimeMillis;
+
+    NDB_TICKS startProcessTime;
+
+    bool monitorRunning;
 
     /**    Block Reference of retriever       */
     BlockReference blockRef;
@@ -1305,13 +1369,19 @@ private:
                    Signal* signal)
     {
       thrjam(m_jamBuffer);
-      /* Put data inline in signal buffer for atomic enq */
-      signal->theData[GetTabInfoReq::SignalLength] =
-        signal->header.m_noOfSections;
+      Uint32 sigLen = GetTabInfoReq::SignalLength;
 
-      memcpy(&signal->theData[GetTabInfoReq::SignalLength+1],
+      /* Put data inline in signal buffer for atomic enq */
+      signal->theData[sigLen] = signal->header.m_noOfSections;
+      sigLen++;
+
+      memcpy(&signal->theData[sigLen],
              signal->m_sectionPtrI,
              3 * sizeof(Uint32));
+      sigLen += 3;
+
+      /* Record start-wait time */
+      setTicks(NdbTick_getCurrentTicks(), &signal->theData[sigLen]);
 
       LocalSegmentList& reqQueue = internal?
         m_internalQueue:
@@ -1331,7 +1401,7 @@ private:
         return false;
       }
 
-      assert(ElementLen == 9);   /* Just in case someone adds words...*/
+      assert(ElementLen == 11);   /* Just in case someone adds words...*/
 
       if (reqQueue.enqWords(signal->theData,
                             ElementLen))
@@ -1353,7 +1423,7 @@ private:
      * object with signal data (and sections if appropriate)
      * Assumes that there is some next request to be processed.
      */
-    bool deqReq(Signal* signal)
+    bool deqReq(Signal* signal, Uint64 &waitMillis)
     {
       assert(signal->header.m_noOfSections == 0);
       assert(!isEmpty());
@@ -1365,19 +1435,50 @@ private:
       assert(getNumReqs(reqQueue) > 0);
 
       Uint32 noOfSections;
+      Uint32 startTime[2];
 
       /* Restore signal context from queue...*/
       if (reqQueue.deqWords(signal->theData, GetTabInfoReq::SignalLength) &&
           reqQueue.deqWords(&noOfSections, 1) &&
-          reqQueue.deqWords(signal->m_sectionPtrI, 3))
+          reqQueue.deqWords(signal->m_sectionPtrI, 3) &&
+          reqQueue.deqWords((Uint32*)(&startTime[0]), 2))
       {
         signal->header.m_noOfSections = (Uint8) noOfSections;
+        const NDB_TICKS start(getTicks(startTime));
+        waitMillis = NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec();
         return true;
       }
       return false;
     }
+    void dumpInfo()
+    {
+      g_eventLogger->info("Dumping GET_TABINFOREQ queue info");
+      g_eventLogger->info("m_consecutiveInternalReqCount = %u "
+                          "number of reqs in internal queue = %u "
+                          "max reqs in internal queue = %u "
+                          "number of reqs in external queue = %u "
+                          "max reqs in external queue = %u "
+                          "internal segment pool size = %u",
+                           m_consecutiveInternalReqCount,
+                           getNumReqs(m_internalQueue), MaxInternalReqs,
+                           getNumReqs(m_externalQueue), MaxExternalReqs,
+                           InternalSegmentPoolSize
+                         );
+    }
 
   private:
+
+    Uint64 getTicks(const Uint32* words)
+    {
+      return (Uint64(words[0]) << 32) + words[1];
+    }
+
+    void setTicks(const NDB_TICKS& ticks, Uint32* words)
+    {
+      words[0] = (ticks.getUint64() >> 32);
+      words[1] = (ticks.getUint64() & 0xffffffff);
+    }
+
     /**
      * isInternalQueueNext
      *
@@ -1420,7 +1521,7 @@ private:
     };
 
     /* Length of GetTabInfoReq queue elements */
-    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3;
+    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3 + 2;
 
     /**
      * Pessimistic estimate of worst-case internally sourced
@@ -1783,22 +1884,27 @@ private:
 
   enum { OpSectionSegmentSize = 127 };
   typedef
-    LocalDataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>
+    DataBufferSegment<OpSectionSegmentSize> OpSectionSegment;
+  typedef
+    LocalDataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >
     OpSectionBuffer;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>::Head
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::Head
     OpSectionBufferHead;
   typedef
     OpSectionBuffer::DataBufferPool
     OpSectionBufferPool;
   typedef
-    DataBuffer2<OpSectionSegmentSize, LocalArenaPoolImpl>::ConstDataBufferIterator
+    DataBuffer<OpSectionSegmentSize, LocalArenaPool<OpSectionSegment> >::ConstDataBufferIterator
     OpSectionBufferConstIterator;
 
-  ArenaPool c_opSectionBufferPool;
+  ArenaPool<OpSectionSegment> c_opSectionBufferPool;
 
   struct OpSection {
     OpSectionBufferHead m_head;
+    void init() {
+      m_head.init();
+    }
     Uint32 getSize() const {
       return m_head.getSize();
     }
@@ -1952,10 +2058,10 @@ private:
 #endif
   };
 
-  typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
-  typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
-  typedef DLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp>::Head  SchemaOp_head;
-  typedef LocalDLFifoListImpl<SchemaOp_pool, SchemaOp, SchemaOp> LocalSchemaOp_list;
+  typedef RecordPool<ArenaPool<SchemaOp> > SchemaOp_pool;
+  typedef DLMHashTable<SchemaOp_pool> SchemaOp_hash;
+  typedef DLFifoList<SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -1990,7 +2096,7 @@ private:
   inline bool
   seizeOpRec(SchemaOpPtr op_ptr) {
     OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
-    RecordPool<T,ArenaPool>& pool = T::getPool(this);
+    RecordPool<ArenaPool<T> >& pool = T::getPool(this);
     Ptr<T> t_ptr;
     if (pool.seize(op_ptr.p->m_trans_ptr.p->m_arena, t_ptr)) {
       new (t_ptr.p) T();
@@ -2005,7 +2111,7 @@ private:
   inline void
   releaseOpRec(SchemaOpPtr op_ptr) {
     OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
-    RecordPool<T,ArenaPool>& pool = T::getPool(this);
+    RecordPool<ArenaPool<T> >& pool = T::getPool(this);
     Ptr<T> t_ptr;
     getOpRec<T>(op_ptr, t_ptr);
     pool.release(t_ptr);
@@ -2091,6 +2197,7 @@ private:
   bool saveOpSection(SchemaOpPtr, SectionHandle&, Uint32 ss_no);
   bool saveOpSection(SchemaOpPtr, SegmentedSectionPtr ss_ptr, Uint32 ss_no);
   void releaseOpSection(SchemaOpPtr, Uint32 ss_no);
+  bool replaceOpSection(SchemaOpPtr, Uint32 ss_no, SegmentedSectionPtr ss_ptr);
 
   // add operation to transaction OpList
   void addSchemaOp(SchemaOpPtr);
@@ -2318,9 +2425,9 @@ private:
          SchemaFile::EntryState = SchemaFile::SF_UNUSED);
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
-  typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
-  typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
-  typedef DLFifoListImpl<SchemaTrans_pool, SchemaTrans, SchemaTrans> SchemaTrans_list;
+  typedef RecordPool<ArenaPool<SchemaTrans> > SchemaTrans_pool;
+  typedef DLMHashTable<SchemaTrans_pool> SchemaTrans_hash;
+  typedef DLFifoList<SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
   SchemaTrans_hash c_schemaTransHash;
@@ -2549,9 +2656,15 @@ private:
 
     Callback callback;
     bool ok = findCallback(callback, ref->senderData);
-    ndbrequire(ok);
-    ndbrequire(ref->errorCode != 0);
-    execute(signal, callback, ref->errorCode);
+    if(ok)
+    {
+      ndbrequire(ref->errorCode != 0);
+      execute(signal, callback, ref->errorCode);
+    }
+    else
+    {
+      D("handleDictRef - failed to find callback function, invalid schema transaction key"); 
+    }
   }
 
   /*
@@ -2623,7 +2736,7 @@ private:
   };
 
   typedef ArrayPool<TxHandle> TxHandle_pool;
-  typedef DLMHashTable<TxHandle_pool, TxHandle> TxHandle_hash;
+  typedef DLMHashTable<TxHandle_pool> TxHandle_hash;
 
   TxHandle_pool c_txHandlePool;
   TxHandle_hash c_txHandleHash;
@@ -2651,7 +2764,7 @@ private:
   // MODULE: CreateTable
 
   struct CreateTableRec;
-  typedef RecordPool<CreateTableRec,ArenaPool> CreateTableRec_pool;
+  typedef RecordPool<ArenaPool<CreateTableRec> > CreateTableRec_pool;
 
   struct CreateTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -2680,6 +2793,12 @@ private:
     // flag if this op has been aborted in RT_PREPARE phase
     bool m_abortPrepareDone;
 
+    //
+    bool m_fully_replicated_trigger;
+
+    // Table has been modified by subOps
+    bool m_modified_by_subOps;
+
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2688,6 +2807,8 @@ private:
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
       m_abortPrepareDone = false;
+      m_fully_replicated_trigger = false;
+      m_modified_by_subOps = false;
     }
 
 #ifdef VM_TRACE
@@ -2714,11 +2835,19 @@ private:
   void createTable_abortParse(Signal*, SchemaOpPtr);
   void createTable_abortPrepare(Signal*, SchemaOpPtr);
 
+  //
+  void markTableModifiedBySubOp(SchemaOpPtr, Uint32 tableId);
+
   // prepare
   void createTab_writeTableConf(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_local(Signal*, SchemaOpPtr, OpSection fragSec, Callback*);
   void createTab_dih(Signal*, SchemaOpPtr);
   void createTab_localComplete(Signal*, Uint32 op_key, Uint32 ret);
+
+  void createTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void createTable_fromCreateTrigger(Signal* signal,
+                                     Uint32 op_key,
+                                     Uint32 ret);
 
   // commit
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
@@ -2730,7 +2859,7 @@ private:
   // MODULE: DropTable
 
   struct DropTableRec;
-  typedef RecordPool<DropTableRec,ArenaPool> DropTableRec_pool;
+  typedef RecordPool<ArenaPool<DropTableRec> > DropTableRec_pool;
 
   struct DropTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -2741,6 +2870,7 @@ private:
     }
 
     DropTabReq m_request;
+    bool m_fully_replicated_trigger;
 
     // wl3600_todo check mutex name and number later
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
@@ -2754,6 +2884,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_block = 0;
+      m_fully_replicated_trigger = false;
     }
 
 #ifdef VM_TRACE
@@ -2783,6 +2914,11 @@ private:
   // prepare
   void dropTable_backup_mutex_locked(Signal*, Uint32 op_key, Uint32 ret);
 
+  void dropTable_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr);
+  void dropTable_fromDropTrigger(Signal* signal,
+                                 Uint32 op_key,
+                                 Uint32 ret);
+
   // commit
   void dropTable_commit_nextStep(Signal*, SchemaOpPtr);
   void dropTable_commit_fromLocal(Signal*, Uint32 op_key, Uint32 errorCode);
@@ -2796,7 +2932,7 @@ private:
   // MODULE: AlterTable
 
   struct AlterTableRec;
-  typedef RecordPool<AlterTableRec,ArenaPool> AlterTableRec_pool;
+  typedef RecordPool<ArenaPool<AlterTableRec> > AlterTableRec_pool;
 
   struct AlterTableRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -2834,9 +2970,12 @@ private:
     // used for creating subops for add partitions, wrt ordered index
     bool m_sub_reorg_commit;
     bool m_sub_reorg_complete;
-    bool m_sub_add_frag;
+    bool m_sub_read_backup;
+    Uint32 m_sub_read_backup_ptr;
+    bool m_sub_add_ordered_index_frag;
+    bool m_sub_add_unique_index_frag;
     Uint32 m_sub_add_frag_index_ptr;
-    bool m_sub_trigger;
+    bool m_sub_reorg_trigger;
     bool m_sub_copy_data;
     bool m_sub_suma_enable;
     bool m_sub_suma_filter;
@@ -2852,11 +2991,14 @@ private:
       m_blockNo[2] = DBSPJ;
       m_blockNo[3] = DBTC;
       m_blockIndex = 0;
+      m_sub_read_backup = false;
+      m_sub_read_backup_ptr = RNIL;
       m_sub_add_frag_index_ptr = RNIL;
-      m_sub_add_frag = false;
+      m_sub_add_ordered_index_frag = false;
+      m_sub_add_unique_index_frag = false;
       m_sub_reorg_commit = false;
       m_sub_reorg_complete = false;
-      m_sub_trigger = false;
+      m_sub_reorg_trigger = false;
       m_sub_copy_data = false;
       m_sub_suma_enable = false;
       m_sub_suma_filter = false;
@@ -2885,6 +3027,16 @@ private:
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
 
+  void alterTable_toReadBackup(Signal *signal,
+                               SchemaOpPtr op_ptr,
+                               TableRecordPtr indexPtr,
+                               TableRecordPtr tablePtr);
+
+  void alterTable_toAlterUniqueIndex(Signal *signal,
+                                     SchemaOpPtr op_ptr,
+                                     TableRecordPtr indexPtr,
+                                     TableRecordPtr tablePtr);
+
   void alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr);
   void alterTable_fromCopyData(Signal*, Uint32 op_key, Uint32 ret);
 
@@ -2893,7 +3045,7 @@ private:
   void alterTable_toLocal(Signal*, SchemaOpPtr);
   void alterTable_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
-  void alterTable_toAlterIndex(Signal*, SchemaOpPtr);
+  void alterTable_toAlterOrderedIndex(Signal*, SchemaOpPtr);
   void alterTable_fromAlterIndex(Signal*, Uint32 op_key, Uint32 ret);
 
   void alterTable_toReorgTable(Signal*, SchemaOpPtr, Uint32 step);
@@ -2925,7 +3077,7 @@ private:
   } AttributeMap[MAX_ATTRIBUTES_IN_INDEX];
 
   struct CreateIndexRec;
-  typedef RecordPool<CreateIndexRec,ArenaPool> CreateIndexRec_pool;
+  typedef RecordPool<ArenaPool<CreateIndexRec> > CreateIndexRec_pool;
 
   struct CreateIndexRec : public OpRec {
     CreateIndxImplReq m_request;
@@ -2995,7 +3147,7 @@ private:
   // MODULE: DropIndex
 
   struct DropIndexRec;
-  typedef RecordPool<DropIndexRec,ArenaPool> DropIndexRec_pool;
+  typedef RecordPool<ArenaPool<DropIndexRec> > DropIndexRec_pool;
 
   struct DropIndexRec : public OpRec {
     DropIndxImplReq m_request;
@@ -3060,9 +3212,10 @@ private:
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
   static const TriggerTmpl g_reorgTriggerTmpl[1];
   static const TriggerTmpl g_fkTriggerTmpl[2];
+  static const TriggerTmpl g_fullyReplicatedTriggerTmp[1];
 
   struct AlterIndexRec;
-  typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
+  typedef RecordPool<ArenaPool<AlterIndexRec> > AlterIndexRec_pool;
 
   struct AlterIndexRec : public OpRec {
     AlterIndxImplReq m_request;
@@ -3160,7 +3313,7 @@ private:
   typedef Id_array<1 + MAX_ATTRIBUTES_IN_INDEX> FragAttributeList;
 
   struct BuildIndexRec;
-  typedef RecordPool<BuildIndexRec,ArenaPool> BuildIndexRec_pool;
+  typedef RecordPool<ArenaPool<BuildIndexRec> > BuildIndexRec_pool;
 
   struct BuildIndexRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3239,7 +3392,7 @@ private:
   // MODULE: IndexStat
 
   struct IndexStatRec;
-  typedef RecordPool<IndexStatRec,ArenaPool> IndexStatRec_pool;
+  typedef RecordPool<ArenaPool<IndexStatRec> > IndexStatRec_pool;
 
   struct IndexStatRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3333,7 +3486,7 @@ private:
   HashMapRecord_pool& get_pool(HashMapRecordPtr) { return c_hash_map_pool; }
 
   struct CreateHashMapRec;
-  typedef RecordPool<CreateHashMapRec,ArenaPool> CreateHashMapRec_pool;
+  typedef RecordPool<ArenaPool<CreateHashMapRec> > CreateHashMapRec_pool;
 
   struct CreateHashMapRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3377,7 +3530,7 @@ private:
   // MODULE: CopyData
 
   struct CopyDataRec;
-  typedef RecordPool<CopyDataRec,ArenaPool> CopyDataRec_pool;
+  typedef RecordPool<ArenaPool<CopyDataRec> > CopyDataRec_pool;
 
   struct CopyDataRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3543,7 +3696,7 @@ private:
   // MODULE: CreateTrigger
 
   struct CreateTriggerRec;
-  typedef RecordPool<CreateTriggerRec,ArenaPool> CreateTriggerRec_pool;
+  typedef RecordPool<ArenaPool<CreateTriggerRec> > CreateTriggerRec_pool;
 
   struct CreateTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3607,7 +3760,7 @@ private:
   // MODULE: DropTrigger
 
   struct DropTriggerRec;
-  typedef RecordPool<DropTriggerRec,ArenaPool> DropTriggerRec_pool;
+  typedef RecordPool<ArenaPool<DropTriggerRec> > DropTriggerRec_pool;
 
   struct DropTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
@@ -3666,7 +3819,7 @@ private:
   // MODULE: CreateFilegroup
 
   struct CreateFilegroupRec;
-  typedef RecordPool<CreateFilegroupRec,ArenaPool> CreateFilegroupRec_pool;
+  typedef RecordPool<ArenaPool<CreateFilegroupRec> > CreateFilegroupRec_pool;
 
   struct CreateFilegroupRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3714,7 +3867,7 @@ private:
   // MODULE: CreateFile
 
   struct CreateFileRec;
-  typedef RecordPool<CreateFileRec,ArenaPool> CreateFileRec_pool;
+  typedef RecordPool<ArenaPool<CreateFileRec> > CreateFileRec_pool;
 
   struct CreateFileRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3762,7 +3915,7 @@ private:
   // MODULE: DropFilegroup
 
   struct DropFilegroupRec;
-  typedef RecordPool<DropFilegroupRec,ArenaPool> DropFilegroupRec_pool;
+  typedef RecordPool<ArenaPool<DropFilegroupRec> > DropFilegroupRec_pool;
 
   struct DropFilegroupRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3807,7 +3960,7 @@ private:
   // MODULE: DropFile
 
   struct DropFileRec;
-  typedef RecordPool<DropFileRec,ArenaPool> DropFileRec_pool;
+  typedef RecordPool<ArenaPool<DropFileRec> > DropFileRec_pool;
 
   struct DropFileRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -3852,7 +4005,7 @@ private:
   // MODULE: CreateNodegroup
 
   struct CreateNodegroupRec;
-  typedef RecordPool<CreateNodegroupRec,ArenaPool> CreateNodegroupRec_pool;
+  typedef RecordPool<ArenaPool<CreateNodegroupRec> > CreateNodegroupRec_pool;
 
   struct CreateNodegroupRec : public OpRec {
     bool m_map_created;
@@ -3923,7 +4076,7 @@ private:
   // MODULE: DropNodegroup
 
   struct DropNodegroupRec;
-  typedef RecordPool<DropNodegroupRec,ArenaPool> DropNodegroupRec_pool;
+  typedef RecordPool<ArenaPool<DropNodegroupRec> > DropNodegroupRec_pool;
 
   struct DropNodegroupRec : public OpRec {
     DropNodegroupImplReq m_request;
@@ -3987,7 +4140,7 @@ private:
 
   // MODULE: CreateFK
   struct CreateFKRec;
-  typedef RecordPool<CreateFKRec,ArenaPool> CreateFKRec_pool;
+  typedef RecordPool<ArenaPool<CreateFKRec> > CreateFKRec_pool;
 
   struct CreateFKRec : public OpRec {
     bool m_parsed;
@@ -4051,7 +4204,7 @@ private:
 
   // MODULE: BuildFK
   struct BuildFKRec;
-  typedef RecordPool<BuildFKRec,ArenaPool> BuildFKRec_pool;
+  typedef RecordPool<ArenaPool<BuildFKRec> > BuildFKRec_pool;
 
   struct BuildFKRec : public OpRec {
     bool m_parsed, m_prepared;
@@ -4101,7 +4254,7 @@ private:
 
   // MODULE: DropFK
   struct DropFKRec;
-  typedef RecordPool<DropFKRec,ArenaPool> DropFKRec_pool;
+  typedef RecordPool<ArenaPool<DropFKRec> > DropFKRec_pool;
 
   struct DropFKRec : public OpRec {
     bool m_parsed;
@@ -4203,7 +4356,7 @@ private:
   };
 
   typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
-  typedef RecordPool<ForeignKeyRec, RWPool> ForeignKeyRec_pool;
+  typedef RecordPool<RWPool<ForeignKeyRec> > ForeignKeyRec_pool;
 
   ForeignKeyRec_pool c_fk_pool;
 
@@ -4232,14 +4385,14 @@ private:
   OpRecordUnion_pool c_opRecordPool;
 
   // Operation records
-  typedef KeyTable2C<OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
-  typedef KeyTable2C<OpSubEvent, OpRecordUnion> OpSubEvent_pool;
-  typedef KeyTable2C<OpDropEvent, OpRecordUnion> OpDropEvent_pool;
-  typedef KeyTable2C<OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
-  OpCreateEvent_pool c_opCreateEvent;
-  OpSubEvent_pool c_opSubEvent;
-  OpDropEvent_pool c_opDropEvent;
-  OpSignalUtil_pool c_opSignalUtil;
+  typedef KeyTable2C<OpRecordUnion_pool, OpCreateEvent> OpCreateEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSubEvent> OpSubEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpDropEvent> OpDropEvent_keyhash;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSignalUtil> OpSignalUtil_keyhash;
+  OpCreateEvent_keyhash c_opCreateEvent;
+  OpSubEvent_keyhash c_opSubEvent;
+  OpDropEvent_keyhash c_opDropEvent;
+  OpSignalUtil_keyhash c_opSignalUtil;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
@@ -4403,11 +4556,13 @@ private:
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   // FK re-enable (create triggers) on start up
+  void checkFkTriggerIds(Signal*);
   void enableFKs(Signal* signal, Uint32 i);
   void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
+  bool c_nr_upgrade_fks_done;
   Uint32 c_at_restart_skip_indexes;
   Uint32 c_at_restart_skip_fks;
 
@@ -4645,7 +4800,11 @@ public:
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
 
-  Uint32 get_default_fragments(Signal*, Uint32 extra_nodegroups = 0);
+  Uint32 get_default_fragments(Signal*,
+                               Uint32 partitionBalance,
+                               Uint32 extra_nodegroups);
+  Uint32 get_default_partitions_fully_replicated(Signal *signal,
+                                                 Uint32 partitionBalance);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

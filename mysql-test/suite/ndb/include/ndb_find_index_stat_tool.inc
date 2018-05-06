@@ -19,7 +19,7 @@ if (! -d "$basedir/sql" and ! -d "$basedir/bin" )
 my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 my $NDB_INDEX_STAT =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_index_stat");
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR" ;

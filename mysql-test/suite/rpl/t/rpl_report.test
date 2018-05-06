@@ -1,15 +1,15 @@
 # Verify that mysqld init time --report-{host,port,user,password} parameters
-# are SHOW-able and SELECT-able FROM INFORMATION_SCHEMA.global_variables
+# are SHOW-able and SELECT-able FROM performance_schema.global_variables
 
 --source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
 
 connection slave;
 --disable_warnings
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_user';
-select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_password';
+select * from performance_schema.global_variables where variable_name like 'report_host';
+select * from performance_schema.global_variables where variable_name like 'report_port';
+select * from performance_schema.global_variables where variable_name like 'report_user';
+select * from performance_schema.global_variables where variable_name like 'report_password';
 --enable_warnings
 query_vertical show global variables like 'report_host';
 query_vertical show global variables like 'report_port';

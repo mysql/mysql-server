@@ -1,17 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later for the different users.
 let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
 let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
 let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
-# Test of GRANT commands
+let $date_to_restore_inf_schema_user=`SELECT password_last_changed from mysql.user where user='mysql.infoschema'`;
 
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
+# Test of GRANT commands
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -19,13 +13,8 @@ let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user 
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 
-#
-# Remove NO_AUTO_CREATE_USER sql mode (default from 5.7)
-#
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 # Cleanup
 --disable_warnings
@@ -37,52 +26,9 @@ connect (master,localhost,root,,);
 connection master;
 SET NAMES binary;
 #
-# Test that SSL options works properly
-#
-
-delete from mysql.user where user='mysqltest_1';
-delete from mysql.db where user='mysqltest_1';
-flush privileges;
-grant select on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
-show grants for mysqltest_1@localhost;
-grant delete on mysqltest.* to mysqltest_1@localhost;
---replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
-query_vertical select * from mysql.user where user="mysqltest_1";
-show grants for mysqltest_1@localhost;
-revoke delete on mysqltest.* from mysqltest_1@localhost;
-show grants for mysqltest_1@localhost;
-grant select on mysqltest.* to mysqltest_1@localhost require NONE;
-show grants for mysqltest_1@localhost;
-grant USAGE on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "testsubject" ISSUER "MySQL AB";
-show grants for mysqltest_1@localhost;
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
-show grants for mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
-flush privileges;
-
-#
-# Test of GRANTS specifying user limits
-#
-delete from mysql.user where user='mysqltest_1';
-flush privileges;
-grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
---replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
-query_vertical select * from mysql.user where user="mysqltest_1";
-show grants for mysqltest_1@localhost;
-grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
---replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
-query_vertical select * from mysql.user where user="mysqltest_1";
-show grants for mysqltest_1@localhost;
-# This is just to double check that one won't ignore results of selects
-flush privileges;
-show grants for mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
-flush privileges;
-
-#
 # Test that the new db privileges are stored/retrieved correctly
 #
-
+create user mysqltest_1@localhost;
 grant CREATE TEMPORARY TABLES, LOCK TABLES on mysqltest.* to mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 flush privileges;
@@ -95,8 +41,9 @@ show grants for mysqltest_1@localhost;
 revoke LOCK TABLES, ALTER on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
+drop user  mysqltest_1@localhost;
 flush privileges;
+create user mysqltest_1@localhost;
 grant usage on test.* to mysqltest_1@localhost with grant option;
 show grants for mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
@@ -111,6 +58,7 @@ show grants for mysqltest_1@localhost;
 # Test what happens when you have same table and colum level grants
 #
 
+create user mysqltest_1@localhost;
 create table t1 (a int);
 GRANT select,update,insert on t1 to mysqltest_1@localhost;
 GRANT select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;
@@ -122,6 +70,7 @@ REVOKE select,update,insert,insert (a) on t1 from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 GRANT select,references on t1 to mysqltest_1@localhost;
 select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+create user mysqltest_2@localhost, mysqltest_3@localhost;
 grant all on test.* to mysqltest_3@localhost with grant option;
 revoke all on test.* from mysqltest_3@localhost;
 show grants for mysqltest_3@localhost;
@@ -140,11 +89,22 @@ flush privileges;
 drop table t1;
 
 #
+# Test grants on long column names (causes std::string to allocate memory)
+#
+create user mysqltest_1@localhost;
+create table t1 (abcdefghijklmnopqrstuvwxyz int);
+GRANT select (abcdefghijklmnopqrstuvwxyz) on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+drop table t1;
+
+#
 # Test some error conditions
 #
 --error ER_WRONG_USAGE
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
 select 1;     # To test that the previous command didn't cause problems
+drop user mysqltest_1@localhost;
 
 #
 # Bug#4898 User privileges depending on ORDER BY Settings of table db
@@ -164,21 +124,23 @@ delete from mysql.db where user='test11';
 #
 # Bug#6123 GRANT USAGE inserts useless Db row
 #
+create user test6123 identified by 'magic123';
 create database mysqltest1;
-grant usage on mysqltest1.* to test6123 identified by 'magic123';
+grant usage on mysqltest1.* to test6123;
 select host,db,user,select_priv,insert_priv from mysql.db where db="mysqltest1";
 delete from mysql.user where user='test6123';
 drop database mysqltest1;
+flush privileges;
 
 #
 # Test for 'drop user', 'revoke privileges, grant'
 #
 
+create user drop_user@localhost, drop_user2@localhost;
 create table t1 (a int);
 grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
 show grants for drop_user2@localhost;
 revoke all privileges, grant option from drop_user2@localhost;
-drop user drop_user2@localhost;
 
 grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
@@ -207,6 +169,7 @@ drop user drop_user@localhost;
 --error ER_REVOKE_GRANTS
 revoke all privileges, grant option from drop_user@localhost;
 
+create user drop_user1@localhost, drop_user3@localhost, drop_user4@localhost;
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
@@ -221,7 +184,7 @@ drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
-grant usage on *.* to mysqltest_1@localhost identified by "password";
+create user mysqltest_1@localhost identified by "password";
 grant select, update, insert on test.* to mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
@@ -230,10 +193,12 @@ drop user mysqltest_1@localhost;
 # Bug#3403 Wrong encoding in SHOW GRANTS output
 #
 SET NAMES koi8r;
+--character_set koi8r
 CREATE DATABASE ÂÄ;
 USE ÂÄ;
 CREATE TABLE ÔÁÂ (ËÏÌ INT);
 
+CREATE USER ÀÚÅÒ@localhost;
 GRANT SELECT ON ÂÄ.* TO ÀÚÅÒ@localhost;
 SHOW GRANTS FOR ÀÚÅÒ@localhost;
 REVOKE SELECT ON ÂÄ.* FROM ÀÚÅÒ@localhost;
@@ -250,12 +215,14 @@ REVOKE SELECT (ËÏÌ) ON ÂÄ.ÔÁÂ FROM ÀÚÅÒ@localhost;
 DROP USER ÀÚÅÒ@localhost;
 
 DROP DATABASE ÂÄ;
+--character_set utf8mb4
 SET NAMES latin1;
 
 #
 # Bug#5831 REVOKE ALL PRIVILEGES, GRANT OPTION does not revoke everything
 #
 USE test;
+create user testuser@localhost;
 CREATE TABLE t1 (a int );
 CREATE TABLE t2 LIKE t1;
 CREATE TABLE t3 LIKE t1;
@@ -326,6 +293,7 @@ DROP DATABASE testdb10;
 #
 
 create table t1(a int, b int, c int, d int);
+create user grant_user@localhost;
 grant insert(b), insert(c), insert(d), insert(a) on t1 to grant_user@localhost;
 show grants for grant_user@localhost;
 select Host,Db,User,Table_name,Column_name,Column_priv from mysql.columns_priv order by Column_name;
@@ -346,6 +314,7 @@ create table mysqltest_2.t1 select 1 c, 2 s;
 create table mysqltest_2.t2 select 1 d, 2 t;
 
 # test the column privileges
+create user mysqltest_3@localhost;
 grant update (a) on mysqltest_1.t1 to mysqltest_3@localhost;
 grant select (b) on mysqltest_1.t2 to mysqltest_3@localhost;
 grant select (c) on mysqltest_2.t1 to mysqltest_3@localhost;
@@ -416,6 +385,7 @@ delete from mysql.user where user='mysqltest_3';
 delete from mysql.db where user="mysqltest_3";
 delete from mysql.tables_priv where user="mysqltest_3";
 delete from mysql.columns_priv where user="mysqltest_3";
+delete from mysql.global_grants where user="mysqltest_3";
 flush privileges;
 drop database mysqltest_1;
 drop database mysqltest_2;
@@ -424,6 +394,7 @@ disconnect conn2;
 #
 # just SHOW PRIVILEGES test
 #
+--sorted_result
 SHOW PRIVILEGES;
 
 #
@@ -435,6 +406,7 @@ connection root;
 create database mysqltest;
 --enable_warnings
 create table mysqltest.t1 (a int,b int,c int);
+create user mysqltest_1@localhost;
 grant all on mysqltest.t1 to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
@@ -566,6 +538,7 @@ show grants for mysqltest_7@;
 create database mysqltest;
 use mysqltest;
 create table t1(f1 int);
+CREATE USER mysqltest1@'%', mysqltest1@'192.%';
 GRANT DELETE ON mysqltest.t1 TO mysqltest1@'%';
 GRANT SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
 show grants for mysqltest1@'192.%';
@@ -583,6 +556,7 @@ connection master;
 create database db27515;
 use db27515;
 create table t1 (a int);
+create user user27515@localhost;
 grant alter on db27515.t1 to user27515@localhost;
 grant insert, create on db27515.t2 to user27515@localhost;
 
@@ -768,11 +742,11 @@ CREATE VIEW  v_yn AS SELECT * FROM t_nn;
 CREATE VIEW  v_gy AS SELECT * FROM t_nn;
 CREATE VIEW  v_ny AS SELECT * FROM t_nn;
 CREATE VIEW  v_yy AS SELECT * FROM t_nn WHERE c1=55;
-
-GRANT SHOW VIEW        ON mysqltest2.v_ny TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
-GRANT SELECT           ON mysqltest2.v_yn TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
-GRANT SELECT           ON mysqltest2.*    TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
-GRANT SHOW VIEW,SELECT ON mysqltest2.v_yy TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+CREATE USER 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+GRANT SHOW VIEW        ON mysqltest2.v_ny TO 'mysqltest_1'@'localhost';
+GRANT SELECT           ON mysqltest2.v_yn TO 'mysqltest_1'@'localhost';
+GRANT SELECT           ON mysqltest2.*    TO 'mysqltest_1'@'localhost';
+GRANT SHOW VIEW,SELECT ON mysqltest2.v_yy TO 'mysqltest_1'@'localhost';
 
 connect (mysqltest_1, localhost, mysqltest_1, mysqltest_1,);
 
@@ -1067,6 +1041,7 @@ CREATE FUNCTION mysqltest3.f_def() RETURNS INT SQL SECURITY DEFINER
 CREATE FUNCTION mysqltest4.f_inv() RETURNS INT SQL SECURITY INVOKER
   RETURN 1;
 
+CREATE USER mysqltest_1@localhost;
 GRANT EXECUTE ON PROCEDURE mysqltest1.p_def TO mysqltest_1@localhost;
 GRANT EXECUTE ON PROCEDURE mysqltest2.p_inv TO mysqltest_1@localhost;
 GRANT EXECUTE ON FUNCTION mysqltest3.f_def TO mysqltest_1@localhost;
@@ -1137,6 +1112,7 @@ DROP DATABASE IF EXISTS mysqltest2;
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
 
+CREATE USER mysqltest_1@localhost;
 GRANT ALL PRIVILEGES ON mysqltest1.* TO mysqltest_1@localhost;
 GRANT SELECT ON mysqltest2.* TO mysqltest_1@localhost;
 
@@ -1196,6 +1172,7 @@ CREATE DATABASE mysqltest2;
 CREATE TABLE mysqltest1.t1(c INT);
 CREATE TABLE mysqltest2.t2(c INT);
 
+CREATE USER mysqltest_1@localhost, mysqltest_2@localhost;
 GRANT SELECT ON mysqltest1.t1 TO mysqltest_1@localhost;
 GRANT SELECT ON mysqltest2.t2 TO mysqltest_2@localhost;
 
@@ -1271,6 +1248,7 @@ USE test;
 CREATE TABLE t1 (f1 int, f2 int);
 INSERT INTO t1 VALUES(1,1), (2,2);
 CREATE DATABASE db27878;
+CREATE USER 'mysqltest_1'@'localhost';
 GRANT UPDATE(f1) ON t1 TO 'mysqltest_1'@'localhost';
 GRANT SELECT ON `test`.* TO 'mysqltest_1'@'localhost';
 GRANT ALL ON db27878.* TO 'mysqltest_1'@'localhost';
@@ -1318,6 +1296,7 @@ begin
 end|
 delimiter ;|
 create view v1 as select test.* from test where test.col1=test_function();
+create user 'greg'@'localhost';
 grant update (col1) on v1 to 'greg'@'localhost';
 drop user 'greg'@'localhost';
 drop view v1;
@@ -1395,6 +1374,8 @@ EXECUTE s1;
 
 --error ER_COLUMNACCESS_DENIED_ERROR
 SELECT b FROM t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT SUM(b) OVER () FROM t1;
 
 --error ER_COLUMNACCESS_DENIED_ERROR
 EXECUTE s1;
@@ -1616,6 +1597,7 @@ drop database mysqltest1;
 #
 --character_set utf8
 set names utf8;
+create user ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€@localhost;
 grant select on test.* to ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€@localhost;
 --execw $MYSQL --default-character-set=utf8 --user=ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€ -e "select user()"
 revoke all on test.* from ÑŽÐ·ÐµÑ€_ÑŽÐ·ÐµÑ€@localhost;
@@ -1631,6 +1613,7 @@ set names default;
 create database mysqltest;
 use mysqltest;
 
+create user mysqltest@localhost;
 grant create on mysqltest.* to mysqltest@localhost;
 create table t1 (i INT);
 
@@ -1718,11 +1701,11 @@ CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
 CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_TABLE
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
+--error ER_NO_SUCH_TABLE
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
 CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
-DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 
 
@@ -1788,7 +1771,7 @@ SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creato
 #
 # Bug#44658 Create procedure makes server crash when user does not have ALL privilege
 #
-CREATE USER user1;
+CREATE USER user1@localhost;
 CREATE USER user2;
 GRANT CREATE ON db1.* TO 'user1'@'localhost';
 GRANT CREATE ROUTINE ON db1.* TO 'user1'@'localhost';
@@ -1834,7 +1817,6 @@ DROP PROCEDURE db1.proc1;
 DROP PROCEDURE db1.proc2;
 REVOKE ALL ON db1.* FROM 'user1'@'localhost';
 REVOKE ALL ON db1.* FROM 'user2'@'%';
-DROP USER 'user1';
 DROP USER 'user1'@'localhost';
 DROP USER 'user2';
 DROP DATABASE db1;
@@ -1850,16 +1832,19 @@ connect(conn1,localhost,root,,*NO-ONE*);
 --error ER_NO_DB_ERROR
 GRANT ALL ON * TO mysqltest_1;
 
+CREATE USER mysqltest_1;
 GRANT ALL ON *.* TO mysqltest_1;
 SHOW GRANTS FOR mysqltest_1;
 DROP USER mysqltest_1;
 
 USE test;
 
+CREATE USER mysqltest_1;
 GRANT ALL ON * TO mysqltest_1;
 SHOW GRANTS FOR mysqltest_1;
 DROP USER mysqltest_1;
 
+CREATE USER mysqltest_1;
 GRANT ALL ON *.* TO mysqltest_1;
 SHOW GRANTS FOR mysqltest_1;
 DROP USER mysqltest_1;
@@ -1874,6 +1859,7 @@ disconnect conn1;
 
 CREATE DATABASE db1;
 CREATE DATABASE db2;
+CREATE USER 'testbug'@localhost;
 GRANT SELECT ON db1.* to 'testbug'@localhost;
 USE db2;
 CREATE TABLE t1 (a INT);
@@ -1895,7 +1881,8 @@ DROP DATABASE db2;
 --echo #
 --echo # Bug #36742
 --echo #
-grant usage on Foo.* to myuser@Localhost identified by 'foo';
+create user myuser@Localhost identified by 'foo';
+grant usage on Foo.* to myuser@Localhost;
 grant select on Foo.* to myuser@localhost;
 select host,user from mysql.user where User='myuser';
 revoke select on Foo.* from myuser@localhost;
@@ -1931,7 +1918,7 @@ CREATE TABLE mysqltest_db1.t1(a INT);
 --echo # --
 --echo # -- Check that global privileges don't allow SHOW CREATE TABLE.
 --echo # --
-
+CREATE USER mysqltest_u1@localhost;
 GRANT EVENT                   ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u1@localhost;
 GRANT LOCK TABLES             ON mysqltest_db1.* TO mysqltest_u1@localhost;
@@ -2261,6 +2248,7 @@ DROP DATABASE IF EXISTS no_such_db;
 --enable_warnings
 
 CREATE DATABASE secret;
+CREATE USER 'untrusted'@localhost;
 GRANT USAGE ON *.* TO 'untrusted'@localhost;
 
 --echo # Connection con1
@@ -2345,7 +2333,9 @@ connect(con1,localhost,wl7131,wl7131,,);
 --error 1820
 SELECT 1;
 --echo # Setting password should work
+--disable_ps_protocol
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
+--enable_ps_protocol
 --echo # Doing something should pass
 SELECT 1;
 disconnect con1;
@@ -2404,7 +2394,7 @@ let $password_change_time_1=`SELECT password_last_changed FROM mysql.user where 
 --disable_query_log ONCE
 --eval SELECT '$password_change_time_1' IS NOT NULL
 --sleep 1
-GRANT USAGE ON *.* TO 'wl7131' REQUIRE SSL;
+ALTER USER 'wl7131' REQUIRE SSL;
 let $password_change_time_2=`SELECT password_last_changed FROM mysql.user where user='wl7131'`;
 --echo # This should report 0 as it must have the same value as above
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
@@ -2426,7 +2416,7 @@ ALTER USER 'wl7131' IDENTIFIED BY '';
 SELECT (SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2;
 DROP USER 'wl7131';
 
-GRANT USAGE ON *.* TO 'wl7131'@'localhost' IDENTIFIED BY 'wl7131';
+CREATE USER 'wl7131'@'localhost' IDENTIFIED BY 'wl7131';
 
 --echo # Must report 1
 SELECT (SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT NULL;
@@ -2437,6 +2427,7 @@ DROP USER 'wl7131'@'localhost';
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_inf_schema_user' WHERE USER= 'mysql.infoschema'
 --enable_query_log
 --echo # mysql.user table restored to original values.
 
@@ -2742,6 +2733,56 @@ disconnect conn_su;
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
+
+--echo #
+--echo # Regression test added in WL#8657
+--echo #
+
+CREATE DATABASE db8657;
+CREATE TABLE db8657.t1 (i INT);
+
+CREATE USER 'untrusted8657'@'localhost';
+
+--echo # Connection con1
+connect (con1, localhost, untrusted8657);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE INDEX ON db8657.t1 (i);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+PREPARE stmt FROM 'CREATE TABLE db8657.t2 (i INT)';
+
+disconnect con1;
+connection default;
+
+SHOW CREATE TABLE db8657.t1;
+
+DROP USER 'untrusted8657'@localhost;
+DROP DATABASE db8657;
+
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+CREATE DATABASE db8063;
+CREATE TABLE db8063.t1(a VARCHAR(20));
+
+CREATE USER 'untrusted8063'@'localhost';
+
+
+--echo # Connection con1
+connect (con1, localhost, untrusted8063);
+
+--error ER_ACCESS_DENIED_ERROR
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE db8063.t1;
+
+disconnect con1;
+connection default;
+
+SHOW CREATE TABLE db8063.t1;
+
+DROP USER 'untrusted8063'@localhost;
+DROP DATABASE db8063;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

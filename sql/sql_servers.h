@@ -1,66 +1,78 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                  /* uint */
-#include "sql_cmd.h"
-#include "sql_string.h"
-#include "sql_alloc.h"
+#include <stddef.h>
+
+#include "lex_string.h"
+#include "my_sqlcommand.h"
+#include "sql/sql_cmd.h"  // Sql_cmd
 
 class THD;
+struct MEM_ROOT;
 struct TABLE;
-typedef struct st_mem_root MEM_ROOT;
 
-class FOREIGN_SERVER : public Sql_alloc
-{
-public:
+class FOREIGN_SERVER {
+ public:
   char *server_name;
   long port;
   size_t server_name_length;
   char *db, *scheme, *username, *password, *socket, *owner, *host, *sport;
 
   FOREIGN_SERVER()
-    : server_name(NULL), port(-1), server_name_length(0), db(NULL),
-    scheme(NULL), username(NULL), password(NULL), socket(NULL),
-    owner(NULL), host(NULL), sport(NULL)
-  { }
+      : server_name(NULL),
+        port(-1),
+        server_name_length(0),
+        db(NULL),
+        scheme(NULL),
+        username(NULL),
+        password(NULL),
+        socket(NULL),
+        owner(NULL),
+        host(NULL),
+        sport(NULL) {}
 };
-
 
 /* cache handlers */
 bool servers_init(bool dont_read_server_table);
 bool servers_reload(THD *thd);
-void servers_free(bool end=0);
+void servers_free(bool end = 0);
 
 /* lookup functions */
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
                                    FOREIGN_SERVER *server_buffer);
 
-
 /**
    This class represent server options as set by the parser.
  */
 
-class Server_options
-{
-public:
-  static const long PORT_NOT_SET= -1;
+class Server_options {
+ public:
+  static const long PORT_NOT_SET = -1;
   LEX_STRING m_server_name;
-private:
+
+ private:
   long m_port;
   LEX_STRING m_host;
   LEX_STRING m_db;
@@ -70,24 +82,24 @@ private:
   LEX_STRING m_socket;
   LEX_STRING m_owner;
 
-public:
-  void set_port(long port)               { m_port= port; }
-  void set_host(LEX_STRING host)         { m_host= host; }
-  void set_db(LEX_STRING db)             { m_db= db; }
-  void set_username(LEX_STRING username) { m_username= username; }
-  void set_password(LEX_STRING password) { m_password= password; }
-  void set_scheme(LEX_STRING scheme)     { m_scheme= scheme; }
-  void set_socket(LEX_STRING socket)     { m_socket= socket; }
-  void set_owner(LEX_STRING owner)       { m_owner= owner; }
+ public:
+  void set_port(long port) { m_port = port; }
+  void set_host(LEX_STRING host) { m_host = host; }
+  void set_db(LEX_STRING db) { m_db = db; }
+  void set_username(LEX_STRING username) { m_username = username; }
+  void set_password(LEX_STRING password) { m_password = password; }
+  void set_scheme(LEX_STRING scheme) { m_scheme = scheme; }
+  void set_socket(LEX_STRING socket) { m_socket = socket; }
+  void set_owner(LEX_STRING owner) { m_owner = owner; }
 
-  long get_port() const            { return m_port; }
-  const char *get_host() const     { return m_host.str; }
-  const char *get_db() const       { return m_db.str; }
+  long get_port() const { return m_port; }
+  const char *get_host() const { return m_host.str; }
+  const char *get_db() const { return m_db.str; }
   const char *get_username() const { return m_username.str; }
   const char *get_password() const { return m_password.str; }
-  const char *get_scheme() const   { return m_scheme.str; }
-  const char *get_socket() const   { return m_socket.str; }
-  const char *get_owner() const    { return m_owner.str; }
+  const char *get_scheme() const { return m_scheme.str; }
+  const char *get_socket() const { return m_socket.str; }
+  const char *get_owner() const { return m_owner.str; }
 
   /**
      Reset all strings to NULL and port to PORT_NOT_SET.
@@ -128,22 +140,17 @@ public:
   void store_altered_server(TABLE *table, FOREIGN_SERVER *existing) const;
 };
 
-
 /**
    This class has common code for CREATE/ALTER/DROP SERVER statements.
 */
 
-class Sql_cmd_common_server : public Sql_cmd
-{
-protected:
+class Sql_cmd_common_server : public Sql_cmd {
+ protected:
   TABLE *table;
 
-  Sql_cmd_common_server()
-    : table(NULL)
-  { }
+  Sql_cmd_common_server() : table(NULL) {}
 
-  virtual ~Sql_cmd_common_server()
-  { }
+  virtual ~Sql_cmd_common_server() {}
 
   /**
      Check permissions and open the mysql.servers table.
@@ -155,13 +162,11 @@ protected:
   bool check_and_open_table(THD *thd);
 };
 
-
 /**
    This class implements the CREATE SERVER statement.
 */
 
-class Sql_cmd_create_server : public Sql_cmd_common_server
-{
+class Sql_cmd_create_server : public Sql_cmd_common_server {
   /**
      Server_options::m_server_name contains the name of the
      server to create. The remaining Server_options fields
@@ -170,13 +175,11 @@ class Sql_cmd_create_server : public Sql_cmd_common_server
   */
   const Server_options *m_server_options;
 
-public:
+ public:
   Sql_cmd_create_server(Server_options *server_options)
-    : Sql_cmd_common_server(), m_server_options(server_options)
-  { }
+      : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const
-  { return SQLCOM_CREATE_SERVER; }
+  enum_sql_command sql_command_code() const { return SQLCOM_CREATE_SERVER; }
 
   /**
      Create a new server by inserting a row into the
@@ -189,13 +192,11 @@ public:
   bool execute(THD *thd);
 };
 
-
 /**
    This class implements the ALTER SERVER statement.
 */
 
-class Sql_cmd_alter_server : public Sql_cmd_common_server
-{
+class Sql_cmd_alter_server : public Sql_cmd_common_server {
   /**
      Server_options::m_server_name contains the name of the
      server to change. The remaining Server_options fields
@@ -204,13 +205,11 @@ class Sql_cmd_alter_server : public Sql_cmd_common_server
   */
   const Server_options *m_server_options;
 
-public:
+ public:
   Sql_cmd_alter_server(Server_options *server_options)
-    : Sql_cmd_common_server(), m_server_options(server_options)
-  { }
+      : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const
-  { return SQLCOM_ALTER_SERVER; }
+  enum_sql_command sql_command_code() const { return SQLCOM_ALTER_SERVER; }
 
   /**
      Alter an existing server by updating the matching row in the
@@ -223,28 +222,24 @@ public:
   bool execute(THD *thd);
 };
 
-
 /**
    This class implements the DROP SERVER statement.
 */
 
-class Sql_cmd_drop_server : public Sql_cmd_common_server
-{
+class Sql_cmd_drop_server : public Sql_cmd_common_server {
   /// Name of server to drop
   LEX_STRING m_server_name;
 
   /// Is this DROP IF EXISTS?
   bool m_if_exists;
 
-public:
-  Sql_cmd_drop_server(LEX_STRING server_name,
-                      bool if_exists)
-    : Sql_cmd_common_server(),
-    m_server_name(server_name), m_if_exists(if_exists)
-  { }
+ public:
+  Sql_cmd_drop_server(LEX_STRING server_name, bool if_exists)
+      : Sql_cmd_common_server(),
+        m_server_name(server_name),
+        m_if_exists(if_exists) {}
 
-  enum_sql_command sql_command_code() const
-  { return SQLCOM_DROP_SERVER; }
+  enum_sql_command sql_command_code() const { return SQLCOM_DROP_SERVER; }
 
   /**
      Drop an existing server by deleting the matching row from the
@@ -256,6 +251,5 @@ public:
   */
   bool execute(THD *thd);
 };
-
 
 #endif /* SQL_SERVERS_INCLUDED */

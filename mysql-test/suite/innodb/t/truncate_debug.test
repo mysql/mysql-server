@@ -1,0 +1,43 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="+d,ib_truncate_fail_after_rename";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_rename";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_delete";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_delete";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_create_new_table";
+--error ER_GET_ERRNO
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+SET SESSION DEBUG="-d,ib_truncate_fail_after_create_new_table";
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;

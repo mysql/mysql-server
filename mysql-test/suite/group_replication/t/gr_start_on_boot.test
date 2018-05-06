@@ -1,0 +1,71 @@
+# ==== Purpose ====
+#
+# This test case was configured to have group_replication_start_on_boot enabled
+# (default value of the variable) for the first server.
+#
+# The server has the plug-in installed, but will fail to startup it because of
+# missing configurations. The test case will assert that the proper error
+# messages were logged at server's error log.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#23524460 CHANGE GROUP_REPLICATION_START_ON_BOOT OPTION DEFAULT TO ON
+#
+--source include/have_group_replication_plugin.inc
+
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("The group name option is mandatory");
+CALL mtr.add_suppression("Unable to start Group Replication on boot");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo ###########################################################
+--echo # 1. Assert the failed startup messages on server error log
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_start_on_boot.1.err
+# Each test will log only one warning line
+--let $assert_count= 1
+
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Plugin group_replication reported: 'The group name option is mandatory'
+--let $assert_text= The GR plug-in reported an error on group name option being mandatory
+--source include/assert_grep.inc
+
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Plugin group_replication reported: 'Unable to start Group Replication on boot'
+--let $assert_text= The GR plug-in reported an error stating it was unable to start Group Replication on boot
+--source include/assert_grep.inc
+
+--echo
+--echo ####################################################################
+--echo # 2. Assert global group_replication_start_on_boot variable behavior
+
+--let $assert_text= group_replication_start_on_boot is true by default on startup
+--let $assert_cond= @@GLOBAL.group_replication_start_on_boot = TRUE
+--source include/assert.inc
+
+SET @@GLOBAL.group_replication_start_on_boot = FALSE;
+--let $assert_text= group_replication_start_on_boot can be turned off
+--let $assert_cond= @@GLOBAL.group_replication_start_on_boot = FALSE
+--source include/assert.inc
+
+# Basic check: Test that variable doesn't accept invalid inputs.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_start_on_boot= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_start_on_boot= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_start_on_boot= 1.2;
+
+# Check default value.
+SET @@GLOBAL.group_replication_start_on_boot = DEFAULT;
+--let $assert_text= group_replication_start_on_boot is true when default value is set
+--let $assert_cond= @@GLOBAL.group_replication_start_on_boot = TRUE
+--source include/assert.inc
+
+--echo
+--echo ############
+--echo # 3. Cleanup
+
+--source include/gr_clear_configuration.inc

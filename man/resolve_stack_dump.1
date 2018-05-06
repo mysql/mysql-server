@@ -1,0 +1,136 @@
+'\" t
+.\"     Title: \fBresolve_stack_dump\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 04/04/2018
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 8.0
+.\"  Language: English
+.\"
+.TH "\FBRESOLVE_STACK_DUMP\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+resolve_stack_dump \- resolve numeric stack trace dump to symbols
+.SH "SYNOPSIS"
+.HP \w'\fBresolve_stack_dump\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIsymbols_file\fR\fR\fB\ [\fR\fB\fInumeric_dump_file\fR\fR\fB]\fR\ 'u
+\fBresolve_stack_dump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIsymbols_file\fR\fR\fB [\fR\fB\fInumeric_dump_file\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+\fBresolve_stack_dump\fR
+resolves a numeric stack dump to symbols\&.
+.PP
+Invoke
+\fBresolve_stack_dump\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBresolve_stack_dump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIsymbols_file\fR\fR\fB [\fR\fB\fInumeric_dump_file\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The symbols file should include the output from the
+\fBnm \-\-numeric\-sort mysqld\fR
+command\&. The numeric dump file should contain a numeric stack track from
+\fBmysqld\fR\&. If no numeric dump file is named on the command line, the stack trace is read from the standard input\&.
+.PP
+\fBresolve_stack_dump\fR
+supports the following options\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR,
+\fB\-h\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-numeric\-dump\-file=\fR\fB\fIfile_name\fR\fR,
+\fB\-n \fR\fB\fIfile_name\fR\fR
+.sp
+Read the stack trace from the given file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-symbols\-file=\fR\fB\fIfile_name\fR\fR,
+\fB\-s \fR\fB\fIfile_name\fR\fR
+.sp
+Use the given symbols file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit\&.
+.RE
+.PP
+For more information, see
+Section\ \&29.5.1.5, \(lqUsing a Stack Trace\(rq\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

@@ -1,0 +1,134 @@
+# This test evaluates that group replication will fail when the applier fails
+# applying events on start.
+#
+# The test guide is:
+# 0. A two member group with started plugins
+# 1. Create a table t1 on server 1 and replicate
+# 2. Insert a row on server 2 with log to the binlog disabled
+# 3. Write the same query in server 1
+#    On server 2 the duplicated key will make the applier fail.
+#    Server 2 will leave
+# 4. Stop server 2 and start it again. One of three things can happen:
+#  A. The applier fails after the join and the member leaves the group
+#     but the START GROUP_REPLICATION command does not fail
+#  B. The applier fails after initialization and sets the state to ERROR,
+#     making the group join fail that makes the START GROUP_REPLICATION
+#     command fail with a generic ER_GROUP_REPLICATION_CONFIGURATION.
+#  C. The applier fails and its initialization processes catches the error.
+#     During the start, it is known that the applier failed so the START
+#     GROUP_REPLICATION fails with error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+# 5. Verify that member is offline after stop
+# 6. Clean up
+#
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo #
+--echo # 1. Create a table on server 1 and replicate
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 2. Insert a row on server 2 with log to the binlog disabled
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (1);
+SET SESSION sql_log_bin= 1;
+
+--echo #
+--echo # 3. Write the same query in server 1
+--echo # On server 2 the duplicated key will make the applier fail.
+--echo # Server 2 will leave
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo # Expect ERROR state.
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo #
+--echo # 4. Stop server 2 and start it again. One of three things can happen:
+--echo #  A. The applier fails after the join and the member leaves the group
+--echo #     but the START GROUP_REPLICATION command does not fail
+--echo #  B. The applier fails after initialization and sets the state to ERROR,
+--echo #     making the group join fail that makes the START GROUP_REPLICATION
+--echo #     command fail with a generic ER_GROUP_REPLICATION_CONFIGURATION.
+--echo #  C. The applier fails and its initialization processes catches the error.
+--echo #     During the start, it is known that the applier failed so the START
+--echo #     GROUP_REPLICATION fails with: ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--echo #
+
+--source include/stop_group_replication.inc
+
+--error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+START GROUP_REPLICATION;
+
+#Either on A. B. or C. the member will be alone in the end (ERROR or OFFLINE)
+--let $wait_timeout= 120
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--echo #
+--echo # 5. Verify that member is offline after stop
+--echo #
+
+--let $skip_assert_read_only= 1
+--source include/stop_group_replication.inc
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo #
+--echo # 6. Clean up
+--echo #
+
+# if START GROUP_REPLICATION succeeds the super read only will be enabled and
+# we skip the disable on STOP. To prevent errors dropping table lets disable
+# read_only (that will disable super read only)
+SET GLOBAL read_only= 0;
+
+DROP TABLE t1;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check *.*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table");
+call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Can't evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("It was not possible to identify the group replication applier thread");
+call mtr.add_suppression("Error on group communication engine start");
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

@@ -1,9 +1,4 @@
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
---source include/have_innodb.inc
-
 #
 # Clean up after previous tests
 #
@@ -17,17 +12,51 @@ drop database if exists client_test_db;
 --exec $MYSQL_CHECK --repair  --databases mysql > /dev/null 2>&1
 --enable_warnings
 
+--disable_query_log
+# Create a dummy ndb_binlog_index in case we run without ndb to get similar results
+SET @have_ndb= (select count(engine) from information_schema.engines where engine='ndbcluster');
+SET @create_cmd="CREATE TABLE mysql.ndb_binlog_index (i INTEGER PRIMARY KEY)
+  ENGINE=INNODB STATS_PERSISTENT=0";
+SET @drop_cmd="DROP TABLE mysql.ndb_binlog_index";
+
+SET @create = IF(@have_ndb = 0, @create_cmd, 'SET @dummy = 0');
+SET @drop = IF(@have_ndb = 0, @drop_cmd, 'SET @dummy = 0');
+PREPARE create_stmt FROM @create;
+PREPARE drop_stmt FROM @drop;
+
+EXECUTE create_stmt;
+DROP PREPARE create_stmt;
+--enable_query_log
+
 #
 # Bug #13783  mysqlcheck tries to optimize and analyze information_schema
 #
 --replace_result 'Table is already up to date' OK
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --all-databases --analyze
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --all-databases --optimize
 --replace_result 'Table is already up to date' OK
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --analyze --databases test information_schema mysql
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --optimize  --databases test information_schema mysql
 --exec $MYSQL_CHECK --analyze information_schema schemata
 --exec $MYSQL_CHECK --optimize information_schema schemata
+
+# Drop dummy ndb_binlog_index table
+--disable_query_log
+EXECUTE drop_stmt;
+DROP PREPARE drop_stmt;
+--enable_query_log
 
 #
 # Bug #16502: mysqlcheck tries to check views
@@ -85,136 +114,9 @@ create view v1 as select * from information_schema.routines;
 check table v1, information_schema.routines;
 drop view v1;
 
-#
-# Bug#37527: mysqlcheck fails to report entire database 
-# when frm file corruption
-#
-CREATE TABLE t1(a INT) engine=myisam;
-CREATE TABLE t2(a INT) engine=myisam;
-# backup then null t1.frm
---copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t1.frm.bak
---remove_file $MYSQLD_DATADIR/test/t1.frm
---write_file $MYSQLD_DATADIR/test/t1.frm
-EOF
---exec $MYSQL_CHECK test
-# restore t1.frm
---remove_file $MYSQLD_DATADIR/test/t1.frm
---copy_file $MYSQLD_DATADIR/test/t1.frm.bak $MYSQLD_DATADIR/test/t1.frm
---remove_file $MYSQLD_DATADIR/test/t1.frm.bak
-DROP TABLE t1, t2;
-
 
 --echo End of 5.0 tests
 
-
-#
-# Bug #30679: 5.1 name encoding not performed for views during upgrade
-#
-create table t1(a int) engine=myisam;
-create view v1 as select * from t1;
-show tables;
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file $MYSQLD_DATADIR/test/v1.frm $MYSQLD_DATADIR/test/v-1.frm
-show tables;
---exec $MYSQL_CHECK --check-upgrade --databases test
---exec $MYSQL_CHECK --fix-table-names --databases test 2>&1
-show tables;
-drop view v1, `v-1`;
-drop table t1;
-
-
-#
-# Bug #33094: Error in upgrading from 5.0 to 5.1 when table contains triggers
-# Bug #41385: Crash when attempting to repair a #mysql50# upgraded table with
-#             triggers
-#
-SET NAMES utf8;
-CREATE TABLE `#mysql50#@` (a INT) engine=myisam;
-SHOW TABLES;
-SET NAMES DEFAULT;
---echo mysqlcheck --fix-table-names --databases test
---exec $MYSQL_CHECK --fix-table-names --databases test 2>&1
-SET NAMES utf8;
-SHOW TABLES;
-DROP TABLE `@`;
-
-CREATE TABLE `я` (a INT) engine=myisam;
-SET NAMES DEFAULT;
---echo mysqlcheck --default-character-set="latin1" --databases test
-# Error returned depends on platform, replace it with "Table doesn't exist"
-call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
---replace_result "Can't find file: './test/@003f.frm' (errno: 22 - Invalid argument)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"
---exec $MYSQL_CHECK --default-character-set="latin1" --databases test
---echo mysqlcheck --default-character-set="utf8" --databases test
---exec $MYSQL_CHECK --default-character-set="utf8" --databases test
-SET NAMES utf8;
-DROP TABLE `я`;
-SET NAMES DEFAULT;
-
-CREATE DATABASE `#mysql50#a@b`;
-USE `#mysql50#a@b`;
-CREATE TABLE `#mysql50#c@d` (a INT) engine=myisam;
-CREATE TABLE t1 (a INT) engine=myisam;
-
-# Create 5.0 like triggers
-let $MYSQLTEST_VARDIR= `select @@datadir`;
---write_file $MYSQLTEST_VARDIR/a@b/c@d.TRG
-TYPE=TRIGGERS
-triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1 BEFORE INSERT ON `c@d` FOR EACH ROW SET NEW.a = 10 * NEW.a'
-sql_modes=0
-definers='root@localhost'
-EOF
---write_file $MYSQLTEST_VARDIR/a@b/tr1.TRN
-TYPE=TRIGGERNAME
-trigger_table=c@d
-EOF
---write_file $MYSQLTEST_VARDIR/a@b/t1.TRG
-TYPE=TRIGGERS
-triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr2 BEFORE INSERT ON `a@b`.t1 FOR EACH ROW SET NEW.a = 100 * NEW.a'
-sql_modes=0
-definers='root@localhost'
-EOF
---write_file $MYSQLTEST_VARDIR/a@b/tr2.TRN
-TYPE=TRIGGERNAME
-trigger_table=t1
-EOF
-
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
-  WHERE TRIGGER_SCHEMA="#mysql50#a@b" ORDER BY trigger_name;
-
---echo mysqlcheck --fix-db-names --fix-table-names --all-databases
---exec $MYSQL_CHECK --default-character-set=utf8 --fix-db-names --fix-table-names --all-databases 2>&1
-
-USE `a@b`;
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
-  WHERE TRIGGER_SCHEMA="a@b" ORDER BY trigger_name;
-
-INSERT INTO `c@d` VALUES (2), (1);
-SELECT * FROM `c@d`;
-INSERT INTO t1 VALUES (3), (5);
-SELECT * FROM t1;
-
-DROP DATABASE `a@b`;
-
-USE test;
-
---echo #
---echo # Bug #31821: --all-in-1 and --fix-table-names don't work together
---echo #
-
---disable_warnings
-drop table if exists `#mysql50#t1-1`;
---enable_warnings
-
-create table `#mysql50#t1-1` (a int) engine=myisam;
---exec $MYSQL_CHECK --all-in-1 --fix-table-names --databases test 2>&1
-show tables like 't1-1';
-drop table `t1-1`;
-
-create table `#mysql50#t1-1` (a int) engine=myisam;
---exec $MYSQL_CHECK --all-in-1 --fix-table-names test "#mysql50#t1-1" 2>&1
-show tables like 't1-1';
-drop table `t1-1`;
 
 #
 # WL#3126 TCP address binding for mysql client library;
@@ -228,89 +130,8 @@ drop table `t1-1`;
 --echo # Bug #35269: mysqlcheck behaves different depending on order of parameters
 --echo #
 
---replace_regex /.*mysqlcheck(\.exe)*/mysqlcheck/
---error 13
---exec $MYSQL_CHECK -a --fix-table-names test "#mysql50#t1-1" 2>&1
 --error 1
 --exec $MYSQL_CHECK -aoc test "#mysql50#t1-1"
-
-
---echo #
---echo # Bug#11755431 47205: MAP 'REPAIR TABLE' TO RECREATE +ANALYZE FOR
---echo #              ENGINES NOT SUPPORTING NATIVE
---echo #
-
---disable_warnings
-DROP TABLE IF EXISTS bug47205;
---enable_warnings
-
---echo #
---echo # Test 1: Check that ALTER TABLE ... rebuilds the table
-
-CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
-  DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
-
-INSERT INTO bug47205 VALUES ("foobar");
-FLUSH TABLE bug47205;
-
---echo # Replace the FRM with a 5.0 FRM that will require upgrade
-let $MYSQLD_DATADIR= `select @@datadir`;
---remove_file $MYSQLD_DATADIR/test/bug47205.frm
---copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
-
---echo # Should indicate that ALTER TABLE ... FORCE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-
---echo # ALTER TABLE ... FORCE should rebuild the table
-ALTER TABLE bug47205 FORCE;
-
---echo # Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-
-DROP TABLE bug47205;
-
---echo #
---echo # Test 2: InnoDB - REPAIR not supported
-
-CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
-  DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
-
-FLUSH TABLE bug47205;
-
---echo # Replace the FRM with a 5.0 FRM that will require upgrade
-let $MYSQLD_DATADIR= `select @@datadir`;
---remove_file $MYSQLD_DATADIR/test/bug47205.frm
---copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
-
---echo # Should indicate that ALTER TABLE .. FORCE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-
---echo # Running mysqlcheck to check and upgrade
---exec $MYSQL_CHECK --check-upgrade --auto-repair test
-
---echo # Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-
-DROP TABLE bug47205;
-
---echo #
---echo # Test 3: MyISAM - REPAIR supported
-
---echo # Use an old FRM that will require upgrade
---copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/bug47205.frm
---copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/bug47205.MYD
---copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/bug47205.MYI
-
---echo # Should indicate that REPAIR TABLE is needed
-CHECK TABLE bug47205 FOR UPGRADE;
-
---echo # Running mysqlcheck to check and upgrade
---exec $MYSQL_CHECK --check-upgrade --auto-repair test
-
---echo # Table should now be ok
-CHECK TABLE bug47205 FOR UPGRADE;
-
-DROP TABLE bug47205;
 
 
 --echo #
@@ -322,7 +143,7 @@ DROP DATABASE IF EXISTS b12688860_db;
 --enable_warnings
 
 CREATE DATABASE b12688860_db;
---exec $MYSQL_CHECK -uroot --password="" --fix-db-names b12688860_db 2>&1
+--exec $MYSQL_CHECK -uroot --password="" b12688860_db 2>&1
 DROP DATABASE b12688860_db;
 
 --echo #

@@ -1,0 +1,23 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "session_connect_attrs";
+
+--echo TABLE: $table
+--echo INDEXES: PK (PROCESSLIST_ID, ATTR_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--echo
+--echo ## Test PROCESSLIST_ID, ATTR_NAME
+let $key_group = 9.1;
+let $target_name = _os;
+--disable_query_log
+eval SET @target_id = $con2_processlist_id;
+--enable_query_log
+--source ../include/idx_compare_load.inc
+
+
+--source ../include/idx_compare_cleanup.inc

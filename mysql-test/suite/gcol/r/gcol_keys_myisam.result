@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -26,7 +26,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -48,7 +48,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -61,7 +61,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES	MUL	NULL	
@@ -218,7 +218,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 6.122
+                    "cost": 3.6055
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -247,7 +247,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "using_mrr": false,
                         "index_only": false,
                         "rows": 4,
-                        "cost": 5.81,
+                        "cost": 1.66,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -266,7 +266,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 4,
-                    "cost_for_plan": 5.81,
+                    "cost_for_plan": 1.66,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -283,19 +283,22 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "PRIMARY"
                       } /* range_details */,
                       "resulting_rows": 4,
-                      "cost": 6.61,
+                      "cost": 2.06,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 4,
-                "cost_for_plan": 6.61,
+                "cost_for_plan": 2.06,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -430,7 +433,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 2
+                  "cost": 0.5055
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -445,9 +448,12 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -455,9 +461,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "sort_cost": 10,
-                "new_cost_for_plan": 14.022,
+                "new_cost_for_plan": 11.505,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -476,17 +482,18 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`gc`",
-              "items": [
-                {
-                  "item": "`t1`.`gc`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`gc`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -506,6 +513,13 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
+              } /* filesort */
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -528,6 +542,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 f1 + 1	MAX(GC)
 1	1
+10	10
 2	2
 3	3
 4	4
@@ -536,10 +551,9 @@ f1 + 1	MAX(GC)
 7	7
 8	8
 9	9
-10	10
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -589,7 +603,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 6.122
+                    "cost": 3.6055
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -623,9 +637,12 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 4.022,
+                      "cost": 1.5055,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -633,9 +650,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 4.022,
+                "cost_for_plan": 1.5055,
                 "sort_cost": 10,
-                "new_cost_for_plan": 14.022,
+                "new_cost_for_plan": 11.505,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -654,27 +671,29 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`gc`",
-              "items": [
-                {
-                  "item": "`t1`.`gc`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`gc`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "index_order_summary": {
                 "table": "`t1`",
-                "index_provides_order": false,
-                "order_direction": "undefined",
-                "index": "unknown",
-                "plan_changed": false
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "PRIMARY",
+                "plan_changed": true,
+                "access_type": "index"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           },
@@ -684,6 +703,10 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -700,7 +723,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
 EXPLAIN SELECT f1 + 1, MAX(GC)
 FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` IGNORE INDEX FOR GROUP BY (PRIMARY) group by (`test`.`t1`.`f1` + 1)
 # Shouldn't use index
@@ -834,7 +857,7 @@ a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	gc_and	NULL	NULL	NULL	4	75.00	Using where
+1	SIMPLE	t	NULL	range	gc_and	gc_and	5	NULL	3	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` in (1,2,3))
 SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
@@ -946,7 +969,7 @@ Table	Op	Msg_type	Msg_text
 test.employees	analyze	status	OK
 EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	employees	NULL	ref	name_idx2	name_idx2	33	const	1	100.00	NULL
+1	SIMPLE	employees	NULL	ref	name_idx2	name_idx2	123	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (`test`.`employees`.`name2` = 'Jane')
 SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
@@ -1063,6 +1086,42 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 a1	a2	b
 0	NULL	1
 DROP TABLE t1, t2;
+#
+# Bug#27403367: GENERATED COLUMN EXPRESSIONS IGNORED WITH PREFIX INDEX
+#
+CREATE TABLE t (vc VARCHAR(100),
+gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+KEY (gc(3)));
+INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc	gc	15	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+vc	gc
+abc	cba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	gc	gc	15	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cbacba')
+SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+vc	gc
+abcabc	cbacba
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	gc	gc	15	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` between 'c' and 'e')
+SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+vc	gc
+abc	cba
+abcabc	cbacba
+DROP TABLE t;
 #
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

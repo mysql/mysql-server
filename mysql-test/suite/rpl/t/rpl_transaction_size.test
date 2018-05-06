@@ -1,0 +1,193 @@
+# ==== Purpose ====
+#
+# This test will generate a random workload on master and will
+# assert that all generated transactions have the correct transaction
+# length on both master and slave binary logs.
+#
+# On a first step, the test will generate the transactions varying
+# both the amount of inserts per transaction and the size of the
+# per statement value to be inserted.
+#
+# On a second step, the test will also generate a SAVEPOINT, insert
+# some more random data, will ROLLBACK TO SAVE POINT and will insert
+# more random data again. This should test that we can remove content
+# from the binary log cache and add content again to it without
+# compromising the transaction length feature.
+#
+# On a third step, the test will generate the transactions parallely.
+# This will test that transaction length feature wont get affected
+# when multiple transactions are getting committed parallely. Also in
+# MTS mode the test will check that transaction length feature wont
+# get affected when two MTS workers are executing transactions
+# parallely.
+#
+# On a fourth step, the test will do the transactions which will
+# initiate the TRIGGER which does DML operations. This should test
+# that transaction length will be correctly evaluated for the
+# transactions executed by the TRIGGER.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#10493: Add transaction length to gtid_log_event
+#
+--source include/master-slave.inc
+
+--echo ###################################################
+--echo # Step 1                                          #
+--echo ###################################################
+--let $transactions=200
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 LONGTEXT);
+--echo Generating $transactions transactions on master
+--disable_query_log
+while ($transactions)
+{
+  --let $inserts=`SELECT FLOOR(1 + RAND() * 9)`
+  BEGIN;
+  while ($inserts)
+  {
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    # Make the last transaction having at least one huge event
+    if ($transactions == 1)
+    {
+      if ($inserts == 1)
+      {
+        --let $string_size=`SELECT FLOOR(16777216 + RAND() * 65534)`
+      }
+    }
+    --eval INSERT INTO t1 (c2) VALUES (REPEAT("X", $string_size))
+    --dec $inserts
+  }
+  COMMIT;
+  --dec $transactions
+}
+--enable_query_log
+DROP TABLE t1;
+
+--echo ###################################################
+--echo # Step 2                                          #
+--echo ###################################################
+--let $transactions=200
+CREATE TABLE t2 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+--echo Generating $transactions transactions on master using SAVEPOINT/ROLLBACK TO SAVEPOINT
+--disable_query_log
+while ($transactions)
+{
+  --let $inserts_before_savepoint=`SELECT FLOOR(1 + RAND() * 9)`
+  --let $inserts_after_savepoint=`SELECT FLOOR(1 + RAND() * 9)`
+  --let $inserts_after_rollback=`SELECT FLOOR(1 + RAND() * 9)`
+  BEGIN;
+  while ($inserts_before_savepoint)
+  {
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    --eval INSERT INTO t2 (c2) VALUES (REPEAT("X", $string_size))
+    --dec $inserts_before_savepoint
+  }
+  SAVEPOINT `a`;
+  while ($inserts_after_savepoint)
+  {
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    --eval INSERT INTO t2 (c2) VALUES (REPEAT("X", $string_size))
+    --dec $inserts_after_savepoint
+  }
+  ROLLBACK TO SAVEPOINT `a`;
+  while ($inserts_after_rollback)
+  {
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    --eval INSERT INTO t2 (c2) VALUES (REPEAT("X", $string_size))
+    --dec $inserts_after_rollback
+  }
+  COMMIT;
+  --dec $transactions
+}
+--enable_query_log
+DROP TABLE t2;
+
+--echo ###################################################
+--echo # Step 3                                          #
+--echo ###################################################
+
+--let $transactions=50
+--let $number=`SELECT $transactions*2`
+
+--disable_query_log
+DELIMITER $$;
+CREATE PROCEDURE dml(X INT)
+     BEGIN
+     WHILE X>0 do
+     INSERT INTO t3 VALUES (X);
+     SET X=X-1;
+     END WHILE;
+     DROP TABLE t3;
+     END$$
+DELIMITER ;$$
+--enable_query_log
+
+CREATE TABLE t3 (a int);
+CREATE DATABASE db1;
+CREATE TABLE db1.t4 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+
+--echo Generating $number transactions on master parallely.
+
+--send_eval CALL dml($transactions)
+
+--source include/rpl_connection_master1.inc
+
+--disable_query_log
+while ($transactions)
+{
+  --let $inserts=`SELECT FLOOR(1 + RAND() * 9)`
+  BEGIN;
+  while ($inserts)
+  {
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    --eval INSERT INTO db1.t4 (c2) VALUES (REPEAT("X", $string_size))
+    --dec $inserts
+  }
+  COMMIT;
+  --dec $transactions
+}
+--enable_query_log
+DROP DATABASE db1;
+
+--source include/rpl_connection_master.inc
+--reap
+DROP PROCEDURE dml;
+
+--echo ###################################################
+--echo # Step 4                                          #
+--echo ###################################################
+
+--let $transactions=50
+CREATE TABLE t5 (a int);
+CREATE TABLE t6 (a int);
+
+DELIMITER $$;
+
+CREATE TRIGGER tr_1 BEFORE INSERT ON t5 FOR EACH ROW
+BEGIN
+INSERT INTO t6 VALUES (1);
+END$$
+
+DELIMITER ;$$
+
+--echo Generating $transactions transactions on master which initiates the TRIGGER.
+
+--disable_query_log
+while ($transactions)
+{
+  --eval INSERT INTO t5 values ($transactions)
+  --dec $transactions
+}
+--enable_query_log
+
+DROP TABLE t5;
+DROP TABLE t6;
+
+--source include/sync_slave_sql_with_master.inc
+
+# Assert the transaction length in all slave log files
+--source include/assert_transaction_length_all_logs.inc
+# Assert the transaction length in all master log files
+--source include/rpl_connection_master.inc
+--source include/assert_transaction_length_all_logs.inc
+--source include/rpl_end.inc

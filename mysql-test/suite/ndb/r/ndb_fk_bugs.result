@@ -348,6 +348,9 @@ from information_schema.key_column_usage
 where TABLE_SCHEMA = 'test' and TABLE_NAME = 't2';
 REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 test	t1	id
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2, t1;
 # bug#16275509 - case: alter engine from ndb
 create table t1 (
@@ -435,7 +438,7 @@ t1	CREATE TABLE `t1` (
   `b` char(20) NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1 order by a;
 a	b
 1	10
@@ -452,6 +455,8 @@ create table t1 (
 a int not null,
 primary key using hash (a)
 ) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 create table t2 (
 a int not null,
 b int,
@@ -459,6 +464,8 @@ primary key using hash (a),
 key (b),
 foreign key fk1 (b) references t1 (a)
 ) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 drop table t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 drop table t2, t1;
@@ -486,6 +493,8 @@ primary key using hash (a),
 key (b),
 foreign key fk1 (b) references t1 (a)
 ) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 drop table t1;
 set @i=1;
 create table t1 (
@@ -534,12 +543,12 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,b,c) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2;
 create table t2 (
 a int not null,
@@ -559,12 +568,12 @@ t2	CREATE TABLE `t2` (
   KEY `xbc` (`b`,`c`),
   KEY `fk1` (`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2;
 create table t2 (
 a int not null,
@@ -593,28 +602,28 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `xbc` (`b`,`c`) USING HASH,
   KEY `fk1` (`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
-create table t1_parent (pk1 char(255) primary key) engine = ndb;
+create table t1_parent (pk1 char(255) primary key) charset=latin1, engine = ndb;
 create table t1 (
-c50 char(255), c49 char(255), c48 char(255), c47 char(255), c46 char(255),
-c45 char(255), c44 char(255), c43 char(255), c42 char(255), c41 char(255),
-c40 char(255), c39 char(255), c38 char(255), c37 char(255), c36 char(255),
-c35 char(255), c34 char(255), c33 char(255), c32 char(255), c31 char(255),
-c30 char(255), c29 char(255), c28 char(255), c27 char(255), c26 char(255),
-c25 char(255), c24 char(255), c23 char(255), c22 char(255), c21 char(255),
-c20 char(255), c19 char(255), c18 char(255), c17 char(255), c16 char(255),
-c15 char(255), c14 char(255), c13 char(255), c12 char(255), c11 char(255),
-c10 char(255), c9 char(255), c8 char(255), c7 char(255), c6 char(255),
-c5 char(255), c4 char(255), c3 char(255), c2 char(255), c1 char(255),
+c50 char(255) column_format fixed, c49 char(255) column_format fixed, c48 char(255) column_format fixed, c47 char(255) column_format fixed, c46 char(255) column_format fixed,
+c45 char(255) column_format fixed, c44 char(255) column_format fixed, c43 char(255) column_format fixed, c42 char(255) column_format fixed, c41 char(255) column_format fixed,
+c40 char(255) column_format fixed, c39 char(255) column_format fixed, c38 char(255) column_format fixed, c37 char(255) column_format fixed, c36 char(255) column_format fixed,
+c35 char(255) column_format fixed, c34 char(255) column_format fixed, c33 char(255) column_format fixed, c32 char(255) column_format fixed, c31 char(255) column_format fixed,
+c30 char(255) column_format fixed, c29 char(255) column_format fixed, c28 char(255) column_format fixed, c27 char(255) column_format fixed, c26 char(255) column_format fixed,
+c25 char(255) column_format fixed, c24 char(255) column_format fixed, c23 char(255) column_format fixed, c22 char(255) column_format fixed, c21 char(255) column_format fixed,
+c20 char(255) column_format fixed, c19 char(255) column_format fixed, c18 char(255) column_format fixed, c17 char(255) column_format fixed, c16 char(255) column_format fixed,
+c15 char(255) column_format fixed, c14 char(255) column_format fixed, c13 char(255) column_format fixed, c12 char(255) column_format fixed, c11 char(255) column_format fixed,
+c10 char(255) column_format fixed, c9 char(255) column_format fixed, c8 char(255) column_format fixed, c7 char(255) column_format fixed, c6 char(255) column_format fixed,
+c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed,
 primary key using hash(c1)
 ,foreign key(c1) references t1_parent(pk1)
-) engine=ndb;
+) charset=latin1, engine=ndb;
 ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 create table t1(a int primary key) engine = ndb;
 drop table t1, t1_parent;
@@ -650,9 +659,9 @@ Error	1553	Cannot drop index 't2x1': needed in a foreign key constraint
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10,100),(2,20,200),(3,30,300);
 insert into t2 values (4,40,400);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 # bug#17232212 - NDB DROP NON-EXISTENT FK SUCCEEDS
 create table t1 (
@@ -683,7 +692,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
 drop foreign key nosuchfk,
@@ -701,7 +710,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 # algorithm=copy
 create table t2 (
@@ -728,7 +737,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
 drop foreign key nosuchfk,
@@ -746,7 +755,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 # bug#18662582 - NDB_FK_DISABLE.TEST FAILS TO DROP FOREIGN KEY
 create table t1 (
@@ -755,15 +764,15 @@ a int, primary key using hash (a)
 create table t2 (
 a int, primary key using hash (a)
 ) engine = ndb;
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 create table t3 (
 a int, primary key using hash (a)
 ) engine = ndb;
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 alter table t2 algorithm=inplace, drop foreign key nosuchfk;
 ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
-alter table t2 algorithm=inplace, drop foreign key fkname;
-alter table t3 algorithm=inplace, drop foreign key fkname;
+alter table t2 algorithm=inplace, drop foreign key fkname2;
+alter table t3 algorithm=inplace, drop foreign key fkname3;
 drop table t1, t2, t3;
 create table t1 (
 a int, primary key using hash (a)
@@ -771,15 +780,15 @@ a int, primary key using hash (a)
 create table t2 (
 a int, primary key using hash (a)
 ) engine = ndb;
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 create table t3 (
 a int, primary key using hash (a)
 ) engine = ndb;
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 alter table t2 algorithm=copy, drop foreign key nosuchfk;
 ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
-alter table t2 algorithm=copy, drop foreign key fkname;
-alter table t3 algorithm=copy, drop foreign key fkname;
+alter table t2 algorithm=copy, drop foreign key fkname2;
+alter table t3 algorithm=copy, drop foreign key fkname3;
 drop table t1, t2, t3;
 # bug#18824753 - NDB_RESTORE FAILS WITH FKS WITH SAME NAME
 create table t1 (a int primary key) engine=ndb;
@@ -787,11 +796,11 @@ create table t2 (a int primary key) engine=ndb;
 create table t3 (a int primary key) engine=ndb;
 create table t4 (a int primary key) engine=ndb;
 alter table t2
-add constraint foreign key myfk (a) references t1 (a);
+add constraint foreign key myfk2 (a) references t1 (a);
 alter table t4
-add constraint foreign key myfk (a) references t3 (a);
+add constraint foreign key myfk4 (a) references t3 (a);
 alter table t4
-add constraint foreign key `11/22/myfk` (a) references t3 (a);
+add constraint foreign key `11/22/myfk4` (a) references t3 (a);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
@@ -806,15 +815,15 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
-  CONSTRAINT `myfk` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  CONSTRAINT `myfk2` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
-  CONSTRAINT `myfk` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  CONSTRAINT `myfk4` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 drop table t4, t3;
 # bug18825966 - ADDING FK TO TABLE WITH DATA GIVES INTERNAL ERROR 208
@@ -853,7 +862,7 @@ insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 create table t1 (
 c0 int,
@@ -878,5 +887,40 @@ insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+drop table t2, t1;
+#
+# BUG#21308928 :  CANNOT ADD UNIQUE CONSTRAINT ON SET OF FIELDS WITH EXISTING FOREIGN KEY
+#
+#Create the tables
+create table t1 (
+a int not null primary key
+) engine ndb;
+create table t2 (
+a int primary key,
+b int not null,
+c int,
+foreign key fk1 (a) references t1(a),
+foreign key fk2 (b) references t1(a),
+foreign key fk3 (c) references t1(a)
+) engine ndb;
+#Add a unique constraint to the foreign key column
+alter table t2 add constraint uniquet2a unique (a);
+alter table t2 add constraint uniquet2b unique (b);
+alter table t2 add constraint uniquet2c unique (c);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `uniquet2a` (`a`),
+  UNIQUE KEY `uniquet2b` (`b`),
+  UNIQUE KEY `uniquet2c` (`c`),
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Drop tables
 drop table t2, t1;

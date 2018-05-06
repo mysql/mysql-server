@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,20 +30,23 @@
 */
 
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_push.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "abstract_query_plan.h"
+#include "sql/ha_ndbcluster_push.h"
 
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/NdbInterpretedCode.hpp>
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
+#include "my_dbug.h"
+#include "sql/abstract_query_plan.h"
+#include "sql/current_thd.h"
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_cond.h"
+#include "sql/ndb_thd.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "storage/ndb/include/ndb_version.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
-#include <ndb_version.h>
-
+typedef NdbDictionary::Table NDBTAB;
 
 /*
   Explain why an operation could not be pushed
@@ -45,7 +55,7 @@
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe))   \
+  if (unlikely(current_thd->lex->is_explain()))                   \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \
@@ -148,7 +158,7 @@ bool ndb_pushed_join::match_definition(
                 "not executable as %s",
                 NdbQueryOperationDef::getTypeName(def_type),
                 NdbQueryOperationDef::getTypeName((NdbQueryOperationDef::Type)type)));
-    return FALSE;
+    return false;
   }
   const NdbDictionary::Index* const expected_index= root_operation->getIndex();
 
@@ -169,7 +179,7 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->unique_index->getName(),
                           expected_index->getName()));
-      return FALSE;
+      return false;
     }
     break;
 
@@ -186,7 +196,7 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->index->getName(),
                           expected_index->getName()));
-      return FALSE;
+      return false;
     }
     break;
 
@@ -207,11 +217,11 @@ bool ndb_pushed_join::match_definition(
     {
       DBUG_PRINT("info", 
                  ("paramValue is NULL, can not execute as pushed join"));
-      return FALSE;
+      return false;
     }
   }
 
-  return TRUE;
+  return true;
 }
 
 NdbQuery* ndb_pushed_join::make_query_instance(
@@ -278,13 +288,11 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_join_root(),
   m_join_scope(),
   m_const_scope(),
-  m_firstmatch_skipped(),
   m_internal_op_count(0),
   m_fld_refs(0),
   m_builder(NULL)
 { 
   const uint count= m_plan.get_access_count();
-  (void)ha_ndb_ext; // Prevents compiler warning.
 
   DBUG_ASSERT(count <= MAX_TABLES);
   if (count > 1)
@@ -294,6 +302,12 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
       m_tables[i].m_maybe_pushable= 0;
 
       const AQP::Table_access* const table = m_plan.get_table_access(i);
+      if (table->get_table() == NULL)
+      {
+        // There could be unused tables allocated in the 'plan', skip these
+        continue;
+      }
+      
       if (table->get_table()->s->db_type()->db_type != DB_TYPE_NDBCLUSTER)
       {
         DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable", 
@@ -340,38 +354,38 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
         }
         break;
       } //switch
-
-      /**
-       * FirstMatch algorithm may skip further nested-loop evaluation
-       * if this, and possible a number of previous tables.
-       * Aggregate into the bitmap 'm_firstmatch_skipped' those tables
-       * which 'FirstMatch' usage may possible skip.
-       */
-      const AQP::Table_access* const firstmatch_last_skipped=
-        table->get_firstmatch_last_skipped();
-      if (firstmatch_last_skipped)
-      {
-        const uint last_skipped_tab= firstmatch_last_skipped->get_access_no();
-        DBUG_ASSERT(last_skipped_tab <= i);
-        for (uint skip_tab= last_skipped_tab; skip_tab <= i; skip_tab++)
-        {
-          m_firstmatch_skipped.add(skip_tab); 
-        }
-      }
     } //for 'all tables'
 
     m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     m_tables[count-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
 
+#if !defined(NDEBUG)
+    // Fill in garbage table enums.
+    for (uint i= 0; i < MAX_TABLES; i++)
+    {
+      m_remap[i].to_external= 0x1111;
+      m_remap[i].to_internal= 0x2222;
+    }
+#endif
+
+    for (uint i= 0; i < count; i++)
+    {
+      m_remap[i].to_external= MAX_TABLES;
+      m_remap[i].to_internal= MAX_TABLES;
+    }
+
     // Fill in table for maping internal <-> external table enumeration
     for (uint i= 0; i < count; i++)
     {
-      const AQP::Table_access* const table = m_plan.get_table_access(i);
-      uint external= table->get_table()->pos_in_table_list->tableno();
-      DBUG_ASSERT(external <= MAX_TABLES);
+      if (m_tables[i].m_maybe_pushable)
+      {
+        const AQP::Table_access* const table = m_plan.get_table_access(i);	
+        const uint external= table->get_table()->pos_in_table_list->tableno();
+        DBUG_ASSERT(external <  MAX_TABLES);
 
-      m_remap[i].to_external= external;
-      m_remap[external].to_internal= i;
+        m_remap[i].to_external= external;
+        m_remap[external].to_internal= i;
+      }
     }
   }
 } // ndb_pushed_builder_ctx::ndb_pushed_builder_ctx()
@@ -397,9 +411,10 @@ uint
 ndb_pushed_builder_ctx::get_table_no(const Item* key_item) const
 {
   DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
+  const uint count= m_plan.get_access_count();
   table_map bitmap= key_item->used_tables();
 
-  for (uint i= 0; i<MAX_TABLES && bitmap!=0; i++, bitmap>>=1)
+  for (uint i= 0; i<count && bitmap!=0; i++, bitmap>>=1)
   {
     if (bitmap & 1)
     {
@@ -451,7 +466,7 @@ ndb_pushed_builder_ctx::make_pushed_join(
     if (unlikely(error))
       DBUG_RETURN(error);
 
-    const NdbQueryDef* const query_def= m_builder->prepare();
+    const NdbQueryDef* const query_def= m_builder->prepare(get_thd_ndb(current_thd)->ndb);
     if (unlikely(query_def == NULL))
       DBUG_RETURN(-1);  // Get error with ::getNdbError()
 
@@ -586,7 +601,10 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   
   if ((m_tables[tab_no].m_maybe_pushable & PUSHABLE_AS_CHILD) != PUSHABLE_AS_CHILD)
   {
-    DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'", table->get_table()->alias));
+    if (table->get_table()) //Possible not a real table at all
+    {
+      DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'", table->get_table()->alias));
+    }
     DBUG_RETURN(false);
   }
 
@@ -790,7 +808,8 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
      * (Outer joining with scan may be indirect through lookup operations 
      * inbetween)
      */
-    if (table->get_join_type(m_join_root) == AQP::JT_OUTER_JOIN)
+    const AQP::enum_join_type join_type = table->get_join_type(m_join_root);
+    if (join_type == AQP::JT_OUTER_JOIN)
     {
       EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
                       "outer join of scan-child not implemented",
@@ -800,35 +819,54 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     }
 
     /**
-     * 'FirstMatch' is not allowed to skip over a scan-child.
-     * The reason is similar to the outer joined scan-scan above:
+     * As for outer joins, there are similar scan-scan restrictions
+     * for semi joins:
      *
      * Scan-scan result may return the same ancestor-scan rowset
      * multiple times when rowset from child scan has to be fetched
-     * in multiple batches (as above).
+     * in multiple batches (as above). This is fine for nested loop
+     * evaluations of pure loops as it should just produce the total
+     * set of join combinations - in any order.
      *
-     * When a 'FirstMatch' skip remaining rows in a scan-child,
-     * the Nested Loop (NL) will also advance to the next ancestor
-     * row. However, due to child scan requiring multiple batches
-     * the same ancestor row will reappear in the next batch!
+     * However, the different semi join strategies (FirstMatch,
+     * Loosescan, Duplicate Weedout) requires that skipping
+     * a row (and its nested loop ancestors) is 'permanent' such
+     * that it will never reappear later in later batches.
      */
-    if (m_firstmatch_skipped.contain(tab_no))
+    if (join_type == AQP::JT_SEMI_JOIN)
     {
       EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
-                      "'FirstMatch' not allowed to contain scan-child",
+                      "semi join of scan-child not implemented",
                        table->get_table()->alias,
                        m_join_root->get_table()->alias);
-
-      m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
       DBUG_RETURN(false);
     }
 
     /**
-     * Note, for both 'outer join' and 'FirstMatch' restriction above:
+     * 'JT_NEST_JOIN' is returned if 'table' is (inner-)joined
+     * with a root in a different 'nest' (nest: A group of nested-loop
+     * inner joined tables).
+     * This has the same scan-scan restriction as described above.
+     */
+    if (join_type == AQP::JT_NEST_JOIN)
+    {
+      EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
+                      "not members of same join 'nest'",
+                       table->get_table()->alias,
+                       m_join_root->get_table()->alias);
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Note, for both 'outer join', and 'semi joins restriction above:
+     *
      * The restriction could have been lifted if we could
      * somehow ensure that all rows from a child scan are fetched
      * before we move to the next ancestor row.
+     *
+     * Which is why we do not force the same restrictions on lookup.
      */
+    
   } // scan operation
 
   /**
@@ -1018,6 +1056,14 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
                     key_item_field->field->table->alias, 
                     key_item_field->field->field_name);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently disable as child
+    DBUG_RETURN(false);
+  }
+
+  if (key_item_field->field->is_virtual_gcol())
+  {
+    EXPLAIN_NO_PUSH("Can't push condition on virtual generated column '%s.%s'",
+                    key_item_field->field->table->alias,
+                    key_item_field->field->field_name);
     DBUG_RETURN(false);
   }
 
@@ -1469,7 +1515,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
       const Item* const item= join_items[i];
       op_key[map[i]]= NULL;
 
-      DBUG_ASSERT(item->const_item() == item->const_during_execution());
+      DBUG_ASSERT(item->const_item() == item->const_for_execution());
       if (item->const_item())
       {
         /** 

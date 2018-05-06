@@ -72,13 +72,13 @@ ERROR 42000: Incorrect argument type to variable 'server_id_bits'
 '#------------------FN_DYNVARS_144_06-----------------------#'
 SET @@global.server_id_bits = 12;
 SELECT @@global.server_id_bits = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='server_id_bits';
 @@global.server_id_bits = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_144_07-----------------------#'
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='server_id_bits';
 count(VARIABLE_VALUE)
 1

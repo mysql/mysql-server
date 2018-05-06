@@ -1,5 +1,5 @@
 # Tests for various combinations of ROW_FORMAT and KEY_BLOCK_SIZE
-# Related bugs;
+# Related bugs; 
 # Bug#54679: ALTER TABLE causes compressed row_format to revert to compact
 # Bug#56628: ALTER TABLE .. KEY_BLOCK_SIZE=0 produces untrue warning or unnecessary error
 # Bug#56632: ALTER TABLE implicitly changes ROW_FORMAT to COMPRESSED
@@ -35,9 +35,8 @@
 # 3) KEY_BLOCK_SIZE=0 can be used to set it to 'unspecified'.
 # 4) KEY_BLOCK_SIZE=1,2,4,8 & 16 are incompatible with COMPACT, DYNAMIC &
 #    REDUNDANT.
-# 5) KEY_BLOCK_SIZE=1,2,4,8 & 16 as well as ROW_FORMAT=COMPRESSED
-#    are incompatible with innodb_file_format=Antelope
-#    and innodb_file_per_table=OFF
+# 5) KEY_BLOCK_SIZE=1,2,4,8 & 16 as well as ROW_FORMAT=COMPRESSED and
+#    ROW_FORMAT=DYNAMIC are incompatible with innodb_file_per_table=OFF
 # 6) KEY_BLOCK_SIZE on an ALTER must occur with ROW_FORMAT=COMPRESSED
 #    or ROW_FORMAT=DEFAULT if the ROW_FORMAT was previously specified
 #    as COMPACT, DYNAMIC or REDUNDANT.
@@ -49,16 +48,17 @@
 # 2. Ignore a bad ROW_FORMAT, defaulting to COMPACT.
 # 3. Ignore a valid KEY_BLOCK_SIZE when an incompatible but valid
 #    ROW_FORMAT is specified.
-# 4. If innodb_file_format=Antelope or innodb_file_per_table=OFF
-#    it will ignore ROW_FORMAT=COMPRESSED and non-zero KEY_BLOCK_SIZEs.
+# 4. If innodb_file_per_table=OFF
+#    it will ignore ROW_FORMAT=COMPRESSED or DYNAMIC and it will
+#    ignore all non-zero KEY_BLOCK_SIZEs.
 #
 # See InnoDB documentation page "SQL Compression Syntax Warnings and Errors"
 # This test case does not try to create tables with KEY_BLOCK_SIZE > 4
 # since they are rejected for InnoDB page sizes of 8k and 16k.
 # See innodb_16k and innodb_8k for those tests.
 
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
+
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -98,12 +98,11 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
-
+DROP TABLE t1;
 
 
 --echo # Test 2) StrictMode=ON, CREATE with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
 --echo #         KEY_BLOCK_SIZE is incompatible with COMPACT, REDUNDANT, & DYNAMIC
-DROP TABLE t1;
 --error ER_ILLEGAL_HA
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
@@ -207,24 +206,22 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE t1;
 
 --echo # Test 6) StrictMode=ON, CREATE with an invalid KEY_BLOCK_SIZE.
-DROP TABLE t1;
 --error ER_ILLEGAL_HA
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=9;
 SHOW WARNINGS;
 
---echo # Test 7) StrictMode=ON, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and
---echo #         and a valid non-zero KEY_BLOCK_SIZE are rejected with Antelope
---echo #         and that they can be set to default values during strict mode.
-SET GLOBAL innodb_file_format=Antelope;
---error ER_ILLEGAL_HA
+--echo # Test 7) StrictMode=ON.
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA
+DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
+DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
 SHOW WARNINGS;
@@ -236,17 +233,15 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
-SET GLOBAL innodb_file_format=Barracuda;
+SHOW WARNINGS;
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-SET GLOBAL innodb_file_format=Antelope;
 ALTER TABLE t1 ADD COLUMN f1 INT;
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
@@ -254,7 +249,6 @@ ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 ALTER TABLE t1 ADD COLUMN f2 INT;
 SHOW WARNINGS;
-SET GLOBAL innodb_file_format=Barracuda;
 
 --echo # Test 8) StrictMode=ON, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and
 --echo #         and a valid non-zero KEY_BLOCK_SIZE are rejected with
@@ -269,7 +263,6 @@ SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
-SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
 SHOW WARNINGS;
@@ -289,6 +282,7 @@ ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 SHOW WARNINGS;
@@ -460,18 +454,14 @@ CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=15;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 
---echo # Test 15) StrictMode=OFF, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and a
---echo            valid KEY_BLOCK_SIZE are remembered but not used when ROW_FORMAT
---echo            is reverted to Antelope and then used again when ROW_FORMAT=Barracuda.
+--echo # Test 15) StrictMode=OFF.
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
-SET GLOBAL innodb_file_format=Antelope;
 ALTER TABLE t1 ADD COLUMN f1 INT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
-SET GLOBAL innodb_file_format=Barracuda;
 ALTER TABLE t1 ADD COLUMN f2 INT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
@@ -479,11 +469,9 @@ DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
-SET GLOBAL innodb_file_format=Antelope;
 ALTER TABLE t1 ADD COLUMN f1 INT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
-SET GLOBAL innodb_file_format=Barracuda;
 ALTER TABLE t1 ADD COLUMN f2 INT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
@@ -522,6 +510,4 @@ DROP TABLE t1;
 
 --disable_query_log
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log
-

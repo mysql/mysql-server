@@ -1,6 +1,6 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+--character_set latin1
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -8,8 +8,8 @@ DROP TABLE IF EXISTS t2;
 --enable_warnings
 
 CREATE TABLE t1 (
-  latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
-);
+  latin1_f CHAR(32) NOT NULL
+) charset latin1;
 
 --error 1253
 CREATE TABLE t2 (
@@ -86,12 +86,12 @@ SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1
 
 # GROUP BY
 
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f ASC;
 --source include/turn_off_only_full_group_by.inc
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci ASC;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci ASC;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci ASC;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin ASC;
 --error 1253
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -151,12 +151,12 @@ SHOW FIELDS FROM  t1;
 
 SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+SELECT charset(_latin1 'a'),collation(_latin1 'a'),coercibility('a'),'a'='A';
+explain SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+SELECT charset(_latin1 'a'),collation(_latin1 'a'),coercibility('a'),'a'='A';
 
 --error 1115
 SET CHARACTER SET 'DEFAULT';
@@ -184,18 +184,18 @@ DROP TABLE t1;
 
 
 #
-# Test that optimizer doesn't use indexes with wrong collation
+# Test that optimizer does not use indexes with wrong collation
 #
 #
 # BUG#48447, Delivering too few records with indexes using collate syntax
 #
 create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
 insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
-select * from t1 where a > 'B' collate latin1_bin;
-select * from t1 where a <> 'B' collate latin1_bin;
+select * from t1 where a > _latin1 'B' collate latin1_bin;
+select * from t1 where a <> _latin1 'B' collate latin1_bin;
 create index i on t1 (a);
-select * from t1 where a > 'B' collate latin1_bin;
-select * from t1 where a <> 'B' collate latin1_bin;
+select * from t1 where a > _latin1 'B' collate latin1_bin;
+select * from t1 where a <> _latin1 'B' collate latin1_bin;
 drop table t1;
 
 SET NAMES latin1;
@@ -266,7 +266,7 @@ drop table t1;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
-create table t1
+create table t1 charset latin1
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
 
 #Replace default engine value with static engine string 

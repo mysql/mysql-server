@@ -25,10 +25,13 @@
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result utf8_tolower_ci utf8_bin
 eval
 SELECT * FROM information_schema.columns
 $my_where
-ORDER BY table_schema, table_name, column_name;
+ORDER BY table_schema,
+         table_name COLLATE utf8_general_ci,
+         ordinal_position;
 
 --echo ##########################################################################
 --echo # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
@@ -42,7 +45,7 @@ SELECT DISTINCT
 FROM information_schema.columns
 $my_where
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 
 #FIXME 3.2.6.2: check the value 2.0079 tinytext ucs2 ucs2_general_ci
 eval
@@ -54,7 +57,7 @@ SELECT DISTINCT
 FROM information_schema.columns
 $my_where
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 
 eval
 SELECT DISTINCT
@@ -65,11 +68,12 @@ SELECT DISTINCT
 FROM information_schema.columns
 $my_where
       AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 
 echo --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values;
 echo --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result utf8_tolower_ci utf8_bin
 eval
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
        TABLE_SCHEMA,
@@ -83,5 +87,5 @@ SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
        COLUMN_TYPE
 FROM information_schema.columns
 $my_where
-ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
+ORDER BY TABLE_SCHEMA, TABLE_NAME COLLATE utf8_general_ci, ORDINAL_POSITION;
 SET sql_mode = default;

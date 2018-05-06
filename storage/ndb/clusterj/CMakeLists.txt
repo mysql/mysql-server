@@ -1,24 +1,26 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MESSAGE(STATUS "including ClusterJ")
-
-IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
-  MESSAGE ( STATUS "Found openjpa jar" )
-  SET(HAVE_OPENJPA TRUE)
-ENDIF()
 
 SET(DEP ndbjtie.jar
         jtie.jar
@@ -36,16 +38,7 @@ ADD_SUBDIRECTORY(clusterj-api)
 ADD_SUBDIRECTORY(clusterj-core)
 ADD_SUBDIRECTORY(clusterj-tie)
 
-IF(HAVE_OPENJPA)
-  ADD_SUBDIRECTORY(clusterj-openjpa)
-  LIST(APPEND DEP clusterjpa.jar)
-  LIST(APPEND JARS ${CMAKE_CURRENT_BINARY_DIR}/clusterj-openjpa/clusterjpa.jar)
-ENDIF(HAVE_OPENJPA)
-
-  ADD_SUBDIRECTORY(clusterj-test)
-  IF(HAVE_OPENJPA)
-    ADD_SUBDIRECTORY(clusterj-jpatest)
-  ENDIF(HAVE_OPENJPA)
+ADD_SUBDIRECTORY(clusterj-test)
 
 SET(CLUSTERJ_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation,com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie)
 CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
@@ -59,7 +52,7 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${JAVA_NDB_VERSION}.jar
         DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
 
 # create maven pom.xml in all subdirectories
-SET(CLUSTERJ_PROJECTS api core jdbc jpatest openjpa test tie unit)
+SET(CLUSTERJ_PROJECTS api core test tie unit)
 
 IF(WIN32)
 

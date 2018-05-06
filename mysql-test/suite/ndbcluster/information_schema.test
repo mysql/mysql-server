@@ -1,0 +1,40 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # WL#6599: New Data Dictionary and I_S Integration.
+--echo #
+--echo # Test case to check if ndbinfo schema is listed by I_S when ndbcluster
+--echo # is running.
+--echo #
+#'ndbinfo' schema should be listed when ndbcluster is running.
+SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
+# tables of ndbinfo schema should be listed.
+SELECT
+  IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
+  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+
+--echo #
+--echo # Check that it's not possible to create a NDB table
+--echo # in the information_schema database
+--echo #
+--error ER_DBACCESS_DENIED_ERROR
+create table information_schema.t1(
+  a int,
+  b varchar(10),
+  c date
+) engine=ndb;
+
+#
+# Bug #27143813 This testcase is to check if the checksum is supported
+# in Ndb and Innodb.
+#
+
+CREATE TABLE t1(a int primary key,b int) engine = NDB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t1";
+
+--echo checking the same query in innodb and comparing the result.
+
+CREATE TABLE t2(a int primary key,b int) engine = INNODB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t2";
+
+DROP TABLE t1,t2;

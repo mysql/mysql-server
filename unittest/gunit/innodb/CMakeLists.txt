@@ -1,25 +1,29 @@
-# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
-  ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
@@ -27,39 +31,39 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 SET(TESTS
   #example
   ha_innodb
+  log0log
   mem0mem
   ut0crc32
+  ut0lock_free_hash
   ut0mem
   ut0new
 )
 
+SET(ALL_INNODB_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
+ENDFOREACH()
+
 IF (MERGE_UNITTESTS)
-  SET(MERGE_INNODB_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_innodb_tests-t.cc)
-  SET_SOURCE_FILES_PROPERTIES(MERGE_INNODB_TESTS PROPERTIES GENERATED 1)
-
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
-  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"my_config.h\"\n")
-  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"univ.i\"\n")
-
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  SET(SRC_FILES ${MERGE_INNODB_TESTS})
   IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+    LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
   ENDIF()
+  MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
+    ADD_TEST merge_innodb_tests)
 
-  ADD_EXECUTABLE(merge_innodb_tests-t ${SRC_FILES})
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_dd sql_gis)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t ${ICU_LIBRARIES})
 
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql binlog rpl master slave sql)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-    sql binlog rpl master slave sql)
+  # Download TBB from https://www.threadingbuildingblocks.org
+  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+  #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
@@ -67,28 +71,31 @@ IF (MERGE_UNITTESTS)
 
   ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
-  ADD_TEST(merge_innodb_tests merge_innodb_tests-t)
+ENDIF(MERGE_UNITTESTS)
 
-ELSE()
+FOREACH(test ${TESTS})
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+  ENDIF()
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
 
-  FOREACH(test ${TESTS})
-    SET(SRC_FILES ${test}-t.cc)
-    IF(WIN32)
-      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-    ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
 
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    ENDIF()
+  ADD_DEPENDENCIES(${test}-t GenError)
 
-    ADD_DEPENDENCIES(${test}-t GenError)
-
+  IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
-  ENDFOREACH()
+  ENDIF()
+ENDFOREACH()
 
-ENDIF()
+ADD_SUBDIRECTORY(lob)

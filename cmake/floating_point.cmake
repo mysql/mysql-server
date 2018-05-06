@@ -1,17 +1,24 @@
 # Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCXXSourceRuns)
@@ -51,18 +58,6 @@ ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
   CHECK_CXX_SOURCE_RUNS("${code}" HAVE_CXX_FLOATING_POINT_FUSED_MADD)
-ENDIF()
-
-SET(CMAKE_REQUIRED_FLAGS
-  "${CMAKE_REQUIRED_FLAGS} -ffp-contract=off"
-)
-
-IF(CMAKE_COMPILER_IS_GNUCC)
-  CHECK_C_SOURCE_COMPILES("${code}" HAVE_C_FP_CONTRACT_FLAG)
-ENDIF()
-
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  CHECK_CXX_SOURCE_COMPILES("${code}" HAVE_CXX_FP_CONTRACT_FLAG)
 ENDIF()
 
 SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")

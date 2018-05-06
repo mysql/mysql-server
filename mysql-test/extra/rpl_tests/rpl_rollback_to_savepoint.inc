@@ -49,7 +49,6 @@
 # should follow with other DMLs. Ensure that data is replicated properly.
 ###############################################################################
 --source include/not_group_replication_plugin.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --echo #Test case 1:

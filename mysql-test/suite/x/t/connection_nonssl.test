@@ -1,0 +1,139 @@
+## XPLUGIN: Following test cases for mysqlx plugin non-ssl connection testing.
+# Created : 21-08-2015 Lalit Choudhary
+
+--echo Preamble
+--source ../include/have_performance_schema_threads.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_ssl_warnings_suppression.inc
+--source include/xplugin_create_user.inc
+
+SET GLOBAL mysqlx_connect_timeout = 300;
+call mtr.add_suppression("Unsuccessful login attempt");
+
+# Tests added by QA
+--echo
+--echo ## Non-SSL connection testing for mysqlxtest
+# Started Server with --skip-option.
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-setup.tmp
+-->sql
+
+CREATE USER user1_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
+CREATE USER user2_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string2'
+            PASSWORD EXPIRE;
+
+
+# User connection with sha256_password plugin is not supported yet.
+#CREATE USER user3_mysqlx@localhost
+#             IDENTIFIED WITH 'sha256_password' BY 'auth_string3';
+
+CREATE USER user3_mysqlx@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+PASSWORD EXPIRE NEVER;
+
+# SSL enabled users
+CREATE USER user4_mysqlx@localhost REQUIRE SSL ACCOUNT LOCK;
+CREATE USER user5_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            REQUIRE SSL;
+CREATE USER user6_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd'
+            REQUIRE X509;
+
+
+GRANT ALL ON *.* TO user1_mysqlx@localhost;
+GRANT ALL ON *.* TO user2_mysqlx@localhost;
+GRANT ALL ON *.* TO user3_mysqlx@localhost;
+GRANT ALL ON *.* TO user4_mysqlx@localhost;
+GRANT ALL ON *.* TO user5_mysqlx@localhost;
+GRANT ALL ON *.* TO user6_mysqlx@localhost;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-setup.tmp 2>&1
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+-->sql
+SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+show status like 'Mysqlx_ssl_version';
+-->endsql
+EOF
+
+# MYSQLXTEST connections showing connection type should be socket, TCP or SSL/TLS.
+--exec $MYSQLXTEST -u user1_mysqlx --password='auth_string1' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Try connecting with Expired password using user2_mysqlx user.
+--let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Using "connect-expired-password" Option to allow expired password.
+
+--write_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
+-->sql
+ALTER USER USER() IDENTIFIED BY 'alter-new-auth';
+-->endsql
+EOF
+
+--write_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
+-->sql
+SET PASSWORD='set-new-auth';
+-->endsql
+EOF
+
+
+# Testing connection with --connect-expired-password and without SSL options.
+--exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2' --connect-expired-password --file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1
+
+ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
+--exec $MYSQLXTEST -u user2_mysqlx --password='alter-new-auth' --connect-expired-password --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
+
+--exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --connect-expired-password --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Expecting error since MYSQLXTEST trying to take connection using ssl option to Non-SSL enabled server.
+--let $expected_error_msg= Capability prepare failed for 'tls' \(code 5001\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-mode=required --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
+
+--let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user3_mysqlx --password='auth_string3' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Testing conenction for ACCOUNT LOCK user.
+--let $expected_error_msg=  Account is locked. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user4_mysqlx --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Unlocking user account.
+ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
+
+# Expecting error since ssl required users trying to connect on non-ssl enabled server.
+--let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user4_mysqlx --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user5_mysqlx --password='auth_string' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+# Cleanup
+DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
+          user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost;
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-setup.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
+--source include/xplugin_drop_user.inc

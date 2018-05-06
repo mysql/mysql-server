@@ -6,7 +6,6 @@
 #
 # Bug #14219515    DUPLICATE VALUE NOT REPORTED FOR ADD PRIMARY KEY
 #
---source include/have_innodb.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

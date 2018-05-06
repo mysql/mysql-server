@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/not_threadpool.inc
 
 # 2010-01-28 OBN Added support to load 'innodb' and 'semisync' if possible.
@@ -50,8 +49,8 @@ create table t2 (variable_name text);
 eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
 
 --disable_warnings
-insert into t2 select variable_name from information_schema.global_variables;
-insert into t2 select variable_name from information_schema.session_variables;
+insert into t2 select variable_name from performance_schema.global_variables;
+insert into t2 select variable_name from performance_schema.session_variables;
 --enable_warnings
 
 # Performance schema variables are too long for files named
@@ -60,10 +59,10 @@ insert into t2 select variable_name from information_schema.session_variables;
 # to fit in the tar source distribution (limit in old tar)
 # Renaming the tests to aliases below.
 
-update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
-update t2 set variable_name= replace(variable_name, "_HISTORY_LONG_", "_HL_");
-update t2 set variable_name= replace(variable_name, "_HISTORY_", "_H_");
-update t2 set variable_name= replace(variable_name, "_THROTTLE_QUERIES_NOT_USING_INDEXES", "_THROTTLE_QNI");
+update t2 set variable_name= replace(variable_name, "performance_schema_", "pfs_");
+update t2 set variable_name= replace(variable_name, "_history_long_", "_hl_");
+update t2 set variable_name= replace(variable_name, "_history_", "_h_");
+update t2 set variable_name= replace(variable_name, "_throttle_queries_not_using_indexes", "_throttle_qni");
 
 --sorted_result
 select variable_name as `There should be *no* long test name listed below:` from t2

@@ -486,7 +486,7 @@ let $rows = 1;
 
 --echo # QUOTE()
 let $cols = a varchar(10), b varchar(10) generated always as (quote(a)) virtual;
-let $values1 = 'Don\'t',default;
+let $values1 = 'Don''t',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
@@ -1136,6 +1136,27 @@ let $rows = 1;
 
 --echo # None.
 
+--echo #
+--echo # JSON functions
+--echo #
+
+--echo # JSON_PRETTY()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_PRETTY(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_SIZE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_FREE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_FREE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo #
 --echo # OTHER FUNCTIONS
@@ -1177,29 +1198,11 @@ let $values1 = 'MySQL',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
---echo # ENCODE(), DECODE()
-let $cols = a varchar(1024), b varchar(1024) generated always as (decode(encode(a,'abc'),'abc')) virtual;
-let $values1 = 'MySQL',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
 --echo # DEFAULT()
 let $cols = a varchar(1024) default 'aaa', b varchar(1024) generated always as (ifnull(a,default(a))) virtual;
 let $values1 = 'any value',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
---echo # DES_ENCRYPT(), DES_DECRYPT()
---source include/have_ssl_crypto_functs.inc
-let $cols = a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual;
-let $values1 = 'MySQL',default;
---disable_warnings
-eval create table t1 ($cols);
-show create table t1;
---enable_warnings
-eval insert into t1 values ($values1);
-select * from t1;
-drop table t1;
 
 --echo # INET_ATON(), INET_NTOA()
 let $cols = a varchar(1024), b varchar(1024) generated always as (inet_ntoa(inet_aton(a))) virtual;
@@ -1210,12 +1213,6 @@ let $rows = 1;
 --echo # MD5()
 let $cols = a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual;
 let $values1 = 'testing',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
---echo # PASSWORD()
-let $cols = a varchar(1024), b varchar(1024) generated always as (password(a)) virtual;
-let $values1 = 'badpwd',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 

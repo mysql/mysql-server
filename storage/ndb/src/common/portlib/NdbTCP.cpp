@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -60,10 +67,15 @@ char*
 Ndb_inet_ntop(int af,
               const void *src,
               char *dst,
-              socklen_t size)
+              size_t dst_size)
 {
+  // Function assume there is at least some space in "dst" since there
+  // are no way to return failure without writing into "dst". Check
+  // that noone seem to call function with too small "dst_size"
+  assert(dst);
+  assert(dst_size > 0);
+
   int ret;
-  const char *null_str = "null";
   switch (af)
   {
     case AF_INET:
@@ -75,7 +87,7 @@ Ndb_inet_ntop(int af,
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in),
                         dst,
-                        size,
+                        (socklen_t)dst_size,
                         NULL,
                         0,
                         NI_NUMERICHOST);
@@ -94,7 +106,7 @@ Ndb_inet_ntop(int af,
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in6),
                         dst,
-                        size,
+                        (socklen_t)dst_size,
                         NULL,
                         0,
                         NI_NUMERICHOST);
@@ -109,7 +121,13 @@ Ndb_inet_ntop(int af,
       break;
     }
   }
-  return (char*)null_str;
+
+  // Copy the string "null" into dst buffer
+  // and zero terminate for safety
+  strncpy(dst, "null", dst_size);
+  dst[dst_size-1] = 0;
+
+  return dst;
 }
 
 #ifdef TEST_NDBGETINADDR
@@ -146,11 +164,11 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
       addr_str1 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&addr),
                                 buf1,
-                                (socklen_t)sizeof(buf1));
+                                sizeof(buf1));
       addr_str2 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&none),
                                 buf2,
-                                (socklen_t)sizeof(buf2));
+                                sizeof(buf2));
       fprintf(stderr, "> didn't return INADDR_NONE after failure, "
              "got: '%s', expected; '%s'\n", addr_str1, addr_str2);
       abort();
@@ -162,7 +180,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
   addr_str1 = Ndb_inet_ntop(AF_INET,
                             static_cast<void*>(&addr),
                             buf1,
-                            (socklen_t)sizeof(buf1));
+                            sizeof(buf1));
   fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
 
   if (is_numeric)
@@ -175,7 +193,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     addr_str2 = Ndb_inet_ntop(AF_INET,
                               static_cast<void*>(&addr2),
                               buf2,
-                              (socklen_t)sizeof(buf2));
+                              sizeof(buf2));
     fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, addr_str2);
 
     if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
@@ -183,7 +201,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
       addr_str2 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&addr2),
                                 buf2,
-                                (socklen_t)sizeof(buf2));
+                                sizeof(buf2));
       fprintf(stderr, "> numeric address '%s' didn't map to same value as "
               "inet_addr: '%s'", address, addr_str2);
       abort();
@@ -288,7 +306,7 @@ TAPTEST(NdbGetInAddr)
     CHECK(Ndb_inet_ntop(AF_INET,
                         static_cast<void*>(&addr),
                         addr_buf,
-                        (socklen_t)sizeof(addr_buf)),
+                        sizeof(addr_buf)),
                         0,
                         true);
   }
@@ -298,15 +316,28 @@ TAPTEST(NdbGetInAddr)
   CHECK("fe80::200:f8ff:fe21:67cf", -1);
   CHECK("::1", -1); // the loopback, but still No IPv6
 
+  {
+    // Check with AF_UNSPEC to trigger Ndb_inet_ntop()
+    // to return the "null" error string
+    fprintf(stderr, "Testing Ndb_inet_ntop(AF_UNSPEC, ...)\n");
+
+    struct in_addr addr;
+    const char* addr_str = Ndb_inet_ntop(AF_UNSPEC,
+                                         static_cast<void*>(&addr),
+                                         addr_buf,
+                                         sizeof(addr_buf));
+    fprintf(stderr, "> AF_UNSPEC -> '%s'\n", addr_str);
+  }
+
   socket_library_end();
 
   return 1; // OK
 }
 #endif
 
-
+#ifndef HAVE_POLL
 static inline
-int my_socket_nfds(ndb_socket_t s, int nfds)
+int ndb_socket_nfds(ndb_socket_t s, int nfds)
 {
 #ifdef _WIN32
   (void)s;
@@ -316,6 +347,7 @@ int my_socket_nfds(ndb_socket_t s, int nfds)
 #endif
   return nfds;
 }
+#endif
 
 #define my_FD_SET(sock,set)   FD_SET(ndb_socket_get_native(sock), set)
 #define my_FD_ISSET(sock,set) FD_ISSET(ndb_socket_get_native(sock), set)
@@ -339,7 +371,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   fd_set readfds, writefds, errorfds;
   struct timeval tv= {0,0};
   int s_err;
-  SOCKET_SIZE_TYPE s_err_size= sizeof(s_err);
+  ndb_socket_len_t s_err_size= sizeof(s_err);
 
   FD_ZERO(&readfds);
   FD_ZERO(&writefds);
@@ -349,14 +381,17 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   my_FD_SET(sock, &writefds);
   my_FD_SET(sock, &errorfds);
 
-  if(select(my_socket_nfds(sock,0)+1, &readfds, &writefds, &errorfds, &tv)<0)
+  if(select(ndb_socket_nfds(sock,0)+1,
+            &readfds, &writefds, &errorfds, &tv)<0)
+  {
     return 1;
+  }
 
   if(my_FD_ISSET(sock,&errorfds))
     return 1;
 
   s_err=0;
-  if (my_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
+  if (ndb_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
     return(1);
 
   if (s_err)

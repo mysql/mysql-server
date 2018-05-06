@@ -4,8 +4,6 @@
 # partition related tests with remote tablespaces.
 # See innodb.innodb-restart for tablespace migration tests.
 #
---source include/have_innodb.inc
---source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 
 --echo #
@@ -187,11 +185,11 @@ set @@sql_mode=@org_mode;
 --echo # or to be located in or under MYSQLD_DATADIR. 
 --echo #
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY './';
 SHOW WARNINGS;
 
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '../';
 SHOW WARNINGS;
 
@@ -396,4 +394,3 @@ DROP TABLE emp;
 --rmdir $MYSQL_TMP_DIR/alt_dir_west
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir
-

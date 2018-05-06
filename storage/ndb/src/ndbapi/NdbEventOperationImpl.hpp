@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,6 +32,9 @@
 #include <UtilBuffer.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
+#include <NdbTick.h>
+
+#include "my_pointer_arithmetic.h"
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 //#define EVENT_DEBUG
@@ -42,30 +52,25 @@
 #define DBUG_DUMP_EVENT(A,B,C)
 #endif
 
-#undef NDB_EVENT_VERIFY_SIZE
-#ifdef VM_TRACE
-// not much effect on performance, leave on
-#define NDB_EVENT_VERIFY_SIZE
-#endif
+#include <ndb_logevent.h>
+typedef enum ndb_logevent_event_buffer_status_report_reason ReportReason;
 
 class NdbEventOperationImpl;
+class EpochData;
 
-struct EventBufData
+class EventBufData
 {
+public:
   union {
     SubTableData *sdata;
     Uint32 *memory;
   };
   LinearSectionPtr ptr[3];
-  unsigned sz;
   NdbEventOperationImpl *m_event_op;
 
   /*
    * Blobs are stored in blob list (m_next_blob) where each entry
    * is list of parts (m_next).  TODO order by part number
-   *
-   * Processed data (m_used_data, m_free_data) keeps the old blob
-   * list intact.  It is reconsumed when new data items are needed.
    *
    * Data item lists keep track of item count and sum(sz) and
    * these include both main items and blob parts.
@@ -77,238 +82,141 @@ struct EventBufData
   EventBufData *m_next_hash; // Next in per-GCI hash
   Uint32 m_pkhash; // PK hash (without op) for fast compare
 
-  EventBufData() {}
+  EventBufData()
+    : memory(NULL),
+      m_event_op(NULL), m_next(NULL), m_next_blob(NULL)
+  {}
 
-  /*
-   * Main item does not include summary of parts (space / performance
-   * tradeoff).  The summary is needed when moving single data item.
-   * It is not needed when moving entire list.
-   */
-  void get_full_size(Uint32 & full_count, Uint32 & full_sz) const {
-    full_count = 1;
-    full_sz = sz;
-    if (m_next_blob != 0)
-      add_part_size(full_count, full_sz);
-  }
-  void add_part_size(Uint32 & full_count, Uint32 & full_sz) const;
+  Uint32 get_count() const;
+  Uint32 get_size() const;
+  Uint64 getGCI() const;
 };
 
-class EventBufData_list
+
+/**
+ * The MonotonicEpoch class provides a monotonic increasing epoch
+ * identifier - Even across an initial restart which may start a
+ * new sequence of GCIs from 0/0.
+ * Several garbage collection mechanism in the EventBuffer relies
+ * on the monotonicity of the GCI being used as an 'expiry stamp'
+ * for when the object can be permanently deleted.
+ */
+class MonotonicEpoch
 {
 public:
-  EventBufData_list();
-  ~EventBufData_list();
+  static const MonotonicEpoch min;
+  static const MonotonicEpoch max;
 
-  // remove first and return its size
-  void remove_first(Uint32 & full_count, Uint32 & full_sz);
-  // for remove+append avoid double call to get_full_size()
-  void append_used_data(EventBufData *data, Uint32 full_count, Uint32 full_sz);
-  // append data and insert data but ignore Gci_op list
-  void append_used_data(EventBufData *data);
-  // append data and insert data into Gci_op list with add_gci_op
-  void append_data(EventBufData *data);
-  // append list to another, will call move_gci_ops
-  void append_list(EventBufData_list *list, Uint64 gci);
+  MonotonicEpoch()
+    : m_seq(0), m_epoch(0) {}
 
-  int is_empty();
+  MonotonicEpoch(Uint32 seq, Uint64 epoch)
+    : m_seq(seq), m_epoch(epoch) {}
 
-  EventBufData *m_head, *m_tail;
-  Uint32 m_count;
-  Uint32 m_sz;
+  bool operator == (const MonotonicEpoch& other) const
+  { return m_epoch == other.m_epoch && m_seq == other.m_seq; }
+  bool operator != (const MonotonicEpoch& other) const
+  { return m_epoch != other.m_epoch || m_seq != other.m_seq; }
+  bool operator <  (const MonotonicEpoch& other) const
+  { return m_seq < other.m_seq || (m_seq == other.m_seq && m_epoch < other.m_epoch); }
+  bool operator <= (const MonotonicEpoch& other) const
+  { return m_seq < other.m_seq || (m_seq == other.m_seq && m_epoch <= other.m_epoch); }
+  bool operator >  (const MonotonicEpoch& other) const
+  { return m_seq > other.m_seq || (m_seq == other.m_seq && m_epoch > other.m_epoch); }
+  bool operator >= (const MonotonicEpoch& other) const
+  { return m_seq > other.m_seq || (m_seq == other.m_seq && m_epoch >= other.m_epoch); }
 
-  /*
-    distinct ops per gci (assume no hash needed)
+  Uint64 getGCI() const { return m_epoch; }
 
-    list may be in 2 versions
+  // 'operator <<' is allowed to access privat members
+  friend NdbOut& operator<<(NdbOut& out, const MonotonicEpoch& gci);
 
-    1. single list with on gci only
-    - one linear array
-    Gci_op  *m_gci_op_list;
-    Uint32 m_gci_op_count;
-    Uint32 m_gci_op_alloc != 0;
-
-    2. multi list with several gcis
-    - linked list of gci's
-    - one linear array per gci
-    Gci_ops *m_gci_ops_list;
-    Gci_ops *m_gci_ops_list_tail;
-    Uint32 m_is_not_multi_list == 0;
-
-    m_error shows the error identified when receiveing an epoch:
-      a buffer overflow at the sender (ndb suma) or receiver (event buffer).
-      This error information is a duplicate, same info is available in
-      the dummy EventBufData. The reason to store the duplicate is to reduce
-      the search performed by isConsistent(Uint64 &) to find whether an
-      inconsistency has occurred in the stream (event queue is longer than
-      gci_ops list). This method is kept for backward compatibility.
-  */
-  struct Gci_op                 // 1 + 2
-  {
-    NdbEventOperationImpl* op;
-    Uint32 event_types;
-  };
-  struct Gci_ops                // 2
-  {
-    Gci_ops()
-      : m_gci(0),
-        m_error(0),
-        m_gci_op_list(NULL),
-        m_next(NULL),
-        m_gci_op_count(0)
-      {};
-    ~Gci_ops() {};
-
-    Uint64 m_gci;
-    Uint32 m_error;
-    Gci_op *m_gci_op_list;
-    Gci_ops *m_next;
-    Uint32 m_gci_op_count;
-  };
-  union
-  {
-    Gci_op  *m_gci_op_list;      // 1
-    Gci_ops *m_gci_ops_list;     // 2
-  };
-  union
-  {
-    Uint32 m_gci_op_count;       // 1
-    Gci_ops *m_gci_ops_list_tail;// 2
-  };
-  union
-  {
-    Uint32 m_gci_op_alloc;       // 1
-    Uint32 m_is_not_multi_list;  // 2
-  };
-  Gci_ops *first_gci_ops();
-  Gci_ops *delete_next_gci_ops();
-  // case 1 above; add Gci_op to single list
-  void add_gci_op(Gci_op g);
 private:
-  // case 2 above; move single list or multi list from
-  // one list to another
-  void move_gci_ops(EventBufData_list *list, Uint64 gci);
+  Uint32  m_seq;
+  Uint64  m_epoch;
 };
 
-inline
-EventBufData_list::EventBufData_list()
-  : m_head(0), m_tail(0),
-    m_count(0),
-    m_sz(0),
-    m_gci_op_list(NULL),
-    m_gci_ops_list_tail(0),
-    m_gci_op_alloc(0)
+/**
+ * All memory allocation for events are done from memory blocks.
+ * Each memory block is tagged with an 'expiry-epoch', which holds
+ * the highest epoch known upto the point where the block got full.
+ *
+ * No freeing of objects allocted from the memory block is required.
+ * Instead we free the entire block when the client has consumed the
+ * last event with an epoch >= the 'expiry-epoch' of the memory block.
+ */
+class EventMemoryBlock
 {
-  DBUG_ENTER_EVENT("EventBufData_list::EventBufData_list");
-  DBUG_PRINT_EVENT("info", ("this: %p", this));
-  DBUG_VOID_RETURN_EVENT;
-}
-
-inline
-EventBufData_list::~EventBufData_list()
-{
-  DBUG_ENTER_EVENT("EventBufData_list::~EventBufData_list");
-  DBUG_PRINT_EVENT("info", ("this: %p  m_is_not_multi_list: %u",
-                            this, m_is_not_multi_list));
-  if (m_is_not_multi_list)
+public:
+  EventMemoryBlock(Uint32 size)
+    : m_size(data_size(size))
   {
-    DBUG_PRINT_EVENT("info", ("delete m_gci_op_list: %p", m_gci_op_list));
-    delete [] m_gci_op_list;
-    m_gci_op_list = NULL;
-    m_is_not_multi_list = 0;
+    init();
   }
-  else
+
+  void init()
   {
-    Gci_ops *op = first_gci_ops();
-    while (op)
-      op = delete_next_gci_ops();
+    /**
+     * Alloc must start from an aligned memory addr, add padding if required.
+     * Assumes that EventMemoryBlock itself is correctly aligned.
+     */
+    const Uint32 data_offs =  my_offsetof(EventMemoryBlock, m_data);
+    const Uint32 pad = ALIGN_SIZE(data_offs) - data_offs;
+    m_used = pad;
+    m_expiry_epoch = MonotonicEpoch::max;
+    m_next = NULL;
   }
-  DBUG_VOID_RETURN_EVENT;
-}
 
-inline
-int EventBufData_list::is_empty()
-{
-  return m_head == 0;
-}
-
-inline
-void EventBufData_list::remove_first(Uint32 & full_count, Uint32 & full_sz)
-{
-  m_head->get_full_size(full_count, full_sz);
-#ifdef VM_TRACE
-  assert(m_count >= full_count);
-  assert(m_sz >= full_sz);
-#endif
-  m_count -= full_count;
-  m_sz -= full_sz;
-  m_head = m_head->m_next;
-  if (m_head == 0)
-    m_tail = 0;
-}
-
-inline
-void EventBufData_list::append_used_data(EventBufData *data, Uint32 full_count, Uint32 full_sz)
-{
-  data->m_next = 0;
-  if (m_tail)
-    m_tail->m_next = data;
-  else
+  // Allocate a chunk of memory from this MemoryBlock
+  void* alloc(unsigned size)
   {
-#ifdef VM_TRACE
-    assert(m_head == 0);
-    assert(m_count == 0);
-    assert(m_sz == 0);
-#endif
-    m_head = data;
+    if (unlikely(m_used + size > m_size))
+      return NULL;
+
+    char *mem = m_data + m_used;
+    m_used += ALIGN_SIZE(size);  //Keep alignment for next object
+    return (void*)mem;
   }
-  m_tail = data;
 
-  m_count += full_count;
-  m_sz += full_sz;
-}
-
-inline
-void EventBufData_list::append_used_data(EventBufData *data)
-{
-  Uint32 full_count, full_sz;
-  data->get_full_size(full_count, full_sz);
-  append_used_data(data, full_count, full_sz);
-}
-
-inline
-void EventBufData_list::append_data(EventBufData *data)
-{
-  Gci_op g = { data->m_event_op, 
-	       1U << SubTableData::getOperation(data->sdata->requestInfo) };
-  add_gci_op(g);
-
-  append_used_data(data);
-}
-
-inline EventBufData_list::Gci_ops *
-EventBufData_list::first_gci_ops()
-{
-  assert(!m_is_not_multi_list);
-  return m_gci_ops_list;
-}
-
-inline EventBufData_list::Gci_ops *
-EventBufData_list::delete_next_gci_ops()
-{
-  assert(!m_is_not_multi_list);
-  Gci_ops *first = m_gci_ops_list;
-  m_gci_ops_list = first->m_next;
-  if (first->m_gci_op_list)
+  // Get remaining free memory from block
+  Uint32 get_free() const
   {
-    DBUG_PRINT_EVENT("info", ("this: %p  delete m_gci_op_list: %p",
-                              this, first->m_gci_op_list));
-    delete [] first->m_gci_op_list;
+    return (m_size - m_used);
   }
-  delete first;
-  if (m_gci_ops_list == 0)
-    m_gci_ops_list_tail = 0;
-  return m_gci_ops_list;
-}
+
+  // Get total usable memory size from block (if empty)
+  Uint32 get_size() const
+  {
+    return m_size;
+  }
+
+  // Get total size of block as once allocated
+  Uint32 alloced_size() const
+  {
+    return m_size + my_offsetof(EventMemoryBlock, m_data);
+  }
+
+  const Uint32      m_size;   // Number of bytes available to allocate from m_data
+  Uint32            m_used;   // Offset of next free position
+
+  /**
+   * Highest epoch of any object allocated memory from this block.
+   * Entire block expires when all epoch <= expiry_epoch are consumed.
+   */
+  MonotonicEpoch m_expiry_epoch;
+
+  EventMemoryBlock *m_next;   // Next memory block
+
+  char m_data[1];
+
+private:
+  // Calculates usable size of m_data given total size 'full_sz'
+  Uint32 data_size(Uint32 full_sz)
+  {
+    return full_sz - my_offsetof(EventMemoryBlock, m_data);
+  }
+};
+
 
 // GCI bucket has also a hash over data, with key event op, table PK.
 // It can only be appended to and is invalid after remove_first().
@@ -338,8 +246,55 @@ void EventBufData_hash::append(Pos& hpos, EventBufData* data)
   m_hash[hpos.index] = data;
 }
 
-struct Gci_container
+/**
+ * The Gci_container creates a collection of EventBufData and
+ * the NdbEventOperationImpl receiving an event withing this
+ * specific epoch. Once 'completed', an 'EpochData' is created from
+ * the Gci_container, representing a more static view of the 
+ * epoch ready to be consumed by the client.
+ */
+struct Gci_op  //A helper
 {
+  NdbEventOperationImpl* op;
+  Uint32 event_types;
+  Uint32 cumulative_any_value;// Merged for table/epoch events
+};
+
+class Gci_container
+{
+public:
+  Gci_container(NdbEventBuffer* event_buffer)
+  : m_event_buffer(event_buffer),
+    m_state(0),
+    m_gcp_complete_rep_count(0),
+    m_gcp_complete_rep_sub_data_streams(),
+    m_gci(0),
+    m_head(NULL), m_tail(NULL),
+    m_gci_op_list(NULL),
+    m_gci_op_count(0),
+    m_gci_op_alloc(0)
+  {
+    bzero(&m_data_hash, sizeof(m_data_hash));
+  }
+
+  void clear()
+  {
+    assert(m_event_buffer != NULL);
+    m_state = 0;
+    m_gcp_complete_rep_count = 0;
+    m_gcp_complete_rep_sub_data_streams.clear();
+    m_gci = 0;
+    m_head = m_tail = NULL;
+    bzero(&m_data_hash, sizeof(m_data_hash));
+
+    m_gci_op_list = NULL;
+    m_gci_op_count = 0;
+    m_gci_op_alloc = 0;
+  }
+
+  bool is_empty() const
+  { return (m_head == NULL); }
+
   enum State 
   {
     GC_COMPLETE       = 0x1 // GCI is complete, but waiting for out of order
@@ -348,21 +303,177 @@ struct Gci_container
     ,GC_OUT_OF_MEMORY = 0x8 // Not enough event buffer memory to buffer data
   };
 
-  
+  NdbEventBuffer *const m_event_buffer;  //Owner
+
   Uint16 m_state;
   Uint16 m_gcp_complete_rep_count; // Remaining SUB_GCP_COMPLETE_REP until done
   Bitmask<(MAX_SUB_DATA_STREAMS+31)/32> m_gcp_complete_rep_sub_data_streams;
   Uint64 m_gci;                    // GCI
-  EventBufData_list m_data;
+
+  EventBufData *m_head, *m_tail;
   EventBufData_hash m_data_hash;
 
-  bool hasError();
+  Gci_op *m_gci_op_list;
+  Uint32 m_gci_op_count;   //Current size of gci_op_list[]
+  Uint32 m_gci_op_alloc;   //Items allocated in gci_op_list[]
+
+  bool hasError() const
+  { return (m_state & (GC_OUT_OF_MEMORY | GC_INCONSISTENT)); }
+
+  // get number of EventBufData in this Gci_container (For debug)
+  Uint32 count_event_data() const;
+
+  // add Gci_op to container for this Gci
+  void add_gci_op(Gci_op g);
+
+  // append data and insert data into Gci_op list with add_gci_op
+  void append_data(EventBufData *data);
+
+  // Create an EpochData containing the Gci_op and event data added above.
+  // This effectively 'completes' the epoch represented by this Gci_container
+  EpochData* createEpochData(Uint64 gci);
 };
 
 struct Gci_container_pod
 {
   char data[sizeof(Gci_container)];
 };
+
+
+/**
+ * An EpochData is created from a Gci_container when it contains a complete
+ * epoch. It contains all EventBufData received within this epoch, and 
+ * a list of all NdbEventOperationImpl which received an event.
+ * (Except exceptional events)
+ *
+ * m_error shows the error identified when receiveing an epoch:
+ *  a buffer overflow at the sender (ndb suma) or receiver (event buffer).
+ *  This error information is a duplicate, same info is available in
+ *  the dummy EventBufData. The reason to store the duplicate is to remove
+ *  the need to search the EventBufData by isConsistent(Uint64 &) to find
+ *  whether an inconsistency has occurred in the epoch stream.
+ *  This method is kept for backward compatibility.
+ */
+class EpochData
+{
+public:
+  EpochData(MonotonicEpoch gci,
+            Gci_op *gci_op_list, Uint32 count,
+            EventBufData *data)
+    : m_gci(gci),
+      m_error(0),
+      m_gci_op_count(count),
+      m_gci_op_list(gci_op_list),
+      m_data(data),
+      m_next(NULL)
+    {};
+  ~EpochData() {};
+
+  // get number of EventBufData in EpochDataList (For debug)
+  Uint32 count_event_data() const;
+
+  const MonotonicEpoch m_gci;
+  Uint32 m_error;
+  Uint32 const m_gci_op_count;
+  Gci_op* const m_gci_op_list;  //All event_op receiving an event
+  EventBufData* m_data;         //All event data within epoch
+  EpochData *m_next;            //Next completed epoch
+};
+
+
+/**
+ * A list of EpochData in increasing GCI order is prepared for the
+ * client to consume. Actually it is a 'list of lists'.
+ *  - The EpochDataList presents a list of epoch which has completed.
+ *  - Within each epoch the client can navigate the EventBufData
+ *    valid for this specific Epoch.
+ */
+class EpochDataList
+{
+public:
+  EpochDataList()
+    : m_head(NULL), m_tail(NULL) {}
+
+  // Gci list is cleared to an empty state.
+  void clear()
+  { m_head = m_tail = NULL; }
+  
+  bool is_empty() const
+  { return (m_head == NULL); }
+
+  // append EpochData to list
+  void append(EpochData *epoch)
+  {
+    if (m_tail)
+      m_tail->m_next = epoch;
+    else
+    {
+      assert(m_head == NULL);
+      m_head = epoch;
+    }
+    m_tail = epoch;
+  }
+
+  // append list to another
+  void append_list(EpochDataList *list)
+  {
+    if (m_tail)
+      m_tail->m_next= list->m_head;
+    else
+      m_head= list->m_head;
+    m_tail= list->m_tail;
+
+    list->m_head = list->m_tail = NULL;
+  }
+
+  EpochData *first_epoch() const
+  { return m_head;}
+
+  // advance list head to next EpochData
+  EpochData *next_epoch()
+  {
+    m_head = m_head->m_next;
+    if (m_head == NULL)
+      m_tail = NULL;
+
+    return m_head;
+  }
+
+  // find first event data to be delivered.
+  EventBufData *get_first_event_data() const
+  {
+    EpochData *epoch = m_head;
+    while (epoch != NULL)
+    {
+      if (epoch->m_data != NULL)
+        return epoch->m_data;
+      epoch = epoch->m_next;
+    }
+    return NULL;
+  }
+
+  // get and consume first EventData
+  EventBufData *consume_first_event_data()
+  {
+    EpochData *epoch = m_head;
+    if (epoch != NULL)
+    {
+      EventBufData *data = epoch->m_data;
+      if (data != NULL)
+        m_head->m_data = data->m_next;
+    
+      return data;
+    }
+    return NULL;
+  }
+
+  // get number of EventBufData in EpochDataList (For debug)
+  Uint32 count_event_data() const;
+
+//private:
+  EpochData *m_head, *m_tail;
+};
+
 
 class NdbEventOperationImpl : public NdbEventOperation {
 public:
@@ -393,7 +504,7 @@ public:
   bool tableFrmChanged() const;
   bool tableFragmentationChanged() const;
   bool tableRangeListChanged() const;
-  Uint64 getGCI();
+  Uint64 getGCI() const;
   Uint32 getAnyValue() const;
   bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type);
   bool isEmptyEpoch();
@@ -437,7 +548,7 @@ public:
     when parsed gci > m_stop_gci it is safe to drop operation
     as kernel will not have any more references
   */
-  Uint64 m_stop_gci;
+  MonotonicEpoch m_stop_gci;
 
   /*
     m_ref_count keeps track of outstanding references to an event
@@ -549,7 +660,7 @@ private:
 
   /**
    * Event buffer manager has 4 states :
-   * COMPLETELY_BUFFERNG :
+   * COMPLETELY_BUFFERING :
    *  all received event data are buffered.
    * Entry condition:
    *  m_pre_gap_epoch = 0 && m_begin_gap_epoch = 0 && m_end_gap_epoch = 0.
@@ -571,7 +682,7 @@ private:
    *   m_pre_gap_epoch > 0 && m_begin_gap_epoch > 0 && m_end_gap_epoch > 0.
    *
    * Transitions :
-   * COMPLETELY_BUFFERNG -> PARTIALLY_DISCARDING :
+   * COMPLETELY_BUFFERING -> PARTIALLY_DISCARDING :
    *  memory is completely used up at the reception of SUB_TABLE_DATA,
    *  Action: m_pre_gap_epoch is set with m_max_buffered_epoch.
    *   ==> An incoming new epoch, which is larger than the
@@ -587,14 +698,14 @@ private:
    * create the exceptional epoch. Complete_bucket is called only when
    * an epoch is gcp-completing.
    *
-   * COMPLETELY_DISCARDING -> PARTIALLY_BUFFERNG :
+   * COMPLETELY_DISCARDING -> PARTIALLY_BUFFERING :
    *  m_free_percent of the event buffer  becomes available at the
    *  reception of SUB_TABLE_DATA.
    * Action : set m_end_gap_epoch with max_received_epoch
    * (cannot use m_max_buffered_epoch since it has not been updated
    * since PARTIALLY_DISCARDING).
    *
-   * PARTIALLY_BUFFERNG -> COMPLETELY_BUFFERNG :
+   * PARTIALLY_BUFFERING -> COMPLETELY_BUFFERING :
    *  epoch next to m_end_gap_epoch (post-gap epoch) has buffered
    *  completely and gcp_completed.
    * Action : reset m_pre_gap_epoch, m_begin_gap_epoch and m_end_gap_epoch.
@@ -618,7 +729,7 @@ public:
    * Transitions CB -> PD and CD -> PB and updating m_max_received epoc
    * are performed here.
    */
-  bool onEventDataReceived(Uint32 memory_usage_percent, Uint64 received_epoch);
+  ReportReason onEventDataReceived(Uint32 memory_usage_percent, Uint64 received_epoch);
 
   // Check whether the received event data can be discarded.
   // Discard-criteria : m_pre_gap_epoch < received_epoch <= m_end_gap_epoch.
@@ -632,7 +743,7 @@ public:
    * the gap is ended and the transition to COMPLETE_BUFFERING can be performed.
    * The former case sets gap_begins to true.
    */
-  bool onEpochCompleted(Uint64 completed_epoch, bool& gap_begins);
+  ReportReason onEpochCompleted(Uint64 completed_epoch, bool& gap_begins);
 
   // Check whether the received SUB_GCP_COMPLETE can be discarded
   // Discard-criteria: m_begin_gap_epoch < completed_epoch <= m_end_gap_epoch
@@ -668,7 +779,6 @@ public:
   void add_op();
   void remove_op();
   void init_gci_containers();
-  void clear_event_queue();
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
@@ -688,48 +798,56 @@ public:
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
   Uint64 getHighestQueuedEpoch();
+  void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
 
-  int pollEvents(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
+  int pollEvents(Uint64 *HighestQueuedEpoch= NULL);
   int flushIncompleteEvents(Uint64 gci);
 
-  void free_consumed_event_data();
-  void move_head_event_data_item_to_used_data_queue(EventBufData *data);
+  void remove_consumed_memory(MonotonicEpoch consumedGci);
+  void remove_consumed_epoch_data(MonotonicEpoch consumedGci);
 
-  /* Remove gci_ops belonging to epochs less than firstKeepGci from
-   * m_gci_ops list. gci = UINT_MAX64 means remove all gci_ops from the list.
+  /* Remove all resources related to specified epoch 
+   * after it has been completely consumed.
    */
-  EventBufData_list::Gci_ops* remove_consumed_gci_ops(Uint64 firstKeepGci);
+  void remove_consumed(MonotonicEpoch consumedGci);
+
+  // Count the buffered epochs (in event queue and completed list).
+  Uint32 count_buffered_epochs() const;
+
+  /* Consume and discard all completed events. 
+   * Memory related to discarded events are released.
+   */
+  void consume_all();
 
   // Check if event data belongs to an exceptional epoch, such as,
   // an inconsistent, out-of-memory or empty epoch.
   bool is_exceptional_epoch(EventBufData *data);
+
+  // Consume current EventData and dequeue next for consumption 
+  EventBufData *nextEventData();
 
   // Dequeue event data from event queue and give it for consumption.
   NdbEventOperation *nextEvent2();
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
 
-  NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
-                                               Uint32* event_types);
-  void deleteUsedEventOperations(Uint64 last_consumed_gci);
+  NdbEventOperationImpl* getEpochEventOperations(Uint32* iter,
+                                                 Uint32* event_types,
+                                                 Uint32* cumulative_any_value);
+  void deleteUsedEventOperations(MonotonicEpoch last_consumed_gci);
 
-  NdbEventOperationImpl *move_data();
+  EventBufData *move_data();
 
   // routines to copy/merge events
   EventBufData* alloc_data();
   int alloc_mem(EventBufData* data,
-                LinearSectionPtr ptr[3],
-                Uint32 * change_sz);
-  void dealloc_mem(EventBufData* data,
-                   Uint32 * change_sz);
+                LinearSectionPtr ptr[3]);
   int copy_data(const SubTableData * const sdata, Uint32 len,
                 LinearSectionPtr ptr[3],
-                EventBufData* data,
-                Uint32 * change_sz);
+                EventBufData* data);
   int merge_data(const SubTableData * const sdata, Uint32 len,
                  LinearSectionPtr ptr[3],
-                 EventBufData* data,
-                 Uint32 * change_sz);
+                 EventBufData* data);
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
@@ -737,10 +855,12 @@ public:
                      EventBufData* main_data,
                      EventBufData* blob_data);
 
-  void free_list(EventBufData_list &list);
+  void *alloc(Uint32 sz);
+  Uint32 get_free_data_sz() const;
+  Uint32 get_used_data_sz() const;
 
   //Must report status if buffer manager state is changed
-  void reportStatus(bool force_report = false);
+  void reportStatus(ReportReason reason = NO_REPORT);
 
   //Get event buffer memory usage statistics
   void get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage);
@@ -755,12 +875,25 @@ public:
 
   Ndb *m_ndb;
 
+  // Gci are monotonic increasing while the cluster is not restarted.
+  // A restart will start a new generation of epochs which also inc:
+  Uint32 m_epoch_generation;
+
   // "latest gci" variables updated in receiver thread
   Uint64 m_latestGCI;           // latest GCI completed in order
   Uint64 m_latest_complete_GCI; // latest complete GCI (in case of outof order)
   Uint64 m_highest_sub_gcp_complete_GCI; // highest gci seen in api
   // "latest gci" variables updated in user thread
-  Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
+  MonotonicEpoch m_latest_poll_GCI; // latest gci handed over to user thread
+  Uint64 m_latest_consumed_epoch; // latest epoch consumed by user thread
+
+  /**
+   * m_buffered_epochs = #completed epochs - #completely consumed epochs.
+   * Updated in receiver thread when an epoch completes.
+   * User thread updates it when an epoch is completely consumed.
+   * Owned by receiver thread and user thread update needs mutex.
+  */
+  Uint32 m_buffered_epochs;
 
   bool m_failure_detected; // marker that event operations have failure events
 
@@ -768,19 +901,13 @@ public:
   bool m_prevent_nodegroup_change;
 
   NdbMutex *m_mutex;
-  struct NdbCondition *p_cond;
 
   // receive thread
-  Gci_container m_complete_data;
-  EventBufData *m_free_data;
-#ifdef VM_TRACE
-  Uint32 m_free_data_count;
-#endif
-  Uint32 m_free_data_sz;
+  EpochDataList m_complete_data;
 
   // user thread
-  EventBufData_list m_available_data;
-  EventBufData_list m_used_data;
+  EpochDataList m_event_queue;
+  const EventBufData *m_current_data;
 
   unsigned m_total_alloc; // total allocated memory
 
@@ -798,13 +925,9 @@ public:
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
+  NDB_TICKS m_last_log_time; // Limit frequency of event buffer status reports
 
   NdbError m_error;
-
-#ifdef VM_TRACE
-  static void verify_size(const EventBufData* data, Uint32 count, Uint32 sz);
-  static void verify_size(const EventBufData_list & list);
-#endif
 
 private:
   void insert_event(NdbEventOperationImpl* impl,
@@ -812,16 +935,25 @@ private:
                     LinearSectionPtr *ptr,
                     Uint32 &oid_ref);
   
-  int expand(unsigned sz);
+  EventMemoryBlock* expand_memory_blocks();
+  void complete_memory_block(MonotonicEpoch highest_epoch);
 
-  // all allocated data
-  struct EventBufData_chunk
-  {
-    unsigned sz;
-    EventBufData data[1];
-  };
-  Vector<EventBufData_chunk *> m_allocated_data;
-  unsigned m_sz;
+  /*
+    List of Memory blocks in use in increasing 'epoch-expiry' order.
+    Thus, allocation is always from 'tail' and we release
+    expired blocks from 'head.
+  */
+  EventMemoryBlock *m_mem_block_head;
+  EventMemoryBlock *m_mem_block_tail;
+
+  /*
+    List of free memory blocks available for recycle and its size
+    (Included in ::get_free_data_sz())
+  */
+  EventMemoryBlock *m_mem_block_free;
+  Uint32 m_mem_block_free_sz; //Total size of above
+
+  bool m_queue_empty_epoch;
 
   /*
     dropped event operations (dropEventOperation) that have not yet
@@ -857,13 +989,9 @@ private:
   Uint16 m_sub_data_streams[MAX_SUB_DATA_STREAMS];
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
-  /* Adds a dummy event data and a dummy gci_op list
-   * to an empty bucket and moves these to m_complete_data.
-   */
-  void complete_empty_bucket_using_exceptional_event(Uint64 gci, Uint32 type);
 
-  /* Discard the bucket content */
-  void discard_events_from_bucket(Gci_container* bucket);
+  // Create an epoch with only a exceptional event and an empty gci_op list.
+  EpochData* create_empty_exceptional_epoch(Uint64 gci, Uint32 type);
 
   Uint16 find_sub_data_stream_number(Uint16 sub_data_stream);
   void crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
@@ -952,12 +1080,6 @@ inline bool
 EventBufferManager::isInDiscardingState()
 {
   return (m_event_buffer_manager_state != EBM_COMPLETELY_BUFFERING);
-}
-
-inline bool
-Gci_container::hasError()
-{
-  return (m_state & (GC_OUT_OF_MEMORY | GC_INCONSISTENT));
 }
 
 #endif

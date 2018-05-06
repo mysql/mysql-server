@@ -1,13 +1,20 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,12 +23,22 @@
 #ifndef _lf_h
 #define _lf_h
 
-#include "my_global.h"
-#include "my_atomic.h"
-#include "my_sys.h"
-#include "hash.h"
+/**
+  @file include/lf.h
+*/
 
-C_MODE_START
+#include "my_config.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+#include <atomic>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql_string.h"
 
 /*
   wait-free dynamic array, see lf_dynarray.c
@@ -30,10 +47,10 @@ C_MODE_START
   should be enough for a while
 */
 #define LF_DYNARRAY_LEVEL_LENGTH 256
-#define LF_DYNARRAY_LEVELS       4
+#define LF_DYNARRAY_LEVELS 4
 
 typedef struct {
-  void * volatile level[LF_DYNARRAY_LEVELS];
+  std::atomic<void *> level[LF_DYNARRAY_LEVELS];
   uint size_of_element;
 } LF_DYNARRAY;
 
@@ -52,28 +69,28 @@ int lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg);
 #define LF_PINBOX_PINS 4
 #define LF_PURGATORY_SIZE 10
 
-typedef void lf_pinbox_free_func(void *, void *, void*);
+typedef void lf_pinbox_free_func(void *, void *, void *);
 
 typedef struct {
   LF_DYNARRAY pinarray;
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
-  uint32 volatile pinstack_top_ver;         /* this is a versioned pointer */
-  uint32 volatile pins_in_array;            /* number of elements in array */
+  std::atomic<uint32> pinstack_top_ver; /* this is a versioned pointer */
+  std::atomic<uint32> pins_in_array;    /* number of elements in array */
 } LF_PINBOX;
 
-typedef struct st_lf_pins {
-  void * volatile pin[LF_PINBOX_PINS];
+struct LF_PINS {
+  std::atomic<void *> pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
-  void  *purgatory;
+  void *purgatory;
   uint32 purgatory_count;
-  uint32 volatile link;
+  std::atomic<uint32> link;
 /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
+#if SIZEOF_INT * 2 + SIZEOF_CHARP * (LF_PINBOX_PINS + 2) != 64
+  char pad[64 - sizeof(uint32) * 2 - sizeof(void *) * (LF_PINBOX_PINS + 2)];
 #endif
-} LF_PINS;
+};
 
 /*
   compile-time assert, to require "no less than N" pins
@@ -81,51 +98,47 @@ typedef struct st_lf_pins {
   we'll enable it on GCC only, which supports zero-length arrays.
 */
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
-#define LF_REQUIRE_PINS(N)                                      \
-  static const char require_pins[LF_PINBOX_PINS-N]              \
-                             MY_ATTRIBUTE ((unused));          \
-  static const int LF_NUM_PINS_IN_THIS_FILE= N;
+#define LF_REQUIRE_PINS(N)                                                   \
+  static const char require_pins[LF_PINBOX_PINS - N] MY_ATTRIBUTE((unused)); \
+  static const int LF_NUM_PINS_IN_THIS_FILE = N;
 #else
 #define LF_REQUIRE_PINS(N)
 #endif
 
-static inline void lf_pin(LF_PINS *pins, int pin, void *addr)
-{
+static inline void lf_pin(LF_PINS *pins, int pin, void *addr) {
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
   assert(pin < LF_NUM_PINS_IN_THIS_FILE);
 #endif
-  my_atomic_storeptr(&pins->pin[pin], addr);
+  pins->pin[pin].store(addr);
 }
 
-static inline void lf_unpin(LF_PINS *pins, int pin)
-{
+static inline void lf_unpin(LF_PINS *pins, int pin) {
 #if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
   assert(pin < LF_NUM_PINS_IN_THIS_FILE);
 #endif
-  my_atomic_storeptr(&pins->pin[pin], NULL);
+  pins->pin[pin].store(nullptr);
 }
 
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
-                    lf_pinbox_free_func *free_func, void * free_func_arg);
+                    lf_pinbox_free_func *free_func, void *free_func_arg);
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
 LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox);
 void lf_pinbox_put_pins(LF_PINS *pins);
 void lf_pinbox_free(LF_PINS *pins, void *addr);
-
 
 /*
   memory allocator, lf_alloc-pin.c
 */
 typedef void lf_allocator_func(uchar *);
 
-typedef struct st_lf_allocator {
+struct LF_ALLOCATOR {
   LF_PINBOX pinbox;
-  uchar * volatile top;
+  std::atomic<uchar *> top;
   uint element_size;
-  uint32 volatile mallocs;
+  std::atomic<uint32> mallocs;
   lf_allocator_func *constructor; /* called, when an object is malloc()'ed */
   lf_allocator_func *destructor;  /* called, when an object is free()'d    */
-} LF_ALLOCATOR;
+};
 
 #define lf_alloc_init(A, B, C) lf_alloc_init2(A, B, C, NULL, NULL)
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
@@ -133,35 +146,47 @@ void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
 void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 
-static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
-{
-  if (allocator->destructor)
-    allocator->destructor((uchar *)addr);
+static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr) {
+  if (allocator->destructor) allocator->destructor((uchar *)addr);
   my_free(addr);
 }
 
 void *lf_alloc_new(LF_PINS *pins);
 
-struct st_lf_hash;
-typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
-typedef void lf_hash_init_func(uchar *dst, const uchar* src);
+struct LF_HASH;
+
+typedef uint lf_hash_func(const LF_HASH *, const uchar *, size_t);
+typedef void lf_hash_init_func(uchar *dst, const uchar *src);
 
 #define LF_HASH_UNIQUE 1
+#define MY_LF_ERRPTR ((void *)(intptr)1)
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;
 
-typedef struct st_lf_hash {
-  LF_DYNARRAY array;                    /* hash itself */
-  LF_ALLOCATOR alloc;                   /* allocator for elements */
-  my_hash_get_key get_key;              /* see HASH */
-  CHARSET_INFO *charset;                /* see HASH */
-  lf_hash_func *hash_function;          /* see HASH */
-  uint key_offset, key_length;          /* see HASH */
-  uint element_size;                    /* size of memcpy'ed area on insert */
-  uint flags;                           /* LF_HASH_UNIQUE, etc */
-  int32 volatile size;                  /* size of array */
-  int32 volatile count;                 /* number of elements in the hash */
+/**
+  Callback for extracting key and key length from user data in a LF_HASH.
+  @param      arg    Pointer to user data.
+  @param[out] length Store key length here.
+  @return            Pointer to key to be hashed.
+
+  @note Was my_hash_get_key, with lots of C-style casting when calling
+        my_hash_init. Renamed to force build error (since signature changed)
+        in case someone keeps following that coding style.
+ */
+typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
+
+struct LF_HASH {
+  LF_DYNARRAY array;             /* hash itself */
+  LF_ALLOCATOR alloc;            /* allocator for elements */
+  hash_get_key_function get_key; /* see HASH */
+  CHARSET_INFO *charset;         /* see HASH */
+  lf_hash_func *hash_function;   /* see HASH */
+  uint key_offset, key_length;   /* see HASH */
+  uint element_size;             /* size of memcpy'ed area on insert */
+  uint flags;                    /* LF_HASH_UNIQUE, etc */
+  std::atomic<int32> size;       /* size of array */
+  std::atomic<int32> count;      /* number of elements in the hash */
   /**
     "Initialize" hook - called to finish initialization of object provided by
      LF_ALLOCATOR (which is pointed by "dst" parameter) and set element key
@@ -173,40 +198,31 @@ typedef struct st_lf_hash {
      lf_hash_insert.
   */
   lf_hash_init_func *initialize;
-} LF_HASH;
+};
 
 #define lf_hash_init(A, B, C, D, E, F, G) \
-          lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
+  lf_hash_init2(A, B, C, D, E, F, G, NULL, NULL, NULL, NULL)
 void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
-                   uint key_offset, uint key_length, my_hash_get_key get_key,
-                   CHARSET_INFO *charset, lf_hash_func *hash_function,
-                   lf_allocator_func *ctor, lf_allocator_func *dtor,
-                   lf_hash_init_func *init);
+                   uint key_offset, uint key_length,
+                   hash_get_key_function get_key, CHARSET_INFO *charset,
+                   lf_hash_func *hash_function, lf_allocator_func *ctor,
+                   lf_allocator_func *dtor, lf_hash_init_func *init);
 void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
-void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
+void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
+                     uint keylen);
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 
-static inline LF_PINS *lf_hash_get_pins(LF_HASH *hash)
-{
+static inline LF_PINS *lf_hash_get_pins(LF_HASH *hash) {
   return lf_pinbox_get_pins(&hash->alloc.pinbox);
 }
 
-static inline void lf_hash_put_pins(LF_PINS *pins)
-{
-  lf_pinbox_put_pins(pins);
-}
+static inline void lf_hash_put_pins(LF_PINS *pins) { lf_pinbox_put_pins(pins); }
 
-static inline void lf_hash_search_unpin(LF_PINS *pins)
-{
-  lf_unpin(pins, 2);
-}
+static inline void lf_hash_search_unpin(LF_PINS *pins) { lf_unpin(pins, 2); }
 
 typedef int lf_hash_match_func(const uchar *el);
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
                            lf_hash_match_func *match, uint rand_val);
 
-C_MODE_END
-
 #endif
-

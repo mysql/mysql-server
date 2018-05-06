@@ -1,0 +1,60 @@
+#
+# Test ndb_perror which is a small tool used to
+# lookup the textual description for various error
+# codes returned from NDB and the mgmapi
+#
+# Find ndb_perror
+--source suite/ndb/include/ndb_find_ndb_perror.inc
+
+--echo #
+--echo # 1) Should print error number and error description
+--echo #    for NDB error codes like 4008
+--exec $NDB_PERROR 4008 2>&1
+
+--echo #
+--echo # 1b) Should print error number and description for more
+--echo #     than one error codes
+--exec $NDB_PERROR 4008 4009 2>&1
+
+--echo #
+--echo # 1c) Should print error description _only_ for 
+--echo #     NDB error codes like 4008 when in silent mode
+--exec $NDB_PERROR 4008 --silent 2>&1
+
+--echo #
+--echo # 3) Should print "ndbd exit string" for ndbd exit
+--echo #    code 2808
+--exec $NDB_PERROR 2808 2>&1
+
+--echo #
+--echo # 4) Should print mgmapi error number and description
+--echo #    for mgmapi error number 1001
+--exec $NDB_PERROR 1001 2>&1
+
+--echo #
+--echo # 5) Should print and return error for unknown error code
+--error 1
+--exec $NDB_PERROR 9999 2>&1
+
+--echo #
+--echo # 6) Should accept --ndb as argument although it's ignored
+--echo #    since it's always enabled
+--exec $NDB_PERROR --ndb 4008 2>&1
+
+--echo #
+--echo # 7) Should print only the error message
+--exec $NDB_PERROR --silent 3001 2>&1
+
+--echo #
+--echo # 8) Should print all
+--exec $NDB_PERROR --verbose 4008 2>&1
+
+
+#
+# Added for Bug #26966826
+# below command should give an depricated warning in mysql's perror
+#
+
+--error 1
+--exec $MY_PERROR --ndb 123456 2>&1
+

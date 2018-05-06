@@ -45,11 +45,10 @@ ERROR 21000: Operand should contain 2 column(s)
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))
 NULL
-explain extended select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
+explain select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((1,2,(3,4)) in ((3,2,(3,4)),(1,2,(3,NULL)))) AS `row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))`
 select row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(4,5)));
 row(1,2,row(3,null)) IN (row(3,2,row(3,4)), row(1,2,row(4,5)))
@@ -381,12 +380,11 @@ a	b	a	b	c
 1	2	1	2	2
 3	2	3	1	1
 3	2	3	1	3
-EXPLAIN EXTENDED SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b+1);
+EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b+1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	6	100.00	Using index
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = (`test`.`t2`.`b` + 1)))
 SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b+1);
 a	b	a	b	c
@@ -394,12 +392,11 @@ a	b	a	b	c
 1	2	1	1	2
 3	2	3	1	1
 3	2	3	1	3
-EXPLAIN EXTENDED SELECT * FROM t1,t2 WHERE (t1.a-1,t1.b)=(t2.a-1,t2.b+1);
+EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a-1,t1.b)=(t2.a-1,t2.b+1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	8	NULL	6	100.00	Using index
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	12	NULL	7	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t1`.`a` - 1) = (`test`.`t2`.`a` - 1)) and (`test`.`t1`.`b` = (`test`.`t2`.`b` + 1)))
 SELECT * FROM t1,t2 WHERE (t1.a-1,t1.b)=(t2.a-1,t2.b+1);
 a	b	a	b	c
@@ -427,23 +424,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	4	test.t2.a	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = 1) and (`test`.`t2`.`b` = 2) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
-EXPLAIN EXTENDED SELECT * FROM t1,t2 WHERE (t2.a,(t2.b,t2.c))=(t1.a,(2,1));
+EXPLAIN SELECT * FROM t1,t2 WHERE (t2.a,(t2.b,t2.c))=(t1.a,(2,1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	12	NULL	7	14.29	Using where; Using index
 1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	4	test.t2.a	1	100.00	Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = 1) and (`test`.`t2`.`b` = 2) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 SELECT * FROM t1,t2 WHERE (t2.a,(t2.b,t2.c))=(t1.a,(2,1));
 a	b	a	b	c
 1	1	1	2	1
 1	2	1	2	1
-EXPLAIN EXTENDED SELECT * FROM t1,t2 WHERE t2.a=t1.a AND (t2.b,t2.c)=(2,1);
+EXPLAIN SELECT * FROM t1,t2 WHERE t2.a=t1.a AND (t2.b,t2.c)=(2,1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	12	NULL	7	14.29	Using where; Using index
 1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	4	test.t2.a	1	100.00	Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = 1) and (`test`.`t2`.`b` = 2) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 SELECT * FROM t1,t2 WHERE t2.a=t1.a AND (t2.b,t2.c)=(2,1);
 a	b	a	b	c
@@ -463,7 +458,7 @@ SELECT @x;
 @x
 99
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1);
 SELECT ROW(a, 1) IN (SELECT SUM(b), 1) FROM t1 GROUP BY a;
 ROW(a, 1) IN (SELECT SUM(b), 1)
@@ -475,6 +470,8 @@ DROP TABLE t1;
 create table t1 (a varchar(200),
 b int unsigned not null primary key auto_increment)
 default character set 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (c varchar(200),
 d int unsigned not null primary key auto_increment)
 default character set 'latin1';
@@ -531,7 +528,7 @@ SELECT row( 1, 1, 1 ) = row( 1, 1 ) FROM t1 GROUP BY a;
 ERROR 21000: Operand should contain 3 column(s)
 EXPLAIN SELECT row( min(a), 1 ) = row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) = `test`.`t1`.`a`) and (1 = 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) = row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -539,7 +536,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) <> row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) <> `test`.`t1`.`a`) or (1 <> 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <> row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -547,7 +544,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) <=> row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) <=> `test`.`t1`.`a`) and (1 <=> 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <=> row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -555,7 +552,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) > row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) > (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) > row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -563,7 +560,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) >= row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) >= (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) >= row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -571,7 +568,7 @@ al
 1
 EXPLAIN SELECT row( min(a), 1 ) < row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) < (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) < row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -579,7 +576,7 @@ al
 0
 EXPLAIN SELECT row( min(a), 1 ) <= row( a, 1 ) AS al FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`),1) <= (`test`.`t1`.`a`,1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( min(a), 1 ) <= row( a, 1 ) AS al FROM t1 GROUP BY a;
@@ -588,7 +585,7 @@ al
 EXPLAIN SELECT row( row( min(a), 1 ), 1 ) = row( row( a, 1 ), 1 ) AS al
 FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select ((min(`test`.`t1`.`a`) = `test`.`t1`.`a`) and (1 = 1) and (1 = 1)) AS `al` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT row( row( min(a), 1 ), 1 ) = row( row( a, 1 ), 1 ) AS al
@@ -599,3 +596,15 @@ al
 SELECT 1 <=>ALL (SELECT 1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '<=>ALL (SELECT 1)' at line 1
 DROP TABLE t1;
+#
+# Bug #22299664 REGRESSION, ASSERTION FAILED: !THD->IS_ERROR() WITH
+#               ROW() + SPATIAL FUNCTIONS
+#
+SELECT ROW(ST_Intersection(POINT(1, 1), 1), (SELECT 1));
+ERROR 22023: Invalid GIS data provided to function st_intersection.
+SELECT ROW(1, ST_Intersection(POINT(1, 1), 1), (SELECT 1));
+ERROR 22023: Invalid GIS data provided to function st_intersection.
+SELECT ROW(POW(1000, 1000), (SELECT 1));
+ERROR 22003: DOUBLE value is out of range in 'pow(1000,1000)'
+SELECT ROW(1, 2, POW(1000, 1000), (SELECT 1));
+ERROR 22003: DOUBLE value is out of range in 'pow(1000,1000)'

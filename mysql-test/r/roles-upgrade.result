@@ -1,0 +1,126 @@
+Run mysql_upgrade once
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+#
+# Bug#24447771 ACL_INIT() RETURNS TRUE ON 5.7 DATA DIRECTORY
+#
+CALL mtr.add_suppression("ACL table mysql.role_edges missing. Some operations may fail.");
+CALL mtr.add_suppression("ACL table mysql.default_roles missing. Some operations may fail.");
+DROP TABLE mysql.role_edges;
+DROP TABLE mysql.default_roles;
+# restart:--log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
+# let's check for the presense of the warning
+Pattern "ACL table mysql.role_edges missing. Some operations may fail." found
+Pattern "ACL table mysql.default_roles missing. Some operations may fail." found
+# ACL DDLs should not work
+CREATE USER u1;
+ERROR 42S02: Table 'mysql.role_edges' doesn't exist
+CREATE ROLE r1;
+ERROR 42S02: Table 'mysql.role_edges' doesn't exist
+GRANT SELECT ON *.* TO u1;
+ERROR 42S02: Table 'mysql.role_edges' doesn't exist
+# Run mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SHOW CREATE TABLE mysql.role_edges;
+Table	Create Table
+role_edges	CREATE TABLE `role_edges` (
+  `FROM_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `FROM_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `TO_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `TO_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `WITH_ADMIN_OPTION` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
+  PRIMARY KEY (`FROM_HOST`,`FROM_USER`,`TO_HOST`,`TO_USER`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Role hierarchy and role grants'
+SHOW CREATE TABLE mysql.default_roles;
+Table	Create Table
+default_roles	CREATE TABLE `default_roles` (
+  `HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `DEFAULT_ROLE_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '%',
+  `DEFAULT_ROLE_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
+  PRIMARY KEY (`HOST`,`USER`,`DEFAULT_ROLE_HOST`,`DEFAULT_ROLE_USER`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Default roles'
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT SELECT ON *.* TO r1;
+GRANT r1 to u1;
+CREATE TABLE test.t1(c1 int);
+INSERT INTO test.t1 VALUES(1);
+SET ROLE r1;
+SELECT * from t1;
+c1
+1
+DROP TABLE test.t1;
+DROP ROLE r1;
+DROP USER u1;
+
+End of tests

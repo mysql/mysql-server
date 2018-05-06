@@ -12,13 +12,11 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 call mtr.add_suppression("Got fatal error .* from master .* slave with the same server_uuid/server_id");
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository='TABLE';
-SET GLOBAL relay_log_info_repository='TABLE';
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_MYPORT FOR CHANNEL 'ch1';
 #
 # RESTART SLAVE SERVER
 #
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE --slave-parallel-workers=4 --relay-log-purge=0]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --slave-parallel-workers=4 --relay-log-purge=0]
 START SLAVE;
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_MYPORT FOR CHANNEL 'ch1';
@@ -30,8 +28,6 @@ CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER
 START SLAVE;
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET @@global.master_info_repository='SAVE_MI_REPO_TYPE';
-SET @@global.relay_log_info_repository='SAVE_RLI_REPO_TYPE';
 SET @@global.slave_parallel_workers=SAVE_PARALLEL_WORKERS;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=MASTER_MYPORT;
 include/start_slave.inc
@@ -46,19 +42,15 @@ include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE ALL;
-SET @@global.master_info_repository="TABLE";
-SET @@global.relay_log_info_repository="TABLE";
 SET @@global.slave_parallel_workers=5;
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_MYPORT FOR CHANNEL 'ch_trunk';
 include/start_slave.inc
 === RESTART SLAVE SERVER ===
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE --slave-parallel-workers=5]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --slave-parallel-workers=5]
 [connection slave]
 START SLAVE;
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET @@global.master_info_repository='SAVE_MI_REPO_TYPE';
-SET @@global.relay_log_info_repository='SAVE_RLI_REPO_TYPE';
 SET @@global.slave_parallel_workers=SAVE_PARALLEL_WORKERS;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=MASTER_MYPORT;
 include/start_slave.inc

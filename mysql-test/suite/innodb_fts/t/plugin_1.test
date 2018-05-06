@@ -1,7 +1,4 @@
---source include/have_innodb.inc
 --source include/have_simple_parser.inc
-# Restart is not supported in embedded
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 #-----------------------------------------------------------------------------

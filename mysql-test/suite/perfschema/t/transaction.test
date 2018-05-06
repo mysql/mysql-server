@@ -7,10 +7,9 @@
 #                                                                    #
 ######################################################################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+--source include/have_log_bin.inc
 --disable_query_log
 --source ../include/transaction_setup.inc
 --enable_query_log
@@ -71,6 +70,16 @@ CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
 --echo
+--echo # Get tables loaded in data-dictionary cache
+--echo
+--disable_query_log
+--disable_result_log
+SELECT * FROM t1;
+SELECT * FROM nt1;
+--enable_result_log
+--enable_query_log
+
+--echo
 --echo # Disable all events from the control thread
 --echo
 --disable_query_log
@@ -89,12 +98,10 @@ CALL clear_transaction_tables();
 --echo ========================================================================
 --echo
 --connection con1
-SELECT @@global.tx_isolation;
+SELECT @@global.transaction_isolation;
 SELECT @@global.autocommit;
-SELECT @@global.binlog_format;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 SELECT @@autocommit;
-SELECT @@binlog_format;
 
 --echo
 --echo # STEP 2.1 - START/COMMIT
@@ -150,9 +157,9 @@ START TRANSACTION;
 INSERT INTO t1 VALUES (302, 'REPEATABLE READ');
 COMMIT;
 
-## NOTE - InnoDB requires binlog_format = ROW for READ COMMITTED/UNCOMMITTED
+## NOTE - InnoDB requires binlog_format = 'ROW' for READ COMMITTED/UNCOMMITTED
 SELECT @@binlog_format INTO @binlog_save;
-SET SESSION BINLOG_FORMAT=ROW;
+SET SESSION BINLOG_FORMAT='ROW';
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
 INSERT INTO t1 VALUES (303, 'READ COMMITTED');
@@ -278,7 +285,10 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', 
 INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 
 --echo ## Issue a DDL statement to force a commmit
-CREATE TABLE t2 (s1 INT, s2 VARCHAR(64)) ENGINE=INNODB;
+--echo ## This DDL needs to fail early, to avoid starting its own transaction
+--echo ## which will disturb the state.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1 ADD KEY (s3);
 
 --echo
 --echo ## Expect 0 active transactions, 1 committed transaction
@@ -287,7 +297,6 @@ CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '',
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
-DROP TABLE test.t2;
 
 --echo
 --echo ========================================================================
@@ -416,7 +425,7 @@ CALL clear_transaction_tables();
 
 --connection con1
 SET SESSION AUTOCOMMIT = 0;
-SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
+SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
 
 --echo
 --echo #

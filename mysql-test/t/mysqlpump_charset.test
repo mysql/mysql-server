@@ -1,14 +1,12 @@
 
--- source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities
 --echo #
 
-if (`SELECT $PS_PROTOCOL = 1`)
-{
-  --skip Not with ps-protocol
-}
+#Not with ps-protocol
+--source include/no_ps_protocol.inc
 
 #
 # Check all charsets/collation combinations

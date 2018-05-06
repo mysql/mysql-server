@@ -1,5 +1,4 @@
 # Test "ALTER TABLE ... IMPORT TABLESPACE" in InnoDB
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug#20977779 CANNOT IMPORT TABLES CONTAINING PREFIX INDEXES

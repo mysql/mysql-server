@@ -1,0 +1,85 @@
+################################################################################
+# This test resolves Deadlock. GR deadlocks when START GR and
+# UNINSTALL happens at same time.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Setup GR environment and execute START GR.
+# 2. Block start, so we can execute UNINSTALL.
+# 3. Execute UNINSTALL PLUGIN GR.
+# 4. SIGNAL START GR to resume processing.
+# 5. Confirm plugin is UNINSTALLED
+# 6. Cleanup
+#
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup GR environment and execute START GR.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_bootstrap_group=ON;
+SET GLOBAL group_replication_group_name = '8a94f357-bbbb-22aa-33bb-cccaaa420000';
+
+--echo
+--echo # 2. Block start, so we can execute UNINSTALL.
+--echo
+
+## If START GR gets lock and UNINSTALL blocks SQL Query execution,
+## GR used to deadlock.
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_wait_on_start';
+
+--send START GROUP_REPLICATION
+
+--echo
+--echo # 3. Execute UNINSTALL PLUGIN GR from second connection.
+--echo
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.start_waiting";
+
+UNINSTALL PLUGIN group_replication;
+
+--echo Wait for group replication plugin to be deleted.
+--let $wait_condition= SELECT COUNT(*)=1 from information_schema.plugins where PLUGIN_NAME like 'group_replication' and PLUGIN_STATUS like 'DELETED';
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. SIGNAL START GR to resume processing.
+--echo
+SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--echo
+--echo # 5. Confirm plugin is UNINSTALLED.
+--echo
+
+--echo Wait for group replication plugin to be removed.
+--let $wait_condition= SELECT COUNT(*)=0 from information_schema.plugins where PLUGIN_NAME like 'group_replication';
+--source include/wait_condition.inc
+
+--echo
+--echo # 6. Cleanup
+--echo
+
+#Some test executions may uninstall the plugin before the member is ONLINE and writable
+SET GLOBAL read_only = 0;
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+--enable_warnings
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--source include/group_replication_end.inc

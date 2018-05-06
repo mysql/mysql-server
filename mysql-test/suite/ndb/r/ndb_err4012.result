@@ -1,4 +1,6 @@
 # We are using some debug-only features in this test
+call mtr.add_suppression("NDB: Failed to drop fk");
+call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;
 insert into t4 values (1,1), (2,2), (3,3), (4,4), (5,5);
@@ -30,14 +32,288 @@ ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or co
 SET SESSION debug=@save_debug;
 drop table t4;
 # bulk update ignore is not possible because 'ignore' disables bulk updates
-# mysqld gets timeout error 4008 on CREATE TABLE
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for table create
 set @save_debug = @@session.debug;
-SET SESSION debug="+d,ndb_timeout_gettabinforeq";
-create table t4(id int primary key, val int)engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create table t1(id int primary key, val int)engine=ndb;
 ERROR HY000: Got error 1625 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
-Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Warning	1625	Bad schema for mysql.ndb_replication table. Message: Unable to retrieve mysql.ndb_replication, logging and conflict r
 Error	1296	Got error 1625 'Unknown error code' from NDBCLUSTER
 SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for table drop
+create table t2(id int primary key, val int)engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop table t2;
+ERROR HY000: Storage engine can't drop table 'test.t2'
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Error	3604	Storage engine can't drop table 'test.t2'
+SET SESSION debug=@save_debug;
+drop table t2;
+# mysqld gets timeout error 1008 on GET_TABINFOREQ for index create
+create table t3(id int primary key, val int)engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create unique index val_unq on t3(val);
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t3;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for index drop
+create table t4(id int primary key, val int, unique key val_unq(val))engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop index val_unq on t4;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t4;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for hashmap
+create table t1(id int primary key, val int)engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t1 add partition partitions 2;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for foreign key
+create table t1(id int primary key, val int) engine=ndb;
+create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) references t1(id))engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t2 algorithm=inplace, drop foreign key t2_fk;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t2;
+drop table t1;
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for file
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter tablespace ts1 drop datafile 'data1.dat';
+ERROR HY000: Failed to alter:  NO SUCH FILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1533	Failed to alter:  NO SUCH FILE
+SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on GET_TABINFOREQ for filegroup
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter logfile group lg1 add undofile 'undo2.dat' engine=ndb;
+ERROR HY000: Failed to alter: CREATE UNDOFILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1533	Failed to alter: CREATE UNDOFILE
+SET SESSION debug=@save_debug;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
+drop logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on CREATE_TABLE_REQ
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create table t1(id int primary key, val int)engine=ndb;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on ALTER_TAB_REQ
+create table t1(id int primary key, val int) engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t1 add partition partitions 2;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on DROP_TAB_REQ for table drop
+create table t1(id int primary key, val int) engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop table t1;
+ERROR HY000: Storage engine can't drop table 'test.t1'
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Error	3604	Storage engine can't drop table 'test.t1'
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on CREATE_INDX_REQ
+create table t1(id int primary key, val int) engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create unique index val_unq on t1(val);
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on DROP_INDX_REQ
+create table t1(id int primary key, val int, unique key val_unq(val))engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop index val_unq on t1;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on CREATE_FILEGROUP_REQ
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+ERROR HY000: Failed to create LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1528	Failed to create LOGFILE GROUP
+SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop logfile group lg1 engine=ndb;
+ERROR HY000: Failed to drop LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1529	Failed to drop LOGFILE GROUP
+SET SESSION debug=@save_debug;
+drop logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on CREATE_FK_REQ for foreign key
+create table t1(id int primary key, val int) engine=ndb;
+create table t2(id int primary key, val int) engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t2 add constraint foreign key (id) references t1(id);
+Got one of the listed errors
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t2;
+drop table t1;
+# mysqld gets timeout error 4008 on DROP_FK_REQ for foreign key
+create table t1(id int primary key, val int) engine=ndb;
+create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) references t1(id))engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t2 algorithm=inplace, drop foreign key t2_fk;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1215	Failed to drop fk 'X/X/t2_fk'
+Warning	1215	Ndb error: 4008 'Receive from NDB failed'
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t2;
+drop table t1;
+# mysqld gets timeout error 4008 on CREATE_FILE_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter tablespace ts1 add datafile 'data2.dat';
+ERROR HY000: Failed to alter:  CREATE DATAFILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1533	Failed to alter:  CREATE DATAFILE
+SET SESSION debug=@save_debug;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
+drop logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on DROP_FILE_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter tablespace ts1 drop datafile 'data1.dat';
+ERROR HY000: Failed to alter:  DROP DATAFILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1533	Failed to alter:  DROP DATAFILE
+SET SESSION debug=@save_debug;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
+drop logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on CREATE_HASH_MAP_REQ
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create table t1(id int primary key, val int) engine=ndb;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on LIST_TABLES_REQ
+create table t1(id int primary key, val int) engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop table if exists t1;
+ERROR HY000: Storage engine can't drop table 'test.t1'
+show warnings;
+Level	Code	Message
+Warning	1215	Failed to list dependent objects for table 't1'
+Warning	1215	Ndb error: 4008 'Receive from NDB failed'
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
+Error	3604	Storage engine can't drop table 'test.t1'
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout 4013 while opening index
+create table t1(id int primary key, val int unique) engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_simulate_nodefail";
+show create table t1;
+ERROR HY000: Got temporary error 4013 'Request timed out in waiting for node failure' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 4013 'Request timed out in waiting for node failure' from NDB
+Error	1297	Got temporary error 4013 'Request timed out in waiting for node failure' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4009 while creating transaction for bulk update
+create table t1(id int primary key, val int) engine=ndb;
+insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_start_transaction_fail";
+update t1 set val = 11111 where id > 0;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;

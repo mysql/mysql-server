@@ -116,11 +116,11 @@ SELECT @@slow_launch_time;
 
 --disable_warnings
 SELECT @@global.slow_launch_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_launch_time';
 
 SELECT @@slow_launch_time = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slow_launch_time';
 --enable_warnings
 

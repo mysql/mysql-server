@@ -1,0 +1,109 @@
+# Create t3 with MAX_ROWS set
+let $t3_table_options = MAX_ROWS=333333;
+--source setup.inc
+
+# Test ALTER TABLE .. REORGANIZE PARTITION
+#
+
+--echo #
+--echo # Check that you can specify ALGORITHM=[DEFAULT|COPY|INPLACE] for
+--echo # ALTER TABLE ... REORGANIZE PARTITION
+--echo #
+ALTER TABLE t1
+  algorithm=inplace,
+  reorganize partition;
+ALTER TABLE t1
+  algorithm=copy,
+  reorganize partition;
+ALTER TABLE t1
+  algorithm=default,
+  reorganize partition;
+
+--echo #
+--echo # Check that REORGANIZE PARTITION by default is an inplace
+--echo # operation by not allowing copying alter table and then running
+--echo # a reorg.
+--echo #
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t1
+  reorganize partition;
+set @@ndb_allow_copying_alter_table = default;
+
+--echo #
+--echo # Check that REORGANIZE PARTITION works also when copying alter is
+--echo # allowed (although it should ofcourse still use inplace per above test).
+--echo #
+ALTER TABLE t1
+  reorganize partition;
+
+
+--echo #
+--echo # Check that inplace REORGANIZE PARTITION is not allowed on a
+--echo # table with MAX_ROWS
+--echo #
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 has not MAX_ROWS set;
+}
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3
+  algorithm=inplace,
+  reorganize partition;
+
+--echo #
+--echo # Check that implicit copying REORGANIZE PARTITION is allowed on a
+--echo # table with MAX_ROWS
+--echo #
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 has not MAX_ROWS set;
+}
+
+ALTER TABLE t3
+  reorganize partition;
+
+--echo #
+--echo # Check that explicit copying REORGANIZE PARTITION is allowed on a
+--echo # table with MAX_ROWS even when copying alter table is not allowed
+--echo #
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 has not MAX_ROWS set;
+}
+
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t3
+  algorithm=copy,
+  reorganize partition;
+set @@ndb_allow_copying_alter_table = default;
+
+--echo #
+--echo # Check that implicit copying REORGANIZE PARTITION is prevented on a
+--echo # table with MAX_ROWS when copying alter table is not allowed
+--echo #
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 has not MAX_ROWS set;
+}
+
+set @@ndb_allow_copying_alter_table = 0;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3
+  reorganize partition;
+set @@ndb_allow_copying_alter_table = default;
+
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+
+

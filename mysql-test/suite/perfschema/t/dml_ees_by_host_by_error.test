@@ -1,0 +1,35 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log 
+select * from performance_schema.events_errors_summary_by_host_by_error limit 1;
+
+select * from performance_schema.events_errors_summary_by_host_by_error;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_errors_summary_by_host_by_error
+  set error_name='FOO', sum_error_raised=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_errors_summary_by_host_by_error
+  set sum_error_raised=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_errors_summary_by_host_by_error
+  set sum_error_raised=12 where error_name like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_errors_summary_by_host_by_error
+  where sum_error_raised=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_errors_summary_by_host_by_error;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_errors_summary_by_host_by_error READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_errors_summary_by_host_by_error WRITE;
+UNLOCK TABLES;
+

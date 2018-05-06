@@ -39,6 +39,12 @@ ERROR HY000: Expression of generated column 'b' contains a disallowed function.
 # NOW()
 create table t1 (a datetime, b varchar(10) generated always as (now()) virtual);
 ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+# STATEMENT_DIGEST
+create table t1 (a int, b int generated always as (statement_digest(a)) virtual);
+ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+# STATEMENT_DIGEST_TEXT
+create table t1 (a int, b int generated always as (statement_digest_text(a)) virtual);
+ERROR HY000: Expression of generated column 'b' contains a disallowed function.
 # SYSDATE()
 create table t1 (a int, b varchar(10) generated always as (sysdate()) virtual);
 ERROR HY000: Expression of generated column 'b' contains a disallowed function.
@@ -232,6 +238,12 @@ alter table t1 add column r blob generated always
 as (match(a) against ('' in boolean mode)) virtual;
 ERROR HY000: Expression of generated column 'r' contains a disallowed function.
 drop table t1;
+#
+# Bug#26279884 : VIRTUAL COLUMNS ALLOW DEPRECATED FUNCTION TO BE USED
+#
+# JSON_MERGE()
+CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));
+ERROR HY000: Expression of generated column 'c' contains a disallowed function.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

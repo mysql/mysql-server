@@ -1,16 +1,8 @@
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
@@ -38,7 +30,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -69,7 +61,7 @@ c1	c2
 0	aaaaa
 # restart
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -139,7 +131,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESSION='ZLIB' ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='ZLIB' ENCRYPTION='Y'
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -173,7 +165,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -219,7 +211,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
@@ -250,22 +242,8 @@ DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 ERROR HY000: This tablespace can't be encrypted.
-DROP TABLE t1;
-SET GLOBAL innodb_file_per_table=ON;
-CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY, val varchar(20) NOT NULL) ENGINE=InnoDB;
-INSERT INTO t1 (val) VALUES ('Sydney'), ('Melbourne'), ('Brisbane'), ('Perth'), ('Adelaide');
-ALTER TABLE t1 ENCRYPTION = 'Y';
-ALTER TABLE t1 ADD COLUMN is_capital char(1) NOT NULL DEFAULT 'N' AFTER val;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `val` varchar(20) NOT NULL,
-  `is_capital` char(1) NOT NULL DEFAULT 'N',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ENCRYPTION='Y'
-Pattern "Sydney" not found
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -35,8 +42,15 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 490
 
-
-#define MESSAGE_LENGTH 500
+/* New MESSAGE_LENGTH chosen as 999 to replace the old value
+ * of 500. In the old scheme the offset value between messages
+ * was actually MESSAGE_LENGTH - 1. To cleanly overwrite two messages
+ * of the old length, the new offset would have to be 499 * 2 = 998.
+ * Thus, a MESSAGE_LENGTH of 998 + 1 = 999 gives a clean overwrite
+ * of two length 499 messages.
+ */
+#define MESSAGE_LENGTH 999
+#define OLD_MESSAGE_LENGTH 499
 
 static int WriteMessage(int thrdMessageID,
 			const char* thrdProblemData, 
@@ -47,23 +61,7 @@ static void dumpJam(FILE* jamStream,
 		    Uint32 thrdTheEmulatedJamIndex, 
 		    const JamEvent thrdTheEmulatedJam[]);
 
-static
-const char *
-ndb_basename(const char * path)
-{
-  if (path == NULL)
-    return NULL;
-
-  const char separator = '/';
-  const char * p = path + strlen(path);
-  while (p > path && p[0] != separator)
-    p--;
-
-  if (p[0] == separator)
-    return p + 1;
-
-  return p;
-}
+const char * ndb_basename(const char *path);
 
 static
 const char*
@@ -136,7 +134,7 @@ ErrorReporter::get_trace_no(){
 }
 
 // Using my_progname without including all of mysys
-extern "C" const char* my_progname;
+extern const char* my_progname;
 
 void
 ErrorReporter::formatMessage(int thr_no,
@@ -153,11 +151,29 @@ ErrorReporter::formatMessage(int thr_no,
   const char *exit_st_msg = ndbd_exit_status_message(st);
   int sofar;
 
+  /* Extract the name of the trace file to log explicitly as it is
+   * often truncated due to long path names */
+  BaseString traceFileFullPath(theNameOfTheTraceFile);
+  Vector<BaseString> traceFileComponents;
+  int noOfComponents = traceFileFullPath.split(traceFileComponents,
+                                               DIR_SEPARATOR);
+  assert(noOfComponents >= 1);
+  BaseString failingThdTraceFileName = traceFileComponents[noOfComponents-1];
+
   processId = NdbHost_GetProcessId();
   char thrbuf[100] = "";
   if (thr_no >= 0)
   {
+    char thrSuffix[100] = "";
     BaseString::snprintf(thrbuf, sizeof(thrbuf), " thr: %u", thr_no);
+    if (thr_no > 0)
+    {
+      /* Append the thread number to log the causing thread trace file
+       * name explicitly
+       * Thread 0 is a special case with no suffix */
+      BaseString::snprintf(thrSuffix, sizeof(thrSuffix), "_t%u", thr_no);
+      failingThdTraceFileName.append(thrSuffix);
+    }
   }
 
   char time_str[39];
@@ -173,7 +189,8 @@ ErrorReporter::formatMessage(int thr_no,
                        "Program: %s\n"
                        "Pid: %d%s\n"
                        "Version: %s\n"
-                       "Trace: %s",
+                       "Trace file name: %s\n"
+                       "Trace file path: %s",
                        time_str,
                        exit_st_msg,
                        exit_msg, exit_cl_msg,
@@ -184,6 +201,9 @@ ErrorReporter::formatMessage(int thr_no,
                        processId, 
                        thrbuf,
                        NDB_VERSION_STRING,
+                       theNameOfTheTraceFile ?
+                       failingThdTraceFileName.c_str()
+                       : "<no tracefile>",
                        theNameOfTheTraceFile ? 
                        theNameOfTheTraceFile : "<no tracefile>");
 
@@ -356,6 +376,29 @@ WriteMessage(int thrdMessageID,
     if (fscanf(stream, "%u", &offset) != 1)
     {
       abort();
+    }
+
+    /* In case of upgrade from 500 -> 999 message length,
+     * check if an odd number of messages have been written
+     * from the start of the file. If so, increase the offset
+     * by the length of 1 message (of old length) to simulate
+     * even number of messages being written previously.
+     * This will ensure clean overwriting of messages of
+     * new length when the error log loops back to the
+     * beginning of the file.
+     */
+    bool oddNoOfMessages = false;
+    if(((offset - 69) / OLD_MESSAGE_LENGTH) % 2 == 1 )
+      oddNoOfMessages = true;
+    if (oddNoOfMessages)
+    {
+      /* Adjust the offset by the length (old) of 1
+       * message. Also check if the maximum number of
+       * messages has been reached.
+       */
+      offset = offset + 499;
+      if (offset > (maxOffset - MESSAGE_LENGTH))
+        offset = 69;
     }
     fseek(stream, offset, SEEK_SET);
     

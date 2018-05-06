@@ -12,7 +12,6 @@
 # CREATE PROCEDURE drop_tables () BEGIN ... END;
 # --let $automatic= [0|1]
 # --let $transaction_count= N
-# --let $expect_slave_error= 1
 # --source extra/rpl_tests/rpl_drop_multiple_tables_in_multiple_ways.inc
 #
 # Parameters: see extra/rpl_tests/rpl_drop_multiple_tables.inc.

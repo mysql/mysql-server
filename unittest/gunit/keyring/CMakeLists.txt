@@ -1,74 +1,93 @@
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
-INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/plugin/keyring
-  ${CMAKE_SOURCE_DIR}/plugin/keyring/common
-  ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
 
 SET(TESTS
   keyring-api
   keys_container
   buffered_file_io
+  converter
   file_io
 )
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
+
+SET(ALL_KEYRING_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_KEYRING_TESTS ${test}-t.cc)
+ENDFOREACH()
+
+
+SET(SRC_FILES)
+LIST(APPEND SRC_FILES
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/converter.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/digest.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_factory.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_1_0.cc
+  ${CMAKE_SOURCE_DIR}/plugin/keyring/checker/checker_ver_2_0.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/buffered_file_io_10.cc
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
+  )
+
+IF(WIN32)
+  LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+ENDIF()
+
+ADD_LIBRARY(keyring_test STATIC ${SRC_FILES})
+ADD_DEPENDENCIES(keyring_test GenError)
+
 IF (MERGE_UNITTESTS)
-  SET(merge_keyring_file_tests ${CMAKE_CURRENT_BINARY_DIR}/merge_keyring_file_tests-t.cc)
-  SET_SOURCE_FILES_PROPERTIES(merge_keyring_file_tests PROPERTIES GENERATED 1)
+  MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t
+    ${ALL_KEYRING_TESTS} ADD_TEST merge_keyring_file_tests)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${merge_keyring_file_tests} "// Merging Keyring_file unit tests\n")
-  FILE(APPEND ${merge_keyring_file_tests} "#include \"my_config.h\"\n")
-  FILE(APPEND ${merge_keyring_file_tests} "#define MERGE_UNITTESTS\n")
-
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${merge_keyring_file_tests} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  SET(SRC_FILES ${merge_keyring_file_tests})
-  LIST(APPEND SRC_FILES
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
-       )
-
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
-
-  ADD_EXECUTABLE(merge_keyring_file_tests-t ${SRC_FILES})
-
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t gunit_large strings dbug regex mysys sql)
-  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
+    sql_main binlog rpl master slave sql_gis sql_dd sql_main)
+  TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t perfschema)
@@ -76,39 +95,25 @@ IF (MERGE_UNITTESTS)
 
   ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
 
-  ADD_TEST(merge_keyring_file_tests merge_keyring_file_tests-t)
-
 ENDIF(MERGE_UNITTESTS)
 
-  FOREACH(test ${TESTS})
-    SET(SRC_FILES ${test}-t.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
-        )
-    IF(WIN32)
-      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-    ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  TARGET_LINK_LIBRARIES(${test}-t keyring_test)
 
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys sql)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(${test}-t
+    gunit_large strings dbug regex mysys sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
-    ENDIF()
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
 
-    IF(MERGE_UNITTESTS)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      IF(WIN32)
-        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-      ENDIF()
-    ELSE()
-      ADD_TEST(${test} ${test}-t)
-    ENDIF()
-  ENDFOREACH()
+  IF(NOT MERGE_UNITTESTS)
+    ADD_TEST(${test} ${test}-t)
+  ENDIF()
+ENDFOREACH()
 

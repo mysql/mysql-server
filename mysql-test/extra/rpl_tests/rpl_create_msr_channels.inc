@@ -45,14 +45,14 @@ while ($i <= $number_of_channels)
   --let $master_port=`SELECT @@PORT`
   --let $rpl_connection_name=server_$rpl_msr_server_number
   --source include/rpl_connection.inc
-  --let $rpl_channel_name=channel_$i
+  --let $rpl_channel_name='channel_$i'
   # First channel name should be default channel with empty name.
   if ($i == 1)
   {
-    --let $rpl_channel_name=
+    --let $rpl_channel_name=''
   }
   --replace_result $master_port port
-  --eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= $master_port, MASTER_HOST='localhost' FOR CHANNEL '$rpl_channel_name'
+  --eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= $master_port, MASTER_HOST='localhost' FOR CHANNEL $rpl_channel_name
   --source include/start_slave.inc
 
   if (!$no_sample_data)
@@ -65,12 +65,7 @@ while ($i <= $number_of_channels)
     --eval DROP DATABASE db$i
 
     --let $sync_slave_connection=server_$rpl_msr_server_number
-     if ( $i ==1)
-    {
-      --let $force_empty_channel_name= 1
-    }
     --source include/sync_slave_sql_with_master.inc
-    --let $force_empty_channel_name=
   }
   --inc $i
 }

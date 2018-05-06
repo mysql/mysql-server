@@ -103,37 +103,37 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
-alter table t1 engine=heap;
+alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 engine=ndb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
-alter table t1 engine=heap remove partitioning;
+alter table t1 engine=innodb remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 engine=ndb
 partition by key(a)
 (partition p0, partition p1 engine = ndb);
@@ -142,7 +142,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
@@ -154,7 +154,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */
@@ -164,7 +164,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
 partition by key(a)
 (partition p0 engine=ndb, partition p1);
@@ -177,7 +177,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 ENGINE = ndbcluster,
  PARTITION p1 ENGINE = ndbcluster) */

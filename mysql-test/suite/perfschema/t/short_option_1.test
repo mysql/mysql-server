@@ -15,6 +15,3 @@ show global variables like 'log';
 show global variables like 'general_log';
 
 show global variables like 'new';
-
-show global variables like 'log_warnings';
-

@@ -1,15 +1,22 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -112,7 +119,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
    * 2) define single character SEP to be able to use strrchr
    */
   BaseString copy(my_progname);
-#ifdef NDB_WIN
+#ifdef _WIN32
   char SEP = '\\';
 #else
   char SEP = '/';
@@ -138,6 +145,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
      */
     * basename = 0;
     const char * places[] = {
+      "../../../../runtime_output_directory",
       "../../src/mgmsrv",
       "../storage/ndb/src/mgmsrv",
       "../libexec",

@@ -131,7 +131,7 @@ if ($commands == recovery)
 
   --echo ** regular restart **
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1
+  --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1
   --source include/rpl_restart_server.inc
 
   #### Checking if the recovery worked and the coordinator has an updated state. ####

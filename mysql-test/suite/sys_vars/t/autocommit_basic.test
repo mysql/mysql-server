@@ -113,7 +113,7 @@ SET @@global.autocommit = 1;
 
 --disable_warnings
 SELECT IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='autocommit';
 --enable_warnings
 
@@ -125,7 +125,7 @@ WHERE VARIABLE_NAME='autocommit';
 SET @@autocommit = 1;
 --disable_warnings
 SELECT IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='autocommit';
 --enable_warnings
 

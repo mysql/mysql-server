@@ -1,4 +1,3 @@
-use test;
 drop table if exists t1, t9 ;
 create table t1
 (
@@ -69,19 +68,19 @@ def	test	t9	t9	c16	c16	11	10	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
-def	test	t9	t9	c20	c20	254	1	1	Y	0	0	8
-def	test	t9	t9	c21	c21	254	10	10	Y	0	0	8
-def	test	t9	t9	c22	c22	253	30	30	Y	0	0	8
+def	test	t9	t9	c20	c20	254	4	1	Y	0	0	255
+def	test	t9	t9	c21	c21	254	40	10	Y	0	0	255
+def	test	t9	t9	c22	c22	253	120	30	Y	0	0	255
 def	test	t9	t9	c23	c23	252	255	8	Y	144	0	63
-def	test	t9	t9	c24	c24	252	255	8	Y	16	0	8
+def	test	t9	t9	c24	c24	252	1020	8	Y	16	0	255
 def	test	t9	t9	c25	c25	252	65535	4	Y	144	0	63
-def	test	t9	t9	c26	c26	252	65535	4	Y	16	0	8
+def	test	t9	t9	c26	c26	252	262140	4	Y	16	0	255
 def	test	t9	t9	c27	c27	252	16777215	10	Y	144	0	63
-def	test	t9	t9	c28	c28	252	16777215	10	Y	16	0	8
+def	test	t9	t9	c28	c28	252	67108860	10	Y	16	0	255
 def	test	t9	t9	c29	c29	252	4294967295	8	Y	144	0	63
-def	test	t9	t9	c30	c30	252	4294967295	8	Y	16	0	8
-def	test	t9	t9	c31	c31	254	5	3	Y	256	0	8
-def	test	t9	t9	c32	c32	254	24	7	Y	2048	0	8
+def	test	t9	t9	c30	c30	252	4294967295	8	Y	16	0	255
+def	test	t9	t9	c31	c31	254	20	3	Y	256	0	255
+def	test	t9	t9	c32	c32	254	96	7	Y	2048	0	255
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
@@ -372,14 +371,15 @@ prepare stmt1 from ' select a FROM t1 where a ? 1 ' ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? 1' at line 1
 set @arg00=1 ;
 select a,b FROM t1 where a is not NULL
-AND b is not NULL group by a - @arg00 ;
+AND b is not NULL group by a - @arg00
+order by a;
 a	b
 1	one
 2	two
 3	three
 4	four
 prepare stmt1 from ' select a,b FROM t1 where a is not NULL
-AND b is not NULL group by a - ? ' ;
+AND b is not NULL group by a - ? order by a ' ;
 execute stmt1 using @arg00 ;
 a	b
 1	one
@@ -455,20 +455,21 @@ set @arg00='b' ;
 set @arg01=0 ;
 set @arg02=2 ;
 set @arg03=2 ;
-select sum(a), @arg00 from t1 where a > @arg01
+select sum(a) as the_sum, @arg00 from t1 where a > @arg01
 and b is not null group by substr(b,@arg02)
-having sum(a) <> @arg03 ;
-sum(a)	@arg00
-3	b
+having sum(a) <> @arg03 order by the_sum ;
+the_sum	@arg00
 1	b
+3	b
 4	b
-prepare stmt1 from ' select sum(a), ? from t1 where a > ?
+prepare stmt1 from ' select sum(a) as the_sum, ? from t1 where a > ?
 and b is not null group by substr(b,?)
-having sum(a) <> ? ';
+having sum(a) <> ?
+order by the_sum ';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03;
-sum(a)	?
-3	b
+the_sum	?
 1	b
+3	b
 4	b
 test_sequence
 ------ join tests ------
@@ -1044,17 +1045,18 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03;
 ?
 a
 set @arg00=1 ;
-prepare stmt1 from ' select sum(a) + 200, ? from t1
+prepare stmt1 from ' select sum(a) + 200 as the_sum, ? from t1
 union distinct
-select sum(a) + 200, 1 from t1
-group by b ' ;
+select sum(a) + 200 as the_sum, 1 from t1
+group by b
+order by the_sum ' ;
 execute stmt1 using @arg00;
-sum(a) + 200	?
-210	1
-204	1
+the_sum	?
 201	1
-203	1
 202	1
+203	1
+204	1
+210	1
 set @Oporto='Oporto' ;
 set @Lisboa='Lisboa' ;
 set @0=0 ;
@@ -1069,58 +1071,62 @@ select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 group by b
 union distinct
 select sum(a) + 200, @Lisboa from t1
-group by b ;
+group by b
+order by the_town, the_sum ;
 the_sum	the_town
-204	Oporto
-201	Oporto
-203	Oporto
-202	Oporto
-204	Lisboa
 201	Lisboa
-203	Lisboa
 202	Lisboa
+203	Lisboa
+204	Lisboa
+201	Oporto
+202	Oporto
+203	Oporto
+204	Oporto
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      group by b
                      union distinct
                      select sum(a) + 200, ? from t1
-                     group by b ' ;
+                     group by b
+                     order by the_town, the_sum ' ;
 execute stmt1 using @Oporto, @Lisboa;
 the_sum	the_town
-204	Oporto
-201	Oporto
-203	Oporto
-202	Oporto
-204	Lisboa
 201	Lisboa
-203	Lisboa
 202	Lisboa
+203	Lisboa
+204	Lisboa
+201	Oporto
+202	Oporto
+203	Oporto
+204	Oporto
 select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 where a > @1
 group by b
 union distinct
 select sum(a) + 200, @Lisboa from t1
 where a > @2
-group by b ;
+group by b
+order by the_town, the_sum ;
 the_sum	the_town
-204	Oporto
-203	Oporto
-202	Oporto
-204	Lisboa
 203	Lisboa
+204	Lisboa
+202	Oporto
+203	Oporto
+204	Oporto
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
                      group by b
                      union distinct
                      select sum(a) + 200, ? from t1
                      where a > ?
-                     group by b ' ;
+                     group by b
+                     order by the_town, the_sum' ;
 execute stmt1 using @Oporto, @1, @Lisboa, @2;
 the_sum	the_town
-204	Oporto
-203	Oporto
-202	Oporto
-204	Lisboa
 203	Lisboa
+204	Lisboa
+202	Oporto
+203	Oporto
+204	Oporto
 select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 where a > @1
 group by b
@@ -1129,11 +1135,12 @@ union distinct
 select sum(a) + 200, @Lisboa from t1
 where a > @2
 group by b 
-having avg(a) > @3;
+having avg(a) > @3
+order by the_town, the_sum;
 the_sum	the_town
-204	Oporto
-203	Oporto
 204	Lisboa
+203	Oporto
+204	Oporto
 prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      where a > ?
                      group by b
@@ -1142,12 +1149,13 @@ prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
                      select sum(a) + 200, ? from t1
                      where a > ?
                      group by b
-                     having avg(a) > ? ';
+                     having avg(a) > ?
+                     order by the_town, the_sum ' ;
 execute stmt1 using @Oporto, @1, @2, @Lisboa, @2, @3;
 the_sum	the_town
-204	Oporto
-203	Oporto
 204	Lisboa
+203	Oporto
+204	Oporto
 test_sequence
 ------ delete tests ------
 delete from t1 ;
@@ -1177,8 +1185,6 @@ c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
 c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
 select a,b from t1 where a=2;
@@ -1708,8 +1714,6 @@ a	b
 103	three
 drop table t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t5 ;
 set @arg01= 8;
 set @arg02= 8.0;
@@ -1757,16 +1761,16 @@ t5	CREATE TABLE `t5` (
   `param03` double DEFAULT NULL,
   `const04` varchar(3) NOT NULL DEFAULT '',
   `param04` longtext,
-  `const05` varbinary(3) NOT NULL DEFAULT '',
+  `const05` varbinary(12) NOT NULL DEFAULT '',
   `param05` longblob,
   `const06` varchar(10) NOT NULL DEFAULT '',
   `param06` longtext,
   `const07` date DEFAULT NULL,
-  `param07` longtext,
+  `param07` longtext CHARACTER SET latin1,
   `const08` varchar(19) NOT NULL DEFAULT '',
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
-  `param09` longtext,
+  `param09` longtext CHARACTER SET latin1,
   `const10` int(11) NOT NULL DEFAULT '0',
   `param10` bigint(20) DEFAULT NULL,
   `const11` int(4) DEFAULT NULL,
@@ -1776,7 +1780,7 @@ t5	CREATE TABLE `t5` (
   `param13` decimal(65,30) DEFAULT NULL,
   `param14` longtext,
   `param15` longblob
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
@@ -1784,19 +1788,19 @@ def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
 def	test	t5	t5	const02	const02	246	4	3	N	32769	1	63
 def	test	t5	t5	param02	param02	246	67	32	Y	32768	30	63
 def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
-def	test	t5	t5	param03	param03	5	23	1	Y	32768	31	63
-def	test	t5	t5	const04	const04	253	3	3	N	1	0	8
-def	test	t5	t5	param04	param04	252	4294967295	3	Y	16	0	8
-def	test	t5	t5	const05	const05	253	3	3	N	129	0	63
+def	test	t5	t5	param03	param03	5	22	1	Y	32768	31	63
+def	test	t5	t5	const04	const04	253	12	3	N	1	0	255
+def	test	t5	t5	param04	param04	252	4294967295	3	Y	16	0	255
+def	test	t5	t5	const05	const05	253	12	3	N	129	0	63
 def	test	t5	t5	param05	param05	252	4294967295	3	Y	144	0	63
-def	test	t5	t5	const06	const06	253	10	10	N	1	0	8
-def	test	t5	t5	param06	param06	252	4294967295	10	Y	16	0	8
+def	test	t5	t5	const06	const06	253	40	10	N	1	0	255
+def	test	t5	t5	param06	param06	252	4294967295	10	Y	16	0	255
 def	test	t5	t5	const07	const07	10	10	10	Y	128	0	63
-def	test	t5	t5	param07	param07	252	4294967295	10	Y	16	0	8
-def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
-def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	8
+def	test	t5	t5	param07	param07	252	4294967295	10	Y	16	0	255
+def	test	t5	t5	const08	const08	253	76	19	N	1	0	255
+def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	255
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
-def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	8
+def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	255
 def	test	t5	t5	const10	const10	3	11	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
@@ -1804,7 +1808,7 @@ def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
 def	test	t5	t5	param13	param13	246	67	0	Y	32768	30	63
-def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	8
+def	test	t5	t5	param14	param14	252	4294967295	0	Y	16	0	255
 def	test	t5	t5	param15	param15	252	4294967295	0	Y	144	0	63
 const01	8
 param01	8
@@ -1903,26 +1907,26 @@ def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
 def					@arg11	246	83	6	Y	32896	30	63
 def					@arg12	246	83	6	Y	32896	30	63
-def					@arg13	250	16777215	10	Y	0	31	8
-def					@arg14	250	16777215	19	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	8	Y	0	31	8
+def					@arg13	250	67108860	10	Y	0	31	255
+def					@arg14	250	67108860	19	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	8	Y	0	31	255
 def					@arg17	8	20	4	Y	32928	0	63
 def					@arg18	8	20	1	Y	32896	0	63
 def					@arg19	8	20	1	Y	32896	0	63
-def					@arg20	250	16777215	1	Y	0	31	8
-def					@arg21	250	16777215	10	Y	0	31	8
-def					@arg22	250	16777215	30	Y	0	31	8
+def					@arg20	251	268435440	1	Y	0	31	255
+def					@arg21	251	268435440	10	Y	0	31	255
+def					@arg22	251	268435440	30	Y	0	31	255
 def					@arg23	250	16777215	8	Y	128	31	63
-def					@arg24	250	16777215	8	Y	0	31	8
+def					@arg24	251	268435440	8	Y	0	31	255
 def					@arg25	250	16777215	4	Y	128	31	63
-def					@arg26	250	16777215	4	Y	0	31	8
+def					@arg26	251	268435440	4	Y	0	31	255
 def					@arg27	250	16777215	10	Y	128	31	63
-def					@arg28	250	16777215	10	Y	0	31	8
+def					@arg28	251	268435440	10	Y	0	31	255
 def					@arg29	250	16777215	8	Y	128	31	63
-def					@arg30	250	16777215	8	Y	0	31	8
-def					@arg31	250	16777215	3	Y	0	31	8
-def					@arg32	250	16777215	6	Y	0	31	8
+def					@arg30	251	268435440	8	Y	0	31	255
+def					@arg31	251	268435440	3	Y	0	31	255
+def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
@@ -1950,26 +1954,26 @@ def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
 def					@arg11	246	83	0	Y	32896	30	63
 def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	16777215	0	Y	0	31	8
-def					@arg14	250	16777215	0	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	0	Y	0	31	8
+def					@arg13	250	67108860	0	Y	0	31	255
+def					@arg14	250	67108860	0	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	0	Y	0	31	255
 def					@arg17	8	20	0	Y	32928	0	63
 def					@arg18	8	20	0	Y	32896	0	63
 def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	250	16777215	0	Y	0	31	8
-def					@arg21	250	16777215	0	Y	0	31	8
-def					@arg22	250	16777215	0	Y	0	31	8
+def					@arg20	251	268435440	0	Y	0	31	255
+def					@arg21	251	268435440	0	Y	0	31	255
+def					@arg22	251	268435440	0	Y	0	31	255
 def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	250	16777215	0	Y	0	31	8
+def					@arg24	251	268435440	0	Y	0	31	255
 def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	250	16777215	0	Y	0	31	8
+def					@arg26	251	268435440	0	Y	0	31	255
 def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	250	16777215	0	Y	0	31	8
+def					@arg28	251	268435440	0	Y	0	31	255
 def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	250	16777215	0	Y	0	31	8
-def					@arg31	250	16777215	0	Y	0	31	8
-def					@arg32	250	16777215	0	Y	0	31	8
+def					@arg30	251	268435440	0	Y	0	31	255
+def					@arg31	251	268435440	0	Y	0	31	255
+def					@arg32	251	268435440	0	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select 
@@ -2000,26 +2004,26 @@ def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
 def					@arg11	246	83	6	Y	32896	30	63
 def					@arg12	246	83	6	Y	32896	30	63
-def					@arg13	250	16777215	10	Y	0	31	8
-def					@arg14	250	16777215	19	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	8	Y	0	31	8
+def					@arg13	250	67108860	10	Y	0	31	255
+def					@arg14	250	67108860	19	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	8	Y	0	31	255
 def					@arg17	8	20	4	Y	32928	0	63
 def					@arg18	8	20	1	Y	32896	0	63
 def					@arg19	8	20	1	Y	32896	0	63
-def					@arg20	250	16777215	1	Y	0	31	8
-def					@arg21	250	16777215	10	Y	0	31	8
-def					@arg22	250	16777215	30	Y	0	31	8
+def					@arg20	251	268435440	1	Y	0	31	255
+def					@arg21	251	268435440	10	Y	0	31	255
+def					@arg22	251	268435440	30	Y	0	31	255
 def					@arg23	250	16777215	8	Y	128	31	63
-def					@arg24	250	16777215	8	Y	0	31	8
+def					@arg24	251	268435440	8	Y	0	31	255
 def					@arg25	250	16777215	4	Y	128	31	63
-def					@arg26	250	16777215	4	Y	0	31	8
+def					@arg26	251	268435440	4	Y	0	31	255
 def					@arg27	250	16777215	10	Y	128	31	63
-def					@arg28	250	16777215	10	Y	0	31	8
+def					@arg28	251	268435440	10	Y	0	31	255
 def					@arg29	250	16777215	8	Y	128	31	63
-def					@arg30	250	16777215	8	Y	0	31	8
-def					@arg31	250	16777215	3	Y	0	31	8
-def					@arg32	250	16777215	6	Y	0	31	8
+def					@arg30	251	268435440	8	Y	0	31	255
+def					@arg31	251	268435440	3	Y	0	31	255
+def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
@@ -2040,26 +2044,26 @@ def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
 def					@arg11	246	83	0	Y	32896	30	63
 def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	16777215	0	Y	0	31	8
-def					@arg14	250	16777215	0	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	0	Y	0	31	8
+def					@arg13	250	67108860	0	Y	0	31	255
+def					@arg14	250	67108860	0	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	0	Y	0	31	255
 def					@arg17	8	20	0	Y	32928	0	63
 def					@arg18	8	20	0	Y	32896	0	63
 def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	250	16777215	0	Y	0	31	8
-def					@arg21	250	16777215	0	Y	0	31	8
-def					@arg22	250	16777215	0	Y	0	31	8
+def					@arg20	251	268435440	0	Y	0	31	255
+def					@arg21	251	268435440	0	Y	0	31	255
+def					@arg22	251	268435440	0	Y	0	31	255
 def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	250	16777215	0	Y	0	31	8
+def					@arg24	251	268435440	0	Y	0	31	255
 def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	250	16777215	0	Y	0	31	8
+def					@arg26	251	268435440	0	Y	0	31	255
 def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	250	16777215	0	Y	0	31	8
+def					@arg28	251	268435440	0	Y	0	31	255
 def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	250	16777215	0	Y	0	31	8
-def					@arg31	250	16777215	0	Y	0	31	8
-def					@arg32	250	16777215	0	Y	0	31	8
+def					@arg30	251	268435440	0	Y	0	31	255
+def					@arg31	251	268435440	0	Y	0	31	255
+def					@arg32	251	268435440	0	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select ? := c1 from t9 where c1= 1" ;
@@ -2088,26 +2092,26 @@ def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
 def					@arg11	246	83	6	Y	32896	30	63
 def					@arg12	246	83	6	Y	32896	30	63
-def					@arg13	250	16777215	10	Y	0	31	8
-def					@arg14	250	16777215	19	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	8	Y	0	31	8
+def					@arg13	250	67108860	10	Y	0	31	255
+def					@arg14	250	67108860	19	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	8	Y	0	31	255
 def					@arg17	8	20	4	Y	32928	0	63
 def					@arg18	8	20	1	Y	32896	0	63
 def					@arg19	8	20	1	Y	32896	0	63
-def					@arg20	250	16777215	1	Y	0	31	8
-def					@arg21	250	16777215	10	Y	0	31	8
-def					@arg22	250	16777215	30	Y	0	31	8
+def					@arg20	251	268435440	1	Y	0	31	255
+def					@arg21	251	268435440	10	Y	0	31	255
+def					@arg22	251	268435440	30	Y	0	31	255
 def					@arg23	250	16777215	8	Y	128	31	63
-def					@arg24	250	16777215	8	Y	0	31	8
+def					@arg24	251	268435440	8	Y	0	31	255
 def					@arg25	250	16777215	4	Y	128	31	63
-def					@arg26	250	16777215	4	Y	0	31	8
+def					@arg26	251	268435440	4	Y	0	31	255
 def					@arg27	250	16777215	10	Y	128	31	63
-def					@arg28	250	16777215	10	Y	0	31	8
+def					@arg28	251	268435440	10	Y	0	31	255
 def					@arg29	250	16777215	8	Y	128	31	63
-def					@arg30	250	16777215	8	Y	0	31	8
-def					@arg31	250	16777215	3	Y	0	31	8
-def					@arg32	250	16777215	6	Y	0	31	8
+def					@arg30	251	268435440	8	Y	0	31	255
+def					@arg31	251	268435440	3	Y	0	31	255
+def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -2132,26 +2136,26 @@ def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
 def					@arg11	246	83	0	Y	32896	30	63
 def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	16777215	0	Y	0	31	8
-def					@arg14	250	16777215	0	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	0	Y	0	31	8
+def					@arg13	250	67108860	0	Y	0	31	255
+def					@arg14	250	67108860	0	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	0	Y	0	31	255
 def					@arg17	8	20	0	Y	32928	0	63
 def					@arg18	8	20	0	Y	32896	0	63
 def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	250	16777215	0	Y	0	31	8
-def					@arg21	250	16777215	0	Y	0	31	8
-def					@arg22	250	16777215	0	Y	0	31	8
+def					@arg20	251	268435440	0	Y	0	31	255
+def					@arg21	251	268435440	0	Y	0	31	255
+def					@arg22	251	268435440	0	Y	0	31	255
 def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	250	16777215	0	Y	0	31	8
+def					@arg24	251	268435440	0	Y	0	31	255
 def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	250	16777215	0	Y	0	31	8
+def					@arg26	251	268435440	0	Y	0	31	255
 def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	250	16777215	0	Y	0	31	8
+def					@arg28	251	268435440	0	Y	0	31	255
 def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	250	16777215	0	Y	0	31	8
-def					@arg31	250	16777215	0	Y	0	31	8
-def					@arg32	250	16777215	0	Y	0	31	8
+def					@arg30	251	268435440	0	Y	0	31	255
+def					@arg31	251	268435440	0	Y	0	31	255
+def					@arg32	251	268435440	0	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -2178,26 +2182,26 @@ def					@arg09	5	23	1	Y	32896	31	63
 def					@arg10	5	23	1	Y	32896	31	63
 def					@arg11	246	83	6	Y	32896	30	63
 def					@arg12	246	83	6	Y	32896	30	63
-def					@arg13	250	16777215	10	Y	0	31	8
-def					@arg14	250	16777215	19	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	8	Y	0	31	8
+def					@arg13	250	67108860	10	Y	0	31	255
+def					@arg14	250	67108860	19	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	8	Y	0	31	255
 def					@arg17	8	20	4	Y	32928	0	63
 def					@arg18	8	20	1	Y	32896	0	63
 def					@arg19	8	20	1	Y	32896	0	63
-def					@arg20	250	16777215	1	Y	0	31	8
-def					@arg21	250	16777215	10	Y	0	31	8
-def					@arg22	250	16777215	30	Y	0	31	8
+def					@arg20	251	268435440	1	Y	0	31	255
+def					@arg21	251	268435440	10	Y	0	31	255
+def					@arg22	251	268435440	30	Y	0	31	255
 def					@arg23	250	16777215	8	Y	128	31	63
-def					@arg24	250	16777215	8	Y	0	31	8
+def					@arg24	251	268435440	8	Y	0	31	255
 def					@arg25	250	16777215	4	Y	128	31	63
-def					@arg26	250	16777215	4	Y	0	31	8
+def					@arg26	251	268435440	4	Y	0	31	255
 def					@arg27	250	16777215	10	Y	128	31	63
-def					@arg28	250	16777215	10	Y	0	31	8
+def					@arg28	251	268435440	10	Y	0	31	255
 def					@arg29	250	16777215	8	Y	128	31	63
-def					@arg30	250	16777215	8	Y	0	31	8
-def					@arg31	250	16777215	3	Y	0	31	8
-def					@arg32	250	16777215	6	Y	0	31	8
+def					@arg30	251	268435440	8	Y	0	31	255
+def					@arg31	251	268435440	3	Y	0	31	255
+def					@arg32	251	268435440	6	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
@@ -2216,26 +2220,26 @@ def					@arg09	5	23	0	Y	32896	31	63
 def					@arg10	5	23	0	Y	32896	31	63
 def					@arg11	246	83	0	Y	32896	30	63
 def					@arg12	246	83	0	Y	32896	30	63
-def					@arg13	250	16777215	0	Y	0	31	8
-def					@arg14	250	16777215	0	Y	0	31	8
-def					@arg15	250	16777215	19	Y	0	31	8
-def					@arg16	250	16777215	0	Y	0	31	8
+def					@arg13	250	67108860	0	Y	0	31	255
+def					@arg14	250	67108860	0	Y	0	31	255
+def					@arg15	250	67108860	19	Y	0	31	255
+def					@arg16	250	67108860	0	Y	0	31	255
 def					@arg17	8	20	0	Y	32928	0	63
 def					@arg18	8	20	0	Y	32896	0	63
 def					@arg19	8	20	0	Y	32896	0	63
-def					@arg20	250	16777215	0	Y	0	31	8
-def					@arg21	250	16777215	0	Y	0	31	8
-def					@arg22	250	16777215	0	Y	0	31	8
+def					@arg20	251	268435440	0	Y	0	31	255
+def					@arg21	251	268435440	0	Y	0	31	255
+def					@arg22	251	268435440	0	Y	0	31	255
 def					@arg23	250	16777215	0	Y	128	31	63
-def					@arg24	250	16777215	0	Y	0	31	8
+def					@arg24	251	268435440	0	Y	0	31	255
 def					@arg25	250	16777215	0	Y	128	31	63
-def					@arg26	250	16777215	0	Y	0	31	8
+def					@arg26	251	268435440	0	Y	0	31	255
 def					@arg27	250	16777215	0	Y	128	31	63
-def					@arg28	250	16777215	0	Y	0	31	8
+def					@arg28	251	268435440	0	Y	0	31	255
 def					@arg29	250	16777215	0	Y	128	31	63
-def					@arg30	250	16777215	0	Y	0	31	8
-def					@arg31	250	16777215	0	Y	0	31	8
-def					@arg32	250	16777215	0	Y	0	31	8
+def					@arg30	251	268435440	0	Y	0	31	255
+def					@arg31	251	268435440	0	Y	0	31	255
+def					@arg32	251	268435440	0	Y	0	31	255
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1991-01-01 01:01:01	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 prepare stmt1 from "select c1 into ? from t9 where c1= 1" ;

@@ -380,10 +380,10 @@ ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,0 1
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,10 10,0 0)),((0 0,-8 -8,0 0))))
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), 1));
 ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), 1))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), 1));
 ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), 1))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), LINESTRING(0 0,5 0,5 5))'), 3.5));
 ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), LINESTRING(0 0,5 0,5 5))'), 3.5))
 GEOMETRYCOLLECTION(LINESTRING(0 0,5 0,5 5))
@@ -539,29 +539,18 @@ GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,0 10),POLYGON((0 0,5 -4,0 0)),MULTI
 # ST_ASTEXT(ST_SIMPLIFY(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_center,-1024), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_center,-1024), 1))
-POINT(15 10)
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_all_points,-1), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_all_points,-1), 1))
-MULTIPOINT((5 0),(25 0),(15 10),(15 25))
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1));
 ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1))
 LINESTRING(15 25,15 10)
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326), 1))
-MULTILINESTRING((0 5,15 25,0 25))
-SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star,123456789), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star,123456789), 1))
-POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))
-SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295), 1))
-POLYGON((5 0,15 25,25 0,15 5,5 0))
+ERROR 22S00: st_simplify(MULTILINESTRING, ...) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_of_elems,4294967296), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_of_elems,4294967296), 1))
-MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000), 1))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT((5 0),(25 0)),POINT(15 25))
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -573,41 +562,41 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(NULL,1));
 ST_ASTEXT(ST_SIMPLIFY(NULL,1))
 NULL
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('LINESTRING()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON(())'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTIPOINT()'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTILINESTRING(())'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(a 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(! 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT('!' 0)'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'), 1))' at line 1
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(12,34 0)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'), 1))' at line 1
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'), 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'), 1))' at line 1
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0,0 0))'), 0));
 ERROR HY000: Incorrect arguments to st_simplify
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0,0 0))'), -1));
@@ -634,3 +623,19 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(0x010400000002000000010100000000000000000000, 1));
 ERROR HY000: Geometry byte string must be little endian.
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1);
+# Projected SRS (should pass)
+DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1);
+# Geographic SRS (should fail)
+DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1);
+ERROR 22S00: st_simplify(POINT, ...) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_SIMPLIFY(x'0A000000010100000000000000000000000000000000000000', 1);
+ERROR SR001: There's no spatial reference system with SRID 10.

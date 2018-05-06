@@ -1,5 +1,6 @@
 ---- Partitioning and char data type
 create table t1 (a char(255) not null, primary key(a)) engine='InnoDB' 
+charset latin1
 partition by key (a) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
@@ -35,6 +36,7 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 drop table t1;
 create table t2 (a char(255) not null, primary key(a)) engine='InnoDB' 
+charset latin1
 partition by key (a) partitions 27;
 show create table t2;
 Table	Create Table
@@ -115,7 +117,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` binary(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -149,7 +151,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` binary(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 27 */
 26 inserts;
@@ -213,6 +215,7 @@ hex(a)
 drop table t2;
 ---- Partitioning and varchar data type
 create table t1 (a varchar(767) not null, primary key(a)) engine='InnoDB' 
+charset latin1
 partition by key (a) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
@@ -247,7 +250,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 drop table t1;
-create table t2 (a varchar(767) not null, primary key(a)) engine='InnoDB' 
+create table t2 (a varchar(767) not null, primary key(a)) engine='InnoDB'
+charset latin1
 partition by key (a) partitions 27;
 show create table t2;
 Table	Create Table
@@ -328,7 +332,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varbinary(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -359,7 +363,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varbinary(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 30 */
 26 inserts;
@@ -433,7 +437,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -475,13 +479,11 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` enum('1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 27 */
 0 inserts;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t2 values (char(ascii('A')+26));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
@@ -566,7 +568,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
@@ -608,7 +610,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` set('1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 27 */
 insert into t2 values ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I'),('K'),('L'),('M'),('N'),('O'),('P'),('Q'),('S'),('T'),('U'),('V'),('X'),('Y'),('Z');
@@ -750,7 +752,7 @@ partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
 ERROR HY000: A BLOB field is not allowed in partition function
-create table t2 (a tinytext not null, primary key(a(255))) engine='InnoDB' 
+create table t2 (a tinytext not null, primary key(a(255))) charset latin1 engine='InnoDB' 
 partition by key (a) partitions 30;
 ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a mediumtext not null, primary key(a(767))) engine='InnoDB' 

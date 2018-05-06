@@ -178,14 +178,18 @@ Drop TABLE t;
 CREATE TABLE t1(a INT);
 ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) virtual);
 ALTER TABLE t1 add COLUMN (d INT generated always as (a+1) virtual, e INT as(5) virtual);
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 pos	base_pos
 65537	0
+65540	0
+65542	2
 196611	0
 ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT as(5) virtual), DROP COLUMN e;
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 pos	base_pos
 65537	0
+65540	0
+65542	2
 196611	0
 262148	0
 DROP TABLE t1;
@@ -201,7 +205,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT);
 CREATE INDEX idx ON t1(a);
 CREATE TABLE t3(a INT, b INT , INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
-CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
+CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b), CONSTRAINT y FOREIGN KEY(b) REFERENCES t1(a));
 ERROR HY000: Cannot add foreign key constraint
 CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b));
 DROP TABLE t3;
@@ -210,9 +214,11 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT);
 ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) virtual);
 ALTER TABLE t1 change b x INT generated always as (a+1) virtual;
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 pos	base_pos
 65537	0
+65540	0
+65542	2
 DROP TABLE t1;
 CREATE TABLE t (a TEXT, b TEXT GENERATED ALWAYS AS (a), fulltext INDEX idx (b));
 ERROR HY000: 'Fulltext index on virtual generated column' is not supported for generated columns.
@@ -368,7 +374,7 @@ CREATE TABLE `t` (
 `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ROW_FORMAT=COMPACT  ENGINE=InnoDB;
+PRIMARY KEY (`h`) ) ROW_FORMAT=COMPACT  ENGINE=InnoDB charset latin1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -467,7 +473,7 @@ PRIMARY KEY (`h`),
 KEY `m3` (`m3`),
 KEY `c` (`c`(100)),
 KEY `e` (`e`,`d`(20))
-) ENGINE=InnoDB;
+) ENGINE=InnoDB charset latin1;
 INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
 INSERT INTO t VALUES (11, 21, DEFAULT, 31, "bbb", DEFAULT, REPEAT('a', 9000), REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 2);
 INSERT INTO t VALUES (21, 31, DEFAULT, 41, "zzz", DEFAULT, REPEAT('m', 8000), REPEAT('n', 3000), DEFAULT, DEFAULT, DEFAULT, 3);
@@ -739,7 +745,7 @@ CREATE TABLE `t` (
 `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ROW_FORMAT=DYNAMIC  ENGINE=InnoDB;
+PRIMARY KEY (`h`) ) ROW_FORMAT=DYNAMIC  ENGINE=InnoDB charset latin1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -788,7 +794,7 @@ CREATE TABLE `t` (
 `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ROW_FORMAT=REDUNDANT  ENGINE=InnoDB;
+PRIMARY KEY (`h`) ) ROW_FORMAT=REDUNDANT  ENGINE=InnoDB charset latin1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -837,7 +843,7 @@ CREATE TABLE `t` (
 `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ROW_FORMAT=COMPRESSED  ENGINE=InnoDB;
+PRIMARY KEY (`h`) ) ROW_FORMAT=COMPRESSED  ENGINE=InnoDB charset latin1;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -881,6 +887,8 @@ DROP PROCEDURE DELETE_insert_t;
 DROP PROCEDURE UPDATE_t;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 Warnings:
@@ -888,10 +896,14 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8, FULLTEXT INDEX(a))ENGINE=INNODB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
@@ -994,7 +1006,7 @@ t	CREATE TABLE `t` (
   `col_time_key` time GENERATED ALWAYS AS (addtime(`col_datetime_nokey`,`col_time`)) VIRTUAL NOT NULL,
   `col_varchar_nokey` varchar(1) DEFAULT NULL,
   `col_varchar` varchar(2) GENERATED ALWAYS AS (concat(`col_varchar_nokey`,`col_varchar_nokey`)) STORED NOT NULL,
-  `col_varchar_key` varchar(2) GENERATED ALWAYS AS (concat(`col_varchar`,'x')) VIRTUAL NOT NULL,
+  `col_varchar_key` varchar(2) GENERATED ALWAYS AS (concat(`col_varchar`,_utf8mb4'x')) VIRTUAL NOT NULL,
   UNIQUE KEY `pk` (`col_int_key`),
   UNIQUE KEY `col_int_key` (`col_int_key`),
   UNIQUE KEY `col_int_key_2` (`col_int_key`,`col_varchar_key`),
@@ -1012,7 +1024,7 @@ t	CREATE TABLE `t` (
   KEY `col_int_key_6` (`col_int_key`,`col_datetime_key`),
   KEY `col_date_key` (`col_date_key`,`col_time_key`,`col_datetime_key`),
   KEY `col_varchar_key` (`col_varchar_key`,`col_varchar_nokey`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col_int_key)
 PARTITIONS 3 */
 DROP TABLE t;
@@ -1034,7 +1046,7 @@ CREATE TABLE `t` (
 `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
-`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;
@@ -1043,7 +1055,7 @@ CREATE TABLE `t` (
 `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
-`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0,
 SPATIAL INDEX (`e`)
 ) ENGINE=INNODB;
 DROP TABLE t;
@@ -1053,7 +1065,7 @@ CREATE TABLE `t` (
 `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
-`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;
@@ -1064,7 +1076,7 @@ CREATE TABLE `t` (
 `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
 `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
 `d2` INT GENERATED ALWAYS AS (1) VIRTUAL,
-`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+`e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;
@@ -1126,7 +1138,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE parent (id INT PRIMARY KEY) ENGINE=INNODB;
 CREATE TABLE child (
@@ -1364,8 +1376,6 @@ alter table t change column b b varbinary(2), algorithm=inplace;
 alter table t change column c c varbinary(2) generated always as (b) virtual, algorithm=inplace;
 drop table t;
 SET @@SESSION.sql_mode=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(
 c1 INT AUTO_INCREMENT,
 c2 INT,
@@ -1436,7 +1446,7 @@ t	CREATE TABLE `t` (
   `h` varchar(10) DEFAULT NULL,
   KEY `idx` (`d`),
   KEY `idx2` (`e`,`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (e), ALGORITHM=INPLACE, LOCK=NONE;
@@ -1453,7 +1463,7 @@ t	CREATE TABLE `t` (
   `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS(h), DROP INDEX idx, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -1466,7 +1476,7 @@ t	CREATE TABLE `t` (
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD COLUMN j INT, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 ALTER TABLE t ADD INDEX (x), ADD COLUMN j INT, ALGORITHM=INPLACE, LOCK=NONE;
@@ -1483,7 +1493,7 @@ t	CREATE TABLE `t` (
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: ADD COLUMN col...VIRTUAL, ADD INDEX(col). Try LOCK=SHARED.
 ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=SHARED;
@@ -1502,7 +1512,7 @@ t	CREATE TABLE `t` (
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`),
   KEY `i` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i FROM t;
 i
 NULL
@@ -1620,6 +1630,8 @@ CREATE TABLE t1(
 a VARCHAR(45) CHARACTER SET LATIN1,
 b VARCHAR(115) CHARACTER SET UTF8 GENERATED ALWAYS AS ('f1') VIRTUAL,
 UNIQUE KEY (b,a))ENGINE=INNODB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1(a) VALUES ('');
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
 SELECT * FROM t1;

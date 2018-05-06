@@ -73,7 +73,7 @@ typedef GenericDocument<UTF16<> > WDocument;
 typedef GenericValue<UTF16<> > WValue;
 ~~~~~~~~~~
 
-For a detail example, please check the example in [DOM's Encoding](doc/stream.md#Encoding) section.
+For a detail example, please check the example in [DOM's Encoding](doc/stream.md) section.
 
 ## Character Type {#CharacterType}
 
@@ -131,8 +131,8 @@ StringStream source(s);
 GenericStringBuffer<UTF16<> > target;
 
 bool hasError = false;
-while (source.Peak() != '\0')
-    if (!Transcoder::Transcode<UTF8<>, UTF16<> >(source, target)) {
+while (source.Peek() != '\0')
+    if (!Transcoder<UTF8<>, UTF16<> >::Transcode(source, target)) {
         hasError = true;
         break;
     }

@@ -22,12 +22,6 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
---source include/have_big5.inc
---source include/have_ujis.inc
---source include/have_sjis.inc
---source include/have_utf8.inc
---source include/have_ucs2.inc
-
 --source include/load_sysvars.inc
 
 ###################################################
@@ -204,6 +198,10 @@ SELECT @@character_set_server AS res_with_true;
 
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_server = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_server = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_server = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_009_11-------------------------#'
 ###############################################################################
@@ -228,6 +226,10 @@ SET @@global.character_set_server = true;
 
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@global.character_set_server = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_server = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_server = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_009_12-------------------------#'
 ###############################################################################
@@ -235,14 +237,14 @@ SET @@global.character_set_server = ON;
 ###############################################################################
 --disable_warnings
 SELECT @@global.character_set_server =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_server') AS res;
 --enable_warnings
 SET @@global.character_set_server = 1;
 SELECT @@global.character_set_server;
 --disable_warnings
 SELECT @@global.character_set_server =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_server') AS res;
 --enable_warnings
 
@@ -252,13 +254,13 @@ SELECT @@global.character_set_server =
 ###############################################################################
 --disable_warnings
 SELECT @@character_set_server =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_server') AS res;
 SELECT @@local.character_set_server =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_server') AS res;
 SELECT @@session.character_set_server =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_server') AS res;
 --enable_warnings
 

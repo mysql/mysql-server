@@ -1,30 +1,18 @@
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
-SET GLOBAL old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET SESSION old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user ORDER BY user;
 user	plugin
 kristofer	sha256_password
+mysql.infoschema	mysql_native_password
 mysql.session	mysql_native_password
 mysql.sys	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
+root	caching_sha2_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
+CREATE USER 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
@@ -49,9 +37,7 @@ user()	current_user()
 kristofer@localhost	kristofer@localhost
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
 SELECT USER(),CURRENT_USER();
@@ -59,57 +45,22 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW CREATE USER 'kristofer'@'localhost';
 CREATE USER for kristofer@localhost
-CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
-SET GLOBAL old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET SESSION old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-CREATE TABLE t1 (c1 VARCHAR(10) );
-INSERT INTO t1 VALUES ('secret');
-SELECT HEX(PASSWORD(c1)) FROM t1;
-HEX(PASSWORD(c1))
-success
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-DROP TABLE t1;
-SELECT PASSWORD(NULL), PASSWORD('');
-PASSWORD(NULL)	PASSWORD('')
-	
-CREATE TABLE t1( c1 text, c2 varchar (2));
-INSERT INTO t1 VALUES (NULL,''),(NULL,''),(NULL,'');
-SELECT PASSWORD(c1), PASSWORD(c2) FROM t1;
-PASSWORD(c1)	PASSWORD(c2)
-	
-	
-	
-DROP TABLE t1;
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
-SET GLOBAL old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET SESSION old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user ORDER BY user;
 user	plugin
 kristofer	sha256_password
+mysql.infoschema	mysql_native_password
 mysql.session	mysql_native_password
 mysql.sys	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
-root	mysql_native_password
+root	caching_sha2_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
@@ -126,6 +77,3 @@ user	authentication_string	plugin
 kristofer	$5$asd	sha256_password
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
 DROP USER kristofer;
-SET GLOBAL old_passwords= default;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

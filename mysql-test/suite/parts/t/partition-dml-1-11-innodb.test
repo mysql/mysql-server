@@ -3,9 +3,6 @@
 # Author: Horst Hunger
 
 let $ENGINE=InnoDB;
---source include/have_innodb.inc
-# Fails on --embedded-server because of bug#11791877.
---source include/not_embedded.inc
 SET GLOBAL innodb_strict_mode=OFF;
 SET innodb_strict_mode=OFF;
 --source suite/parts/inc/partition-dml-1-11.inc

@@ -1,0 +1,172 @@
+## Inserting values described as an expressions
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
+## Test data
+-->quiet
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.mytable (id INT PRIMARY KEY, name VARCHAR(40), flag BOOL);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "mytable" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "id"}
+  projection {name: "name"}
+  projection {name: "flag"}
+  row {
+    field {
+      type: OPERATOR operator {
+	name: "+"
+	param {
+	  type : LITERAL
+	    literal { type: V_SINT v_signed_int: 19 }
+	}
+	param {
+	  type : LITERAL
+	    literal { type: V_SINT v_signed_int: 23 }
+	}
+      }
+    }
+    field {
+      type: FUNC_CALL function_call {
+   	name {
+	  name: "upper"
+	}
+	param {
+	  type: LITERAL
+	    literal { type: V_STRING v_string { value: "Robb" } }
+	}
+      }
+    }
+    field {
+      type: OPERATOR operator {
+	name: "<"
+	param {
+	  type: FUNC_CALL function_call {
+	    name {  name: "now" }
+	  }
+	}
+	param {
+	  type: FUNC_CALL function_call {
+	    name { name: "makedate" }
+	    param {
+	      type : LITERAL
+	      literal { type: V_SINT v_signed_int: 2015 }
+	    }
+	    param {
+	      type : LITERAL
+	      literal { type: V_SINT v_signed_int: 15 }
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.mytable;
+
+CREATE TABLE xtest.mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: FUNC_CALL function_call {
+        name { name: "replace" }
+        param {
+          type: LITERAL
+            literal {
+              type: V_STRING  v_string { value: "{\"_id\": \"one\", \"value\": 77}" }
+          }
+        }
+        param {
+          type: LITERAL
+            literal {
+              type: V_STRING  v_string { value: "one" }
+          }
+        }
+        param {
+          type: FUNC_CALL function_call {
+            name { name: "hex" }
+            param {
+              type: LITERAL
+                literal {
+                  type: V_STRING  v_string { value: "two" }
+                }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: OBJECT object {
+        fld {
+          key: '_id'
+          value {
+            type: FUNC_CALL function_call {
+              name { name: "hex" }
+              param {
+                type: LITERAL literal {
+                  type: V_STRING  v_string { value: "three" }
+                }
+              }
+            }
+          }
+        }
+        fld {
+          key: 'value'
+          value {
+            type: LITERAL literal { type: V_UINT v_unsigned_int: 88 }
+          }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+SELECT hex("one");
+SELECT hex("two");
+SELECT * FROM xtest.mycoll;
+-->endsql
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_expr.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
+--source include/xplugin_drop_user.inc

@@ -14,8 +14,8 @@ select @@session.old_alter_table;
 show global variables like 'old_alter_table';
 show session variables like 'old_alter_table';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='old_alter_table';
-select * from information_schema.session_variables where variable_name='old_alter_table';
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.session_variables where variable_name='old_alter_table';
 --enable_warnings
 
 #
@@ -28,8 +28,8 @@ select @@session.old_alter_table;
 show global variables like 'old_alter_table';
 show session variables like 'old_alter_table';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='old_alter_table';
-select * from information_schema.session_variables where variable_name='old_alter_table';
+select * from performance_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.session_variables where variable_name='old_alter_table';
 --enable_warnings
 
 #

@@ -1,42 +1,74 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_EVENTS_TRANSACTIONS_H
 #define TABLE_EVENTS_TRANSACTIONS_H
 
 /**
-  @file storage/perfschema/table_events_HA_ERR_WRONG_COMMAND.h
+  @file storage/perfschema/table_events_transactions.h
   Table EVENTS_TRANSACTIONS_xxx (declarations).
 */
 
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
-#include "pfs_events_transactions.h"
-#include "table_helper.h"
-#include "rpl_gtid.h"
+#include <sys/types.h>
 
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "sql/rpl_gtid.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events_transactions.h"
+#include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_events;
 struct PFS_thread;
+struct TABLE;
+struct THR_LOCK;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
+class PFS_index_events_transactions : public PFS_engine_index {
+ public:
+  PFS_index_events_transactions()
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("THREAD_ID"),
+        m_key_2("EVENT_ID") {}
+
+  ~PFS_index_events_transactions() {}
+
+  bool match(PFS_thread *pfs);
+  bool match(PFS_events *pfs);
+
+ private:
+  PFS_key_thread_id m_key_1;
+  PFS_key_event_id m_key_2;
+};
+
 /** A row of table_events_transactions_common. */
-struct row_events_transactions
-{
+struct row_events_transactions {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column EVENT_ID. */
@@ -94,22 +126,17 @@ struct row_events_transactions
   Index 1 on thread (0 based)
   Index 2 on transaction event record in thread history (0 based)
 */
-struct pos_events_transactions_history : public PFS_double_index
-{
-  pos_events_transactions_history()
-    : PFS_double_index(0, 0)
-  {}
+struct pos_events_transactions_history : public PFS_double_index {
+  pos_events_transactions_history() : PFS_double_index(0, 0) {}
 
-  inline void reset(void)
-  {
-    m_index_1= 0;
-    m_index_2= 0;
+  inline void reset(void) {
+    m_index_1 = 0;
+    m_index_2 = 0;
   }
 
-  inline void next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -117,107 +144,110 @@ struct pos_events_transactions_history : public PFS_double_index
   Adapter, for table sharing the structure of
   PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT.
 */
-class table_events_transactions_common : public PFS_engine_table
-{
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+class table_events_transactions_common : public PFS_engine_table {
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  table_events_transactions_common(const PFS_engine_table_share *share, void *pos);
+  table_events_transactions_common(const PFS_engine_table_share *share,
+                                   void *pos);
 
-  ~table_events_transactions_common()
-  {}
+  ~table_events_transactions_common() {}
 
-  void make_row(PFS_events_transactions *statement);
+  int make_row(PFS_events_transactions *statement);
 
   /** Current row. */
   row_events_transactions m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT. */
-class table_events_transactions_current : public table_events_transactions_common
-{
-public:
+class table_events_transactions_current
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
+
+  virtual void reset_position(void);
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
 
-protected:
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+ protected:
   table_events_transactions_current();
 
-public:
-  ~table_events_transactions_current()
-  {}
+ public:
+  ~table_events_transactions_current() {}
 
-private:
+ private:
   friend class table_events_transactions_history;
   friend class table_events_transactions_history_long;
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /**
-    Fields definition.
-    Also used by table_events_transactions_history
-    and table_events_transactions_history_long.
-  */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_events_transactions *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY. */
-class table_events_transactions_history : public table_events_transactions_common
-{
-public:
+class table_events_transactions_history
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
+
+  virtual void reset_position(void);
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
 
-protected:
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+ protected:
   table_events_transactions_history();
 
-public:
-  ~table_events_transactions_history()
-  {}
+ public:
+  ~table_events_transactions_history() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   pos_events_transactions_history m_pos;
   /** Next position. */
   pos_events_transactions_history m_next_pos;
+
+  PFS_index_events_transactions *m_opened_index;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY_LONG. */
-class table_events_transactions_history_long : public table_events_transactions_common
-{
-public:
+class table_events_transactions_history_long
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -226,16 +256,17 @@ public:
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
+ protected:
   table_events_transactions_history_long();
 
-public:
-  ~table_events_transactions_history_long()
-  {}
+ public:
+  ~table_events_transactions_history_long() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;

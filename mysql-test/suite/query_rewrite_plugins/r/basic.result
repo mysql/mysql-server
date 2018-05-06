@@ -1,10 +1,6 @@
 #
 # Checks the basic functionality of the plugin.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # checks that the plugin is well installed
 SELECT PLUGIN_NAME, PLUGIN_TYPE
@@ -23,8 +19,6 @@ SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
 1	SELECT ?	NULL	SELECT "literal"	YES	NULL
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
 1	SELECT ?	NULL	SELECT "literal"	YES	NULL

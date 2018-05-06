@@ -17,9 +17,6 @@ INSERT INTO articles (title,body) VALUES
 	('MySQL vs. YourSQL','In the following database comparison ...'),
 	('MySQL Security','When configured properly, MySQL ...');
 
-let $default_cache_size = `select @@query_cache_size`;
-SET GLOBAL query_cache_size=0;
-
 --echo # Query involves Ranking
 SELECT * FROM articles
 	WHERE MATCH (title,body)
@@ -138,6 +135,3 @@ SELECT * FROM articles
 SET DEBUG = '-d,fts_union_limit_off';
 
 DROP TABLE articles;
---disable_query_log
---eval SET GLOBAL query_cache_size = $default_cache_size
---enable_query_log

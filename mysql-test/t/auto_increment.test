@@ -4,7 +4,6 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-
 #
 # Test of auto_increment;  The test for BDB tables is in bdb.test
 #
@@ -108,7 +107,7 @@ create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
-explain extended select last_insert_id();
+explain select last_insert_id();
 --error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();
@@ -235,7 +234,7 @@ CREATE TABLE `t1` (
     t1_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
     KEY (t1_name),
     PRIMARY KEY (t1_id)
-) AUTO_INCREMENT = 1000;
+) charset latin1 AUTO_INCREMENT = 1000;
 
 INSERT INTO t1 (t1_name) VALUES('MySQL');
 INSERT INTO t1 (t1_name) VALUES('MySQL');
@@ -389,3 +388,41 @@ CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
 INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #27041393: ASSERTION `HAS_ERROR == THD->GET_STMT_DA()->IS_ERROR()'
+--echo # FAILED.
+--echo #
+
+USE test;
+SET sql_mode = 'STRICT_TRANS_TABLES';
+CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
+  ENGINE=InnoDB;
+--echo # Single row insert:
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
+SELECT * FROM t1;
+INSERT INTO t1 (c2) VALUES (3);
+SELECT * FROM t1;
+DELETE FROM t1;
+--echo # Multi row insert:
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2), (NULL, 3);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+SET sql_mode = '';
+CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
+  ENGINE=InnoDB;
+--echo # Single row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
+SELECT * FROM t1;
+INSERT INTO t1 (c2) VALUES (3);
+SELECT * FROM t1;
+DELETE FROM t1;
+--echo # Multi row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2), (NULL, 3);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+SET sql_mode = DEFAULT;

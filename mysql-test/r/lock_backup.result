@@ -1,0 +1,107 @@
+#
+# WL#9451 -- Backup Log
+#
+CREATE TABLE t1 (a INT);
+connect  con1, localhost, root,,;
+SET lock_wait_timeout= 1;
+SET autocommit= 0;
+connection default;
+LOCK INSTANCE FOR BACKUP;
+connection con1;
+# Test case 1: Check that attempt to run DDL statement leads to
+# emission of error ER_LOCK_WAIT_TIMEOUT since execution
+# of the statement was blocked by LOCK INSTANCE issued
+# from connection default.
+CREATE TABLE t2 (a INT);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Test case 2: Check that DML statement is executed successfully
+# when LOCK INSTANCE was acquired from another connection.
+INSERT INTO t1 VALUES (100);
+COMMIT;
+SELECT * FROM t1;
+a
+100
+# Test case 3: Make attempt to execute a DDL statement after LOCK INSTANCE was issued
+# and check that DDL is executed successfully as soon as UNLOCK INSTANCE was issued
+SET lock_wait_timeout= 10000000;
+CREATE TABLE t3 (a INT);
+connection default;
+UNLOCK INSTANCE;
+connection con1;
+# Reap result of CREATE TABLE t3
+# Check that the table t3 was created
+DESCRIBE t3;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+# Test case 4: Check that several statements LOCK INSTANCE FOR BACKUP
+# can be issued from different connections.
+LOCK INSTANCE FOR BACKUP;
+connect  con2, localhost, root,,;
+# It is expected that second execution of LOCK INSTANCE FOR BACKUP
+# will be successful.
+LOCK INSTANCE FOR BACKUP;
+# Then switch to the connection default
+# and try to execute the statement CREATE TABLE t2.
+# It is expected that processing of the statement will be suspended
+# until connections con1 and con2 release Backup Lock.
+connection default;
+CREATE TABLE t2 (a INT);
+connection con1;
+# Show that default connection is waiting until Backup Lock be released
+SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = default_con_id;
+info	state
+CREATE TABLE t2 (a INT)	Waiting for backup lock
+UNLOCK INSTANCE;
+connection con2;
+# Show that default connection is still waiting until Backup Lock be released
+# by connection con2
+SELECT info, state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE id = default_con_id;
+info	state
+CREATE TABLE t2 (a INT)	Waiting for backup lock
+UNLOCK INSTANCE;
+# Waiting until connection default acquire Backup Lock and resume execution
+connection default;
+# Reap CREAT TABLE t2
+# Check that the table t2 was created after Backup Lock had been released
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+# Test case 5: Check that Backup Lock independent from
+# FLUSH TABLES <table list> WITH READ LOCK
+# Case 5.1: Check that FLUSH TABLES <table list> WITH READ LOCK following with
+# LOCK INSTANCE FOR BACKUP are executed successfully.
+FLUSH TABLES t1 WITH READ LOCK;
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+UNLOCK TABLES;
+# Case 5.2: Check that LOCK INSTANCE FOR BACKUP following with
+# FLUSH TABLES <table list> WITH READ LOCK are executed successfully.
+LOCK INSTANCE FOR BACKUP;
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+connection con1;
+disconnect con1;
+connection con2;
+disconnect con2;
+connection default;
+# Test case 6: check that a user without granted BACKUP_ADMIN privilege
+# failed to acquire Backup Lock.
+CREATE USER u1;
+connect  con1, localhost, u1,,;
+LOCK INSTANCE FOR BACKUP;
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+disconnect con1;
+connection default;
+DROP USER u1;
+DROP TABLE t1, t2, t3;
+#
+# Bug26665851 - USING FLUSH TABLES WITH READ LOCK AND LOCK INSTANCE LEADS TO A CRASH
+#
+LOCK INSTANCE FOR BACKUP;
+CREATE TABLE t1 (a INT);
+# Without the patch the following statement leads to a crash for debug build
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+DROP TABLE t1;
+UNLOCK INSTANCE;

@@ -166,6 +166,10 @@ SET @@session.character_set_filesystem = utf8;
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
 utf8
+SET @@session.character_set_filesystem = utf8mb4;
+SELECT @@session.character_set_filesystem;
+@@session.character_set_filesystem
+utf8mb4
 SET @@session.character_set_filesystem = ucs2;
 SELECT @@session.character_set_filesystem;
 @@session.character_set_filesystem
@@ -315,6 +319,10 @@ SET @@global.character_set_filesystem = utf8;
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 utf8
+SET @@global.character_set_filesystem = utf8mb4;
+SELECT @@global.character_set_filesystem;
+@@global.character_set_filesystem
+utf8mb4
 SET @@global.character_set_filesystem = ucs2;
 SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
@@ -452,7 +460,7 @@ SET @@global.character_set_filesystem = ON;
 ERROR 42000: Unknown character set: 'ON'
 '#--------------------FN_DYNVARS_008_12-------------------------#'
 SELECT @@global.character_set_filesystem =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 res
 1
@@ -461,23 +469,23 @@ SELECT @@global.character_set_filesystem;
 @@global.character_set_filesystem
 big5
 SELECT @@global.character_set_filesystem =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 res
 1
 '#--------------------FN_DYNVARS_008_13-------------------------#'
 SELECT @@character_set_filesystem =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 res
 1
 SELECT @@local.character_set_filesystem =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 res
 1
 SELECT @@session.character_set_filesystem =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='character_set_filesystem') AS res;
 res
 1

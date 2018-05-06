@@ -74,7 +74,7 @@ count(*)
 create table t1 (
 pk int not null primary key,
 b int,
-foreign key (b) references t2(pk1)
+foreign key fk1(b) references t2(pk1)
 ) engine=ndb;
 create table t2 (
 pk1 int not null primary key,
@@ -90,7 +90,7 @@ count(*)
 # Verify that fk is working now when parent has been resolved
 set foreign_key_checks=1;
 insert into t1 values(1, 2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 set foreign_key_checks=0;
 drop table t1, t2;
 #
@@ -103,11 +103,10 @@ pk int not null primary key,
 b int,
 foreign key (b) references abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_(pk1)
 ) engine=ndb;
-ERROR HY000: Cannot add foreign key constraint
+ERROR 42000: Incorrect table name 'abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuv'
 show warnings;
 Level	Code	Message
-Warning	1215	Failed to create mock parent table, too long mock name
-Error	1215	Cannot add foreign key constraint
+Error	1103	Incorrect table name 'abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuvxyz_abcdefghijklmnopqrstuv'
 #
 # show create of table with mock table references
 #
@@ -140,7 +139,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 (
 a int primary key,
 b int not null,
@@ -163,7 +162,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @@ndb_show_foreign_key_mock_tables= 1;
 show create table t1;
 Table	Create Table
@@ -180,7 +179,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `NDB$FKM_<child_id>_<id>_t4` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @@ndb_show_foreign_key_mock_tables= 0;
 drop table t1, t2;
 #
@@ -622,7 +621,7 @@ name
 'NDB$FKM_<child_id>_<id>_t2'
 alter table t1 add column c int;
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -742,7 +741,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
   CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3;
 create table t2 (
 pk2 int not null primary key,
@@ -790,7 +789,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
 # Truncating referenced table -> not allowed
@@ -806,7 +805,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `test`.`t2` (`pk2`))
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -831,7 +830,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `test`.`t2` (`pk2`))
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -862,7 +861,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
 # Truncate with multiple foreign keys
@@ -905,7 +904,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
 # Create child table referencing mock parent, insert data and
@@ -937,7 +936,7 @@ insert into customer values(1);
 # Check DML with foreign_key_checks on
 set foreign_key_checks=1;
 update address set customer_id = 3 where no = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `ca_fk1` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 delete from customer where id = 1;
 select no, type, customer_id from address;
 no	type	customer_id
@@ -969,7 +968,7 @@ set foreign_key_checks=1;
 ALTER TABLE address ALGORITHM=inplace,
 ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
 ON DELETE CASCADE ON UPDATE RESTRICT;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR HY000: Cannot add foreign key constraint
 set foreign_key_checks=0;
 ALTER TABLE address ALGORITHM=inplace,
 ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -979,7 +978,7 @@ set foreign_key_checks=1;
 ALTER TABLE address ALGORITHM=copy,
 ADD CONSTRAINT `ca_fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
 ON DELETE CASCADE ON UPDATE RESTRICT;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`#sql-temporary`, CONSTRAINT `ca_fk1` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 set foreign_key_checks=0;
 ALTER TABLE address ALGORITHM=copy,
 ADD CONSTRAINT `ca_fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -991,7 +990,7 @@ ADD COLUMN b int not null;
 # Check DML with foreign_key_checks on
 set foreign_key_checks=1;
 update address set customer_id = 3 where no = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `ca_fk2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 update address set customer_id = 1 where no = 2;
 delete from customer where id = 1;
 select count(*) from address;

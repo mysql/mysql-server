@@ -5,8 +5,6 @@
 #
 # Outcome: T2 completes and T1 abort.T2 is replicated to slave.
 
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 

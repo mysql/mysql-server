@@ -3,14 +3,11 @@
 # This test verifies the correct behaviour in case of invalid
 # usage of DDLs on the table replication_applier_status_by_coordinator
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_applier_status_by_coordinator
   ADD COLUMN foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.replication_applier_status_by_coordinator;
 
 -- error ER_DBACCESS_DENIED_ERROR
@@ -20,3 +17,6 @@ ALTER TABLE performance_schema.replication_applier_status_by_coordinator
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON
   performance_schema.replication_applier_status_by_coordinator(thread_id);
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.replication_applier_status_by_coordinator;

@@ -8,8 +8,8 @@ SELECT        * FROM t1;
 SELECT /*+ */ * FROM t1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-52efb366ff07b747f41a99d625b6169e	SELECT * FROM `t1` 
-52efb366ff07b747f41a99d625b6169e	SELECT * FROM `t1` 
+533c0a9cf0cf92d2c26e7fe8821735eb4a72c409aaca24f9f281d137427bfa9a	SELECT * FROM `t1`
+533c0a9cf0cf92d2c26e7fe8821735eb4a72c409aaca24f9f281d137427bfa9a	SELECT * FROM `t1`
 # Digests should be different:
 SELECT * FROM t1, t2;
 SELECT /*+
@@ -33,19 +33,33 @@ SUBQUERY(t1)
 */ * FROM t1, t2;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-fec6917f393db4a4ab0aa807a5571b5a	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2` 
-3a823be8a3decc4895780d814f38c6cb	SELECT * FROM `t1` , `t2` 
+03c23b7b6d0b10547ae67b64b3dd4230b929d6e482cf78644b441fc642285c70	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2`
+7c833a03681c8d9ce4afd30de8498e2a4df55e33e991770e5377e18d3c87da7f	SELECT * FROM `t1` , `t2`
 SELECT * FROM t2, t1;
-SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t2, t1;
+SELECT /*+ MAX_EXECUTION_TIME(4294967295) */ * FROM t2, t1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-636155394b2f53391a970c2c8c13ed9f	SELECT /*+ MAX_EXECUTION_TIME (?) */ * FROM `t2` , `t1` 
-17ba1f25fb5e2b957bbd51689455864f	SELECT * FROM `t2` , `t1` 
+49499e28818da99558537467bea1d841b2810139fbf30ff708d3c1e252a17ed1	SELECT /*+ MAX_EXECUTION_TIME (?) */ * FROM `t2` , `t1`
+568bc14e215806a52933675c3be556c33b88d67162e61aab6ea1bc329e0995ab	SELECT * FROM `t2` , `t1`
 SELECT 1;
 SELECT /*+ bad_hint_also_goes_to_digest */ 1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-11f1f8f16ba99049bfabf724f29a195a	SELECT /*+ `bad_hint_also_goes_to_digest` */ ? 
-f29eded39dd5fa102f18987679dd0c14	SELECT ? 
+660eaaac8babcd7c6964f8930126fb336f78fae088ed4b15047e66e849b10722	SELECT /*+ `bad_hint_also_goes_to_digest` */ ?
+d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	SELECT ?
 DROP TABLE t1, t2;
 #
+# WL#681: Hint to temporarily set session variable for current statement
+#
+SELECT 1;
+SELECT /*+ SET_VAR(foo = 1K) */ 1;
+SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
+digest	digest_text
+b1cae1a4252dec3b5cb92a58603115d5633c5f96e04d4aefe77e2154e3bcb1c3	SELECT /*+ SET_VAR ( `foo` = ? ) */ ?
+d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	SELECT ?
+SELECT 1;
+SELECT /*+ SET_VAR(bar = 'baz') */ 1;
+SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
+digest	digest_text
+4faceab08ccc6439902860dc80451b6039dd37d43b297efb2680563a8dc629af	SELECT /*+ SET_VAR ( `bar` = ? ) */ ?
+d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	SELECT ?

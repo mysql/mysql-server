@@ -1,0 +1,104 @@
+#
+# The test is to run IS.TABLES query using two mode of reading
+# dynamic table statistics.
+#
+# Case 1. Using IS.TABLES query definition that joins with
+#         mysql.tables.
+#
+# Case 2. Using IS.TABLES query definition that invokes UDF
+#         that read stats.
+#
+# Approach 2) deals with opening the table while query execution for
+# non-InnoDB tables. And for InnoDB tables, the UDF's do not do
+# complete open_table() and invoke new handlerton API,
+# handlerton::get_table_statistics().
+#
+CREATE TABLE t1 (f0 INT KEY AUTO_INCREMENT, f1 INT, f2 INT);
+CREATE TABLE t2 (f0 INT KEY AUTO_INCREMENT, f1 INT, f2 INT) ENGINE=MYISAM;
+CREATE TABLE t3 (f0 INT KEY AUTO_INCREMENT, f1 INT, f2 INT, KEY (f0), KEY (f1), KEY (f1, f2));
+
+INSERT INTO t1 (f1, f2) VALUES (1,1 ),(2,2),(3,3),(4,4);
+INSERT INTO t1 (f1, f2) SELECT f1, f2 FROM t1;
+INSERT INTO t1 (f1, f2) SELECT f1, f2 FROM t1;
+INSERT INTO t1 (f1, f2) SELECT f1, f2 FROM t1;
+
+INSERT INTO t2 (f1, f2) SELECT f1, f2 FROM t1;
+INSERT INTO t3 (f1, f2) SELECT f1, f2 FROM t1;
+
+DELETE FROM t1 WHERE f1=1;
+DELETE FROM t2 WHERE f1=1;
+
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo Case 1: IS query uses mysql.table_stats to read dynamic table statistics
+SET SESSION information_schema_stats_expiry=default;
+
+--replace_column 9 #
+SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
+       data_free, auto_increment, checksum, update_time, check_time
+FROM information_schema.tables WHERE table_name in ('t1', 't2');
+
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
+
+--echo Case 2: IS query uses UDF's to read dynamic table statistics
+SET SESSION information_schema_stats_expiry=0;
+
+--replace_column 9 #
+SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
+       data_free, auto_increment, checksum, update_time, check_time
+FROM information_schema.tables WHERE table_name in ('t1', 't2');
+
+SELECT * FROM information_schema.statistics WHERE table_name='t3'
+ORDER BY index_name, seq_in_index;
+
+SET SESSION information_schema_stats_expiry=default;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+
+# 
+# Bug#23209797 SEGMENTATION FAULT WHILE GETTING GET_SCHEMA_TABLES_RESULT()
+# Make sure information_schema.tmp_tables_* tables are not
+# directly accessible to users, except for SHOW COMMANDS.
+#
+
+CREATE TEMPORARY TABLE t1 (f1 int, f2 int primary key, UNIQUE KEY (f1));
+SHOW COLUMNS FROM t1;
+SHOW INDEXES FROM t1;
+--error ER_UNKNOWN_TABLE
+SELECT * FROM information_schema.tmp_tables_columns;
+--error ER_UNKNOWN_TABLE
+SELECT * FROM information_schema.tmp_tables_keys;
+DROP TEMPORARY TABLE t1;
+
+
+#
+# Bug#23210930 ASSERTION `THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT)' FAILED.
+# Make sure the INFORMATION_SCHEMA system views are usable in
+# prepared statement.
+#
+
+CREATE TABLE t1 (f1 int);
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
+  FROM information_schema.tables WHERE table_name='t1';
+
+LOCK TABLE t1 READ;
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
+   FROM information_schema.tables WHERE table_name='t1';
+PREPARE st2 FROM
+  "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM
+   information_schema.tables WHERE table_name='t1'";
+EXECUTE st2;
+DEALLOCATE PREPARE st2;
+UNLOCK TABLES;
+
+DROP TABLE t1;

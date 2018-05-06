@@ -1,0 +1,11 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+TimeBetweenLocalCheckpoints=6
+MaxNoOfConcurrentOperations=400000
+DataMemory=600M
+
+[cluster_config.1]
+ndbd=,,,
+NoOfReplicas=2
+

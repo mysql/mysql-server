@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -64,7 +71,9 @@ struct Resource_limit
   Uint32 m_min;
   Uint32 m_max;
   Uint32 m_curr;
+  Uint32 m_spare;
   Uint32 m_resource_id;
+  Uint32 m_spare_pct;
 };
 
 struct Pool_context
@@ -85,7 +94,10 @@ struct Pool_context
    *
    * Will handle resource limit 
    */
-  void* alloc_page(Uint32 type_id, Uint32 *i);
+  void* alloc_page19(Uint32 type_id, Uint32 *i);
+  void* alloc_page27(Uint32 type_id, Uint32 *i);
+  void* alloc_page30(Uint32 type_id, Uint32 *i);
+  void* alloc_page32(Uint32 type_id, Uint32 *i);
   
   /**
    * Release pages
@@ -196,16 +208,17 @@ struct PoolImpl
   
   bool seize(Ptr<void>&);
   void release(Ptr<void>);
-  void * getPtr(Uint32 i);
+  void * getPtr(Uint32 i) const;
 };
 #endif
 
 struct ArenaHead; // forward decl.
 class ArenaAllocator; // forward decl.
 
-template <typename T, typename P>
+template <typename P, typename T = typename P::Type>
 class RecordPool {
 public:
+  typedef T Type;
   RecordPool();
   ~RecordPool();
   
@@ -216,19 +229,19 @@ public:
   /**
    * Update p value for ptr according to i value 
    */
-  void getPtr(Ptr<T> &);
+  void getPtr(Ptr<T> &) const;
   void getPtr(ConstPtr<T> &) const;
   
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i);
+  T * getPtr(Uint32 i) const;
   const T * getConstPtr(Uint32 i) const;
 
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i);
+  void getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
 
   /**
@@ -256,16 +269,16 @@ private:
   P m_pool;
 };
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
-RecordPool<T, P>::RecordPool()
+RecordPool<P, T>::RecordPool()
 {
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::init(Uint32 type_id, const Pool_context& pc)
+RecordPool<P, T>::init(Uint32 type_id, const Pool_context& pc)
 {
   T tmp;
   const char * off_base = (char*)&tmp;
@@ -280,10 +293,10 @@ RecordPool<T, P>::init(Uint32 type_id, const Pool_context& pc)
   m_pool.init(ri, pc);
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
+RecordPool<P, T>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
 {
   T tmp;
   const char * off_base = (char*)&tmp;
@@ -297,10 +310,10 @@ RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
   m_pool.init(ri, pc);
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::arena_pool_init(ArenaAllocator* alloc,
+RecordPool<P, T>::arena_pool_init(ArenaAllocator* alloc,
                                   Uint32 type_id, const Pool_context& pc)
 {
   T tmp;
@@ -317,69 +330,69 @@ RecordPool<T, P>::arena_pool_init(ArenaAllocator* alloc,
 }
 
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
-RecordPool<T, P>::~RecordPool()
+RecordPool<P, T>::~RecordPool()
 {
 }
 
   
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::getPtr(Ptr<T> & ptr)
+RecordPool<P, T>::getPtr(Ptr<T> & ptr) const
 {
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::getPtr(ConstPtr<T> & ptr) const 
+RecordPool<P, T>::getPtr(ConstPtr<T> & ptr) const 
 {
   ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::getPtr(Ptr<T> & ptr, Uint32 i)
+RecordPool<P, T>::getPtr(Ptr<T> & ptr, Uint32 i) const
 {
   ptr.i = i;
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::getPtr(ConstPtr<T> & ptr, Uint32 i) const 
+RecordPool<P, T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const 
 {
   ptr.i = i;
   ptr.p = static_cast<const T*>(m_pool.getPtr(ptr.i));  
 }
   
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 T * 
-RecordPool<T, P>::getPtr(Uint32 i)
+RecordPool<P, T>::getPtr(Uint32 i) const
 {
   return static_cast<T*>(m_pool.getPtr(i));  
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 const T * 
-RecordPool<T, P>::getConstPtr(Uint32 i) const 
+RecordPool<P, T>::getConstPtr(Uint32 i) const 
 {
   return static_cast<const T*>(m_pool.getPtr(i)); 
 }
   
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 bool
-RecordPool<T, P>::seize(Ptr<T> & ptr)
+RecordPool<P, T>::seize(Ptr<T> & ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   bool ret = m_pool.seize(tmp);
   if(likely(ret))
   {
@@ -389,12 +402,12 @@ RecordPool<T, P>::seize(Ptr<T> & ptr)
   return ret;
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 bool
-RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
+RecordPool<P, T>::seize(ArenaHead & ah, Ptr<T> & ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   bool ret = m_pool.seize(ah, tmp);
   if(likely(ret))
   {
@@ -404,23 +417,23 @@ RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
   return ret;
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::release(Uint32 i)
+RecordPool<P, T>::release(Uint32 i)
 {
-  Ptr<void> ptr;
+  Ptr<T> ptr;
   ptr.i = i;
   ptr.p = m_pool.getPtr(i);
   m_pool.release(ptr);
 }
 
-template <typename T, typename P>
+template <typename P, typename T>
 inline
 void
-RecordPool<T, P>::release(Ptr<T> ptr)
+RecordPool<P, T>::release(Ptr<T> ptr)
 {
-  Ptr<void> tmp;
+  Ptr<T> tmp;
   tmp.i = ptr.i;
   tmp.p = ptr.p;
   m_pool.release(tmp);

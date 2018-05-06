@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,9 +23,8 @@
 */
 
 #include "ndbd_malloc.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 #include <ndb_global.h>
-#include <NdbMem.h>
 #include <NdbThread.h>
 #include <NdbOut.hpp>
 
@@ -26,6 +32,8 @@
 #ifdef TRACE_MALLOC
 #include <stdio.h>
 #endif
+
+#include "memory_debugging.h"
 
 #define JAM_FILE_ID 287
 
@@ -174,7 +182,7 @@ static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
 static Uint64 g_allocated_memory;
 void *ndbd_malloc(size_t size)
 {
-  void *p = NdbMem_Allocate(size);
+  void *p = malloc(size);
   if (p)
   {
     g_allocated_memory += size;
@@ -196,7 +204,7 @@ void *ndbd_malloc(size_t size)
 
 void ndbd_free(void *p, size_t size)
 {
-  NdbMem_Free(p);
+  free(p);
   if (p)
   {
     g_allocated_memory -= size;

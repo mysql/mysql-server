@@ -51,7 +51,7 @@ let $row_count= query_get_value(EXPLAIN SELECT * FROM t1 WHERE val=4, rows,1);
 if ($row_count > 20000)
 {
 --echo Test correctly estimates the number of rows as > 20000
---echo even when in other uncommmited transaction
+--echo even when in other uncommitted transaction
 --echo all rows have been deleted.
 }
 
@@ -107,7 +107,7 @@ let $row_count= query_get_value(EXPLAIN SELECT * FROM t2 WHERE val=4, rows,1);
 if ($row_count > 20000)
 {
 --echo Test correctly estimates the number of rows as > 20000
---echo even when in other uncommited transaction
+--echo even when in other uncommitted transaction
 --echo many rows are inserted.
 }
 

@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -349,6 +356,11 @@ h2 {
   margin-bottom: 20px;
 }
 
+#installDetails {
+  margin-left: 15px;
+  margin-bottom: 20px;
+}
+
 #configDetails {
   line-height: 1.4em;
 }
@@ -361,6 +373,17 @@ h2 {
     width: 300px;
 }
 
+#hostGrid .dojoxGridSortNode {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 1px;
+    margin: 0px;
+}
+
+#hostGrid .dojoxGridSortNode:hover {
+    overflow: visible;
+}
 /******************* Button without background or border **********************/
 
 .menuButton .dijitButtonNode {
@@ -400,6 +423,11 @@ h2 {
 
 /****************************** Various icons *********************************/
 
+.installIcon {
+    background-image: url('../img/flag.gif');
+    width: 11px;
+    height: 11px;
+} 
 .deployIcon {
     background-image: url('../img/deploy.gif');
     width: 11px;
@@ -444,21 +472,7 @@ h2 {
     background-image: url('../img/tab-separator.png');
     width: 11px;
     height: 17px;
-} 
-.newClusterIcon {
-    background-image: url('../img/icon_new_cluster.png');
-    background-position: center center;
-    background-repeat: no-repeat;
-    width: 60px;
-    height: 40px;
-} 
-.continueClusterIcon {
-    background-image: url('../img/icon_continue_cluster.png');
-    background-position: center center;
-    background-repeat: no-repeat;
-    width: 60px;
-    height: 40px;
-} 
+}
 .anyHostIcon {
     background-image: url('../img/anyhost.gif');
     background-position: center center;

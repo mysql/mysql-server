@@ -1,0 +1,129 @@
+--source include/big_test.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set undo log tablespace to be encrypted.");
+# See Bug #25446984: INNODB.UNDO_ENCRYPT_BOOTSTRAP HAS OCCASIONAL FAILURES ON PB2
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't rotate encryption on undo tablespace number");
+--enable_query_log
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+let $START_PAGE_SIZE= `select @@innodb_page_size`;
+let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+
+# Create path for ibdata* & undo* files both DBs
+--mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+--mkdir $MYSQL_TMP_DIR/innodb_data_home_dir
+--mkdir $MYSQL_TMP_DIR/datadir
+
+# Set path for --datadir
+let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/datadir/data;
+
+# Set path for undo* files.
+let $MYSQLD_UNDO_DATADIR = $MYSQL_TMP_DIR/innodb_undo_data_dir;
+
+# Set path for ibdata* files.
+let $MYSQLD_HOME_DATA_DIR = $MYSQL_TMP_DIR/innodb_data_home_dir;
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--echo # Stop the MTR default DB server
+--source include/shutdown_mysqld.inc
+
+# Test1: bootstrap with undo encryption but no keyring plugin, it should
+# fail.
+
+# Set the bootstrap parameters with undo log encryption enabled
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --innodb_undo_log_encrypt=ON </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+--echo # Run the bootstrap command with no keyring
+--error 1,42
+--exec $NEW_CMD
+
+# Remove residue files
+--force-rmdir $MYSQL_TMP_DIR/datadir
+--force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
+--force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+
+# Create path for ibdata* & undo* files both DBs
+--mkdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+--mkdir $MYSQL_TMP_DIR/innodb_data_home_dir
+--mkdir $MYSQL_TMP_DIR/datadir
+
+# Test2: bootstrap with undo encryption and with keyring plugin, it should
+# success, then restart with no undo encryption.
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --innodb_undo_log_encrypt=ON --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo5 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+
+--echo # Run the bootstrap command with keyring
+--exec $NEW_CMD
+
+--echo # Search for particular string of encryption metadata, should success since it's encrypted.
+let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_001;
+let SEARCH_PATTERN= lCC;
+--source include/search_pattern.inc
+
+#--echo # Start the DB server with undo log encryption disabled, and no keyring plugin. It should fail.
+#--replace_result $MYSQLD_HOME_DATA_DIR MYSQLD_HOME_DATA_DIR $MYSQLD_UNDO_DATADIR MYSQLD_UNDO_DATADIR $MYSQLD_DATADIR MYSQLD_DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
+#--let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=2 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR"
+#--echo # start server fail!!!!
+#--error 0
+#--source include/start_mysqld_no_echo.inc
+
+--echo # Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+--let $restart_parameters="restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_tablespaces=2"
+--replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DATADIR $MYSQLD_DATADIR DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
+#--replace_regex /\.dll/.so/
+--source include/start_mysqld_no_echo.inc
+
+--replace_regex /\.dll/.so/
+--error ER_UDF_EXISTS
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
+
+SET GLOBAL innodb_undo_log_encrypt = ON;
+--sleep 2
+
+CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
+START TRANSACTION;
+INSERT INTO tab1 VALUES (100,REPEAT('a',5)),(200,REPEAT('b',5));
+SELECT * FROM tab1;
+COMMIT;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+START TRANSACTION;
+INSERT INTO tab1 VALUES (300,REPEAT('a',5)),(400,REPEAT('b',5));
+COMMIT;
+SELECT * FROM tab1;
+
+--disable_warnings
+UNINSTALL PLUGIN keyring_file;
+--enable_warnings
+# Cleanup
+DROP TABLE tab1;
+
+--source include/shutdown_mysqld.inc
+# Search for particular string to confirm the encryption metadata is
+# stored.
+--sleep 2
+let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_001;
+let SEARCH_PATTERN= lCC;
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_002;
+let SEARCH_PATTERN= lCC;
+--source include/search_pattern.inc
+
+# restart the server with MTR default
+--let $restart_parameters=
+--source include/start_mysqld_no_echo.inc
+#--source include/restart_mysqld_no_echo.inc
+
+--remove_file $BOOTSTRAP_SQL
+
+# Remove residue files
+--force-rmdir $MYSQL_TMP_DIR/datadir
+--force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
+--force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir

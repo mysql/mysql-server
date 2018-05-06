@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,6 +33,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
+#include <NdbHost.h>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -1178,9 +1186,10 @@ f_tup_errors[] =
   { NdbOperation::InsertRequest, 4019, TupError::TE_REPLICA }, //Alloc rowid error
   { NdbOperation::InsertRequest, 4020, TupError::TE_MULTI_OP }, // Size change error
   { NdbOperation::InsertRequest, 4021, TupError::TE_DISK },    // Out of disk space
-  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },
-  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },
-  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },
+  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },  // Tux add error first
+  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },  // Tux add error last
+  { NdbOperation::InsertRequest, 4030, TupError::TE_UI },
+  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },  // UI trig error
   { -1, 0, 0 }
 };
 
@@ -2301,6 +2310,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     CHK1(restarter.dumpStateAllNodes(&vall, 1) == 0);
     CHK1(restarter.startAll() == 0);
     CHK1(restarter.waitClusterStarted() == 0);
+    CHK1(pNdb->waitUntilReady() == 0);
     CHK1(hugoOps.closeTransaction(pNdb) == 0);
   }
 
@@ -2311,6 +2321,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   restarter.waitClusterNoStart();
   restarter.startAll();
   restarter.waitClusterStarted();
+  pNdb->waitUntilReady();
   return result;
 }
 
@@ -3511,6 +3522,104 @@ runBugXXX_createIndex(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runDeleteNdbInFlight(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  Ndb_cluster_connection & nc = pNdb->get_ndb_cluster_connection();
+  const NdbDictionary::Table* tab = ctx->getTab();
+  BaseString name;
+  name.assfmt("%s", tab->getName());
+  int result = NDBT_OK;
+  int rows = 1000;
+
+  /**
+   * We start by filling the table with 1000 rows.
+   * Next we start a transaction that inserts 1000 rows
+   * without committing it.
+   * Next we delete the Ndb object that sends off a
+   * TCRELEASEREQ signal that should ensure the
+   * transaction is aborted, we will not receive
+   * any info on this since we disconnected.
+   *
+   * Next we perform 1000 inserts and start off
+   * executing those in prepare phase. Next we
+   * delete Ndb object that sends off TCRELEASEREQ
+   * signal.
+   *
+   * After receiving TCRELEASECONF we can still
+   * receive many more TCKEYCONF's and TRANSID_AI's
+   * from the LDM threads and TC threads.
+   * This is ok, getting rid of TRANSID_AI's from
+   * LDM threads is more or less impossible since
+   * these are no longer controlled by TC. Getting
+   * rid of TCKEYCONF's is possible, but dangerous,
+   * so we put the responsibility on the NDB API to
+   * filter out those old signals by looking at the
+   * Transaction id.
+   *
+   * Finally we test a scan that gets closed down
+   * in the middle of execution by a TCRELEASEREQ.
+   *
+   * This test also massages the code for API node
+   * fail handling that probably wasn't 100% covered
+   * before this test was written.
+   *
+   * Given that ongoing transactions was stopped by
+   * deleting Ndb object we have to set Transaction
+   * to NULL in HugOperations to avoid it closing
+   * the transaction.
+   */
+  HugoOperations *h_op = new HugoOperations(*tab);
+  h_op->startTransaction(pNdb);
+  h_op->pkInsertRecord(pNdb, 0, rows);
+  h_op->execute_Commit(pNdb);
+  h_op->closeTransaction(pNdb);
+  delete h_op;
+
+  ndbout_c("Test1");
+  Ndb *newNdb1 = new Ndb(&nc, "TEST_DB");
+  newNdb1->init(1024);
+  const NdbDictionary::Table *tab1 =
+    newNdb1->getDictionary()->getTable(name.c_str());
+  HugoOperations *h_op1 = new HugoOperations(*tab1);
+  h_op1->startTransaction(newNdb1);
+  h_op1->pkInsertRecord(newNdb1, rows, rows);
+  h_op1->execute_NoCommit(newNdb1);
+  delete newNdb1;
+
+  ndbout_c("Test2");
+  Ndb *newNdb2 = new Ndb(&nc, "TEST_DB");
+  newNdb2->init(1024);
+  const NdbDictionary::Table *tab2 =
+    newNdb2->getDictionary()->getTable(name.c_str());
+  HugoOperations *h_op2 = new HugoOperations(*tab2);
+  h_op2->startTransaction(newNdb2);
+  h_op2->pkInsertRecord(newNdb2, rows, 2 * rows);
+  h_op2->execute_async(newNdb2, NdbTransaction::Commit);
+  delete newNdb2;
+
+  ndbout_c("Test3");
+  Ndb *newNdb3 = new Ndb(&nc, "TEST_DB");
+  newNdb3->init(1024);
+  const NdbDictionary::Table *tab3 =
+    newNdb3->getDictionary()->getTable(name.c_str());
+  HugoOperations *h_op3 = new HugoOperations(*tab3);
+  h_op3->startTransaction(newNdb3);
+  h_op3->scanReadRecords(newNdb3, NdbScanOperation::LM_Exclusive, rows);
+  h_op3->execute_NoCommit(newNdb1);
+  delete newNdb3;
+
+  h_op1->setTransaction(NULL, true);
+  h_op2->setTransaction(NULL, true);
+  h_op3->setTransaction(NULL, true);
+  delete h_op1;
+  delete h_op2;
+  delete h_op3;
+
+  return result;
+}
+
+int
 runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -3542,6 +3651,7 @@ runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
     restarter.startAll();
     ndbout_c("wait started");
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ndbout_c("create tab");
     CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
@@ -3644,7 +3754,7 @@ runAccCommitOrderOps(NDBT_Context* ctx, NDBT_Step* step)
   const int records = ctx->getNumRecords();
   int result = NDBT_OK;
 
-  unsigned seed = (unsigned)(getpid() ^ stepNo);
+  unsigned seed = (unsigned)(NdbHost_GetProcessId() ^ stepNo);
   ndb_srand(seed);
 
   int loop = 0;
@@ -4220,6 +4330,10 @@ TESTCASE("BugXXX","")
 TESTCASE("Bug16834333","")
 {
   INITIALIZER(runBug16834333);
+}
+TESTCASE("DeleteNdbInFlight","")
+{
+  INITIALIZER(runDeleteNdbInFlight);
 }
 TESTCASE("FillQueueREDOLog",
          "Verify that we can handle a REDO log queue situation")

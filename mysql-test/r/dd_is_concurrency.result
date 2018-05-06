@@ -1,0 +1,135 @@
+SET GLOBAL debug= '+d,skip_dd_table_access_check';
+use test;
+CREATE TABLE t1 (f1 int) COMMENT='abc';
+CREATE VIEW not_system_view AS
+SELECT name as table_name, comment FROM mysql.tables;
+SHOW CREATE VIEW not_system_view;
+View	Create View	character_set_client	collation_connection
+not_system_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `not_system_view` AS select `mysql`.`tables`.`name` AS `table_name`,`mysql`.`tables`.`comment` AS `comment` from `mysql`.`tables`	utf8mb4	utf8mb4_0900_ai_ci
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+connect con1,localhost,root,,;
+START TRANSACTION;
+UPDATE mysql.tables SET comment='mno' where name='t1';
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1';
+TABLE_NAME	TABLE_COMMENT
+t1	abc
+SELECT table_name, comment FROM not_system_view WHERE table_name='t1';;
+connection con1;
+rollback;
+connection default;
+table_name	comment
+t1	abc
+commit;
+connection default;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET comment='mno' where name='t1';
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1';
+TABLE_NAME	TABLE_COMMENT
+t1	abc
+SELECT table_name, comment
+FROM not_system_view
+WHERE table_name='t1';
+table_name	comment
+t1	abc
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET comment='mno' where name='t1';
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1';
+TABLE_NAME	TABLE_COMMENT
+t1	abc
+SELECT table_name, comment
+FROM not_system_view
+WHERE table_name='t1';
+table_name	comment
+t1	abc
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET comment='mno' where name='t1';
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1';
+TABLE_NAME	TABLE_COMMENT
+t1	mno
+SELECT table_name, comment
+FROM not_system_view
+WHERE table_name='t1';
+table_name	comment
+t1	mno
+commit;
+connection con1;
+rollback;
+connection default;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+connection con1;
+START TRANSACTION;
+UPDATE mysql.tables SET comment='mno' where name='t1';
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1'
+  LOCK IN SHARE MODE;
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1'
+  FOR UPDATE;
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
+connection con1;
+rollback;
+connection default;
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1'
+  LOCK IN SHARE MODE;
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
+SELECT table_name, table_comment
+FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='t1'
+  FOR UPDATE;
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
+SELECT table_name, comment
+FROM not_system_view
+WHERE table_name='t1'
+  LOCK IN SHARE MODE;
+table_name	comment
+t1	abc
+SELECT table_name, comment
+FROM not_system_view
+WHERE table_name='t1'
+  FOR UPDATE;
+table_name	comment
+t1	abc
+commit;
+connection con1;
+disconnect con1;
+connection default;
+DROP VIEW not_system_view;
+DROP TABLE t1;
+SET GLOBAL debug= '-d,skip_dd_table_access_check';

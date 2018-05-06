@@ -72,7 +72,7 @@ SELECT @@session.concurrent_insert = 1;
 ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable
 '#----------------------FN_DYNVARS_018_06------------------------#'
 SELECT @@global.concurrent_insert = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='concurrent_insert';
 @@global.concurrent_insert = VARIABLE_VALUE
 1

@@ -16,7 +16,7 @@ version_tokens_set(' * = a ; y = b ')
 2 version tokens set.
 SELECT version_tokens_show();
 version_tokens_show()
-y=b;*=a;
+*=a;y=b;
 SELECT version_tokens_delete(' * ');
 version_tokens_delete(' * ')
 1 version tokens deleted.

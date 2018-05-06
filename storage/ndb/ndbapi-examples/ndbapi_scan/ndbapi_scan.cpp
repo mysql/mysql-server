@@ -1,15 +1,22 @@
 
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -738,36 +745,24 @@ int scan_print(Ndb * myNdb)
 
 }
 
-
-int main(int argc, char** argv)
+void mysql_connect_and_create(MYSQL & mysql, const char *socket)
 {
-  if (argc != 3)
-  {
-    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
-    exit(-1);
-  }
-  char * mysqld_sock  = argv[1];
-  const char *connectstring = argv[2];
-  ndb_init();
-  MYSQL mysql;
+  bool ok;
 
-  /**************************************************************
-   * Connect to mysql server and create table                   *
-   **************************************************************/
-  {
-    if ( !mysql_init(&mysql) ) {
-      std::cout << "mysql_init failed\n";
-      exit(-1);
-    }
-    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     0, mysqld_sock, 0) )
-      MYSQLERROR(mysql);
-
+  ok = mysql_real_connect(&mysql, "localhost", "root", "", "", 0, socket, 0);
+  if(ok) {
     mysql_query(&mysql, "CREATE DATABASE ndb_examples");
-    if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
-
+    ok = ! mysql_select_db(&mysql, "ndb_examples");
+  }
+  if(ok) {
     create_table(mysql);
   }
+
+  if(! ok) MYSQLERROR(mysql);
+}
+
+void ndb_run_scan(const char * connectstring)
+{
 
   /**************************************************************
    * Connect to ndb cluster                                     *
@@ -849,11 +844,27 @@ int main(int argc, char** argv)
   }
   if(scan_print(&myNdb) > 0)
     std::cout << "scan_print: Success!" << std::endl  << std::endl;
+}
 
-  /**
-   * Drop table
-   */
-  drop_table(mysql);
+int main(int argc, char** argv)
+{
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  char * mysqld_sock  = argv[1];
+  const char *connectstring = argv[2];
+  MYSQL mysql;
+
+  mysql_init(& mysql);
+  mysql_connect_and_create(mysql, mysqld_sock);
+
+  ndb_init();
+  ndb_run_scan(connectstring);
+  ndb_end(0);
+
+  mysql_close(&mysql);
 
   return 0;
 }

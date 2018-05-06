@@ -397,21 +397,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(1) DEFAULT NULL,
   `b` bit(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 engine=heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(1) DEFAULT NULL,
   `b` bit(10) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(1) DEFAULT NULL,
   `b` bit(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a bit(7)) engine=innodb;
 insert into t1 values (0x60);

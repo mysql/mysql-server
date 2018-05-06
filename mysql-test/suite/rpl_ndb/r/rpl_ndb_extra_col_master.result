@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-set binlog_format=row;
+set binlog_format='row';
 
 ***********************************************************
 ***********************************************************
@@ -624,7 +624,7 @@ include/rpl_reset.inc
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
 Warnings:
-Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable online ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
@@ -843,8 +843,12 @@ DROP TABLE t5;
 
 include/rpl_reset.inc
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
 INSERT IGNORE INTO t1 VALUES ();
@@ -859,7 +863,7 @@ c1
 0
 1
 DROP TABLE t1;
-set binlog_format=mixed;
+set binlog_format='mixed';
 
 ***********************************************************
 ***********************************************************
@@ -1480,7 +1484,7 @@ include/rpl_reset.inc
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
 Warnings:
-Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c2' to DYNAMIC to enable online ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
@@ -1699,8 +1703,12 @@ DROP TABLE t5;
 
 include/rpl_reset.inc
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='NDB';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SQL_LOG_BIN=1;
 CREATE TABLE t1 (c1 INT) ENGINE='NDB';
 INSERT IGNORE INTO t1 VALUES ();

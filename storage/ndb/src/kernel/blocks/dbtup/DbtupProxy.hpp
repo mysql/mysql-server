@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NDB_DBTUP_PROXY
 #define NDB_DBTUP_PROXY
@@ -34,9 +41,10 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
   class Pgman* c_pgman; // PGMAN proxy
+  class Tsman *c_tsman;
 
   Uint32 c_tableRecSize;
-  Uint8* c_tableRec;    // bool => table exists
+  Uint32* c_tableRec;    // bool => table exists
 
   // GSN_READ_CONFIG_REQ
   virtual void callREAD_CONFIG_REQ(Signal*);
@@ -74,17 +82,17 @@ protected:
   // LGMAN
 
   struct Proxy_undo {
-    enum { MaxData = 20 + MAX_TUPLE_SIZE_IN_WORDS };
     Uint32 m_type;
     Uint32 m_len;
     const Uint32* m_ptr;
-    Uint32 m_data[MaxData]; // copied from m_ptr at once
+    Uint32 m_data[MAX_UNDO_DATA]; // copied from m_ptr at once
     Uint64 m_lsn;
     // from undo entry and page
     Local_key m_key;
     Uint32 m_page_id;
     Uint32 m_table_id;
     Uint32 m_fragment_id;
+    Uint32 m_create_table_version;
     Uint32 m_instance_no;
     enum {
       SendToAll = 1,
@@ -107,14 +115,23 @@ protected:
 
   void disk_restart_undo_finish(Signal*);
 
+  void disk_restart_undo_send_next(Signal*, Uint32);
+
   void disk_restart_undo_send(Signal*, Uint32 i);
 
   // TSMAN
 
-  int disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId, 
-				const Local_key* key, Uint32 pages);
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-			      const Local_key* key, Uint32 bits);
+  int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
+                                Uint32 tableId,
+                                Uint32 fragId,
+                                Uint32 create_table_version,
+				const Local_key* key,
+                                Uint32 pages);
+  void disk_restart_page_bits(Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key* key,
+                              Uint32 bits);
 };
 
 

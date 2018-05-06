@@ -1,3 +1,4 @@
+
 # ==== Purpose ====
 #
 # When binlog is disabled, verify that a transaction with a specified
@@ -39,8 +40,8 @@
 # Bug #20748502  ASSERTION `THD->VARIABLES.GTID_NEXT.TYPE== ANONYMOUS_GROUP' FAILED.
 # mysql-test/suite/binlog/t/binlog_gtid_next_temporary_table.test
 
+# Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
---source include/not_gtid_enabled.inc
 
 # Clean gtid_executed so that test can execute after other tests
 RESET MASTER;

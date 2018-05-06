@@ -33,13 +33,13 @@ Level	Code	Message
 Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because INNODB_PAGE_SIZE=16384.
 Error	1528	Failed to create TABLESPACE s_64k
 Error	1031	Table storage engine for 's_64k' doesn't have this option
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -320,35 +320,15 @@ INSERT INTO t_dyn_in_16k VALUES (1,'a'),(2,'b'),(3,'c');
 # Try to drop these tablespaces which are not empty
 #
 DROP TABLESPACE s_1k;
-ERROR HY000: Failed to drop TABLESPACE s_1k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_1k
-Error	3120	Tablespace `s_1k` is not empty.
+ERROR HY000: Tablespace `s_1k` is not empty.
 DROP TABLESPACE s_2k;
-ERROR HY000: Failed to drop TABLESPACE s_2k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_2k
-Error	3120	Tablespace `s_2k` is not empty.
+ERROR HY000: Tablespace `s_2k` is not empty.
 DROP TABLESPACE s_4k;
-ERROR HY000: Failed to drop TABLESPACE s_4k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_4k
-Error	3120	Tablespace `s_4k` is not empty.
+ERROR HY000: Tablespace `s_4k` is not empty.
 DROP TABLESPACE s_8k;
-ERROR HY000: Failed to drop TABLESPACE s_8k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_8k
-Error	3120	Tablespace `s_8k` is not empty.
+ERROR HY000: Tablespace `s_8k` is not empty.
 DROP TABLESPACE s_16k;
-ERROR HY000: Failed to drop TABLESPACE s_16k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_16k
-Error	3120	Tablespace `s_16k` is not empty.
+ERROR HY000: Tablespace `s_16k` is not empty.
 #
 # Add more data to the existing Tables
 #
@@ -395,14 +375,14 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 #
 CREATE TABLESPACE s_missing ADD DATAFILE 'delete_me.ibd';
 CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
-s_missing	General	DEFAULT	0	Any	MYSQLD_DATADIR/delete_me.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
+s_missing	General	DEFAULT	0	Any	delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -411,7 +391,7 @@ s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
 s_missing	TABLESPACE	InnoDB	NORMAL	s_missing	MYSQLD_DATADIR/delete_me.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_16k	s_16k	129	5	Compact	0	General
 test/t_com_in_16k_as	s_16k	129	5	Compact	0	General
@@ -443,6 +423,7 @@ test/t_zip8k_in_8k_from_1k	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_in_8k_like	s_8k	169	5	Compressed	8192	General
 # Directory of MYSQLD_DATADIR/
 delete_me.ibd
+mysql.ibd
 s_16k.ibd
 s_1k.ibd
 s_2k.ibd
@@ -456,14 +437,14 @@ s_8k.ibd
 # Make sure that the missing tablespace can be dropped and
 # everything else is OK.
 #
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
-s_missing	General	DEFAULT	0	Any	MYSQLD_DATADIR/delete_me.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
+s_missing	General	DEFAULT	0	Any	delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	MYSQLD_DATADIR/s_1k.ibd
@@ -471,7 +452,9 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Warnings:
+Warning	1812	Tablespace is missing for table s_missing.
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_16k	s_16k	129	5	Compact	0	General
 test/t_com_in_16k_as	s_16k	129	5	Compact	0	General
@@ -502,6 +485,7 @@ test/t_zip8k_in_8k_as	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_in_8k_from_1k	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_in_8k_like	s_8k	169	5	Compressed	8192	General
 # Directory of MYSQLD_DATADIR/
+mysql.ibd
 s_16k.ibd
 s_1k.ibd
 s_2k.ibd
@@ -512,11 +496,7 @@ s_8k.ibd
 # Clean-up tables we no longer need
 #
 DROP TABLESPACE s_missing;
-ERROR HY000: Failed to drop TABLESPACE s_missing
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_missing
-Error	3120	Tablespace `s_missing` is not empty.
+ERROR HY000: Tablespace `s_missing` is not empty.
 DROP TABLE t_missing;
 DROP TABLESPACE s_missing;
 DROP TABLE t_zip1k_in_1k_like;
@@ -583,13 +563,13 @@ CREATE TABLE t_zip2k_as_remote (a int, b text) KEY_BLOCK_SIZE=2 TABLESPACE=innod
 CREATE TABLE t_zip4k_as_remote (a int, b text) KEY_BLOCK_SIZE=4 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 CREATE TABLE t_zip8k_as_remote (a int, b text) KEY_BLOCK_SIZE=8 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 CREATE TABLE t_zip16k_as_remote (a int, b text) KEY_BLOCK_SIZE=16 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
 test/t_zip1k_as_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
 test/t_zip2k_as_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
 test/t_zip4k_as_file_per_table	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
@@ -607,17 +587,17 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
-test/t_zip1k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
-test/t_zip2k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
-test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
-test/t_zip8k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
-test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
-test/t_zip1k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
-test/t_zip2k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
-test/t_zip4k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
-test/t_zip8k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
-test/t_zip16k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+test/t_zip1k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip1k_as_file_per_table	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
+test/t_zip2k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip2k_as_file_per_table	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
+test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_as_file_per_table	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
+test/t_zip8k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_as_file_per_table	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip16k_as_file_per_table	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip1k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip1k_as_remote	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
+test/t_zip2k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip2k_as_remote	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
+test/t_zip4k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_as_remote	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
+test/t_zip8k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_as_remote	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
+test/t_zip16k_as_remote	TABLESPACE	InnoDB	NORMAL	test/t_zip16k_as_remote	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip16k_as_remote	test/t_zip16k_as_remote	107	5	Compressed	16384	Single
@@ -630,6 +610,7 @@ test/t_zip4k_as_remote	test/t_zip4k_as_remote	103	5	Compressed	4096	Single
 test/t_zip8k_as_file_per_table	test/t_zip8k_as_file_per_table	41	5	Compressed	8192	Single
 test/t_zip8k_as_remote	test/t_zip8k_as_remote	105	5	Compressed	8192	Single
 # MYSQLD_DATADIR/
+mysql.ibd
 s_16k.ibd
 s_1k.ibd
 s_2k.ibd
@@ -911,13 +892,13 @@ ALTER TABLE `t_zip1k_as_remote` TABLESPACE=`s_1k`, RENAME TO `t_zip1k_remote_in_
 ALTER TABLE `t_zip2k_as_remote` TABLESPACE=`s_2k`, RENAME TO `t_zip2k_remote_in_s_2k`;
 ALTER TABLE `t_zip4k_as_remote` TABLESPACE=`s_4k`, RENAME TO `t_zip4k_remote_in_s_4k`;
 ALTER TABLE `t_zip8k_as_remote` TABLESPACE=`s_8k`, RENAME TO `t_zip8k_remote_in_s_8k`;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
 test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -926,8 +907,8 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
-test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip16k_as_file_per_table	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip1k_in_s_1k	s_1k	163	5	Compressed	1024	General
@@ -939,6 +920,7 @@ test/t_zip4k_remote_in_s_4k	s_4k	167	5	Compressed	4096	General
 test/t_zip8k_in_s_8k	s_8k	169	5	Compressed	8192	General
 test/t_zip8k_remote_in_s_8k	s_8k	169	5	Compressed	8192	General
 # MYSQLD_DATADIR/
+mysql.ibd
 s_16k.ibd
 s_1k.ibd
 s_2k.ibd
@@ -1078,13 +1060,13 @@ ALTER TABLE `t_zip1k_in_s_1k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_z
 ALTER TABLE `t_zip2k_in_s_2k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip2k_to_file_per_table`;
 ALTER TABLE `t_zip4k_in_s_4k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip4k_to_file_per_table`;
 ALTER TABLE `t_zip8k_in_s_8k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip8k_to_file_per_table`;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
 test/t_zip16k_as_file_per_table	Single	DEFAULT	DEFAULT	Compressed	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
 test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
 test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
@@ -1097,12 +1079,12 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
-test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
-test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
-test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip16k_as_file_per_table	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip1k_to_file_per_table	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip2k_to_file_per_table	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_to_file_per_table	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_to_file_per_table	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	test/t_zip16k_as_file_per_table	43	5	Compressed	16384	Single
 test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
@@ -1149,13 +1131,13 @@ Warning	1618	<DATA DIRECTORY> option ignored
 ALTER TABLE `t_zip8k_remote_in_s_8k` TABLESPACE=`innodb_file_per_table`, DATA DIRECTORY='$MYSQL_TMP_DIR', RENAME TO `t_zip8k_to_file_per_table`;
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd
-s_2k	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_2k.ibd
-s_4k	General	DEFAULT	4096	Compressed	MYSQLD_DATADIR/s_4k.ibd
-s_8k	General	DEFAULT	8192	Compressed	MYSQLD_DATADIR/s_8k.ibd
-s_16k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_16k.ibd
+s_1k	General	DEFAULT	1024	Compressed	s_1k.ibd
+s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
+s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
+s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
+s_16k	General	DEFAULT	0	Any	s_16k.ibd
 test/t_zip1k_to_file_per_table	Single	DEFAULT	1024	Compressed	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
 test/t_zip2k_to_file_per_table	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
 test/t_zip4k_to_file_per_table	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
@@ -1167,11 +1149,11 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	MYSQLD_DATADIR/s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	MYSQLD_DATADIR/s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	MYSQLD_DATADIR/s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	MYSQLD_DATADIR/s_16k.ibd
-test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
-test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
-test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
-test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip1k_to_file_per_table	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip2k_to_file_per_table	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip4k_to_file_per_table	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	test/t_zip8k_to_file_per_table	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
 test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single

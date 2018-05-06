@@ -47,7 +47,7 @@ select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 
-# REPLACE ... SELECT doesn't yet work with PS
+# REPLACE ... SELECT does not yet work with PS
 replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 
@@ -179,7 +179,7 @@ select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_an
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
-explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 drop table t1;
 
 #
@@ -211,7 +211,7 @@ create table t1(
   a4 real,
   a5 date,
   key k1(a2,a3),
-  key k2(a4 desc,a1),
+  key k2(a4,a1),
   key k3(a5,a1)
 );
 create table t2(
@@ -667,7 +667,7 @@ DROP TABLE t1;
 # Test that new VARCHAR correctly works with COUNT(DISTINCT)
 #
 
-CREATE TABLE t1 (a VARCHAR(400));
+CREATE TABLE t1 (a VARCHAR(400)) charset latin1;
 INSERT INTO t1 (a) VALUES ("A"), ("a"), ("a "), ("a   "),
                           ("B"), ("b"), ("b "), ("b   ");
 SELECT COUNT(DISTINCT a) FROM t1;
@@ -709,7 +709,7 @@ INSERT INTO t2 VALUES (1,1), (3,3);
 # contains aggregate (SUM) and column (t.a).
 --source include/turn_off_only_full_group_by.inc
 
-SELECT SQL_NO_CACHE 
+SELECT
   (SELECT SUM(c.a) FROM t1 ttt, t2 ccc 
    WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;
@@ -940,7 +940,7 @@ set SQL_MODE=ONLY_FULL_GROUP_BY;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
-EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
+EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 
 DROP VIEW v1;
 DROP TABLE t1;
@@ -1240,3 +1240,88 @@ WHERE 0 = (SELECT group_concat(b)
            FROM t1 t GROUP BY t1.a)
 ;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25738624: ASSERTION `FALSE' FAILED IN SQL/SQL_EXECUTOR.CC
+--echo #
+
+# Query in reported bug
+CREATE TABLE e1(pk INT, col_date DATE);
+CREATE TABLE b1(i INT);
+CREATE TABLE bb4(col_int_key INT, KEY(col_int_key)) ENGINE=MYISAM;
+INSERT INTO bb4 VALUES(4);
+
+UPDATE IGNORE e1 AS outr1, b1 AS outr2 SET outr1.col_date =
+JSON_SET(outr1.col_date, CONCAT('$','[',1,']','.','cdate'), '2007-07-12')
+WHERE outr1.pk <= ANY ( SELECT DISTINCT innr1.col_int_key AS y FROM bb4
+AS innr2 LEFT JOIN bb4 AS innr1 ON (innr2.col_int_key <> innr1.col_int_key)
+WHERE innr1.col_int_key= 4);
+
+DROP TABLE e1, b1, bb4;
+
+# Simplified query triggering the same assertion failure
+CREATE TABLE t1(pk INT, KEY(pk)) ENGINE=MYISAM; INSERT INTO t1 VALUES(1);
+
+SELECT MIN(i2.pk) FROM t1 i1 LEFT JOIN t1 i2 ON (i1.pk != i2.pk)
+WHERE i2.pk = 1;
+
+DROP TABLE t1;
+
+--echo # End of test for bug#25738624
+
+--echo #
+--echo # Bug#25541454: ASSERT `FALSE' FAILED IN READ_SYSTEM / JOIN_READ_CONST_TABLE AT SQL_EXECUTOR.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (4,1,2);
+
+CREATE TABLE t3 (
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t3 VALUES (3,9,1);
+
+CREATE TABLE t4 (
+  col_int_key int(11) DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+SELECT (
+  SELECT MIN(subquery1_t1.col_int_key)
+  FROM t3 AS subquery1_t1
+    RIGHT JOIN t1 AS subquery1_t2
+      STRAIGHT_JOIN t4 AS subquery1_t3
+      ON (subquery1_t3.pk = subquery1_t2.col_int_key)
+    ON (subquery1_t3.col_int_key = subquery1_t2.col_int)
+  WHERE subquery1_t1.col_int_key >= table1.col_int
+    AND subquery1_t3.pk > table1.pk
+)
+FROM t2 AS table1;
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo # End of test for bug#25541454
+

@@ -1,14 +1,11 @@
 #------------------------------------------------------------------------------
 # Misc FTS test on debug servers only
 #------------------------------------------------------------------------------
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
@@ -47,8 +44,8 @@ INSERT INTO articles (title,body) VALUES
 --source include/kill_and_restart_mysqld.inc
 
 # This insert will re-initialize the Doc ID counter, it should not crash
-INSERT INTO articles (title,body) VALUES
-        ('MySQL Tutorial','DBMS stands for DataBase ...');
+INSERT INTO articles VALUES
+        (8, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
 # Recreate fulltext index to see if everything is OK
 CREATE FULLTEXT INDEX idx ON articles (title,body);
@@ -76,8 +73,8 @@ INSERT INTO articles (title,body) VALUES
 --source include/kill_and_restart_mysqld.inc
 
 # This insert will re-initialize the Doc ID counter, it should not crash
-INSERT INTO articles (title,body) VALUES
-        ('MySQL Tutorial','DBMS stands for DataBase ...');
+INSERT INTO articles VALUES
+        (16, 'MySQL Tutorial','DBMS stands for DataBase ...');
 
 # Should return 6 rows
 SELECT * FROM articles

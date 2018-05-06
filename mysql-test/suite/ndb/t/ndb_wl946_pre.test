@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
---source include/not_embedded.inc
 --source suite/ndb/include/have_little_endian.inc
 
 --disable_warnings
@@ -23,7 +17,9 @@ select @@session.time_zone;
 --let $prec=
 --let $frac=
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 --echo # test defaults
 insert into t1 (a) values (0);
@@ -46,6 +42,7 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 --echo # check results via myisam
 alter table t1 engine=myisam;
 show create table t1;
+--enable_warnings
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 --source ndb_wl946_pre_query.inc
 
@@ -54,7 +51,9 @@ drop table t1;
 
 --echo # restore meta from backup
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print-meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 --echo # restore data from backup
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

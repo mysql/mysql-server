@@ -111,12 +111,12 @@ INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
 
 # demonstrate a problem when a must-use-sort table flag
 # (sort_by_table=1) is being neglected.
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
   t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
   ORDER BY t1.b LIMIT 2;
 
 # demonstrate the problem described in the bug report
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
   t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
   ORDER BY t1.b LIMIT 5;
 DROP TABLE t1, t2, t3;
@@ -211,7 +211,7 @@ CREATE TABLE t1 (
   a6 timestamp NOT NULL DEFAULT '2000-01-01 01:01:01',
   a7 tinyblob,
   INDEX idx (a6,a7(239),a5)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND
@@ -468,38 +468,6 @@ DROP TABLE t1;
 --source include/innodb_rollback_on_timeout.inc
 
 #
-# Bug #27210: INNODB ON DUPLICATE KEY UPDATE
-#
-
-set @save_qcache_size=@@global.query_cache_size;
-set @save_qcache_type=@@global.query_cache_type;
-set global query_cache_size=10*1024*1024;
-set global query_cache_type=1;
-connect (con1,localhost,root,,);
-connection con1;
-drop table if exists `test`;
-CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
-  `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
-  ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
-disconnect con1;
-connect (con2,localhost,root,,);
-connection con2;
-select * from test;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
-  ON DUPLICATE KEY UPDATE `test2` = '1234';
-select * from test;
-flush tables;
-select * from test;
-disconnect con2;
-connection default;
-drop table test;
-set global query_cache_type=@save_qcache_type;
-set global query_cache_size=@save_qcache_size;
-
---source include/innodb_rollback_on_timeout.inc
-
-#
 # Bug #27650: INSERT fails after multi-row INSERT of the form:
 # INSERT INTO t (id...) VALUES (NULL...) ON DUPLICATE KEY UPDATE id=VALUES(id)
 #
@@ -651,26 +619,6 @@ SELECT * FROM t3 WHERE a = 'uk';
 DROP TABLE t1,t2,t3;
 
 #
-# Test bug when trying to drop data file which no InnoDB directory entry
-#
-
-create table t1 (a int) engine=innodb;
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/bug29807.frm;
---error 1146
-select * from bug29807;
-drop table t1;
---error 1051
-drop table bug29807;
-create table bug29807 (a int);
-drop table bug29807;
---disable_query_log
-call mtr.add_suppression("InnoDB: Table .*test.*bug29807.* does not exist in the InnoDB internal");
-call mtr.add_suppression("InnoDB: Cannot open table test/bug29807 from");
---enable_query_log
-
-
-#
 # Bug #29154: LOCK TABLES is not atomic when >1 InnoDB tables are locked
 #
 
@@ -812,19 +760,6 @@ TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
 SELECT * from t2;
 drop table t1,t2;
-
-#
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-
-# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
-
 
 #
 # Bug#22781: SQL_BIG_RESULT fails to influence sort plan
@@ -1002,9 +937,11 @@ DROP TABLE t1;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb default charset=utf8; 
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+--replace_result 768 3072 1536 3072
+alter table t1 add index(a(1025));
+--replace_result 256 1024 512 1024
 show create table t1;
 drop table t1;
 SET sql_mode=default;
@@ -1165,7 +1102,10 @@ drop table t1;
 
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
-  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4),
+  (201, 'member', 2), (NULL, 'member', 5), (191, 'member', 6),
+  (191, 'member', 7), (191, 'member', 8), (191, 'member', 9),
+  (191, 'member', 10);
 
 -- disable_query_log
 -- disable_result_log
@@ -1200,6 +1140,7 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+INSERT INTO t1 (a,b,c) SELECT a+8,b,c FROM t1;
 
 -- disable_query_log
 -- disable_result_log
@@ -1210,7 +1151,7 @@ ANALYZE TABLE t1;
 # should be range access
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
-# should produce '8 7 6 5 4' for a
+# should produce '16 15 14 13 12' for a
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 DROP TABLE t1;

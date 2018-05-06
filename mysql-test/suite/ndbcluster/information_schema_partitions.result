@@ -1,0 +1,72 @@
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO t1 VALUES
+('1',1), ('2',2), ('3',3), ('4',4),
+('5',5), ('6',6), ('7',7), ('8',8);
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+SELECT partition_name, table_rows
+FROM information_schema.partitions
+WHERE table_name = 't1';
+PARTITION_NAME	TABLE_ROWS
+p0	2
+p1	2
+p2	2
+p3	2
+DROP TABLE t1;

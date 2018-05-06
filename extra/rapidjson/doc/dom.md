@@ -60,7 +60,7 @@ MessageBoxW(hWnd, d[locale].GetString(), L"Test", MB_OK);
 
 The `Allocator` defines which allocator class is used when allocating/deallocating memory for `Document`/`Value`. `Document` owns, or references to an `Allocator` instance. On the other hand, `Value` does not do so, in order to reduce memory consumption.
 
-The default allocator used in `GenericDocument` is `MemoryPoolAllocator`. This allocator actually allocate memory sequentially, and cannot deallocate one by one. This is very suitable when parsing a JSON to generate a DOM tree.
+The default allocator used in `GenericDocument` is `MemoryPoolAllocator`. This allocator actually allocate memory sequentially, and cannot deallocate one by one. This is very suitable when parsing a JSON into a DOM tree.
 
 Another allocator is `CrtAllocator`, of which CRT is short for C RunTime library. This allocator simply calls the standard `malloc()`/`realloc()`/`free()`. When there is a lot of add and remove operations, this allocator may be preferred. But this allocator is far less efficient than `MemoryPoolAllocator`.
 
@@ -84,29 +84,25 @@ template <typename InputStream>
 GenericDocument& GenericDocument::ParseStream(InputStream& is);
 
 // (4) In situ parsing
-template <unsigned parseFlags, typename SourceEncoding>
-GenericDocument& GenericDocument::ParseInsitu(Ch* str);
-
-// (5) In situ parsing, using same Encoding for stream
 template <unsigned parseFlags>
 GenericDocument& GenericDocument::ParseInsitu(Ch* str);
 
-// (6) In situ parsing, using default parse flags
+// (5) In situ parsing, using default parse flags
 GenericDocument& GenericDocument::ParseInsitu(Ch* str);
 
-// (7) Normal parsing of a string
+// (6) Normal parsing of a string
 template <unsigned parseFlags, typename SourceEncoding>
 GenericDocument& GenericDocument::Parse(const Ch* str);
 
-// (8) Normal parsing of a string, using same Encoding for stream
+// (7) Normal parsing of a string, using same Encoding of Document
 template <unsigned parseFlags>
 GenericDocument& GenericDocument::Parse(const Ch* str);
 
-// (9) Normal parsing of a string, using default parse flags
+// (8) Normal parsing of a string, using default parse flags
 GenericDocument& GenericDocument::Parse(const Ch* str);
 ~~~~~~~~~~
 
-The examples of [tutorial](doc/tutorial.md) uses (9) for normal parsing of string. The examples of [stream](doc/stream.md) uses the first three. *In situ* parsing will be described soon.
+The examples of [tutorial](doc/tutorial.md) uses (8) for normal parsing of string. The examples of [stream](doc/stream.md) uses the first three. *In situ* parsing will be described soon.
 
 The `parseFlags` are combination of the following bit-flags:
 
@@ -119,6 +115,10 @@ Parse flags                   | Meaning
 `kParseIterativeFlag`         | Iterative(constant complexity in terms of function call stack size) parsing.
 `kParseStopWhenDoneFlag`      | After parsing a complete JSON root from stream, stop further processing the rest of stream. When this flag is used, parser will not generate `kParseErrorDocumentRootNotSingular` error. Using this flag for parsing multiple JSONs in the same stream.
 `kParseFullPrecisionFlag`     | Parse number in full precision (slower). If this flag is not set, the normal precision (faster) is used. Normal precision has maximum 3 [ULP](http://en.wikipedia.org/wiki/Unit_in_the_last_place) error.
+`kParseCommentsFlag`          | Allow one-line `// ...` and multi-line `/* ... */` comments (relaxed JSON syntax).
+`kParseNumbersAsStringsFlag`  | Parse numerical type values as strings.
+`kParseTrailingCommasFlag`    | Allow trailing commas at the end of objects and arrays (relaxed JSON syntax).
+`kParseNanAndInfFlag`         | Allow parsing `NaN`, `Inf`, `Infinity`, `-Inf` and `-Infinity` as `double` values (relaxed JSON syntax).
 
 By using a non-type template parameter, instead of a function parameter, C++ compiler can generate code which is optimized for specified combinations, improving speed, and reducing code size (if only using a single specialization). The downside is the flags needed to be determined in compile-time.
 
@@ -128,7 +128,7 @@ And the `InputStream` is type of input stream.
 
 ## Parse Error {#ParseError}
 
-When the parse processing succeeded, the `Document` contains the parse results. When there is an error, the original DOM is *unchanged*. And the error state of parsing can be obtained by `bool HasParseError()`,  `ParseErrorCode GetParseError()` and `size_t GetParseOffet()`.
+When the parse processing succeeded, the `Document` contains the parse results. When there is an error, the original DOM is *unchanged*. And the error state of parsing can be obtained by `bool HasParseError()`,  `ParseErrorCode GetParseError()` and `size_t GetParseOffset()`.
 
 Parse Error Code                            | Description
 --------------------------------------------|---------------------------------------------------
@@ -156,7 +156,17 @@ To get an error message, RapidJSON provided a English messages in `rapidjson/err
 Here shows an example of parse error handling.
 
 ~~~~~~~~~~cpp
-// TODO: example
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
+
+// ...
+Document d;
+if (d.Parse(json).HasParseError()) {
+    fprintf(stderr, "\nError(offset %u): %s\n", 
+        (unsigned)d.GetErrorOffset(),
+        GetParseError_En(d.GetParseError()));
+    // ...
+}
 ~~~~~~~~~~
 
 ## In Situ Parsing {#InSituParsing}
@@ -167,13 +177,13 @@ From [Wikipedia](http://en.wikipedia.org/wiki/In_situ):
 > ...
 > (In computer science) An algorithm is said to be an in situ algorithm, or in-place algorithm, if the extra amount of memory required to execute the algorithm is O(1), that is, does not exceed a constant no matter how large the input. For example, heapsort is an in situ sorting algorithm.
 
-In normal parsing process, a large overhead is to decode JSON strings and copy them to other buffers. *In situ* parsing decodes those JSON string at the place where it is stored. It is possible in JSON because the decoded string is always shorter than the one in JSON. In this context, decoding a JSON string means to process the escapes, such as `"\n"`, `"\u1234"`, etc., and add a null terminator (`'\0'`)at the end of string.
+In normal parsing process, a large overhead is to decode JSON strings and copy them to other buffers. *In situ* parsing decodes those JSON string at the place where it is stored. It is possible in JSON because the length of decoded string is always shorter than or equal to the one in JSON. In this context, decoding a JSON string means to process the escapes, such as `"\n"`, `"\u1234"`, etc., and add a null terminator (`'\0'`)at the end of string.
 
 The following diagrams compare normal and *in situ* parsing. The JSON string values contain pointers to the decoded string.
 
 ![normal parsing](diagram/normalparsing.png)
 
-In normal parsing, the decoded string are copied to freshly allocated buffers. `"\\n"` (2 characters) is decoded as `"\n"` (1 character). `"\\u0073"` (6 characters) is decoded as "s" (1 character).
+In normal parsing, the decoded string are copied to freshly allocated buffers. `"\\n"` (2 characters) is decoded as `"\n"` (1 character). `"\\u0073"` (6 characters) is decoded as `"s"` (1 character).
 
 ![instiu parsing](diagram/insituparsing.png)
 
@@ -202,7 +212,7 @@ free(buffer);
 // Note: At this point, d may have dangling pointers pointed to the deallocated buffer.
 ~~~~~~~~~~
 
-The JSON strings are marked as constant-string. But they may not be really "constant". The life cycle of it depends on the JSON buffer.
+The JSON strings are marked as const-string. But they may not be really "constant". The life cycle of it depends on the JSON buffer.
 
 In situ parsing minimizes allocation overheads and memory copying. Generally this improves cache coherence, which is an important factor of performance in modern computer.
 
@@ -217,9 +227,9 @@ There are some limitations of *in situ* parsing:
 
 ## Transcoding and Validation {#TranscodingAndValidation}
 
-RapidJSON supports conversion between Unicode formats (officially termed UCS Transformation Format) internally. During DOM parsing, the source encoding of the stream can be different from the encoding of the DOM. For example, the source stream contains a UTF-8 JSON, while the DOM is using UTF-16 encoding. There is an example code in [EncodedInputStream](doc/stream.md#EncodedInputStream).
+RapidJSON supports conversion between Unicode formats (officially termed UCS Transformation Format) internally. During DOM parsing, the source encoding of the stream can be different from the encoding of the DOM. For example, the source stream contains a UTF-8 JSON, while the DOM is using UTF-16 encoding. There is an example code in [EncodedInputStream](doc/stream.md).
 
-When writing a JSON from DOM to output stream, transcoding can also be used. An example is in [EncodedOutputStream](stream.md##EncodedOutputStream).
+When writing a JSON from DOM to output stream, transcoding can also be used. An example is in [EncodedOutputStream](doc/stream.md).
 
 During transcoding, the source string is decoded to into Unicode code points, and then the code points are encoded in the target format. During decoding, it will validate the byte sequence in the source string. If it is not a valid sequence, the parser will be stopped with `kParseErrorStringInvalidEncoding` error.
 
@@ -241,11 +251,7 @@ d.Accept(writer);
 
 Actually, `Value::Accept()` is responsible for publishing SAX events about the value to the handler. With this design, `Value` and `Writer` are decoupled. `Value` can generate SAX events, and `Writer` can handle those events.
 
-User may create customer handlers for transforming the DOM into other formats. For example, a handler which converts the DOM into XML.
-
-~~~~~~~~~~cpp
-// TODO: example
-~~~~~~~~~~
+User may create custom handlers for transforming the DOM into other formats. For example, a handler which converts the DOM into XML.
 
 For more about SAX events and handler, please refer to [SAX](doc/sax.md).
 
@@ -257,16 +263,18 @@ Some applications may try to avoid memory allocations whenever possible.
 
 `MemoryPoolAllocator` will use the user buffer to satisfy allocations. When the user buffer is used up, it will allocate a chunk of memory from the base allocator (by default the `CrtAllocator`).
 
-Here is an example of using stack memory.
+Here is an example of using stack memory. The first allocator is for storing values, while the second allocator is for storing temporary data during parsing.
 
 ~~~~~~~~~~cpp
-char buffer[1024];
-MemoryPoolAllocator allocator(buffer, sizeof(buffer));
-
-Document d(&allocator);
+typedef GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<>> DocumentType;
+char valueBuffer[4096];
+char parseBuffer[1024];
+MemoryPoolAllocator<> valueAllocator(valueBuffer, sizeof(valueBuffer));
+MemoryPoolAllocator<> parseAllocator(parseBuffer, sizeof(parseBuffer));
+DocumentType d(&valueAllocator, sizeof(parseBuffer), &parseAllocator);
 d.Parse(json);
 ~~~~~~~~~~
 
-If the total size of allocation is less than 1024 during parsing, this code does not invoke any heap allocation (via `new` or `malloc()`) at all.
+If the total size of allocation is less than 4096+1024 bytes during parsing, this code does not invoke any heap allocation (via `new` or `malloc()`) at all.
 
 User can query the current memory consumption in bytes via `MemoryPoolAllocator::Size()`. And then user can determine a suitable size of user buffer.

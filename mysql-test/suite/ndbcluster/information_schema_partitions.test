@@ -1,0 +1,43 @@
+--source include/have_ndb.inc
+
+#
+## Test to verify information_schema.paritions
+## - show that the number of partitions stored in I_S
+##   matches with that of NDBopts
+## - show that the number of table_rows stored in I_S
+##   matches the number of rows inserted
+##
+#
+
+#
+# Create a normal table with primary key
+# use char PK for consistent hashing
+#
+CREATE TABLE t1 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+SHOW CREATE TABLE t1;
+
+# Show that the table has 4 paritions. The 'PartitionCount'
+# field is the one of interest here
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+INSERT INTO t1 VALUES
+ ('1',1), ('2',2), ('3',3), ('4',4),
+ ('5',5), ('6',6), ('7',7), ('8',8);
+
+--sorted_result
+SELECT * FROM t1;
+
+# Show that information_schema says that table has 4 partitions
+# and also that the table_rows total matches the number of rows
+# inserted (8 in this case)
+SELECT partition_name, table_rows
+FROM information_schema.partitions
+WHERE table_name = 't1';
+
+DROP TABLE t1;

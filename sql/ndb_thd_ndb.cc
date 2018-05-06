@@ -1,21 +1,30 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd_ndb.h"
+
+#include "my_dbug.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
 
 /*
@@ -94,6 +103,9 @@ Thd_ndb::recycle_ndb(void)
   /* Reset last commit epoch for this 'session'. */
   m_last_commit_epoch_session = 0;
 
+  /* Update m_connect_count to avoid false failures of ::valid_ndb() */
+  m_connect_count= connection->get_connect_count();
+
   DBUG_RETURN(true);
 }
 
@@ -122,8 +134,22 @@ void
 Thd_ndb::init_open_tables()
 {
   count= 0;
-  m_error= FALSE;
-  my_hash_reset(&open_tables);
+  m_error= false;
+  open_tables.clear();
+}
+
+
+bool
+Thd_ndb::check_option(Options option) const
+{
+  return (options & option);
+}
+
+
+void
+Thd_ndb::set_option(Options option)
+{
+  options |= option;
 }
 
 
@@ -142,4 +168,34 @@ Thd_ndb::add_row_check_if_batch_full(uint size)
   unsent+= size;
   m_unsent_bytes= unsent;
   return unsent >= m_batch_size;
+}
+
+
+bool
+Thd_ndb::check_trans_option(Trans_options option) const
+{
+  return (trans_options & option);
+}
+
+
+void
+Thd_ndb::set_trans_option(Trans_options option)
+{
+#ifndef DBUG_OFF
+  if (check_trans_option(TRANS_TRANSACTIONS_OFF))
+    DBUG_PRINT("info", ("Disabling transactions"));
+  if (check_trans_option(TRANS_INJECTED_APPLY_STATUS))
+    DBUG_PRINT("info", ("Statement has written to ndb_apply_status"));
+  if (check_trans_option(TRANS_NO_LOGGING))
+    DBUG_PRINT("info", ("Statement is not using logging"));
+#endif
+  trans_options |= option;
+}
+
+
+void
+Thd_ndb::reset_trans_options(void)
+{
+  DBUG_PRINT("info", ("Resetting trans_options"));
+  trans_options = 0;
 }

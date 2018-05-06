@@ -1,7 +1,5 @@
 # Bug #59641 Prepared XA transaction causes shutdown hang after a crash
 
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
 INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
@@ -45,6 +43,7 @@ COMMIT;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t;
 COMMIT;
+--sorted_result
 XA RECOVER;
 XA ROLLBACK '123';
 XA ROLLBACK '456';

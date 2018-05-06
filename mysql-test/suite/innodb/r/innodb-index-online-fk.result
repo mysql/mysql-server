@@ -12,16 +12,16 @@ SET foreign_key_checks = 0;
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
+test/fk_1	a2	b	1
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Duplicate foreign key constraint name 'test/fk_1'
+ERROR HY000: Duplicate foreign key constraint name 'fk_1'
 SET foreign_key_checks = 1;
 INSERT INTO child VALUES(1,2),(2,3);
 INSERT INTO child VALUES(4,4);
@@ -52,21 +52,21 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE, ADD INDEX idx1(a1,a
 ALGORITHM = INPLACE;
 ALTER TABLE child ADD CONSTRAINT fk_3 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE;
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-test/fk_10	test/child	test/parent	2	5
-test/fk_2	test/child	test/parent	2	5
-test/fk_3	test/child	test/parent	2	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+test/fk_10	test/child	test/parent	2	0
+test/fk_2	test/child	test/parent	2	0
+test/fk_3	test/child	test/parent	2	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-test/fk_10	a1	a	0
-test/fk_10	a2	b	1
-test/fk_2	a1	a	0
-test/fk_2	a2	b	1
-test/fk_3	a1	a	0
-test/fk_3	a2	b	1
+test/fk_1	a2	b	1
+test/fk_10	a1	a	1
+test/fk_10	a2	b	2
+test/fk_2	a1	a	1
+test/fk_2	a2	b	2
+test/fk_3	a1	a	1
+test/fk_3	a2	b	2
 SET foreign_key_checks = 1;
 INSERT INTO child VALUES(5,4);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE)
@@ -82,7 +82,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_10` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_2` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_3` FOREIGN KEY (`a1`, `a2`) REFERENCES `parent` (`a`, `b`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM parent where a = 1;
 SELECT * FROM child;
 a1	a2
@@ -95,56 +95,33 @@ ALTER TABLE child ADD CONSTRAINT fk_4 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_open_ref_fail';
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-test/fk_10	test/child	test/parent	2	5
-test/fk_2	test/child	test/parent	2	5
-test/fk_3	test/child	test/parent	2	5
-test/fk_4	test/child	test/parent	2	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+test/fk_10	test/child	test/parent	2	0
+test/fk_2	test/child	test/parent	2	0
+test/fk_3	test/child	test/parent	2	0
+test/fk_4	test/child	test/parent	2	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-test/fk_10	a1	a	0
-test/fk_10	a2	b	1
-test/fk_2	a1	a	0
-test/fk_2	a2	b	1
-test/fk_3	a1	a	0
-test/fk_3	a2	b	1
-test/fk_4	a1	a	0
-test/fk_4	a2	b	1
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+test/fk_1	a2	b	1
+test/fk_10	a1	a	1
+test/fk_10	a2	b	2
+test/fk_2	a1	a	1
+test/fk_2	a2	b	2
+test/fk_3	a1	a	1
+test/fk_3	a2	b	2
+test/fk_4	a1	a	1
+test/fk_4	a2	b	2
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
 NAME
-SYS_DATAFILES
-SYS_FOREIGN
-SYS_FOREIGN_COLS
-SYS_TABLESPACES
-SYS_VIRTUAL
-mysql/engine_cost
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/plugin
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-test/child
 test/parent
+test/child
 INSERT INTO child VALUES(5,4);
 SET foreign_key_checks = 1;
 INSERT INTO child VALUES(6,5);
@@ -163,24 +140,24 @@ SHOW ERRORS;
 Level	Code	Message
 Error	1821	Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
 SET DEBUG = '-d,innodb_test_no_foreign_idx';
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-test/fk_10	test/child	test/parent	2	5
-test/fk_2	test/child	test/parent	2	5
-test/fk_3	test/child	test/parent	2	5
-test/fk_4	test/child	test/parent	2	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+test/fk_10	test/child	test/parent	2	0
+test/fk_2	test/child	test/parent	2	0
+test/fk_3	test/child	test/parent	2	0
+test/fk_4	test/child	test/parent	2	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-test/fk_10	a1	a	0
-test/fk_10	a2	b	1
-test/fk_2	a1	a	0
-test/fk_2	a2	b	1
-test/fk_3	a1	a	0
-test/fk_3	a2	b	1
-test/fk_4	a1	a	0
-test/fk_4	a2	b	1
+test/fk_1	a2	b	1
+test/fk_10	a1	a	1
+test/fk_10	a2	b	2
+test/fk_2	a1	a	1
+test/fk_2	a2	b	2
+test/fk_3	a1	a	1
+test/fk_3	a2	b	2
+test/fk_4	a1	a	1
+test/fk_4	a2	b	2
 SET DEBUG = '+d,innodb_test_no_reference_idx';
 ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -196,24 +173,24 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_42'
 SET DEBUG = '-d,innodb_test_wrong_fk_option';
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-test/fk_10	test/child	test/parent	2	5
-test/fk_2	test/child	test/parent	2	5
-test/fk_3	test/child	test/parent	2	5
-test/fk_4	test/child	test/parent	2	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+test/fk_10	test/child	test/parent	2	0
+test/fk_2	test/child	test/parent	2	0
+test/fk_3	test/child	test/parent	2	0
+test/fk_4	test/child	test/parent	2	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-test/fk_10	a1	a	0
-test/fk_10	a2	b	1
-test/fk_2	a1	a	0
-test/fk_2	a2	b	1
-test/fk_3	a1	a	0
-test/fk_3	a2	b	1
-test/fk_4	a1	a	0
-test/fk_4	a2	b	1
+test/fk_1	a2	b	1
+test/fk_10	a1	a	1
+test/fk_10	a2	b	2
+test/fk_2	a1	a	1
+test/fk_2	a2	b	2
+test/fk_3	a1	a	1
+test/fk_3	a2	b	2
+test/fk_4	a1	a	1
+test/fk_4	a2	b	2
 SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
 ALTER TABLE `#child` ADD CONSTRAINT fk_43 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -231,29 +208,29 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ADD CONSTRAINT fk_6 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-test/fk_10	test/child	test/parent	2	5
-test/fk_2	test/child	test/parent	2	5
-test/fk_3	test/child	test/parent	2	5
-test/fk_4	test/child	test/parent	2	5
-test/fk_5	test/child	test/parent	1	6
-test/fk_6	test/child	test/parent	2	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+test/fk_10	test/child	test/parent	2	0
+test/fk_2	test/child	test/parent	2	0
+test/fk_3	test/child	test/parent	2	0
+test/fk_4	test/child	test/parent	2	0
+test/fk_5	test/child	test/parent	1	0
+test/fk_6	test/child	test/parent	2	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-test/fk_10	a1	a	0
-test/fk_10	a2	b	1
-test/fk_2	a1	a	0
-test/fk_2	a2	b	1
-test/fk_3	a1	a	0
-test/fk_3	a2	b	1
-test/fk_4	a1	a	0
-test/fk_4	a2	b	1
-test/fk_5	a2	b	0
-test/fk_6	a1	a	0
-test/fk_6	a2	b	1
+test/fk_1	a2	b	1
+test/fk_10	a1	a	1
+test/fk_10	a2	b	2
+test/fk_2	a1	a	1
+test/fk_2	a2	b	2
+test/fk_3	a1	a	1
+test/fk_3	a2	b	2
+test/fk_4	a1	a	1
+test/fk_4	a2	b	2
+test/fk_5	a2	b	1
+test/fk_6	a1	a	1
+test/fk_6	a2	b	2
 DROP TABLE child;
 DROP TABLE parent;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
@@ -275,13 +252,13 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a1`),
   KEY `fk_4` (`a2`),
   CONSTRAINT `fk_4` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_4	test/child	test/parent	1	5
-SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_4	test/child	test/parent	1	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_4	a2	b	0
+test/fk_4	a2	b	1
 SET foreign_key_checks = 1;
 DROP TABLE child;
 DROP TABLE parent;
@@ -317,84 +294,38 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint 'test/fk_1' to system tables
 SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
 NAME
-SYS_DATAFILES
-SYS_FOREIGN
-SYS_FOREIGN_COLS
-SYS_TABLESPACES
-SYS_VIRTUAL
-mysql/engine_cost
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/plugin
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-test/child
 test/parent
+test/child
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+test/fk_1	a2	b	1
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
 NAME
-SYS_DATAFILES
-SYS_FOREIGN
-SYS_FOREIGN_COLS
-SYS_TABLESPACES
-SYS_VIRTUAL
-mysql/engine_cost
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/plugin
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-test/child
 test/parent
+test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -403,51 +334,28 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a3`),
   KEY `tb` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a2	b	0
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+test/fk_1	a2	b	1
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
 NAME
-SYS_DATAFILES
-SYS_FOREIGN
-SYS_FOREIGN_COLS
-SYS_TABLESPACES
-SYS_VIRTUAL
-mysql/engine_cost
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/plugin
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-test/child
 test/parent
+test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -456,51 +364,28 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a1`),
   KEY `fk_1` (`a2`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_1	test/child	test/parent	1	6
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+test/fk_1	test/child	test/parent	1	0
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_1	a3	b	0
-SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+test/fk_1	a3	b	1
+SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql\/%';
 NAME
-SYS_DATAFILES
-SYS_FOREIGN
-SYS_FOREIGN_COLS
-SYS_TABLESPACES
-SYS_VIRTUAL
-mysql/engine_cost
-mysql/gtid_executed
-mysql/help_category
-mysql/help_keyword
-mysql/help_relation
-mysql/help_topic
-mysql/innodb_index_stats
-mysql/innodb_table_stats
-mysql/plugin
-mysql/server_cost
-mysql/servers
-mysql/slave_master_info
-mysql/slave_relay_log_info
-mysql/slave_worker_info
-mysql/time_zone
-mysql/time_zone_leap_second
-mysql/time_zone_name
-mysql/time_zone_transition
-mysql/time_zone_transition_type
-test/child
 test/parent
+test/child
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -508,7 +393,7 @@ child	CREATE TABLE `child` (
   `a2` int(11) DEFAULT NULL,
   KEY `fk_1` (`a3`),
   CONSTRAINT `fk_1` FOREIGN KEY (`a3`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
@@ -541,15 +426,15 @@ child	CREATE TABLE `child` (
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_a	test/child	test/parent	1	6
+test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_a	a2_new	b	0
-test/fk_b	a1_new	a	0
+test/fk_a	a2_new	b	1
+test/fk_b	a1_new	a	1
 ALTER TABLE child
 ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
 ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
@@ -566,15 +451,15 @@ child	CREATE TABLE `child` (
   KEY `fk_b` (`a1_new`),
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_a	test/child	test/parent	1	6
+test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_a	a2_new	b	0
-test/fk_b	a1_new	a	0
+test/fk_a	a2_new	b	1
+test/fk_b	a1_new	a	1
 ALTER TABLE child
 ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
 ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
@@ -594,21 +479,21 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_1` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`b`),
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_a	test/child	test/parent	1	6
+test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
 test/fk_new_1	test/child	test/parent	1	0
 test/fk_new_2	test/child	test/parent	1	0
 test/fk_new_3	test/child	test/parent	1	0
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_a	a2_new	b	0
-test/fk_b	a1_new	a	0
-test/fk_new_1	a1_new	b	0
-test/fk_new_2	a2_new	a	0
-test/fk_new_3	a3	a	0
+test/fk_a	a2_new	b	1
+test/fk_b	a1_new	a	1
+test/fk_new_1	a1_new	b	1
+test/fk_new_2	a2_new	a	1
+test/fk_new_3	a3	a	1
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
 CREATE INDEX tb ON child(a2);
@@ -625,10 +510,10 @@ child	CREATE TABLE `child` (
   `a2` int(11) DEFAULT NULL,
   `a3` int(11) DEFAULT NULL,
   KEY `tb` (`a2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
@@ -647,17 +532,17 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_1` FOREIGN KEY (`a1`) REFERENCES `parent` (`b`),
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * from information_schema.INNODB_SYS_FOREIGN;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_new_1	test/child	test/parent	1	0
 test/fk_new_2	test/child	test/parent	1	0
 test/fk_new_3	test/child	test/parent	1	0
-SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_new_1	a1	b	0
-test/fk_new_2	a2	a	0
-test/fk_new_3	a3	a	0
+test/fk_new_1	a1	b	1
+test/fk_new_2	a2	a	1
+test/fk_new_3	a3	a	1
 SET foreign_key_checks = 1;
 DROP TABLE child;
 DROP TABLE parent;
@@ -680,15 +565,15 @@ CREATE INDEX idx ON t3(a);
 ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
 ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
-ERROR HY000: Failed to add the foreign key constraint 'test/e' to system tables
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ERROR HY000: Duplicate foreign key constraint name 'e'
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/e	test/t2	test/t3	1	0
 test/fw	test/t2	test/t3	1	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/e	d	a	0
-test/fw	c	a	0
+test/e	d	a	1
+test/fw	c	a	1
 DROP TABLE t2;
 DROP TABLE t3;
 # Bug #17449901	 TABLE DISAPPEARS WHEN ALTERING
@@ -712,7 +597,7 @@ t2	CREATE TABLE `t2` (
   `f3` int(11) DEFAULT NULL,
   KEY `t` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 drop table t1;
 create table t1(f1 int ,primary key(f1))engine=innodb;
@@ -727,6 +612,6 @@ t2	CREATE TABLE `t2` (
   `f3` int(11) DEFAULT NULL,
   KEY `t1` (`f2`,`f3`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 drop table t1;

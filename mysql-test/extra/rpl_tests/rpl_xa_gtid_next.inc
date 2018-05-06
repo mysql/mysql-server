@@ -66,7 +66,7 @@ if ($disconnect_prepare)
 if (`SELECT NOT $disconnect_prepare AND $xa_error_simul AND '$gtid_phase1' <> 'automatic'`)
 {
   --replace_result $master_uuid MASTER_UUID
-  --error ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  --error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
   --eval XA $conclude_as $xid
 }
 

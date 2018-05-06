@@ -2,10 +2,13 @@ ALTER TABLE performance_schema.replication_connection_status
 ADD COLUMN foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 TRUNCATE TABLE performance_schema.replication_connection_status;
-ERROR HY000: Invalid performance_schema usage.
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'replication_connection_status'
 ALTER TABLE performance_schema.replication_connection_status
 ADD INDEX test_index(Thread_Id);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index
 ON performance_schema.replication_connection_status(Thread_Id);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `PRIMARY`
+  ON performance_schema.replication_connection_status;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

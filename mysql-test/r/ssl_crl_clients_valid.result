@@ -10,6 +10,7 @@ ssl_cert	MYSQL_TEST_DIR/std_data/crl-client-cert.pem
 ssl_cipher	
 ssl_crl	MYSQL_TEST_DIR/std_data/crl-client-revoked.crl
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/crl-client-key.pem
 ############ Test mysqladmin ##############
 # Test mysqladmin connecting to a server with an empty crl

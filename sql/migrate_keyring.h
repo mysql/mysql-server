@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,58 +23,35 @@
 #ifndef MIGRATE_KEYRING_H_INCLUDED
 #define MIGRATE_KEYRING_H_INCLUDED
 
-#include "mysql/plugin_keyring.h"
-#include "mysql.h"
 #include <string>
-#include <vector>
+#include "mysql.h"
+#include "mysql/plugin_keyring.h"
 
 class THD;
 
-using std::string;
-
 #define MAX_KEY_LEN 16384
 
-enum enum_plugin_type
-{
-  SOURCE_PLUGIN= 0, DESTINATION_PLUGIN
+enum class enum_plugin_type { SOURCE_PLUGIN = 0, DESTINATION_PLUGIN };
+
+class Key_info {
+ public:
+  Key_info() {}
+  Key_info(char *key_id, char *user_id) {
+    m_key_id = key_id;
+    m_user_id = user_id;
+  }
+  Key_info(const Key_info &ki) {
+    this->m_key_id = ki.m_key_id;
+    this->m_user_id = ki.m_user_id;
+  }
+
+ public:
+  std::string m_key_id;
+  std::string m_user_id;
 };
 
-class Key_info
-{
-public:
-  Key_info()
-    : m_key_id_len(0),
-      m_user_id_len(0)
-  {}
-  Key_info(char     *key_id,
-           char     *user_id)
-  {
-    m_key_id_len= strlen(key_id);
-    memcpy(m_key_id, key_id, m_key_id_len);
-    m_key_id[m_key_id_len]= '\0';
-    m_user_id_len= strlen(user_id);
-    memcpy(m_user_id, user_id, m_user_id_len);
-    m_user_id[m_user_id_len]= '\0';
-  }
-  Key_info(const Key_info &ki)
-  {
-    this->m_key_id_len= ki.m_key_id_len;
-    memcpy(this->m_key_id, ki.m_key_id, this->m_key_id_len);
-    this->m_key_id[this->m_key_id_len]= '\0';
-    this->m_user_id_len= ki.m_user_id_len;
-    memcpy(this->m_user_id, ki.m_user_id, this->m_user_id_len);
-    this->m_user_id[this->m_user_id_len]= '\0';
-  }
-public:
-  char     m_key_id[MAX_KEY_LEN];
-  int      m_key_id_len;
-  char     m_user_id[USERNAME_LENGTH];
-  int      m_user_id_len;
-};
-
-class Migrate_keyring
-{
-public:
+class Migrate_keyring {
+ public:
   /**
     Standard constructor.
   */
@@ -75,11 +59,8 @@ public:
   /**
     Initialize all needed parameters to proceed with migration process.
   */
-  bool init(int  argc,
-            char **argv,
-            char *source_plugin,
-            char *destination_plugin,
-            char *user, char *host, char *password,
+  bool init(int argc, char **argv, char *source_plugin,
+            char *destination_plugin, char *user, char *host, char *password,
             char *socket, ulong port);
   /**
     Migrate keys from source keyring to destination keyring.
@@ -90,7 +71,7 @@ public:
   */
   ~Migrate_keyring();
 
-private:
+ private:
   /**
     Load source or destination plugin.
   */
@@ -108,13 +89,13 @@ private:
   */
   bool enable_keyring_operations();
 
-private:
+ private:
   int m_argc;
   char **m_argv;
-  string m_source_plugin_option;
-  string m_destination_plugin_option;
-  string m_source_plugin_name;
-  string m_destination_plugin_name;
+  std::string m_source_plugin_option;
+  std::string m_destination_plugin_option;
+  std::string m_source_plugin_name;
+  std::string m_destination_plugin_name;
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;

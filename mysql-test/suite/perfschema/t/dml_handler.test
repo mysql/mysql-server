@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #==============================================================================
 # This test verifies that the peformance schema storage engine does not support
 # HANDLER operations.

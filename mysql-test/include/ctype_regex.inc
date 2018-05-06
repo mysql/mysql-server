@@ -39,8 +39,10 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 
 select HIGH_PRIORITY s1 regexp s2 from t1;
+
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
+SELECT 'ghi' REGEXP 'ghi[';
 
 drop table t1;

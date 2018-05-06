@@ -1,7 +1,4 @@
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 --disable_warnings
 create database if not exists events_test;
 --enable_warnings

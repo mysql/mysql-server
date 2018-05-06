@@ -5195,7 +5195,7 @@ drop table t1;
 create table bug15205 (val int(11) not null) engine=csv;
 create table bug15205_2 (val int(11) not null) engine=csv;
 select * from bug15205;
-ERROR HY000: Can't get stat of './test/bug15205.CSV' (Errcode: 2 - No such file or directory)
+ERROR HY000: Can't get stat of './test/bug15205.CSV' (OS errno 2 - No such file or directory)
 select * from bug15205_2;
 val
 select * from bug15205;
@@ -5315,8 +5315,6 @@ select * from t1;
 a
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a datetime not null) engine=csv;
 insert into t1 values();
 Warnings:
@@ -5394,7 +5392,7 @@ drop table t1;
 create table t1 (a int not null) engine=csv;
 lock tables t1 read;
 select * from t1;
-ERROR HY000: File 'MYSQLD_DATADIR/test/t1.CSV' not found (Errcode: 2 - No such file or directory)
+ERROR HY000: File 'MYSQLD_DATADIR/test/t1.CSV' not found (OS errno 2 - No such file or directory)
 unlock tables;
 drop table t1;
 CREATE TABLE t1 (e enum('foo','bar') NOT NULL) ENGINE = CSV;

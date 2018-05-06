@@ -120,7 +120,7 @@ SELECT @@session.flush;
 
 --disable_warnings
 SELECT IF(@@global.flush, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='flush';
 --enable_warnings
 

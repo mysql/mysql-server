@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,7 +29,7 @@
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
 #include "InitConfigFileParser.hpp"
-#include <m_string.h>
+#include "m_string.h"
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
@@ -231,10 +238,6 @@ struct DeprecationTransform {
 
 static
 const DeprecationTransform f_deprecation[] = {
-  { DB_TOKEN, "Discless", "Diskless", 0, 1 },
-  { DB_TOKEN, "Id", "NodeId", 0, 1 },
-  { API_TOKEN, "Id", "NodeId", 0, 1 },
-  { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -314,18 +317,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "ByteOrder",
-    "COMPUTER",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_STRING,
-    0,
-    0,
-    0 },
   
   /****************************************************************************
    * SYSTEM
@@ -466,18 +457,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    DB_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_DATA_NODE_ID) },
-
-  {
     CFG_NODE_ID,
     "NodeId",
     DB_TOKEN,
@@ -558,19 +537,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "64",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_NO_INDEXES,
-    "MaxNoOfIndexes",
-    DB_TOKEN,
-    // The name of new parameter to use instead of deprecated
-    "MaxNoOfOrderedIndexes or MaxNoOfUniqueHashIndexes",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "128",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -732,6 +698,42 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "500" },
 
   {
+    CFG_DB_SCHED_RESPONSIVENESS,
+    "SchedulerResponsiveness",
+    DB_TOKEN,
+    "Value between 0 and 10, high means very responsive, low means throughput-optimised",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "10" },
+
+  {
+    CFG_DB_SCHED_SCAN_PRIORITY,
+    "__sched_scan_priority",
+    DB_TOKEN,
+    "Number of rows scanned per real-time break, higher value gives higher prio to scans",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "6",
+    "1",
+    "6" },
+
+  {
+    CFG_DB_DISK_DATA_FORMAT,
+    "__disk_data_format",
+    DB_TOKEN,
+    "0: Use old v1 format, 1: Use new v2 format",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,
@@ -869,10 +871,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "IndexMemory",
     DB_TOKEN,
     "Number bytes on each " DB_TOKEN_PRINT " node allocated for storing indexes",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT64,
-    "18M",
+    "0M",
     "1M",
     "1024G" },
 
@@ -884,7 +886,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
-    "80M",
+    "98M",
     "1M",
     "1024G" },
 
@@ -984,7 +986,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "60000",
+    "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1272,55 +1274,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_LCP_DISC_PAGES_TUP_SR,
-    "NoOfDiskPagesToDiskDuringRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_TUP,
-    "NoOfDiskPagesToDiskAfterRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeed", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC_SR,
-    "NoOfDiskPagesToDiskDuringRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC,
-    "NoOfDiskPagesToDiskAfterRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeed",
-    ConfigInfo::CI_DEPRECATED, // The new parameter name to use
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-
-  {
     CFG_DB_DISCLESS,
     "Diskless",
     DB_TOKEN,
@@ -1332,20 +1285,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"},
 
-  {
-    KEY_INTERNAL,
-    "Discless",
-    DB_TOKEN,
-    "Diskless", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    CI_RESTART_INITIAL | CI_RESTART_SYSTEM,
-    ConfigInfo::CI_BOOL,
-    "false",
-    "false",
-    "true"},
-  
-
-  
   {
     CFG_DB_ARBIT_TIMEOUT,
     "ArbitrationTimeout",
@@ -1593,31 +1532,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "200M",
     "1M",
     "1024G" },
-  
-  { 
-    CFG_DB_CHECKPOINT_SPEED,
-    "DiskCheckpointSpeed",
+
+  {
+    CFG_DB_BACKUP_DISK_WRITE_PCT,
+    "BackupDiskWriteSpeedPct",
     DB_TOKEN,
-    "Minimum bytes per second allowed to be written by checkpoint",
-    ConfigInfo::CI_DEPRECATED,
+    "Percentage of MaxDiskWriteSpeed to reserve for Backup, including "
+    "the Backup log",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "10M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  { 
-    CFG_DB_CHECKPOINT_SPEED_RESTART,
-    "DiskCheckpointSpeedInRestart",
-    DB_TOKEN,
-    "Maximum bytes per second allowed to be written by checkpoints"
-    "during restarts",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
+    "50",
+    "0",
+    "90" },
   
   { 
     CFG_DB_BACKUP_MEM,
@@ -1636,11 +1563,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupDataBufferSize",
     DB_TOKEN,
     "Default size of databuffer for a backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
-    "2M",
+    "1M",
+    "512K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1651,7 +1578,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
+    "16M",
     "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1660,7 +1587,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupWriteSize",
     DB_TOKEN,
     "Default size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "256K",
@@ -1672,7 +1599,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupMaxWriteSize",
     DB_TOKEN,
     "Max size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "1M",
@@ -1740,6 +1667,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
  
   {
+    CFG_DB_O_DIRECT_SYNC_FLAG,
+    "ODirectSyncFlag",
+    DB_TOKEN,
+    "O_DIRECT writes are treated as sync:ed writes",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
+  {
     CFG_DB_O_DIRECT,
     "ODirect",
     DB_TOKEN,
@@ -1750,6 +1689,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+
   {
     CFG_DB_COMPRESSED_BACKUP,
     "CompressedBackup",
@@ -1800,18 +1740,16 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_RESERVED_SEND_BUFFER_MEMORY,
-    "ReservedSendBufferMemory",
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
     DB_TOKEN,
-    "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
-    "between data nodes. This memory will not be available for connections to\n"
-    "management server or API nodes.",
-    ConfigInfo::CI_DEPRECATED,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
+    0,
     "0",
-    "256K",
-    STR_VALUE(MAX_INT_RNIL)
+    "16"
   },
 
   {
@@ -1978,7 +1916,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "0",
+    "128",
     "0",
     "128" },
 
@@ -2125,7 +2063,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
-    "false",
+    "true",
     "false",                     /* Min */
     "true"                       /* Max */
   },
@@ -2319,6 +2257,35 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_ENABLE_PARTIAL_LCP,
+    "EnablePartialLcp",
+    DB_TOKEN,
+    "Enable partial LCP, this means a checkpoint only writes the difference"
+    " to the last LCP plus some parts that are fully checkpointed. If this"
+    " isn't enabled then all LCPs are writing a full checkpoint.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+  {
+    CFG_DB_RECOVERY_WORK,
+    "RecoveryWork",
+    DB_TOKEN,
+    "Percentage of storage overhead for LCP files, increasing the value"
+    " means less work in normal operation and more at recovery, decreasing"
+    " it means more work in normal operation and less work in recovery",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "50",
+    "25",
+    "100"
+  },
+
+  {
     CFG_DB_AT_RESTART_SKIP_INDEXES,
     "__at_restart_skip_indexes",
     DB_TOKEN,
@@ -2380,6 +2347,51 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+    "MaxUIBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for building unique indexes.  "
+    "Increasing this may speed up unique index builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+    "MaxFKBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for building foreign keys.  "
+    "Increasing this may speed up foreign key builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+    "MaxReorgBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for reorganising table partitions.  "
+    "Increasing this may speed up reorganisation of table partitions, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2429,18 +2441,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     0,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "Id",
-    API_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
 
   {
     CFG_NODE_ID,
@@ -2565,6 +2565,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
+    API_TOKEN,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "16"
+  },
+
+  {
     CFG_AUTO_RECONNECT,
     "AutoReconnect",
     "API",
@@ -2667,6 +2680,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_API_VERBOSE,
+    "ApiVerbose",
+    "API",
+    "Tracelevel for API nodes.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "100"
+  },
+
   /****************************************************************************
    * MGM
    ***************************************************************************/
@@ -2729,18 +2755,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    MGM_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
-  
-  {
     CFG_NODE_ID,
     "NodeId",
     MGM_TOKEN,
@@ -2773,18 +2787,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     0,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "MaxNoOfSavedEvents",
-    MGM_TOKEN,
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_MGM_PORT,
@@ -2858,6 +2860,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "256K",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_LOCATION_DOMAIN_ID,
+    "LocationDomainId",
+    MGM_TOKEN,
+    "LocationDomainId for node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "16"
   },
 
   {
@@ -3022,14 +3037,28 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true" },
 
   {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "TCP",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3194,11 +3223,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SHM",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3280,6 +3309,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_BOOL,
     "true",
+    "false",
+    "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SHM",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
     "false",
     "true" },
   
@@ -3428,11 +3471,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SCI",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3502,6 +3545,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "If checksum is enabled, all signals between nodes are checked for errors",
     ConfigInfo::CI_EXPERIMENTAL,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SCI",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
     "false",
@@ -4725,9 +4782,6 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-
-  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
-
   ctx.m_currentSection->put("Type", ctx.fname);
   
   return true;
@@ -5081,16 +5135,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     }
   }
 
-  if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied "
-	   << "per connection, please remove from config. "
-	   << "Will be changed to " << port << endl;
-    ctx.m_currentSection->put("PortNumber", port, true);
-  } 
-  else
-  {
-    ctx.m_currentSection->put("PortNumber", port);
-  }
+  require(ctx.m_currentSection->contains("PortNumber") == false);
+  ctx.m_currentSection->put("PortNumber", port);
 
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));
@@ -5650,7 +5696,7 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
                    struct InitConfigFileParser::Context &ctx,
                    const char * rule_data)
 {
-  if (!ctx.m_userProperties.contains("SYSTEM")) {
+  if (!ctx.m_config->contains("SYSTEM")) {
     ConfigInfo::ConfigRuleSection s;
 
     // Generate a unique name for this new cluster
@@ -5754,15 +5800,18 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
   const Properties *tmp;
   
   Uint32 wan = 0;
+  Uint32 location_domain1 = 0;
+  Uint32 location_domain2 = 0;
   require(ctx.m_config->get("Node", nodeId1, &tmp));
   tmp->get("HostName", &hostname1);
+  tmp->get("LocationDomainId", &location_domain1);
   if (!wan)
   {
     tmp->get("wan", &wan);
   }
 
   if (tmp->get("ConnectionMap", &map))
-{
+  {
     if ((ret = check_connection(ctx, map, nodeId1, hostname1, nodeId2)) != 1)
     {
       return ret == 0 ? true : false;
@@ -5771,9 +5820,21 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
   require(ctx.m_config->get("Node", nodeId2, &tmp));
   tmp->get("HostName", &hostname2);
+  tmp->get("LocationDomainId", &location_domain2);
   if (!wan)
   {
     tmp->get("wan", &wan);
+  }
+
+  if (!wan)
+  {
+    if (location_domain1 != 0 &&
+        location_domain2 != 0 &&
+        location_domain1 !=
+          location_domain2)
+    {
+      wan = 1;
+    }
   }
   
   if (tmp->get("ConnectionMap", &map))

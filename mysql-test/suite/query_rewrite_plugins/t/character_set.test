@@ -6,17 +6,11 @@
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
 
---echo # Let's be clear on what the global and session values are
---echo # for this variable.
-SHOW VARIABLES LIKE 'character_set_client';
-SHOW SESSION VARIABLES LIKE 'character_set_client';
-SHOW GLOBAL VARIABLES LIKE 'character_set_client';
-
 --source suite/query_rewrite_plugins/include/trivial.inc
 
 --echo # We now set the global value of the variable, this should not affect
 --echo # the plugin. It should copy the session value from our session.
-SET @@global.character_set_client = utf8;
+SET @@global.character_set_client = utf8mb4;
 
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 
@@ -40,7 +34,7 @@ SET @@global.character_set_client = DEFAULT;
 --echo # This is perhaps an unwanted result, but the rules table-reading
 --echo # session can't access our session's setting.
 --echo #
-SET @@session.character_set_client = utf8;
+SET @@session.character_set_client = utf8mb4;
 --source suite/query_rewrite_plugins/include/trivial.inc
 SET @@session.character_set_client = DEFAULT;
 

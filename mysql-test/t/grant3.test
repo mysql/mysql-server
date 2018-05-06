@@ -1,7 +1,4 @@
 
-# Can't run with embedded server because we use GRANT
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -9,13 +6,8 @@
 
 SET NAMES binary;
 
-#
-# Remove NO_AUTO_CREATE_USER sql mode (default from 5.7)
-#
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 connect (master,localhost,root,,);
 connection master;
@@ -53,6 +45,9 @@ flush privileges;
 # Bug#19828 Case sensitivity in Grant/Revoke
 #
 
+create user CUser@localhost;
+--error ER_CANNOT_USER
+create user CUser@LOCALHOST;
 grant select on test.* to CUser@localhost;
 grant select on test.* to CUser@LOCALHOST;
 flush privileges;
@@ -78,6 +73,7 @@ DROP USER CUser@LOCALHOST;
 
 #### table grants
 create table t1 (a int);
+create user CUser@localhost;
 grant select on test.t1 to CUser@localhost;
 grant select on test.t1 to CUser@LOCALHOST;
 flush privileges;
@@ -103,6 +99,7 @@ DROP USER CUser@LOCALHOST;
 
 ### column grants
 
+create user  CUser@localhost;
 grant select(a) on test.t1 to CUser@localhost;
 grant select(a) on test.t1 to CUser@LOCALHOST;
 flush privileges;
@@ -130,6 +127,7 @@ drop table t1;
 
 # revoke on a specific DB only
 
+create user  CUser2@LOCALHOST;
 grant select on test.* to CUser2@localhost;
 grant select on test.* to CUser2@LOCALHOST;
 flush privileges;

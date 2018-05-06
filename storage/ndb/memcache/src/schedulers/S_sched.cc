@@ -1,29 +1,32 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public Licensein
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <sys/errno.h>
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 
 /* Memcache headers */
@@ -186,7 +189,7 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   /* Test validity of configuration */
   if(options.force_send < 0 || options.force_send > 2) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
-    assert(options.force_send >= 0 || options.force_send <= 2);
+    assert(options.force_send >= 0 && options.force_send <= 2);
   }
   if(options.n_connections < 0 || options.n_connections > 4) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
@@ -824,9 +827,8 @@ void * S::Connection::run_ndb_poll_thread() {
   DEBUG_ENTER();
 
   NdbInstance *inst;
-  Ndb ** ready_list;
   int wait_timeout_millisec = 5000;
-  int min_ready;
+  int pct_ready;
   int in_flight = 0;
   
   while(1) {
@@ -841,24 +843,24 @@ void * S::Connection::run_ndb_poll_thread() {
       inst->next = 0;
       DEBUG_PRINT(" ** adding %d.%d to wait group ** ",
                   inst->wqitem->pipeline->id, inst->wqitem->id);
-      pollgroup->addNdb(inst->db);
-      n_added++;
-      in_flight++;
+      if(! pollgroup->push(inst->db)) {
+        n_added++;
+        in_flight++;
+      }
     }
 
     /* What's the minimum number of ready Ndb's to wake up for? */
-    int n = n_added / 4;
-    min_ready = n > 0 ? n : 1;
+    pct_ready = (n_added > 4) ? 25 : 1;
         
     /* Wait until something is ready to poll */
-    int nwaiting = pollgroup->wait(ready_list, wait_timeout_millisec, min_ready);
+    int nwaiting = pollgroup->wait(wait_timeout_millisec, pct_ready);
 
     /* Poll the ones that are ready */
     if(nwaiting > 0) {
       for(int i = 0; i < nwaiting ; i++) {
         in_flight--;
         assert(in_flight >= 0);
-        Ndb *db = ready_list[i];
+        Ndb *db = pollgroup->pop();
         inst = (NdbInstance *) db->getCustomData();
         DEBUG_PRINT("Polling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
         db->pollNdb(0, 1);
@@ -882,7 +884,6 @@ void * S::Connection::run_ndb_poll_thread() {
       }
     }
   }
-  return 0; /* not reached */
   return 0; /* not reached */
 }
 

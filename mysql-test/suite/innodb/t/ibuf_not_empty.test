@@ -1,16 +1,19 @@
---source include/have_innodb.inc
 # innodb_change_buffering_debug option is debug only
 --source include/have_debug.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
 
 CREATE TABLE t1(
-	a INT AUTO_INCREMENT PRIMARY KEY,
-	b CHAR(1),
-	c INT,
-	INDEX(b))
+        a INT AUTO_INCREMENT PRIMARY KEY,
+        b CHAR(1),
+        c INT,
+        INDEX(b))
 ENGINE=InnoDB STATS_PERSISTENT=0;
 
 # The flag innodb_change_buffering_debug is only available in debug builds.

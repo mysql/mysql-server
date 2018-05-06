@@ -4,8 +4,6 @@
 # and all its fields. Since the table only returns values if the plugin is
 # loaded, all queries will return "No such row" or "0"
 #
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 --let $channel_name= query_get_value(SELECT Channel_Name from performance_schema.replication_group_members, Channel_Name, 1)
 --let $assert_text= The value of channel name should be empty

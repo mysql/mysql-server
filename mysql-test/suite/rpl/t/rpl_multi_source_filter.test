@@ -1,0 +1,570 @@
+# ==== Purpose ====
+#
+# With multiple channels, verify that per-channel filters can be configured
+# by CHANGE REPLICATION FILTER filter [, filter...] FOR CHANNEL
+# <channel_name> and these filters works well, channels copy global
+# replication filters to its per-channel replication filters if there are
+# no per-channel replication filters and there are global replication
+# filters on the filter type on creation, CHANGE REPLICATION FILTER filter
+# [, filter...] with no FOR CHANNEL clause works well, SHOW SLAVE STATUS
+# FOR CHANNEL <channel_name> and P_S.replication_applier_filters display
+# correct per-channel replication filters for the channel(s).
+# Example: Suppose channels '' and 'ch1' exist before the server starts,
+# the command line options --replicate-do-db=db1
+# --replicate-do-db=ch1:db2 --replicate-do-db=db3
+# --replicate-ignore-db=db4 --replicate-ignore-db=:db5
+# would result in:
+#   global replication filters: do_db=db1,db3, ignore_db=db4
+#   default channel: do_db=db1,db3 ignore_db=db5
+#   ch1: do_db=db2 ignore_db=db4
+# CHANGE REPLICATION FILTER is executed having effects of --replicate*.
+# CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db4) would result in:
+#   global replication filters: do_db=db4, ignore_db=db4
+#   default channel: do_db=db4 ignore_db=db5
+#   ch1: do_db=db4 ignore_db=db4
+#
+# ==== Implementation ====
+#
+# 0. Verify that if the user specifies a per-channel replication filter
+# through a command-line option (or in a configuration file) for default
+# channel which is not exist/configured as of now (i.e not present in
+# slave info tables yet), then the per-channel replication filter is
+# discarded with a warning.
+#
+# 1. Verify that all channels but default channel
+# which is not configured would copy global_db.t1
+# to its per-channel replication filter rule on
+# --replicate-ignore-table with the following setting:
+# --replicate-ignore-table=global_db.t1
+#
+# 2. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> acts on the specified channel
+# removing any existing replication filter if it has the same
+# filter type as one of specified replication filters, and
+# replacing them with the specified ones. Filter types that
+# were not explicitly listed in the statement are not modified.
+#
+# 3. On channel1, verify that filters works well with the following setting:
+# CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
+# CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
+#
+# 4. On channel3, verify that filters works well with the following setting:
+# CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
+# CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
+#
+# 5. On channel4, verify that filters works well with the following setting:
+# CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
+#
+# 6. On channel5, verify that filters works well with the following setting:
+# CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
+#
+# 7. On channel6, verify that filters works well with the following setting:
+# CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
+#
+# 8. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_name' throws an
+# error 'ER_SLAVE_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
+#
+# 9. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_name' displays the
+# specified channel's replication filters  after executing CHANGE REPLICATION
+# FILTER filter [, filter...] FOR CHANNEL <channel_name>.
+#
+# 10. Verify that performance_schema.replication_applier_filters can
+# display correct replication filters for all channels.
+#
+# 11. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> acts on the specified channel
+# removing any existing replication filter if it has the same
+# filter type as one of specified replication filters, and
+# replacing them with the specified ones. Filter types that
+# were not explicitly listed in the statement are not modified.
+#
+# 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+# correct per-channel replication filters on channel_1.
+#
+# 13. Verify that performance_schema.replication_applier_filters can
+# display correct replication filters for all channels after
+# executing CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name>.
+#
+# 14. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> works well, REPLICATE_DO_DB is
+# changed on 'channel_1' channel.
+#
+# 15. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+# clause does the following, both for every configured slave replication
+# channel's per-channel filter and for the global filters: For every
+# filter type, if the filter type is listed in the statement, then any
+# existing filter rules of that type are replaced by the filter rules
+# specified in the statement, otherwise the old value of the type is
+# retained.
+#
+# 16. Verify that CHANGE REPLICATION FILTER filter [, filter...] FOR
+# CHANNEL <channel_name> throws an error 'ER_SLAVE_CONFIGURATION'
+# if the specified channel is not configured.
+#
+# 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+# error 'ER_SLAVE_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
+#
+# Note: Out of convention, server 2 is always made a slave for multisource testing.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+#
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+--source include/not_parallel.inc
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc
+
+--echo #
+--echo # Set up masters server_1, server_3, server_4, server_5
+--echo # and server_6 with server_2 being a slave.
+--echo #
+--let $rpl_topology= 1->2,3->2,4->2,5->2,6->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+
+--echo #
+--echo # 0. Verify that if the user specifies a per-channel replication filter
+--echo # through a command-line option (or in a configuration file) for default
+--echo # channel which is not exist/configured as of now (i.e not present in
+--echo # slave info tables yet), then the per-channel replication filter is
+--echo # discarded with a warning.
+--echo #
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_multi_source_filter
+--let $assert_count = 1
+--let $assert_select = There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.
+--let $assert_text = Found the expected warning "There are per-channel replication filter(s) configured for channel '' which does not exist. The filter(s) have been discarded.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 1. Verify that all channels but default channel
+--echo # which is not configured would copy global_db.t1
+--echo # to its per-channel replication filter rule on
+--echo # --replicate-ignore-table with the following setting:
+--echo # --replicate-ignore-table=global_db.t1
+--echo #
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx);
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx) FOR CHANNEL 'channel_1';
+
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--source include/rpl_stop_slaves.inc
+--echo #
+--echo # 2. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+--echo # FOR CHANNEL <channel_name> acts on the specified channel
+--echo # removing any existing replication filter if it has the same
+--echo # filter type as one of specified replication filters, and
+--echo # replacing them with the specified ones. Filter types that
+--echo # were not explicitly listed in the statement are not modified.
+--echo #
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db%.t1%') FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db%.t1%') FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db4,db44)) FOR CHANNEL 'channel_4';
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
+
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--source include/rpl_start_slaves.inc
+
+--echo #
+--echo # Create databases and tables on server_1
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE DATABASE db1;
+CREATE DATABASE db11;
+CREATE DATABASE db111;
+USE db1;
+CREATE TABLE db1.t1 (c1 int);
+INSERT INTO db1.t1 VALUES (1);
+CREATE TABLE db1.t11 (c1 int);
+INSERT INTO db1.t11 VALUES (1);
+
+CREATE TABLE db1.t2 (c1 int);
+INSERT INTO db1.t2 VALUES (1);
+
+--echo #
+--echo # Create databases and tables on server_3
+--echo #
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+CREATE DATABASE db3;
+CREATE DATABASE db33;
+CREATE DATABASE db333;
+USE db3;
+CREATE TABLE db3.t1 (c1 int);
+INSERT INTO db3.t1 VALUES (1);
+CREATE TABLE db3.t11 (c1 int);
+CREATE TABLE db3.t2 (c1 int);
+INSERT INTO db3.t2 VALUES (1);
+USE db333;
+CREATE TABLE db333.t1 (c1 int);
+INSERT INTO db333.t1 VALUES (1);
+
+--echo #
+--echo # Create databases and tables on server_3
+--echo #
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE db4.t4 (c1 int);
+
+--echo #
+--echo # Create databases and tables on server_5
+--echo #
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+CREATE DATABASE db5;
+CREATE DATABASE db55;
+USE db5;
+CREATE TABLE db5.t1 (c1 int);
+INSERT INTO db5.t1 VALUES (1);
+CREATE TABLE db5.t2 (c1 int);
+INSERT INTO db5.t2 VALUES (1);
+USE db55;
+CREATE TABLE db55.t1 (c1 int);
+INSERT INTO db55.t1 VALUES (1);
+
+--echo #
+--echo # Create databases and tables on server_6
+--echo #
+--let $rpl_connection_name= server_6
+--source include/rpl_connection.inc
+CREATE DATABASE db6;
+CREATE DATABASE db66;
+USE db6;
+CREATE TABLE db6.t1 (c1 int);
+INSERT INTO db6.t1 VALUES (1);
+CREATE TABLE db6.t2 (c1 int);
+INSERT INTO db6.t2 VALUES (1);
+USE db66;
+CREATE TABLE db66.t1 (c1 int);
+INSERT INTO db66.t1 VALUES (1);
+
+
+--echo #
+--echo # Sync the slave (server_2) with all masters
+--echo #
+# Sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Sync the slave with server_3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Sync the slave with server_4
+--let $rpl_connection_name= server_4
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_4'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Sync the slave with server_5
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_5'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Sync the slave with server_6
+--let $rpl_connection_name= server_6
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_6'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Check that db1 is replicated and both db11 and db111 are
+--echo # filtered out on channel_1 with CHANGE REPLICATION FILTER
+--echo # REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1'.
+--echo # Check that db33 is filtered out and both db3 and db333 are
+--echo # replicated on channel_3 with CHANGE REPLICATION FILTER
+--echo # REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3'.
+--echo #
+SHOW DATABASES;
+
+--echo #
+--echo # 3. All matched tables (t1, t11) from db1 are replicated, but
+--echo # unmatched t2 on channel_1 with
+--echo # CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%)
+--echo # FOR CHANNEL 'channel_1';
+--echo #
+SHOW TABLES FROM db1;
+--let $assert_text= Slave should have 1 row in db1.t1 on channel_1
+--let $assert_cond= `SELECT COUNT(*) = 1 `rows` FROM db1.t1`
+--source include/assert.inc
+--let $assert_text= Slave should have 1 row in db1.t11 on channel_1
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db1.t11`
+--source include/assert.inc
+
+--echo #
+--echo # 4. All matched tables db3.t1, db3.t11 and db333.t1 are filtered
+--echo # out, but db3.t2 on channel_3 with
+--echo # CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%)
+--echo # FOR CHANNEL 'channel_3';
+--echo #
+SHOW TABLES FROM db3;
+SHOW TABLES FROM db333;
+--let $assert_text= Slave should have 1 row in db3.t2 on channel_3
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db3.t2`
+--source include/assert.inc
+
+--echo #
+--echo # 5. Table t4 in db4 is replicated and there is no db44 created on
+--echo # channel_4 with CHANGE REPLICATION FILTER
+--echo # REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
+--echo #
+SHOW TABLES FROM db4;
+--error ER_BAD_DB_ERROR
+SHOW TABLES FROM db44;
+
+--echo #
+--echo # 6. The matched table db5.t1 is replicated, other tables
+--echo # are filtered out on channel_5 with
+--echo # CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1)
+--echo # FOR CHANNEL 'channel_5';
+--echo #
+SHOW TABLES FROM db5;
+SHOW TABLES FROM db55;
+--let $assert_text= Slave should have 1 row in db5.t1 on channel_5
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db5.t1`
+--source include/assert.inc
+
+--echo #
+--echo # 7. The matched table db6.t1 is filtered out, other tables
+--echo # are replicated on channel_6 with
+--echo # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1)
+--echo # FOR CHANNEL 'channel_6';
+--echo #
+
+SHOW TABLES FROM db6;
+SHOW TABLES FROM db66;
+--let $assert_text= Slave should have 1 row in db6.t2 on channel_6
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db6.t2`
+--source include/assert.inc
+--let $assert_text= Slave should have 1 row in db66.t1 on channel_6
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db66.t1`
+--source include/assert.inc
+
+--echo #
+--echo # Stop slave (on server_2).
+--echo #
+--source include/rpl_stop_slaves.inc
+
+--echo #
+--echo # 8. SHOW SLAVE STATUS FOR CHANNEL 'channel_2' throws an error, since
+--echo # the channel does not exist.
+--echo #
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
+
+--echo #
+--echo # 9.1 SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays replication
+--echo # filters set by the following commands:
+--echo # CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
+--echo # CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
+--echo #
+--let $rpl_channel_name= 'channel_1'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 9.2 SHOW SLAVE STATUS FOR CHANNEL 'channel_3' displays replication
+--echo # filters set by the following commands:
+--echo # CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
+--echo # CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
+--echo #
+--let $rpl_channel_name= 'channel_3'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 9.3 SHOW SLAVE STATUS FOR CHANNEL 'channel_4' displays replication
+--echo # filters set by the following command:
+--echo # CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
+--echo #
+--let $rpl_channel_name= 'channel_4'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 9.4 SHOW SLAVE STATUS FOR CHANNEL 'channel_5' displays replication
+--echo # filters set by the following command:
+--echo # CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
+--echo #
+--let $rpl_channel_name= 'channel_5'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 9.5 SHOW SLAVE STATUS FOR CHANNEL 'channel_6' displays replication
+--echo # filters set by the following command:
+--echo # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
+--echo #
+--let $rpl_channel_name= 'channel_6'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 10. Verify that performance_schema.replication_applier_filters can
+--echo # display correct replication filters for all channels.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--echo #
+--echo # 11. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+--echo # FOR CHANNEL <channel_name> acts on the specified channel
+--echo # removing any existing replication filter if it has the same
+--echo # filter type as one of specified replication filters, and
+--echo # replacing them with the specified ones. Filter types that
+--echo # were not explicitly listed in the statement are not modified.
+--echo #
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('initfiled%.t%') FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db2,`db32`,`db,3`), REPLICATE_DO_DB = (db1,my_db3,my_db4), Replicate_Ignore_DB = (my_initfiledb3) FOR CHANNEL 'channel_1';
+--echo #
+--echo # 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+--echo # the following filters:
+--echo # Replicate_Do_DB = 'db1,my_db3,my_db4'
+--echo # Replicate_Ignore_DB = 'my_initfiledb3'
+--echo # Replicate_Do_Table = ''
+--echo # Replicate_Ignore_Table = 'db3.initfilet3'
+--echo # Replicate_Wild_Do_Table = 'initfiled%.t%'
+--echo # Replicate_Wild_Ignore_Table = ''
+--echo # Replicate_Rewrite_DB = ''
+--echo #
+--let $rpl_channel_name= 'channel_1'
+--let $status_items= Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table, Replicate_Ignore_Table, Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table, Replicate_Rewrite_DB
+--source include/show_slave_status.inc
+
+--echo #
+--echo # 13. Verify that performance_schema.replication_applier_filters can
+--echo # display correct replication filters for all channels after
+--echo # executing CHANGE REPLICATION FILTER filter [, filter...]
+--echo # FOR CHANNEL <channel_name>.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--echo #
+--echo # 14. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+--echo # FOR CHANNEL <channel_name> works well, REPLICATE_DO_DB is
+--echo # changed on 'channel_1' channel.
+--echo #
+
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=() FOR CHANNEL 'channel_1';
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--echo #
+--echo # 15. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+--echo # clause does the following, both for every configured slave replication
+--echo # channel's per-channel filter and for the global filters: For every
+--echo # filter type, if the filter type is listed in the statement, then any
+--echo # existing filter rules of that type are replaced by the filter rules
+--echo # specified in the statement, otherwise the old value of the type is
+--echo # retained.
+--echo #
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbB), REPLICATE_IGNORE_DB=(dbC), REPLICATE_IGNORE_DB=(dbD);
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+
+--echo #
+--echo # 16. Verify that CHANGE REPLICATION FILTER filter [, filter...] FOR
+--echo # CHANNEL <channel_name> throws an error 'ER_SLAVE_CONFIGURATION'
+--echo # if the specified channel is not configured.
+--echo #
+--error ER_SLAVE_CONFIGURATION
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbA) FOR CHANNEL '';
+
+--echo #
+--echo # 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+--echo # error 'ER_SLAVE_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
+--echo #
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+RESET SLAVE FOR CHANNEL 'channel_2';
+
+--source include/rpl_start_slaves.inc
+
+# Now do the clean up
+--echo connection_server_1
+--connection server_1
+DROP DATABASE db1;
+DROP DATABASE db11;
+DROP DATABASE db111;
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo connection_server_3
+--connection server_3
+DROP DATABASE db3;
+DROP DATABASE db33;
+DROP DATABASE db333;
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo connection_server_4
+--connection server_4
+DROP DATABASE db4;
+--let $rpl_channel_name= 'channel_4'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo connection_server_5
+--connection server_5
+DROP DATABASE db5;
+DROP DATABASE db55;
+--let $rpl_channel_name= 'channel_5'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo connection_server_6
+--connection server_6
+DROP DATABASE db6;
+DROP DATABASE db66;
+--let $rpl_channel_name= 'channel_6'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

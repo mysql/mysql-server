@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --echo #
 --echo # Bug 21922176 - PREBUILT->SEARCH_TUPLE CREATED WITHOUT INCLUDING
@@ -216,5 +215,51 @@ CREATE TABLE t1 (
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
 VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+     col1 int(11) NOT NULL,
+     col2 int(11) DEFAULT NULL,
+     col3 int(11) NOT NULL,
+     col4 int(11) DEFAULT NULL,
+     col5 int(11) GENERATED ALWAYS AS ((col2 - col4)) VIRTUAL,
+     col6 int(11) GENERATED ALWAYS AS ((col5 + col1)) VIRTUAL,
+     col7 bigint(20) GENERATED ALWAYS AS ((col2 / col1)) VIRTUAL,
+     col8 int(11) GENERATED ALWAYS AS ((col5 % col5)) VIRTUAL,
+     col9 text,
+     KEY idx1 (col5 DESC),
+     KEY idx2 (col6)
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SHOW CREATE TABLE t1;
+CHECK TABLE t1;
+
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (10, 50, 40, 300, "lope");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (100, 3240, 4000, 11, "dskf");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (5, 400, 20, 900, "hqal");
+
+SELECT * FROM t1;
+SELECT col5 FROM t1;
+SELECT col6 FROM t1;
+
+SELECT col7 FROM t1;
+ALTER TABLE t1 ADD INDEX idx3 (col7 DESC);
+CHECK TABLE t1;
+SELECT col7 FROM t1;
+
+SELECT col7 FROM t1;
+ALTER TABLE t1 DROP INDEX idx3, ADD INDEX idx3 (col7 ASC);
+CHECK TABLE t1;
+SELECT col7 FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 25899959 - SERVER CRASH WHILE TRYING TO ADD A VIRTUAL COLUMN AND ADD INDEX ON IT
+--echo #
+
+CREATE TABLE t1 (doc json DEFAULT NULL);
+ALTER TABLE t1 ADD Name char(52) AS (doc->>"$.Name"), ADD INDEX n (Name);
+SHOW CREATE TABLE t1;
 
 DROP TABLE t1;

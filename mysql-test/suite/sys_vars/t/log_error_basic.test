@@ -7,8 +7,8 @@ select @@session.log_error;
 show global variables like 'log_error';
 show session variables like 'log_error';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='log_error';
-select * from information_schema.session_variables where variable_name='log_error';
+select * from performance_schema.global_variables where variable_name='log_error';
+select * from performance_schema.session_variables where variable_name='log_error';
 --enable_warnings
 
 #

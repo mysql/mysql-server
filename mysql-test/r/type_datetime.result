@@ -65,8 +65,6 @@ t
 0000-00-00 00:00:00
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
 Warnings:
@@ -98,8 +96,6 @@ id	dt
 4	2003-09-15 01:20:30
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `t1` (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
 `numfacture` int(6) unsigned NOT NULL default '0',
@@ -222,7 +218,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` date DEFAULT '1962-03-03',
   `dt` datetime DEFAULT '1962-03-03 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ();
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
@@ -355,13 +351,13 @@ f2	f3
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-02-03 12:34:56	2001-02-03 12:34:56
 2002-04-06 11:22:33	2002-04-06 11:22:33
-select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1'));
+select f1,f2,f3 from t1,t2,t3 where (f1,'1') in ((f2,'1'),(f3,'1')) order by f1,f2,f3;
 f1	f2	f3
 2001-01-01	2001-01-01 00:00:00	2001-01-01 00:00:00
-2001-01-01	2001-02-03 12:34:56	2001-01-01 00:00:00
-2001-01-01	2002-04-06 11:22:33	2001-01-01 00:00:00
 2001-01-01	2001-01-01 00:00:00	2001-02-03 12:34:56
 2001-01-01	2001-01-01 00:00:00	2002-04-06 11:22:33
+2001-01-01	2001-02-03 12:34:56	2001-01-01 00:00:00
+2001-01-01	2002-04-06 11:22:33	2001-01-01 00:00:00
 select f1 from t1 where ('1',f1) in (('1','01-01-01'),('1','2001-1-1 0:0:0'),('1','02-02-02'));
 f1
 2001-01-01
@@ -371,7 +367,7 @@ least(cast('01-01-01' as date), '01-01-02')
 2001-01-01
 select greatest(cast('01-01-01' as date), '01-01-02');
 greatest(cast('01-01-01' as date), '01-01-02')
-01-01-02
+2001-01-02
 select least(cast('01-01-01' as date), '01-01-02') + 0;
 least(cast('01-01-01' as date), '01-01-02') + 0
 20010101
@@ -527,55 +523,54 @@ create table t1 (id int(10) not null, cur_date datetime not null);
 create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
-explain extended
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `id`,'2007-04-25 18:30:22' AS `cur_date` from dual where <in_optimizer>('1',<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t1` `x1` where 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `id`,'2007-04-25' AS `cur_date` from dual where <in_optimizer>('1',<exists>(/* select#2 */ select `test`.`x1`.`id` from `test`.`t2` `x1` where 0))
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
 insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
 insert into t2 (id, cur_date) values (2, '2007-04-26');
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
@@ -616,7 +611,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` date DEFAULT '1962-03-03',
   `dt` datetime DEFAULT '1962-03-03 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ();
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
@@ -665,7 +660,6 @@ Warning	1264	Out of range value for column 'dt1' at row 1
 DELETE IGNORE  FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
 # Should be empty
 SELECT * FROM t1;
 dt1
@@ -681,11 +675,10 @@ End of 5.1 tests
 CREATE TABLE t1 (Id INT, AtTime DATETIME, KEY AtTime (AtTime));
 SET NAMES CP850;
 INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
-EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
+EXPLAIN SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	AtTime	AtTime	6	const	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from `test`.`t1` FORCE INDEX (`attime`) where (`test`.`t1`.`AtTime` = '2010-02-22 18:40:07')
 DROP TABLE t1;
 SET NAMES latin1;
@@ -706,6 +699,9 @@ year	month
 2010	4
 create table t2(f1 datetime primary key);
 insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
 f1
 2010-04-01 00:00:00
@@ -806,7 +802,6 @@ SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 DATETIME DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 DATETIME DEFAULT '0000-00-00 00:00:00');
@@ -879,9 +874,76 @@ ALTER TABLE t1 ADD c3 DATETIME DEFAULT '0000-00-00';
 ALTER TABLE t1 ADD c4 DATETIME DEFAULT '2012-02-00';
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # END of Test for bug#11747847 - 34280
 #
 # End of 5.6 tests
 #
+#
+#Bug#25586673: ASSERT IN DA FOR SQL_CMD_UPDATE::UPDATE_SINGLE_TABLE
+#Bug#25586959: SERVER CRASH IN SQL_CMD_DELETE::DELETE_FROM_SINGLE_TABLE
+#
+CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
+col_time_nokey time NOT NULL,
+col_int_nokey INT NOT NULL,
+col_datetime_key datetime not null,
+key(col_datetime_key)) ENGINE= InnoDB;
+DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
+                         AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
+ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
+WHERE `col_int_nokey` > `col_int_nokey`
+        AND TIMESTAMP('18:16:35.025453') IS  NULL;
+ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
+UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
+`col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
+ERROR 22007: Incorrect datetime value: '2nd:26' for column 'col_datetime_key' at row 1
+DROP TABLE test.t;
+#
+# Bug#25866743 - ASSERTION FAILED: FALSE IN
+#                ITEM_FUNC_GEOMETRY_FROM_TEXT::VAL_STR
+# Bug#25866143 CRASH IN ST_ASWKB STRING::COPY
+#
+do is_ipv4_mapped(bin(maketime(11111,exp(repeat('1',32)),'')));
+ERROR 22003: DOUBLE value is out of range in 'exp(repeat('1',32))'
+do ifnull((bin_to_uuid(uuid_to_bin(date_format('7088-02-14'
+   ,0xabbd95)))),(maketime('4678-07-20 03:51:44.174847',1,'b')));
+ERROR HY000: Incorrect string value: '«½•' for function uuid_to_bin
+do ucase(insert(maketime(9.565398e+307 ,'',
+st_longfromgeohash(('4358-04-12 03:45:08.727399'))),
+0xdc0823,6756,release_all_locks()));
+ERROR HY000: Incorrect geohash value: '4358-04-12 03:45:08.727399' for function ST_LONGFROMGEOHASH
+do soundex(maketime(cast((2530967061762658367) as decimal),
+exp(repeat('1',32)),((period_add(579349005,27636))xor (sha(current_user)))));
+ERROR 22003: DOUBLE value is out of range in 'exp(repeat('1',32))'
+do st_mlinefromtext(
+maketime(
+now(),
+instr(1,pow(15270551309908264860,100)),
+31
+)
+);
+ERROR 22003: DOUBLE value is out of range in 'pow(15270551309908264860,100)'
+#
+# Bug#26147274 ASSERTION `ITEM->MAYBE_NULL' AT MAKE_SORTKEY_FROM_ITEM
+#              IN SQL/FILESORT.CC
+#
+CREATE TABLE t1 (
+col_datetime_1_not_null datetime NOT NULL,
+col_datetime_2_not_null datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SET sql_mode=NO_ENGINE_SUBSTITUTION;
+INSERT INTO t1 VALUES ('0000-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+INSERT INTO t1 VALUES ('9999-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+SET sql_mode=default;
+SELECT * FROM t1 order by col_datetime_1_not_null;
+col_datetime_1_not_null	col_datetime_2_not_null
+0000-00-00 00:00:00	2005-12-22 19:53:31
+9999-00-00 00:00:00	2005-12-22 19:53:31
+SELECT LEAST( '2005-06-05',
+LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
+AS c1 FROM t1 ORDER BY c1;
+c1
+0000-00-00 00:00:00
+2005-06-05 00:00:00
+DROP TABLE t1;

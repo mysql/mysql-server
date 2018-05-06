@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   `c3` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
@@ -102,7 +102,6 @@ test	t1	c2	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
 test	t1	c2	LAST_UPDATE	size	1	NULL	Number of pages in the index
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
-ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
 ANALYZE TABLE t1_c2_stats;
 Table	Op	Msg_type	Msg_text
@@ -157,10 +156,13 @@ WHERE stat_name = 'n_diff_pfx01' AND stat_description = 'c2';
 INSERT INTO mysql.innodb_index_stats SELECT * FROM t1_c2_stats;
 DROP TABLE t1_c2_stats;
 CREATE INDEX c2d ON t1(c2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE		
-t1	1	c2d	1	c2	A	5	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	c1	A	80	NULL	NULL		BTREE			YES
+t1	1	c2d	1	c2	A	5	NULL	NULL	YES	BTREE			YES
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c2d	c2d	5	NULL	32	100.00	Using where; Using index
@@ -174,7 +176,7 @@ t1	CREATE TABLE `t1` (
   `c3` text,
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
 SET lock_wait_timeout = 10;
 ALTER TABLE t1 CHANGE c2 c22 INT, DROP INDEX c2d, ADD INDEX c2e(c22),
@@ -211,26 +213,23 @@ name	count
 ddl_online_create_index	1
 ddl_pending_alter_table	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
-name	pos
-c2	0
+NAME	POS
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
 ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
@@ -280,28 +279,25 @@ SET lock_wait_timeout = 1;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c3p5_created WAIT_FOR ins_done';
 ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
-name	pos
-c3	0
+NAME	POS
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 INSERT INTO t1 VALUES(347,33101,NULL);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -312,7 +308,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c22f`),
   KEY `c2f` (`c22f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;

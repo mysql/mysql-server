@@ -1,5 +1,5 @@
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -30,4 +30,3 @@ eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' REPLACE INTO TABLE t1 FIELD
 SELECT * FROM t1 ORDER BY c1;
 remove_file $MYSQLTEST_VARDIR/tmp/t1.dat;
 DROP TABLE t1;
-

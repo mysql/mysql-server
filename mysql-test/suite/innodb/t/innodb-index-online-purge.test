@@ -1,5 +1,7 @@
---source include/have_innodb.inc
+
 --source include/have_debug_sync.inc
+# This test fails sporadically on valgrind, hence skipping
+--source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -54,8 +56,9 @@ CREATE INDEX c1 ON t (c(1));
 connection default;
 SET DEBUG_SYNC='now WAIT_FOR created_t';
 UPDATE t SET c='ab';
-# Allow purge to kick in. TODO: Trigger this faster, somehow.
-SELECT SLEEP(10);
+
+--source include/wait_innodb_all_purged.inc
+
 SET DEBUG_SYNC='now SIGNAL dml_done_u';
 connection con2;
 reap;

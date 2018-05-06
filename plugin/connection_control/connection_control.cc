@@ -1,60 +1,67 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/plugin_audit.h>         /* mysql_event_connection */
+#include "plugin/connection_control/connection_control.h"
+
+#include <mysql/plugin_audit.h> /* mysql_event_connection */
+#include <stddef.h>
+
+#include <mysql/components/services/log_builtins.h>
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_version.h"
-#include <my_global.h>
-#include <my_atomic.h>
+#include "mysqld_error.h"
+#include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
+#include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
 
-#include "connection_control.h"
-#include "connection_delay_api.h"       /* connection_delay apis */
-#include "connection_control_coordinator.h" /* g_connection_event_coordinator */
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
-namespace connection_control
-{
-  class Connection_control_error_handler : public Error_handler
-  {
-  public:
-    Connection_control_error_handler(MYSQL_PLUGIN plugin_info)
-      : m_plugin_info(plugin_info)
-    {}
+namespace connection_control {
+class Connection_control_error_handler : public Error_handler {
+ public:
+  void handle_error(longlong errcode, ...) {
+    va_list vl;
+    va_start(vl, errcode);
+    LogPluginErrV(ERROR_LEVEL, errcode, vl);
+    va_end(vl);
+  }
+};
+}  // namespace connection_control
 
-    void handle_error(const char * error_message)
-    {
-      my_plugin_log_message(&m_plugin_info,
-                            MY_ERROR_LEVEL,
-                            error_message);
-    }
-  private:
-    MYSQL_PLUGIN m_plugin_info;
-  };
-}
-
-using connection_control::Connection_event_coordinator;
-using connection_control::Connection_event_coordinator_services;
+using connection_control::Connection_control_error_handler;
 using connection_control::Connection_control_statistics;
 using connection_control::Connection_control_variables;
+using connection_control::Connection_event_coordinator;
+using connection_control::Connection_event_coordinator_services;
 using connection_control::Error_handler;
-using connection_control::Connection_control_error_handler;
 
 Connection_control_statistics g_statistics;
 Connection_control_variables g_variables;
 
-Connection_event_coordinator *g_connection_event_coordinator= 0;
-MYSQL_PLUGIN connection_control_plugin_info= 0;
-
+Connection_event_coordinator *g_connection_event_coordinator = 0;
+MYSQL_PLUGIN connection_control_plugin_info = 0;
 
 /**
   event_notify() implementation for connection_control
@@ -68,32 +75,25 @@ MYSQL_PLUGIN connection_control_plugin_info= 0;
   @param [in] event          mysql_event_connection handle
 */
 
-static int
-connection_control_notify(MYSQL_THD thd,
-                          mysql_event_class_t event_class,
-                          const void *event)
-{
+static int connection_control_notify(MYSQL_THD thd,
+                                     mysql_event_class_t event_class,
+                                     const void *event) {
   DBUG_ENTER("connection_control_notify");
-  try
-  {
-    if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
-    {
-      const struct mysql_event_connection *connection_event=
-        (const struct mysql_event_connection *) event;
-      Connection_control_error_handler error_handler(connection_control_plugin_info);
+  try {
+    if (event_class == MYSQL_AUDIT_CONNECTION_CLASS) {
+      const struct mysql_event_connection *connection_event =
+          (const struct mysql_event_connection *)event;
+      Connection_control_error_handler error_handler;
       /** Notify event coordinator */
       g_connection_event_coordinator->notify_event(thd, &error_handler,
                                                    connection_event);
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
     /* Happily ignore any bad behavior */
   }
 
   DBUG_RETURN(0);
 }
-
 
 /**
   Plugin initialization function
@@ -105,28 +105,29 @@ connection_control_notify(MYSQL_THD thd,
     @retval 1 Failure
 */
 
-static int
-connection_control_init(MYSQL_PLUGIN plugin_info)
-{
-  connection_control_plugin_info= plugin_info;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
-  g_connection_event_coordinator= new Connection_event_coordinator();
-  if (!g_connection_event_coordinator)
-  {
-    error_handler.handle_error("Failed to initialize Connection_event_coordinator");
+static int connection_control_init(MYSQL_PLUGIN plugin_info) {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
+
+  connection_control_plugin_info = plugin_info;
+  Connection_control_error_handler error_handler;
+  g_connection_event_coordinator = new Connection_event_coordinator();
+  if (!g_connection_event_coordinator) {
+    error_handler.handle_error(ER_CONN_CONTROL_EVENT_COORDINATOR_INIT_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
 
   if (init_connection_delay_event((Connection_event_coordinator_services *)
-                                  g_connection_event_coordinator,
-                                  &error_handler))
-  {
+                                      g_connection_event_coordinator,
+                                  &error_handler)) {
     delete g_connection_event_coordinator;
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
+
   return 0;
 }
-
 
 /**
   Plugin deinitialization
@@ -136,38 +137,37 @@ connection_control_init(MYSQL_PLUGIN plugin_info)
   @returns success
 */
 
-static int
-connection_control_deinit(void *arg MY_ATTRIBUTE((unused)))
-{
+static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
   delete g_connection_event_coordinator;
-  g_connection_event_coordinator= 0;
+  g_connection_event_coordinator = 0;
   connection_control::deinit_connection_delay_event();
-  connection_control_plugin_info= 0;
+  connection_control_plugin_info = 0;
+
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 
-
 /** Connection_control plugin descriptor */
-static struct st_mysql_audit connection_control_descriptor=
-{
-  MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version */
-  NULL,                                             /* release_thd() */
-  connection_control_notify,                        /* event_notify() */
-  { 0,                                              /* MYSQL_AUDIT_GENERAL_CLASS */
-    (unsigned long) MYSQL_AUDIT_CONNECTION_CONNECT |
-    MYSQL_AUDIT_CONNECTION_CHANGE_USER,             /* MYSQL_AUDIT_CONNECTION_CLASS */
-    0,                                              /* MYSQL_AUDIT_PARSE_CLASS */
-    0,                                              /* MYSQL_AUDIT_AUTHORIZATION_CLASS */
-    0,                                              /* MYSQL_AUDIT_TABLE_ACCESS_CLASS */
-    0,                                              /* MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
-    0,                                              /* MYSQL_AUDIT_SERVER_STARTUP_CLASS */
-    0,                                              /* MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
-    0,                                              /* MYSQL_AUDIT_COMMAND_CLASS */
-    0,                                              /* MYSQL_AUDIT_QUERY_CLASS */
-    0,                                              /* MYSQL_AUDIT_STORED_PROGRAM_CLASS */
-  }        /* class mask */
+static struct st_mysql_audit connection_control_descriptor = {
+    MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
+    NULL,                          /* release_thd() */
+    connection_control_notify,     /* event_notify() */
+    {
+        0, /* MYSQL_AUDIT_GENERAL_CLASS */
+        (unsigned long)MYSQL_AUDIT_CONNECTION_CONNECT |
+            MYSQL_AUDIT_CONNECTION_CHANGE_USER, /* MYSQL_AUDIT_CONNECTION_CLASS
+                                                 */
+        0,                                      /* MYSQL_AUDIT_PARSE_CLASS */
+        0, /* MYSQL_AUDIT_AUTHORIZATION_CLASS */
+        0, /* MYSQL_AUDIT_TABLE_ACCESS_CLASS */
+        0, /* MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
+        0, /* MYSQL_AUDIT_SERVER_STARTUP_CLASS */
+        0, /* MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
+        0, /* MYSQL_AUDIT_COMMAND_CLASS */
+        0, /* MYSQL_AUDIT_QUERY_CLASS */
+        0, /* MYSQL_AUDIT_STORED_PROGRAM_CLASS */
+    }      /* class mask */
 };
-
 
 /**
   check() function for connection_control_failed_connections_threshold
@@ -184,26 +184,20 @@ static struct st_mysql_audit connection_control_descriptor=
     @retval 1 Value is not within valid bounds
 */
 
-static int
-check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                   struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                                   void *save MY_ATTRIBUTE((unused)),
-                                   struct st_mysql_value *value)
-{
+static int check_failed_connections_threshold(
+    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    void *save MY_ATTRIBUTE((unused)), struct st_mysql_value *value) {
   longlong new_value;
-  if (value->val_int(value, &new_value))
-    return 1;                           /* NULL value */
+  if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
   if (new_value >= connection_control::MIN_THRESHOLD &&
-      new_value <= connection_control::MAX_THRESHOLD)
-  {
-    *(reinterpret_cast<longlong *>(save))= new_value;
+      new_value <= connection_control::MAX_THRESHOLD) {
+    *(reinterpret_cast<longlong *>(save)) = new_value;
     return 0;
   }
 
   return 1;
 }
-
 
 /**
   update() function for connection_control_failed_connections_threshold
@@ -214,42 +208,33 @@ check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param thd        Not used.
   @param var        Not used.
   @param var_ptr    Variable information
-  @param save       New value for connection_control_failed_connections_threshold
+  @param save       New value for
+  connection_control_failed_connections_threshold
 */
 
-static void
-update_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                    struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                                    void *var_ptr, const void *save)
-{
+static void update_failed_connections_threshold(
+    MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
   /*
     This won't result in overflow because we have already checked that this is
     within valid bounds.
   */
-  longlong new_value= *(reinterpret_cast<const longlong *>(save));
-  g_variables.failed_connections_threshold= (int64)new_value;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
-  g_connection_event_coordinator->notify_sys_var(&error_handler,
-                                                 OPT_FAILED_CONNECTIONS_THRESHOLD,
-                                                 &new_value);
+  longlong new_value = *(reinterpret_cast<const longlong *>(save));
+  g_variables.failed_connections_threshold = (int64)new_value;
+  Connection_control_error_handler error_handler;
+  g_connection_event_coordinator->notify_sys_var(
+      &error_handler, OPT_FAILED_CONNECTIONS_THRESHOLD, &new_value);
   return;
 }
 
-
 /** Declaration of connection_control_failed_connections_threshold */
 static MYSQL_SYSVAR_LONGLONG(
-  failed_connections_threshold,
-  g_variables.failed_connections_threshold,
-  PLUGIN_VAR_RQCMDARG,
-  "Failed connection threshold to trigger delay. Default is 3.",
-  check_failed_connections_threshold,
-  update_failed_connections_threshold,
-  connection_control::DEFAULT_THRESHOLD,
-  connection_control::MIN_THRESHOLD,
-  connection_control::MAX_THRESHOLD,
-  1
-);
-
+    failed_connections_threshold, g_variables.failed_connections_threshold,
+    PLUGIN_VAR_RQCMDARG,
+    "Failed connection threshold to trigger delay. Default is 3.",
+    check_failed_connections_threshold, update_failed_connections_threshold,
+    connection_control::DEFAULT_THRESHOLD, connection_control::MIN_THRESHOLD,
+    connection_control::MAX_THRESHOLD, 1);
 
 /**
   check() function for connection_control_min_connection_delay
@@ -266,27 +251,22 @@ static MYSQL_SYSVAR_LONGLONG(
     @retval 1 Value is not within valid bounds
 */
 
-static int
-check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                           void *save MY_ATTRIBUTE((unused)),
-                           struct st_mysql_value *value)
-{
+static int check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                      SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                      void *save MY_ATTRIBUTE((unused)),
+                                      struct st_mysql_value *value) {
   long long new_value;
-  int64 existing_value= g_variables.max_connection_delay;
-  if (value->val_int(value, &new_value))
-    return 1;                           /* NULL value */
+  int64 existing_value = g_variables.max_connection_delay;
+  if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
   if (new_value >= connection_control::MIN_DELAY &&
       new_value <= connection_control::MAX_DELAY &&
-      new_value <= existing_value)
-  {
-    *(reinterpret_cast<longlong *>(save))= new_value;
+      new_value <= existing_value) {
+    *(reinterpret_cast<longlong *>(save)) = new_value;
     return 0;
   }
   return 1;
 }
-
 
 /**
   update() function for connection_control_min_connection_delay
@@ -300,35 +280,25 @@ check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param save       New value for connection_control_min_connection_delay
 */
 
-static void
-update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
-{
-  longlong new_value= *(reinterpret_cast<const longlong *>(save));
-  g_variables.min_connection_delay= (int64)new_value;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
-  g_connection_event_coordinator->notify_sys_var(&error_handler,
-                                                 OPT_MIN_CONNECTION_DELAY,
-                                                 &new_value);
+static void update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                        SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                        void *var_ptr MY_ATTRIBUTE((unused)),
+                                        const void *save) {
+  longlong new_value = *(reinterpret_cast<const longlong *>(save));
+  g_variables.min_connection_delay = (int64)new_value;
+  Connection_control_error_handler error_handler;
+  g_connection_event_coordinator->notify_sys_var(
+      &error_handler, OPT_MIN_CONNECTION_DELAY, &new_value);
   return;
 }
 
-
 /** Declaration of connection_control_max_connection_delay */
 static MYSQL_SYSVAR_LONGLONG(
-  min_connection_delay,
-  g_variables.min_connection_delay,
-  PLUGIN_VAR_RQCMDARG,
-  "Maximum delay to be introduced. Default is 1000.",
-  check_min_connection_delay,
-  update_min_connection_delay,
-  connection_control::DEFAULT_MIN_DELAY,
-  connection_control::MIN_DELAY,
-  connection_control::MAX_DELAY,
-  1
-);
-
+    min_connection_delay, g_variables.min_connection_delay, PLUGIN_VAR_RQCMDARG,
+    "Maximum delay to be introduced. Default is 1000.",
+    check_min_connection_delay, update_min_connection_delay,
+    connection_control::DEFAULT_MIN_DELAY, connection_control::MIN_DELAY,
+    connection_control::MAX_DELAY, 1);
 
 /**
   check() function for connection_control_max_connection_delay
@@ -345,27 +315,22 @@ static MYSQL_SYSVAR_LONGLONG(
     @retval 1 Value is not within valid bounds
 */
 
-static int
-check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                           void *save MY_ATTRIBUTE((unused)),
-                           struct st_mysql_value *value)
-{
+static int check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                      SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                      void *save MY_ATTRIBUTE((unused)),
+                                      struct st_mysql_value *value) {
   long long new_value;
-  int64 existing_value= my_atomic_load64(&g_variables.min_connection_delay);
-  if (value->val_int(value, &new_value))
-    return 1;                           /* NULL value */
+  int64 existing_value = g_variables.min_connection_delay;
+  if (value->val_int(value, &new_value)) return 1; /* NULL value */
 
   if (new_value >= connection_control::MIN_DELAY &&
       new_value <= connection_control::MAX_DELAY &&
-      new_value >= existing_value)
-  {
-    *(reinterpret_cast<longlong *>(save))= new_value;
+      new_value >= existing_value) {
+    *(reinterpret_cast<longlong *>(save)) = new_value;
     return 0;
   }
   return 1;
 }
-
 
 /**
   update() function for connection_control_max_connection_delay
@@ -379,49 +344,35 @@ check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param save       New value for connection_control_max_connection_delay
 */
 
-static void
-update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
-{
-  longlong new_value= *(reinterpret_cast<const longlong *>(save));
-  my_atomic_store64(&g_variables.max_connection_delay, (int64)new_value);
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
-  g_connection_event_coordinator->notify_sys_var(&error_handler,
-                                                 OPT_MAX_CONNECTION_DELAY,
-                                                 &new_value);
+static void update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                        SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                        void *var_ptr MY_ATTRIBUTE((unused)),
+                                        const void *save) {
+  longlong new_value = *(reinterpret_cast<const longlong *>(save));
+  g_variables.max_connection_delay = (int64)new_value;
+  Connection_control_error_handler error_handler;
+  g_connection_event_coordinator->notify_sys_var(
+      &error_handler, OPT_MAX_CONNECTION_DELAY, &new_value);
   return;
 }
 
-
 /** Declaration of connection_control_max_connection_delay */
 static MYSQL_SYSVAR_LONGLONG(
-  max_connection_delay,
-  g_variables.max_connection_delay,
-  PLUGIN_VAR_RQCMDARG,
-  "Maximum delay to be introduced. Default is 2147483647.",
-  check_max_connection_delay,
-  update_max_connection_delay,
-  connection_control::DEFAULT_MAX_DELAY,
-  connection_control::MIN_DELAY,
-  connection_control::MAX_DELAY,
-  1
-);
-
+    max_connection_delay, g_variables.max_connection_delay, PLUGIN_VAR_RQCMDARG,
+    "Maximum delay to be introduced. Default is 2147483647.",
+    check_max_connection_delay, update_max_connection_delay,
+    connection_control::DEFAULT_MAX_DELAY, connection_control::MIN_DELAY,
+    connection_control::MAX_DELAY, 1);
 
 /** Array of system variables. Used in plugin declaration. */
-struct st_mysql_sys_var *
-connection_control_system_variables[OPT_LAST + 1]=
-{
-  MYSQL_SYSVAR(failed_connections_threshold),
-  MYSQL_SYSVAR(min_connection_delay),
-  MYSQL_SYSVAR(max_connection_delay),
-  NULL
-};
-
+SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
+    MYSQL_SYSVAR(failed_connections_threshold),
+    MYSQL_SYSVAR(min_connection_delay), MYSQL_SYSVAR(max_connection_delay),
+    NULL};
 
 /**
-  Function to display value for status variable : Connection_control_delay_generated
+  Function to display value for status variable :
+  Connection_control_delay_generated
 
   @param thd  MYSQL_THD handle. Unused.
   @param var  Status variable structure
@@ -430,60 +381,50 @@ connection_control_system_variables[OPT_LAST + 1]=
   @returns Always returns success.
 */
 
-static int show_delay_generated(MYSQL_THD,
-                                struct st_mysql_show_var *var,
-                                char *buff)
-{
-  var->type= SHOW_LONGLONG;
-  var->value= buff;
-  longlong *value= reinterpret_cast<longlong *>(buff);
-  int64 current_val= my_atomic_load64(&g_statistics.stats_array[STAT_CONNECTION_DELAY_TRIGGERED]);
-  *value= static_cast<longlong>(current_val);
+static int show_delay_generated(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  longlong *value = reinterpret_cast<longlong *>(buff);
+  int64 current_val =
+      g_statistics.stats_array[STAT_CONNECTION_DELAY_TRIGGERED].load();
+  *value = static_cast<longlong>(current_val);
   return 0;
 }
 
-
 /** Array of status variables. Used in plugin declaration. */
-struct st_mysql_show_var
-connection_control_status_variables[STAT_LAST + 1]={
-  {
-    "Connection_control_delay_generated",
-    (char *)&show_delay_generated,
-    SHOW_FUNC, SHOW_SCOPE_GLOBAL
-  },
-  {0, 0, enum_mysql_show_type(0),  enum_mysql_show_scope(0)}
-};
+SHOW_VAR
+connection_control_status_variables[STAT_LAST + 1] = {
+    {"Connection_control_delay_generated", (char *)&show_delay_generated,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {0, 0, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
 
-
-mysql_declare_plugin(audit_log)
-{
-  MYSQL_AUDIT_PLUGIN,                   /* plugin type                   */
-  &connection_control_descriptor,       /* type specific descriptor      */
-  "CONNECTION_CONTROL",                 /* plugin name                   */
-  "Oracle Inc",                         /* author                        */
-  "Connection event processing",        /* description                   */
-  PLUGIN_LICENSE_GPL        ,           /* license                       */
-  connection_control_init,              /* plugin initializer            */
-  connection_control_deinit,            /* plugin deinitializer          */
-  0x0100,                               /* version                       */
-  connection_control_status_variables,  /* status variables              */
-  connection_control_system_variables,  /* system variables              */
-  NULL,                                 /* reserverd                     */
-  0                                     /* flags                         */
+mysql_declare_plugin(audit_log){
+    MYSQL_AUDIT_PLUGIN,                  /* plugin type                   */
+    &connection_control_descriptor,      /* type specific descriptor      */
+    "CONNECTION_CONTROL",                /* plugin name                   */
+    "Oracle Inc",                        /* author                        */
+    "Connection event processing",       /* description                   */
+    PLUGIN_LICENSE_GPL,                  /* license                       */
+    connection_control_init,             /* plugin initializer            */
+    NULL,                                /* plugin check uninstall        */
+    connection_control_deinit,           /* plugin deinitializer          */
+    0x0100,                              /* version                       */
+    connection_control_status_variables, /* status variables              */
+    connection_control_system_variables, /* system variables              */
+    NULL,                                /* reserverd                     */
+    0                                    /* flags                         */
 },
-{
-  MYSQL_INFORMATION_SCHEMA_PLUGIN,
-   &connection_control_failed_attempts_view,
-   "CONNECTION_CONTROL_FAILED_LOGIN_ATTEMPTS",
-   "Oracle Inc",
-   "I_S table providing a view into failed attempts statistics",
-   PLUGIN_LICENSE_GPL,
-   connection_control_failed_attempts_view_init,
-   NULL,
-   0x0100,
-   NULL,
-   NULL,
-   NULL,
-   0
-}
-mysql_declare_plugin_end;
+    {MYSQL_INFORMATION_SCHEMA_PLUGIN,
+     &connection_control_failed_attempts_view,
+     "CONNECTION_CONTROL_FAILED_LOGIN_ATTEMPTS",
+     "Oracle Inc",
+     "I_S table providing a view into failed attempts statistics",
+     PLUGIN_LICENSE_GPL,
+     connection_control_failed_attempts_view_init,
+     NULL,
+     NULL,
+     0x0100,
+     NULL,
+     NULL,
+     NULL,
+     0} mysql_declare_plugin_end;

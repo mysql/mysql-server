@@ -1,0 +1,123 @@
+Preamble
+SET GLOBAL mysqlx_connect_timeout = 300;
+call mtr.add_suppression("Unsuccessful login attempt");
+
+## Non-SSL connection testing for mysqlxtest
+RUN CREATE USER user1_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1'
+
+0 rows affected
+RUN CREATE USER user2_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string2'
+            PASSWORD EXPIRE
+
+0 rows affected
+RUN CREATE USER user3_mysqlx@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+PASSWORD EXPIRE NEVER
+
+0 rows affected
+RUN CREATE USER user4_mysqlx@localhost REQUIRE SSL ACCOUNT LOCK
+
+0 rows affected
+RUN CREATE USER user5_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            REQUIRE SSL
+
+0 rows affected
+RUN CREATE USER user6_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd'
+            REQUIRE X509
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user1_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user2_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user3_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user4_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user5_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user6_mysqlx@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+TCP/IP
+0 rows affected
+RUN show status like 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+not ok
+NOTICE: Account password expired
+RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
+NOTICE: Account password expired
+RUN SET PASSWORD='set-new-auth'
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+TCP/IP
+0 rows affected
+RUN show status like 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
+not ok
+RUN SET PASSWORD='set-new-auth'
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+Application terminated with expected error: Account is locked. (code 1045)
+not ok
+ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
+user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost;
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;

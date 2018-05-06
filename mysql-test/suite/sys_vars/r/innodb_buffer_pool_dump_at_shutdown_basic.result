@@ -1,3 +1,4 @@
+call mtr.add_suppression("Plugin \'MEMORY\'");
 SET @orig = @@global.innodb_buffer_pool_dump_at_shutdown;
 SELECT @orig;
 @orig

@@ -14,12 +14,12 @@ optimizer_trace	enabled=off,one_line=off
 show session variables like 'optimizer_trace';
 Variable_name	Value
 optimizer_trace	enabled=off,one_line=off
-select * from information_schema.global_variables where variable_name='optimizer_trace';
+select * from performance_schema.global_variables where variable_name='optimizer_trace';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE	enabled=off,one_line=off
-select * from information_schema.session_variables where variable_name='optimizer_trace';
+optimizer_trace	enabled=off,one_line=off
+select * from performance_schema.session_variables where variable_name='optimizer_trace';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE	enabled=off,one_line=off
+optimizer_trace	enabled=off,one_line=off
 set global optimizer_trace=1;
 select @@global.optimizer_trace;
 @@global.optimizer_trace

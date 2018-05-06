@@ -25,7 +25,7 @@ drop table t1;
 
 connection slave;
 --let $err= convert_error(ER_INCONSISTENT_ERROR)
---eval call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: $err")
+--eval call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: MY-0$err")
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo (expect different error codes on master and slave)

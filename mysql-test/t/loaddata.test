@@ -1,5 +1,3 @@
---source include/have_utf8.inc
-
 #
 # Some simple test of load data
 #
@@ -23,7 +21,7 @@ load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields term
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
 
-create table t1 (a int, b char(10));
+create table t1 (a int, b char(10)) charset latin1;
 load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 select * from t1;
 truncate table t1;
@@ -663,8 +661,9 @@ SET sql_mode=default;
 --copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
 
 --echo # Without fix, load data hangs forever.
+# The actual error code depends on character set
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,1000
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,ER_INVALID_CHARACTER_STRING
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
      FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 
@@ -724,3 +723,47 @@ CREATE TABLE t1(a VARCHAR(20)) CHARSET gb18030;
 LOAD DATA INFILE '../../std_data/loaddata7.dat' INTO TABLE t1 CHARACTER SET gb18030;
 SELECT HEX(a) FROM t1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+--error ER_TOO_LONG_IDENT
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890;
+
+CREATE TABLE t1(a VARCHAR(20));
+
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 ();
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_mb.dat' INTO TABLE t1 IGNORE 20 LINES;
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_escape.dat' INTO TABLE t1 IGNORE 20 LINES;
+
+--error ER_SP_BADSTATEMENT
+CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+
+
+SET @save_local_infile = @@local_infile;
+SET GLOBAL local_infile = OFF;
+
+--error ER_NOT_ALLOWED_COMMAND
+LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+
+SET GLOBAL local_infile = @save_local_infile;
+
+
+DROP TABLE t1;
+
+CREATE TABLE t2(a BLOB);
+
+--error ER_BLOBS_AND_NO_TERMINATED
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t2 FIELDS TERMINATED BY '' LINES TERMINATED BY '';
+
+DROP TABLE t2;
+
+
+CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
+
+--error ER_BAD_NULL_ERROR
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
+
+DROP TABLE t3;

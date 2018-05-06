@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "PgmanProxy.hpp"
 #include "pgman.hpp"
@@ -23,9 +30,9 @@
 PgmanProxy::PgmanProxy(Block_context& ctx) :
   LocalProxy(PGMAN, ctx)
 {
-  // GSN_LCP_FRAG_ORD
-  addRecSignal(GSN_LCP_FRAG_ORD, &PgmanProxy::execLCP_FRAG_ORD);
-
+  // GSN_SYNC_EXTENT_PAGES_REQ
+  addRecSignal(GSN_SYNC_EXTENT_PAGES_REQ,
+               &PgmanProxy::execSYNC_EXTENT_PAGES_REQ);
   // GSN_END_LCPREQ
   addRecSignal(GSN_END_LCPREQ, &PgmanProxy::execEND_LCPREQ);
   addRecSignal(GSN_END_LCPCONF, &PgmanProxy::execEND_LCPCONF);
@@ -42,27 +49,17 @@ PgmanProxy::newWorker(Uint32 instanceNo)
   return new Pgman(m_ctx, instanceNo);
 }
 
-// GSN_LCP_FRAG_ORD
-
+// GSN_SYNC_EXTENT_PAGES_REQ
 void
-PgmanProxy::execLCP_FRAG_ORD(Signal* signal)
+PgmanProxy::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
 {
-  const LcpFragOrd* req = (const LcpFragOrd*)signal->getDataPtr();
-  Uint32 ssId = getSsId(req);
-  Ss_LCP_FRAG_ORD& ss = ssSeize<Ss_LCP_FRAG_ORD>(ssId);
-  ss.m_req = *req;
-  sendREQ(signal, ss);
-  ssRelease<Ss_LCP_FRAG_ORD>(ssId);
-}
-
-void
-PgmanProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId, SectionHandle* handle)
-{
-  Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
-  LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
-  *req = ss.m_req;
-  sendSignalNoRelease(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
-                      signal, LcpFragOrd::SignalLength, JBB, handle);
+  // Route signal on to extra PGMAN worker that handles extent pages
+  // The return signal will be sent directly from there to sender
+  // Same data sent, so proxy block is merely a router here.
+  jamEntry();
+  sendSignal(workerRef(c_workers - 1), GSN_SYNC_EXTENT_PAGES_REQ, signal,
+             SyncExtentPagesReq::SignalLength, JBB);
+  return;
 }
 
 // GSN_END_LCPREQ
@@ -78,7 +75,8 @@ PgmanProxy::execEND_LCPREQ(Signal* signal)
   const Uint32 sb = refToBlock(ss.m_req.senderRef);
   ndbrequire(sb == DBLQH || sb == LGMAN);
 
-  if (sb == LGMAN) {
+  ndbrequire(sb == LGMAN);
+  {
     jam();
     /*
      * At end of UNDO execution.  Extra PGMAN worker was used to
@@ -94,10 +92,6 @@ PgmanProxy::execEND_LCPREQ(Signal* signal)
                signal, ReleasePagesReq::SignalLength, JBB);
     return;
   }
-  /**
-   * Send to extra PGMAN *after* all other PGMAN has completed
-   */
-  sendREQ(signal, ss, /* skip last */ true);
 }
 
 void
@@ -189,14 +183,16 @@ PgmanProxy::get_page(Page_cache_client& caller,
 }
 
 void
-PgmanProxy::update_lsn(Page_cache_client& caller,
-                       Local_key key, Uint64 lsn)
+PgmanProxy::update_lsn(Signal *signal,
+                       Page_cache_client& caller,
+                       Local_key key,
+                       Uint64 lsn)
 {
   ndbrequire(blockToInstance(caller.m_block) == 0);
   SimulatedBlock* block = globalData.getBlock(caller.m_block);
   Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
   Page_cache_client pgman(block, worker);
-  pgman.update_lsn(key, lsn);
+  pgman.update_lsn(signal, key, lsn);
 }
 
 int
@@ -218,28 +214,28 @@ PgmanProxy::drop_page(Page_cache_client& caller,
  */
 
 Uint32
-PgmanProxy::create_data_file(Signal* signal)
+PgmanProxy::create_data_file(Signal* signal, Uint32 version)
 {
   Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
-  Uint32 ret = worker->create_data_file();
+  Uint32 ret = worker->create_data_file(version);
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ret,
+    send_data_file_ord(signal, i, ret, version,
                        DataFileOrd::CreateDataFile);
   }
   return ret;
 }
 
 Uint32
-PgmanProxy::alloc_data_file(Signal* signal, Uint32 file_no)
+PgmanProxy::alloc_data_file(Signal* signal, Uint32 file_no, Uint32 version)
 {
   Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
-  Uint32 ret = worker->alloc_data_file(file_no);
+  Uint32 ret = worker->alloc_data_file(file_no, version);
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ret,
+    send_data_file_ord(signal, i, ret, version,
                        DataFileOrd::AllocDataFile, file_no);
   }
   return ret;
@@ -253,7 +249,7 @@ PgmanProxy::map_file_no(Signal* signal, Uint32 file_no, Uint32 fd)
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ~(Uint32)0,
+    send_data_file_ord(signal, i, ~(Uint32)0, 0,
                        DataFileOrd::MapFileNo, file_no, fd);
   }
 }
@@ -266,17 +262,23 @@ PgmanProxy::free_data_file(Signal* signal, Uint32 file_no, Uint32 fd)
   Uint32 i;
   for (i = 0; i < c_workers - 1; i++) {
     jam();
-    send_data_file_ord(signal, i, ~(Uint32)0,
+    send_data_file_ord(signal, i, ~(Uint32)0, 0,
                        DataFileOrd::FreeDataFile, file_no, fd);
   }
 }
 
 void
-PgmanProxy::send_data_file_ord(Signal* signal, Uint32 i, Uint32 ret,
-                               Uint32 cmd, Uint32 file_no, Uint32 fd)
+PgmanProxy::send_data_file_ord(Signal* signal,
+                               Uint32 i,
+                               Uint32 ret,
+                               Uint32 version,
+                               Uint32 cmd,
+                               Uint32 file_no,
+                               Uint32 fd)
 {
   DataFileOrd* ord = (DataFileOrd*)signal->getDataPtrSend();
   ord->ret = ret;
+  ord->version = version;
   ord->cmd = cmd;
   ord->file_no = file_no;
   ord->fd = fd;

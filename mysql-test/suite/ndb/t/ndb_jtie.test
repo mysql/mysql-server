@@ -1,17 +1,14 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Run the NDB JTie JUnit tests from MTR
 #
 
 --source include/have_ndb.inc
---source include/not_embedded.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_ndbjtie_junit.inc
 --source suite/ndb/include/have_java.inc
+
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_JAR
 --let JAVA_CLASSPATH_1=$NDBJTIE_JUNIT_JAR

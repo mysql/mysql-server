@@ -1,14 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
-disable_query_log;
--- source include/test_outfile.inc
-# Server are started in "var/master-data", so "../../tmp" will be "var/tmp"
-eval set @tmpdir="../../tmp";
-enable_query_log;
--- source include/have_outfile.inc
+--disable_query_log
+--eval SELECT "Outfile OK" INTO OUTFILE "$MYSQLTEST_VARDIR/tmp/outfile.test"
+# Server is started in "var/master-data", so "../../tmp" will be "var/tmp"
+--eval set @tmpdir="../../tmp"
+--enable_query_log
+--source include/have_outfile.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -114,7 +110,7 @@ create user user_1@localhost;
 grant all on mysqltest.* to user_1@localhost;
 connect (con28181_1,localhost,user_1,,mysqltest);
 
---error ER_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval select schema_name
 into outfile "../../tmp/outfile-test.4"
 fields terminated by ',' optionally enclosed by '"'

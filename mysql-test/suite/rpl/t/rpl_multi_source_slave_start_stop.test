@@ -18,6 +18,8 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # Set up masters server_1 and server_3 with server_2 being a slave.
@@ -81,19 +83,19 @@ STOP SLAVE;
 --echo #
 
 --echo # 3.a) Test START SLAVE IO_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/start_slave_io.inc
 
 --echo # 3.b) Test START SLAVE SQL_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/start_slave_sql.inc
 
 --echo # 3.c) Test STOP SLAVE IO_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_io.inc
 
 --echo # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave_sql.inc
 
 

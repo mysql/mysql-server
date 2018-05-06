@@ -1,9 +1,7 @@
 # Test archive engine when symbolic links are available.
 --source include/not_windows.inc
---source include/have_archive.inc
 
-# DATA DIRECTORY/INDEX DIRECTORY require symbolic link support
---source include/have_symlink.inc
+--source include/have_archive.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY = '$MYSQL_TMP_DIR/archive';
@@ -69,4 +67,3 @@ ENGINE archive INDEX DIRECTORY '$MYSQLD_DATADIR/test';
 --echo # Cleanup
 --echo # 
 --rmdir $MYSQL_TMP_DIR/archive
-

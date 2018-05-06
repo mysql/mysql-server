@@ -134,19 +134,16 @@ a
 2
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
 last_insert_id()
 255
-explain extended select last_insert_id();
+explain select last_insert_id();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
 ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
@@ -190,8 +187,6 @@ drop table t1;
 SET sql_mode = default;
 create table t1(a int auto_increment,b int null,primary key(a));
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1(a,b)values(NULL,1);
 insert into t1(a,b)values(200,2);
 insert into t1(a,b)values(0,3);
@@ -367,7 +362,7 @@ t1_name VARCHAR(255) DEFAULT NULL,
 t1_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 KEY (t1_name),
 PRIMARY KEY (t1_id)
-) AUTO_INCREMENT = 1000;
+) charset latin1 AUTO_INCREMENT = 1000;
 INSERT INTO t1 (t1_name) VALUES('MySQL');
 INSERT INTO t1 (t1_name) VALUES('MySQL');
 INSERT INTO t1 (t1_name) VALUES('MySQL');
@@ -523,3 +518,58 @@ pk
 1
 18446744073709551614
 DROP TABLE t1;
+#
+# Bug #27041393: ASSERTION `HAS_ERROR == THD->GET_STMT_DA()->IS_ERROR()'
+# FAILED.
+#
+USE test;
+SET sql_mode = 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
+ENGINE=InnoDB;
+# Single row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
+ERROR 22007: Truncated incorrect INTEGER value: '9.223372036854776e18'
+SELECT * FROM t1;
+c1	c2
+INSERT INTO t1 (c2) VALUES (3);
+SELECT * FROM t1;
+c1	c2
+1	3
+DELETE FROM t1;
+# Multi row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2), (NULL, 3);
+ERROR 22007: Truncated incorrect INTEGER value: '9.223372036854776e18'
+SELECT * FROM t1;
+c1	c2
+DROP TABLE t1;
+SET sql_mode = '';
+CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
+ENGINE=InnoDB;
+# Single row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+SELECT * FROM t1;
+c1	c2
+9.223372036854776e18	2
+INSERT INTO t1 (c2) VALUES (3);
+SELECT * FROM t1;
+c1	c2
+1	3
+9.223372036854776e18	2
+DELETE FROM t1;
+# Multi row insert:
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2), (NULL, 3);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+SELECT * FROM t1;
+c1	c2
+2	3
+9.223372036854776e18	2
+DROP TABLE t1;
+SET sql_mode = DEFAULT;

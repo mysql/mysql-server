@@ -97,6 +97,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	0	0	0	0	0
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log_end_pos	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	0	0	0	0	0
@@ -169,7 +170,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
-wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	MANY
 "Expect a slave relay log"
 select
 substring(file_name, locate("slave-", file_name)) as FILE_NAME,
@@ -216,6 +217,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	MANY
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	MANY

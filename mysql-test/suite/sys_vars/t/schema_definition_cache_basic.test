@@ -1,0 +1,12 @@
+#
+# only global
+#
+select @@global.schema_definition_cache;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.schema_definition_cache;
+show global variables like 'schema_definition_cache';
+show session variables like 'schema_definition_cache';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='schema_definition_cache';
+select * from performance_schema.session_variables where variable_name='schema_definition_cache';
+--enable_warnings

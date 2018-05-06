@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # This file contains tests covering the parser
 #
@@ -24,6 +19,9 @@ SET @save_sql_mode=@@sql_mode;
 # - no error is the correct result
 # - an error is the expected result with the current implementation,
 #   and is a limitation.
+
+# Test needs MyISAM for a few subtests
+--source include/have_myisam.inc
 
 set SQL_MODE='';
 
@@ -505,16 +503,6 @@ select concat_ws();
 select concat_ws("foo");
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select encrypt();
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select encrypt(1, 2, 3);
-
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select des_encrypt("p1", "p2", "not expected");
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select des_decrypt("p1", "p2", "not expected");
-
--- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select elt();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select elt(1);
@@ -578,7 +566,7 @@ select master_pos_wait(1);
 
 --disable_result_log
 --error 0,ER_WRONG_ARGUMENTS
-select master_pos_wait('master-bin.999999', 4, -1);
+select master_pos_wait('binlog.999999', 4, -1);
 --enable_result_log
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
@@ -766,42 +754,42 @@ DROP TABLE t1, t2, t3;
 --echo # Should use myisam
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1' initial_size=32M; 
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1' engine=myisam;
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1';
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1;
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1' wait;
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1' engine=myisam;
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1';
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat';
+-- error ER_TABLESPACE_MISSING_WITH_NAME
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 drop logfile group ndb_lg1 engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1;
+drop logfile group ndb_lg1 engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 drop tablespace ndb_ts1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop tablespace ndb_ts1;
+-- error ER_TABLESPACE_MISSING_WITH_NAME
+drop tablespace ndb_ts1 engine=myisam;
 
 #
 # Bug#12546960 - 60993: NAME QUOTED WITH QUOTE INSTEAD OF BACKTICK 
@@ -861,57 +849,28 @@ SELECT '' IN (SELECT '1' c FROM t1 ORDER BY '' ORDER BY '') FROM t1;
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
   FOR UPDATE;
 
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-  PROCEDURE ANALYSE() FOR UPDATE;
-
 SELECT 1 FROM
   (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
    FOR UPDATE) a;
 
---error ER_WRONG_USAGE
-SELECT 1 FROM
-  (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-   PROCEDURE ANALYSE() FOR UPDATE) a;
-
 SELECT 1 FROM t1
   WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
                FOR UPDATE);
-
---error ER_WRONG_USAGE
-SELECT 1 FROM t1
-  WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-               PROCEDURE ANALYSE() FOR UPDATE);
 
 SELECT 1 FROM t1
 UNION
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
   FOR UPDATE;
 
---error ER_WRONG_USAGE
-SELECT 1 FROM t1
-UNION
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-  PROCEDURE ANALYSE() FOR UPDATE;
-
---error ER_WRONG_USAGE
-SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
-UNION
-SELECT 1 FROM t1;
-
 (SELECT 1 FROM t1)
 UNION 
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
  FOR UPDATE);
 
---error ER_WRONG_USAGE
-(SELECT 1 FROM t1)
-UNION 
-(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
- PROCEDURE ANALYSE() FOR UPDATE);
-
 --echo # "FOR UPDATE" tests
 
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
+--error ER_PARSE_ERROR
 SELECT 1 FROM t1 FOR UPDATE UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 FOR UPDATE;
 
@@ -952,18 +911,12 @@ SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
 --error ER_PARSE_ERROR
 SELECT EXISTS(SELECT 1 FROM t1 INTO @var17727401);
 
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 (SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
 
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
-
---error ER_WRONG_USAGE
-SELECT 1 INTO @var17727401 FROM t1 PROCEDURE ANALYSE();
-
---error ER_WRONG_USAGE
-SELECT 1 FROM t1 PROCEDURE ANALYSE() INTO @var17727401;
 
 --echo # ORDER and LIMIT clause combinations
 
@@ -972,9 +925,7 @@ SELECT 1 FROM t1 PROCEDURE ANALYSE() INTO @var17727401;
 (SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 
---error ER_PARSE_ERROR
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
---error ER_PARSE_ERROR
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
@@ -1011,27 +962,27 @@ eval SELECT ($q);
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1;
@@ -1039,39 +990,39 @@ let $q=SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1;
 eval $q;
 --error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 let $q=SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval $q;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT ($q);
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 eval SELECT 1 FROM ($q) a;
 
 DROP TABLE t1;
@@ -1082,8 +1033,6 @@ DROP TABLE t1;
 --echo #
 
 SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
-# The syntax for FROM DUAL is not completely generalized there yet
---error ER_PARSE_ERROR
 SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
 
 DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
@@ -1118,8 +1067,6 @@ SELECT (SELECT 1 c FROM DUAL WHERE 0 GROUP BY 1 HAVING 0 ORDER BY COUNT(1)) AS
 
 SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
 SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
-# The syntax for FROM DUAL is not completely generalized there yet
---error ER_PARSE_ERROR
 SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
 
 --echo #
@@ -1136,8 +1083,6 @@ SELECT ((SELECT 1 AS f FROM DUAL HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
 
 SELECT 1 AS f          FROM DUAL HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
   ORDER BY f;
-# The syntax for FROM DUAL is not completely generalized there yet
---error ER_PARSE_ERROR
 SELECT 1 AS f                   HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
   ORDER BY f;
 
@@ -1149,7 +1094,7 @@ DROP TABLE t1;
 --echo #
 --error ER_WRONG_TYPE_FOR_VAR 
 SET default_storage_engine=a.myisam;
---error ER_WRONG_TYPE_FOR_VAR 
+--error ER_PARSE_ERROR
 SET default_storage_engine = .a.MyISAM;
 --error ER_WRONG_TYPE_FOR_VAR 
 SET default_storage_engine = a.b.MyISAM;
@@ -1258,9 +1203,13 @@ SELECT CONVERT(CONVERT('',DECIMAL(65,0)), DECIMAL(66,0));
 --echo # Bug #18759387: PROBLEM IN ITEM_FUNC_XOR::NEG_TRANSFORMER
 --echo #
 
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+--error ER_PARSE_ERROR
 SELECT 1<
 !(1 XOR TO_BASE64()));
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT 1<
+!(1 XOR TO_BASE64());
 
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT  !('' XOR LENGTH());
@@ -1272,6 +1221,7 @@ SELECT  !((UNHEX() IS NULL));
 --echo # Bug #20086997: PARSER CONFUSES WITH 7BIT-CHARACTER STRING DETECTION
 --echo #
 
+--character_set latin2
 CREATE DATABASE mysqltest1 CHARACTER SET LATIN2;
 USE mysqltest1;
 CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET LATIN2);
@@ -1281,6 +1231,7 @@ INSERT INTO t1 VALUES ('£¥ª¯' '');
 SELECT HEX(a) FROM t1;
 DROP DATABASE mysqltest1;
 USE test;
+--character_set utf8mb4
 
 --echo #
 --echo # WL #7201, WL #7202 and WL#8062 coverage tests
@@ -1311,14 +1262,15 @@ DROP TABLE parse_gcol_expr;
 
 DELIMITER |;
 --echo # parse_gcol_expr can't be a label:
---error ER_PARSE_ERROR
 CREATE PROCEDURE p1()
 BEGIN
 parse_gcol_expr: LOOP
   SELECT 1;
-END LOOP label1;
+END LOOP parse_gcol_expr;
 END|
 DELIMITER ;|
+
+DROP PROCEDURE p1;
 
 --echo # PARSE_GCOL_EXPR is not a valid statement:
 --error ER_PARSE_ERROR
@@ -1354,14 +1306,866 @@ ALTER TABLE t1 LOCK=SHARED, WITH VALIDATION, ALGORITHM=COPY,
 DROP TABLE t1;
 
 --echo #
---echo # WL#8662: Deprecate "Delphi style" column and table syntax
+--echo # WL#8083: Introduce <query expression> parser rule
+--echo # Bug#14743786: PARSE ERROR WITH UNION PARENTHESES ON TOP LEVEL
 --echo #
 
-CREATE TABLE t1 (.i INT);
-CREATE TABLE .t2 (i INT);
-SELECT .t1.i FROM t1;
+--echo #
+--echo # Part1: Regression Testing.
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
 
-DROP TABLE t1, t2;
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+
+SELECT 1 UNION SELECT 2;
+(SELECT 1) UNION SELECT 2;
+SELECT 1 UNION (SELECT 2);
+(SELECT 1) UNION (SELECT 2);
+
+  SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
+ (SELECT 2 FROM t1)  UNION SELECT 3 FROM t1;
+((SELECT 2 FROM t1)) UNION SELECT 3 FROM t1;
+
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+
+(SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
+
+--error ER_PARSE_ERROR
+SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
+--error ER_PARSE_ERROR
+(SELECT 1) UNION (SELECT 2 UNION SELECT 3);
+#--error ER_WRONG_USAGE
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
+#--error ER_WRONG_USAGE
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+
+--error ER_BAD_FIELD_ERROR
+SELECT 1 UNION SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+--error ER_BAD_FIELD_ERROR
+(SELECT 1 FROM t1 LIMIT 2) UNION  SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+(SELECT a FROM t1 LIMIT 2) LIMIT 1;
+((SELECT a FROM t1 LIMIT 2)) LIMIT 1;
+(SELECT a FROM t1 LIMIT 2) ORDER BY 1;
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1) LIMIT 1;
+
+--error ER_BAD_FIELD_ERROR
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1)
+  ORDER BY a;
+
+--error ER_BAD_FIELD_ERROR
+(SELECT 1 FROM t1 LIMIT 1) UNION ((SELECT 2 FROM t1 ORDER BY a LIMIT 2))
+  ORDER BY a;
+
+(SELECT a FROM t2 LIMIT 1) UNION (SELECT a FROM t3 LIMIT 2) LIMIT 1;
+
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+(SELECT a FROM t1 LIMIT 1) ORDER BY t1.a;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+((SELECT a FROM t1 LIMIT 1)) ORDER BY t1.a;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT 2) ORDER BY t1.b;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT 2)) ORDER BY t1.b;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a LIMIT 2)
+  ORDER BY t1.b;
+
+# Generally speaking, we don't support nested unions:
+--error ER_PARSE_ERROR
+SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
+# OTOH union expressions are left-associative by their nature,
+# so "s1 UNION s2 UNION ..." and "(s1 UNION s2) UNION ..." are same,
+# thus the parser accepts nested query expressions at the left hand side:
+( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
+# But:
+--error ER_PARSE_ERROR
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+
+--error ER_PARSE_ERROR
+SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
+
+(SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
+(SELECT * FROM t1 ORDER BY a) UNION SELECT * FROM t1;
+
+--error ER_PARSE_ERROR
+SELECT a FROM t1
+UNION
+SELECT a FROM t1 ORDER BY a
+UNION
+SELECT a FROM t1;
+
+(SELECT SQL_CALC_FOUND_ROWS a FROM t1 LIMIT 2)
+UNION
+(SELECT a FROM t2 ORDER BY a) LIMIT 2;
+
+DROP TABLE t1, t2, t3;
+
+delimiter |;
+
+CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
+
+delimiter ;|
+
+--error 1054
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Part 2: Test of changed (fixed) behavior.
+--echo #
+
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+
+   (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+  ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+   (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+  ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+  ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+  ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+ (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+  ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+ (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+ (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+
+(SELECT 1 UNION SELECT 2) ORDER BY 1;
+((SELECT 1 UNION SELECT 2)) ORDER BY 1;
+((SELECT 1) ORDER BY 1);
+((SELECT 1) LIMIT 1);
+(SELECT 1 UNION SELECT 2) LIMIT 1;
+((SELECT 1 UNION SELECT 2)) LIMIT 1;
+
+--error ER_PARSE_ERROR
+(SELECT a FROM t1) LIMIT 1 UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Part 3: The <table factor> syntax.
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 );
+
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 );
+
+CREATE TABLE t4 ( a INT );
+INSERT INTO t4 VALUES ( 3 );
+
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1) dt;
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1)) dt;
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)) dt;
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1))) dt;
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1)))) dt;
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1) dt;
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1) dt;
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1)) dt;
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)) dt;
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1))) dt;
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1))) dt;
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1)))) dt;
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1)))) dt;
+
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+
+SELECT * FROM  ( t1 JOIN t2 ON TRUE );
+SELECT * FROM (( t1 JOIN t2 ON TRUE ));
+
+SELECT * FROM ( t1 JOIN t2 ON TRUE  JOIN t3 ON TRUE );
+SELECT * FROM ((t1 JOIN t2 ON TRUE) JOIN t3 ON TRUE );
+
+SELECT * FROM (t1 INNER JOIN t2 ON (t1.a = t2.a));
+
+--error ER_PARSE_ERROR
+SELECT 1 FROM (SELECT 1 FROM t1 INTO @v) a;
+
+SELECT 1 FROM (t1);
+SELECT 1 FROM ((t1));
+
+SELECT 1 UNION SELECT 2 FROM (t2);
+
+SELECT 1 FROM  (SELECT 2  ORDER BY 1) AS res;
+
+--echo #
+--echo # This syntax is no longer allowed
+--echo #
+#--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT 1 FROM ((SELECT 2) ORDER BY 1) AS res;
+--error ER_PARSE_ERROR
+SELECT 1 FROM ((SELECT 2) a ORDER BY 1) AS res;
+#--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT 1 FROM ((SELECT 2) LIMIT 1) AS res;
+--error ER_PARSE_ERROR
+SELECT 1 FROM ((SELECT 2) a LIMIT 1) AS res;
+
+SELECT * FROM ( t1 AS alias1 );
+SELECT * FROM   t1 AS alias1, t2 AS alias2;
+SELECT * FROM ( t1 AS alias1, t2 AS alias2 );
+
+--error ER_NONUNIQ_TABLE
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 JOIN t3 ON TRUE );
+--error ER_PARSE_ERROR
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 t11 JOIN t3 ON TRUE ) t1a;
+--error ER_PARSE_ERROR
+SELECT * FROM ( t1 JOIN t2 ON TRUE, SELECT 1 FROM DUAL );
+SELECT * FROM ( t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a );
+SELECT * FROM t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a;
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM ( SELECT 1 FROM DUAL );
+
+SELECT * FROM ( SELECT 1 FROM DUAL ) t1a;
+
+SELECT * FROM  ( t1, t2 );
+SELECT * FROM (( t1, t2 ));
+
+SELECT * FROM  ( (t1),   t2  );
+SELECT * FROM  (((t1)),  t2  );
+SELECT * FROM  ( (t1),  (t2) );
+SELECT * FROM  (  t1,   (t2) );
+
+((SELECT 1 UNION SELECT 1) UNION SELECT 1);
+SELECT * FROM ((SELECT 1 UNION SELECT 1) UNION SELECT 1) a;
+
+SELECT * FROM (t1, t2) JOIN (t3, t4) ON TRUE;
+SELECT * FROM ((t1, t2) JOIN t3 ON TRUE);
+--error ER_NON_UNIQ_ERROR
+SELECT * FROM t1 JOIN ( t2, t3 ) USING ( a );
+
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Check the format in the note.
+CREATE TABLE t1 (a INT);
+EXPLAIN SELECT 1 FROM (SELECT 1 FROM t1) t;
+DROP TABLE t1;
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t4 VALUES (2);
+
+SELECT * FROM t1 LEFT JOIN ( t2, t3, t4 ) ON a = c;
+
+--error ER_NONUNIQ_TABLE
+SELECT * FROM t1 NATURAL JOIN ((t1 NATURAL JOIN t1), (t1 NATURAL JOIN t1));
+
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+CREATE TABLE t5 ( d INT );
+
+SELECT * FROM t5 NATURAL JOIN ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4));
+
+SELECT * FROM ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4)) NATURAL JOIN t5;
+
+SELECT * FROM t1 JOIN ( t2, t3 ) ON TRUE;
+
+SELECT * FROM ( t1, t2 , t3 );
+SELECT * FROM ( ( t1, t2 ), t3 );
+SELECT * FROM ( ((t1, t2)), t3 );
+SELECT * FROM ( t1, ( t2, t3 ) );
+SELECT * FROM ( t1, ((t2, t3)) );
+
+SELECT * FROM ((( t1, t2 ), t3));
+SELECT * FROM ((((t1, t2)), t3));
+SELECT * FROM ((t1, ( t2, t3 )));
+SELECT * FROM ((t1, ((t2, t3))));
+
+--error ER_VIEW_SELECT_CLAUSE
+CREATE VIEW v1 AS SELECT 1 INTO @v;
+
+CREATE VIEW v1 AS SELECT 1 FROM ( SELECT 1 FROM t1 ) my_table;
+
+DROP TABLE t1, t2, t3, t4, t5;
+DROP VIEW v1;
+
+CREATE TABLE t1( a INT );
+INSERT INTO t1 VALUES (1);
+
+SELECT 1 INTO @v;
+(SELECT 1 INTO @v);
+((SELECT 1 INTO @v));
+
+SELECT 1 FROM t1 INTO @v;
+(SELECT 1 FROM t1 INTO @v);
+((SELECT 1 FROM t1 INTO @v));
+
+--error ER_PARSE_ERROR
+SELECT 1 FROM t1 INTO @v UNION SELECT 1;
+--error ER_PARSE_ERROR
+(SELECT 1 FROM t1 INTO @v) UNION SELECT 1;
+--error ER_PARSE_ERROR
+SELECT 1 FROM t1 INTO @v UNION (SELECT 1);
+--error ER_PARSE_ERROR
+((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
+
+--error ER_WRONG_USAGE
+SELECT 1 INTO @v UNION SELECT 1;
+--error ER_WRONG_USAGE
+(SELECT 1 INTO @v) UNION SELECT 1;
+--error ER_WRONG_USAGE
+SELECT 1 INTO @v UNION (SELECT 1);
+--error ER_WRONG_USAGE
+((SELECT 1 INTO @v) UNION (SELECT 1));
+
+--error ER_TOO_MANY_ROWS
+SELECT 1 UNION SELECT 2 INTO @v;
+--error ER_TOO_MANY_ROWS
+(SELECT 1) UNION SELECT 2 INTO @v;
+--error ER_TOO_MANY_ROWS
+(SELECT 1) UNION (SELECT 2 INTO @v);
+--error ER_TOO_MANY_ROWS
+((SELECT 1) UNION (SELECT 2 INTO @v));
+
+--error ER_TOO_MANY_ROWS
+SELECT 1 UNION SELECT 2 INTO @v FROM t1;
+--error ER_TOO_MANY_ROWS
+(SELECT 1) UNION SELECT 2 INTO @v FROM t1;
+--error ER_TOO_MANY_ROWS
+(SELECT 1) UNION (SELECT 2 INTO @v FROM t1);
+--error ER_TOO_MANY_ROWS
+((SELECT 1) UNION (SELECT 2 INTO @v FROM t1));
+
+SELECT 1 UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION (SELECT 1 INTO @v FROM t1);
+((SELECT 1) UNION (SELECT 1 INTO @v FROM t1));
+
+SELECT 1 UNION SELECT 2 INTO OUTFILE 'parser.test.file1';
+SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
+(SELECT 1) UNION SELECT 2 INTO OUTFILE 'parser.test.file3';
+(SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
+((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
+--let $datadir=`select @@datadir`
+--remove_file $datadir/test/parser.test.file1
+--remove_file $datadir/test/parser.test.file2
+--remove_file $datadir/test/parser.test.file3
+--remove_file $datadir/test/parser.test.file4
+--remove_file $datadir/test/parser.test.file5
+
+--error ER_PARSE_ERROR
+SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
+--error ER_PARSE_ERROR
+SELECT * FROM (SELECT a INTO @v) t1a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Part 4: The <joined table> syntax.
+--echo #
+CREATE TABLE t1( a INT );
+CREATE TABLE t2( b INT );
+CREATE TABLE t3( c INT );
+CREATE TABLE t4( d INT );
+CREATE TABLE t5( e INT );
+
+--echo # We use EXPLAIN so we can get the parser's interpretation of the
+--echo # nesting. We don't really care about the execution plan.
+
+SET optimizer_switch = 'block_nested_loop=off';
+
+SELECT * FROM t1 JOIN t2;
+SELECT * FROM t1 JOIN t2 ON a = b;
+SELECT * FROM t1 t11 JOIN t1 t12 USING ( a );
+SELECT * FROM t1 INNER JOIN t2;
+SELECT * FROM t1 INNER JOIN t2 ON a = b;
+SELECT * FROM t1 t11 INNER JOIN t1 t12 USING ( a );
+
+SELECT * FROM t1 CROSS JOIN t2;
+SELECT * FROM t1 CROSS JOIN t2 ON a = b;
+SELECT * FROM t1 t11 CROSS JOIN t1 t12 USING ( a );
+
+SELECT * FROM t1 STRAIGHT_JOIN t2;
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON a = b;
+SELECT * FROM t1 t11 STRAIGHT_JOIN t1 t12 USING ( a );
+
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 ON t11.a = t12.a;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 USING ( a );
+SELECT * FROM t1 t11 NATURAL INNER JOIN t1 t12;
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 LEFT JOIN t2;
+SELECT * FROM t1 LEFT JOIN t2 ON a = b;
+SELECT * FROM t1 t11 LEFT JOIN t1 t12 USING ( a );
+SELECT * FROM t1 NATURAL LEFT JOIN t2;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 LEFT OUTER JOIN t2;
+SELECT * FROM t1 LEFT OUTER JOIN t2 ON a = b;
+SELECT * FROM t1 t11 LEFT OUTER JOIN t1 t12 USING ( a );
+SELECT * FROM t1 NATURAL LEFT OUTER JOIN t2;
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 RIGHT JOIN t2;
+SELECT * FROM t1 RIGHT JOIN t2 ON a = b;
+SELECT * FROM t1 t11 RIGHT JOIN t1 t12 USING ( a );
+SELECT * FROM t1 NATURAL RIGHT JOIN t2;
+--error ER_PARSE_ERROR
+SELECT * FROM t1 RIGHT OUTER JOIN t2;
+SELECT * FROM t1 RIGHT OUTER JOIN t2 ON a = b;
+SELECT * FROM t1 t11 RIGHT OUTER JOIN t1 t12 USING ( a );
+SELECT * FROM t1 NATURAL RIGHT OUTER JOIN t2;
+
+
+--echo # Right-deep join nesting.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c ON t1.a = t2.b;
+--echo # Right-deep join nesting from t2 and on.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d ON t2.b = t3.c;
+--echo # Right-deep join nesting from t2 and on.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d ON t1.a = t2.b;
+--echo # Left-deep join nesting.
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.a = t2.b JOIN t3 ON t2.b = t3.c;
+--echo # A cross join joined with an inner join (i.e. with a join condition).
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t1.a = t2.b;
+EXPLAIN SELECT * FROM t1 t11 JOIN t2 JOIN t1 t12 USING ( a );
+--echo # A left-deep cross join tree joined with an inner join.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t1.a = t2.b;
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 ON t1.a = t2.b;
+
+--echo # The different kinds of <table_ref> when used with context-dependent
+--echo # join. Tests the top-down build of the parse tree.
+EXPLAIN SELECT * FROM t1 JOIN (t2) JOIN t3;
+EXPLAIN SELECT * FROM t1 JOIN (SELECT 1 AS b) a JOIN t3;
+EXPLAIN SELECT * FROM t1 JOIN (t2 JOIN t3) JOIN t4;
+EXPLAIN SELECT * FROM t1 JOIN (t2, t3) JOIN t4;
+
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c JOIN t4 ON t1.a = t4.d;
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c JOIN t4 ON t1.a = t2.b;
+EXPLAIN SELECT * FROM t1 t11 JOIN t2 JOIN t1 t12 USING(a) JOIN t1 t13 USING(a);
+EXPLAIN SELECT * FROM t2 JOIN t1 t11 JOIN t1 t12 USING(a) JOIN t1 t13 USING(a);
+
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d;
+
+SET optimizer_switch = DEFAULT;
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+--echo # Testing correct nesting of natural joins.
+CREATE TABLE t1( a INT, b int );
+CREATE TABLE t2( a INT, c int );
+CREATE TABLE t3( a INT, d int );
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES         (2, 2), (3, 3), (4, 4);
+INSERT INTO t3 VALUES                 (3, 3), (4, 4), (5, 5);
+
+--echo # The two queries below should produce identical result sets.
+SELECT * FROM t1 NATURAL LEFT JOIN t2 NATURAL RIGHT JOIN t3;
+SELECT * FROM (t1 NATURAL LEFT JOIN t2) NATURAL RIGHT JOIN t3;
+--echo # This result should differ from the result sets above.
+SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
+
+DROP TABLE t1, t2, t3;
+
+
+--echo #
+--echo # Bug#22995438: BUILD INDEX DEFINITION SYNTAX BOTTOM-UP
+--echo #
+
+--echo # This is regression testing for the refactoring.
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  e INT,
+  f INT,
+  g INT,
+  h INT,
+  i INT,
+  j INT,
+  k INT,
+  l INT,
+  m INT,
+  n INT,
+  o INT
+ );
+
+CREATE        INDEX a_index             ON t1( a );
+CREATE UNIQUE INDEX b_index             ON t1( b );
+CREATE        INDEX c_index USING btree ON t1( c );
+--error ER_PARSE_ERROR
+CREATE        INDEX c_index USING btree USING btree ON t1( c );
+--error ER_TOO_MANY_KEY_PARTS
+CREATE        INDEX d_index USING rtree ON t1( d );
+CREATE        INDEX e_index TYPE  btree ON t1( e );
+CREATE        INDEX type TYPE  btree ON t1( f );
+--error ER_PARSE_ERROR
+CREATE        INDEX TYPE  btree ON t1( g );
+--error ER_TOO_MANY_KEY_PARTS
+CREATE        INDEX h_index TYPE  rtree ON t1( h );
+CREATE        INDEX i_index             ON t1( i ) KEY_BLOCK_SIZE = 1;
+CREATE        INDEX j_index             ON t1( j ) KEY_BLOCK_SIZE = 1 KEY_BLOCK_SIZE = 1;
+CREATE        INDEX k_index             ON t1( k ) COMMENT 'A comment';
+CREATE        INDEX k_index2            ON t1( k ) COMMENT 'A comment' COMMENT 'Another comment';
+CREATE        INDEX l_index             ON t1( l ) USING btree;
+CREATE        INDEX m_index             ON t1( m ) TYPE btree;
+CREATE        INDEX n_index USING btree ON t1( n ) USING btree;
+--error ER_TOO_MANY_KEY_PARTS
+CREATE        INDEX x_index USING btree ON t1( o ) USING rtree;
+CREATE        INDEX o_index USING rtree ON t1( o ) USING btree;
+
+ANALYZE TABLE t1;
+SHOW INDEXES FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#8907: Parser refactoring: merge all SELECT rules into one.
+--echo #
+
+--echo # Warning on hints in CREATE or ALTER VIEW:
+
+CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo # The "Hints aren't supported in CREATE or ALTER VIEW" warning is masked:
+
+CREATE VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+ALTER VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo #
+--echo #
+--echo # Bug#23321895: CRASH IN IS_VIEW_OR_DERIVED OR
+--echo # TABLE_LIST::IS_LEAF_FOR_NAME_RESOLUTION
+--echo #
+CREATE TABLE t1( a INT );
+CREATE TABLE t2( a INT );
+CREATE TABLE t3( a INT );
+CREATE TABLE t4( a INT );
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT 1
+FROM ( SELECT 1 FROM t1 JOIN t2 ON @@q ) AS d
+JOIN t3 LEFT JOIN t4 ON 1;
+
+DROP TABLE t1, t2, t3, t4;
+
+
+
+###########################################################################
+--echo #
+--echo # Bug#39559: dump of stored procedures / functions with C-style
+--echo #     comment can't be read back
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
+select 2 as expected, /*!01000/**/*/ 2 as result;
+select 1 as expected, /*!99998/**/*/ 1 as result;
+select 3 as expected, /*!01000 1 + */ 2 as result;
+select 2 as expected, /*!99990 1 + */ 2 as result;
+select 7 as expected, /*!01000 1 + /* 8 + */ 2 + */ 4 as result;
+select 8 as expected, /*!99998 1 + /* 2 + */ 4 + */ 8 as result;
+select 7 as expected, /*!01000 1 + /*!01000 8 + */ 2 + */ 4 as result;
+select 7 as expected, /*!01000 1 + /*!99998 8 + */ 2 + */ 4 as result;
+select 4 as expected, /*!99998 1 + /*!99998 8 + */ 2 + */ 4 as result;
+select 4 as expected, /*!99998 1 + /*!01000 8 + */ 2 + */ 4 as result;
+select 7 as expected, /*!01000 1 + /*!01000 8 + /*!01000 error */ 16 + */ 2 + */ 4 as result;
+select 4 as expected, /* 1 + /*!01000 8 + */ 2 + */ 4;
+EOF
+
+--exec $MYSQL --comments --force --table test <$MYSQLTEST_VARDIR/tmp/bug39559.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
+
+--echo # Bug#46527 "COMMIT AND CHAIN RELEASE does not make sense"
+--echo #
+--error ER_PARSE_ERROR
+COMMIT AND CHAIN RELEASE;
+
+COMMIT AND NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+COMMIT RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+COMMIT CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT NO CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT AND NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT AND RELEASE;
+
+COMMIT NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT CHAIN NO RELEASE;
+--error ER_PARSE_ERROR
+COMMIT NO CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+COMMIT AND RELEASE CHAIN;
+
+COMMIT AND NO CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK AND CHAIN RELEASE;
+
+ROLLBACK AND NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+ROLLBACK RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+ROLLBACK CHAIN RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK NO CHAIN RELEASE;
+disconnect default;
+connect(default, localhost, root,,);
+
+--error ER_PARSE_ERROR
+ROLLBACK AND NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK AND RELEASE;
+
+ROLLBACK NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK CHAIN NO RELEASE;
+
+--error ER_PARSE_ERROR
+ROLLBACK NO CHAIN NO RELEASE;
+--error ER_PARSE_ERROR
+ROLLBACK AND RELEASE CHAIN;
+
+ROLLBACK AND NO CHAIN NO RELEASE;
+
+--echo #
+--echo # Bug#26132947: SERVER CAN EXIT ON ALTER TABLE ADD PARTITION SYNTAX
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) PARTITION BY HASH (a) PARTITIONS 1;
+--error ER_ADD_PARTITION_NO_NEW_PARTITION
+ALTER TABLE t1 ADD PARTITION;
+DROP TABLE t1;
 
 --echo #
 
+--echo #
+--echo # Bug#25717617: Wrong syntax error line numbers when sql_mode has the
+--echo #               IGNORE_SPACE flag
+--echo #
+
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='IGNORE_SPACE';
+
+--echo # Expected error line number is 2:
+--error ER_PARSE_ERROR
+CREATE
+TABLE;
+
+--echo # Expected error line number is 5:
+--error ER_PARSE_ERROR
+CREATE
+#
+#
+#
+TABLE;
+
+--echo #
+--echo # Regression test added in WL#8657
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT);
+SHOW COLUMNS FROM t1 WHERE FIELD='a';
+DROP TABLE t1;
+
+--error ER_WRONG_DB_NAME
+ALTER TABLE t1 RENAME TO ``.t1;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a INT) PARTITION BY KEY ALGORITHM = 10 () PARTITIONS 3;
+
+--error ER_PARSE_ERROR
+ALTER EVENT ev1;
+
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE MyISAM MASTER KEY;
+
+--error ER_PARSE_ERROR
+REVOKE SELECT(c1) ON FUNCTION *.* FROM r1;
+
+--error ER_PARSE_ERROR
+GRANT SELECT(c1) ON FUNCTION *.* TO r1;
+
+--error ER_WRONG_TABLE_NAME
+CREATE INDEX idx1 ON `` (c1);
+
+--error ER_WRONG_TABLE_NAME
+ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE `` WITH VALIDATION;
+
+--error ER_WRONG_TABLE_NAME
+CHECK TABLE ``;
+
+--error ER_WRONG_TABLE_NAME
+DROP INDEX idx1 ON ``;
+
+--error ER_WRONG_TABLE_NAME
+CACHE INDEX `` IN c;
+
+--error ER_WRONG_TABLE_NAME
+CACHE INDEX `` PARTITION (ALL) IN c;
+
+--error ER_WRONG_TABLE_NAME
+LOAD INDEX INTO CACHE `` PARTITION (ALL);
+
+--error ER_WRONG_TABLE_NAME
+LOAD INDEX INTO CACHE ``;
+
+
+SET @@sql_mode=@save_sql_mode;
+
+--echo #
+--echo # Bug#24756971: REMOVE OBSOLETE LEXER HACK AROUND SELECT LIST
+--echo #
+
+--error ER_PARSE_ERROR
+SELECT 1,,2;
+
+--error ER_PARSE_ERROR
+SELECT ,,1;
+
+--error ER_PARSE_ERROR
+SELECT ,,,;
+
+
+--echo #
+--echo # Removal of undocumented syntax, see bug#27389878.
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE DATABASE db CHARSET DEFAULT;
+
+--error ER_PARSE_ERROR
+CREATE DATABASE db COLLATE DEFAULT;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t (i INT) CHARSET DEFAULT;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t (i INT) COLLATE DEFAULT;
+
+--error ER_PARSE_ERROR
+ALTER DATABASE db CHARSET DEFAULT;
+
+--error ER_PARSE_ERROR
+ALTER DATABASE db COLLATE DEFAULT;
+
+--error ER_PARSE_ERROR
+ALTER TABLE t COLLATE DEFAULT;
+
+--error ER_PARSE_ERROR
+ALTER TABLE t CONVERT TO CHARSET DEFAULT;
+
+--error ER_PARSE_ERROR
+SET NAMES utf8 COLLATE DEFAULT;
+
+--error ER_PARSE_ERROR
+SET NAMES DEFAULT COLLATE DEFAULT;
+
+DELIMITER //;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c CHAR(1) CHARSET DEFAULT;
+END//
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c CHAR(1) COLLATE DEFAULT;
+END//
+
+DELIMITER ;//
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1(c CHAR(1) CHARSET DEFAULT) BEGIN END;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1(c CHAR(1) COLLATE DEFAULT) BEGIN END;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION f1(c CHAR(1) CHARSET DEFAULT) RETURNS INT RETURN 1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION f1(c CHAR(1) COLLATE DEFAULT) RETURNS INT RETURN 1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION f1() RETURNS CHAR(1) CHARSET DEFAULT RETURN '';
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';

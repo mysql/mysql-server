@@ -4,7 +4,7 @@
 #
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=16999424;
 CREATE TABLE t1 (a INT UNSIGNED, b INT UNSIGNED, PRIMARY KEY (a, b))
 ENGINE=INNODB;
@@ -39,7 +39,7 @@ LENGTH(@terms)
 10709996
 SELECT @@global.thread_stack, @@global.max_allowed_packet;
 @@global.thread_stack	@@global.max_allowed_packet
-196608	16999424
+286720	16999424
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP TABLE t1;

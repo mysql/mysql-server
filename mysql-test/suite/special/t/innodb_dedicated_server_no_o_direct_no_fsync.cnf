@@ -1,0 +1,6 @@
+# Use default setting for mysqld processes
+# !include default_mysqld.cnf
+!include include/default_client.cnf
+
+[mysqld.1]
+innodb_dedicated_server=OFF

@@ -3,7 +3,6 @@
 #
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -117,7 +116,7 @@ select @error_in_func|
 select * from t1|
 select * from t2|
 drop function bug10015_6|
-# Let us test that we don't allow any statements causing transaction
+# Let us test that we do not allow any statements causing transaction
 # commit in stored functions (we test only most interesting cases here).
 # Cases which can be caught at creation time:
 --error 1422
@@ -570,10 +569,8 @@ use db_bug7787|
 CREATE PROCEDURE p1()
   SHOW ENGINE INNODB STATUS; |
 
-SET @orig_sql_mode= @@sql_mode|
-SET sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''))|
+CREATE USER user_bug7787@localhost|
 GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
-SET sql_mode= @orig_sql_mode|
 
 # Cleanup.
 

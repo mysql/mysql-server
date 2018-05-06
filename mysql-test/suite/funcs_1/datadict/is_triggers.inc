@@ -17,7 +17,6 @@
 #                   Create this script based on older scripts and new code.
 # Last Change:
 # 2008-06-11 mleich Move t/is_triggers.test to this file and
-#                   create variants for embedded/non embedded server.
 #
 
 let $is_table = TRIGGERS;
@@ -98,7 +97,7 @@ WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
@@ -225,7 +224,7 @@ DROP DATABASE db_datadict;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
@@ -237,9 +236,25 @@ ON db_datadict.t1 FOR EACH ROW SET @test_before = 2, new.f1 = @test_before;
 INSERT INTO information_schema.triggers
 SELECT * FROM information_schema.triggers;
 
---error ER_DBACCESS_DENIED_ERROR
+# Note:
+# 1. We can get different error messages here.
+# 2. We do not want to unify the individual messages to the far to unspecific
+#    'Got one of the listed errors'.
+let $my_error_message =
+##### The previous statement must fail ######
+# Server type  | expected error name      | expected error message
+# --------------------------------------------------------------------------------------------------------------------
+# MySQL | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+;
+--disable_abort_on_error
 UPDATE information_schema.triggers SET trigger_schema = 'test'
 WHERE table_name = 't1';
+if (!$mysql_errno)
+{
+   --echo $my_error_message
+   exit;
+}
+--enable_abort_on_error
 
 --error ER_DBACCESS_DENIED_ERROR
 DELETE FROM information_schema.triggers WHERE trigger_name = 't1';

@@ -1,14 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # RQG SPJ
 #
 --source include/have_ndb.inc
 --source include/not_windows.inc
---source include/not_embedded.inc
 --source suite/ndb/include/have_ndb_rqg.inc
 
 # Remember all SPJ conters when test started.

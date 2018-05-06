@@ -13,7 +13,6 @@
 # BUG#21855705 MYSQLDUMP --DUMP-SLAVE DOES NOT WORK WITH MULTI-SOURCE
 #
 
---source include/not_embedded.inc
 call mtr.add_suppression("Invalid .* username when attempting to connect to the master server");
 
 # Multi source replication needs those repositories on TABLE
@@ -27,8 +26,8 @@ SET GLOBAL relay_log_info_repository='TABLE';
 --echo #
 
 --echo # Create two additional replication channels
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
 
 --echo # Execute mysqldump with --dump-slave
 --exec $MYSQL_DUMP_SLAVE --compact --dump-slave --set-gtid-purged=OFF test > $MYSQL_TMP_DIR/chm_1_dump.sql
@@ -36,6 +35,7 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch2.000001
 --echo # Execute mysql using the dump as input
 --exec $MYSQL --force < $MYSQL_TMP_DIR/chm_1_dump.sql
 --remove_file $MYSQL_TMP_DIR/chm_1_dump.sql
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --source include/stop_slave.inc
 
 --echo #
@@ -43,7 +43,7 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch2.000001
 --echo #
 
 --echo # Setup the default replication channel
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="master-bin-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="binlog-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
 
 --echo # Execute mysqldump with --dump-slave
 --replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/
@@ -56,7 +56,9 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="master-bin-default.00
 
 # Clean up
 RESET SLAVE ALL;
+--disable_warnings
 --replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE
 --eval SET @@global.master_info_repository='$save_mi_repo_type'
 --replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
 --eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
+--enable_warnings

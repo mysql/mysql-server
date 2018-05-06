@@ -1,0 +1,87 @@
+################################################################################
+# Validate that GR behaves properly when group GNOs are
+# near exhaustion even with bigger GTID assignment blocks.
+# Group is started with only 6 available GTIDs and all
+# will be used.
+# Test will be run with: 1 and 100 block size.
+#
+# MAX_GNO: 9223372036854775807
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set GTID_PURGED=GRP_UUID:1-9223372036854775800. Bootstrap start GR on M1.
+#    Verify GTID_EXECUTED=GRP_UUID:1-9223372036854775801.
+# 2. Set GTID_PURGED=GRP_UUID:1-9223372036854775800. Start GR on M2. Verify
+#    GTID_EXECUTED=GRP_UUID:1-9223372036854775802.
+# 3. Create a table on M1. Verify GTID_EXECUTED=GRP_UUID:1-9223372036854775803.
+# 4. Execute a transaction on M2. M2 GTID block will adapt to available GNOs.
+#    Verify GTID_EXECUTED=GRP_UUID:1-9223372036854775804.
+# 5. Clean up.
+################################################################################
+--let $group_replication_group_name= 297aeabb-1ef1-11e6-97b4-00212844d44e
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start server 1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:1-9223372036854775800"
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775800
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775800"
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775801
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775801"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start server 2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--eval SET GLOBAL GTID_PURGED= "$group_replication_group_name:1-9223372036854775800"
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775800
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775800"
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775802
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775802"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Create a table on server 1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775803
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775803"
+--source include/assert.inc
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Execute a transaction on server 2.
+--echo #    Server 2 GTID block will adapt to available GNOs.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--let $assert_text= GTID_EXECUTED must be UUID:1-9223372036854775804
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-9223372036854775804"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+DROP TABLE t1;
+--source include/group_replication_end.inc

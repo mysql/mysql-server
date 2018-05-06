@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # Turn on ssl between the client and server
 # and run a number of tests

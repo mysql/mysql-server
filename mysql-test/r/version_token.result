@@ -83,7 +83,7 @@ version_tokens_edit("token1= 123;         token3     =         asdf")
 2 version tokens updated.
 select version_tokens_show();
 version_tokens_show()
-token2=def;token3=asdf;token1=123;
+token1=123;token2=def;token3=asdf;
 
 do version_tokens_set("token1    =     def;;;;      ;invalid_token; token2= abc;;");
 Warnings:
@@ -109,14 +109,14 @@ token1=none;
 do version_tokens_set("token1=def;token2= abc;          ;token3=ghi");
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=ghi;token2=abc;
+token1=def;token2=abc;token3=ghi;
 
 select version_tokens_delete("invalid=token");
 version_tokens_delete("invalid=token")
 0 version tokens deleted.
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=ghi;token2=abc;
+token1=def;token2=abc;token3=ghi;
 
 select version_tokens_delete("token1;token3");
 version_tokens_delete("token1;token3")
@@ -135,7 +135,7 @@ token2=abc;
 do version_tokens_set("token1=def;token2= abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112");
 select version_tokens_show();
 version_tokens_show()
-token1=def;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112;token2=abc;
+token1=def;token2=abc;token3=111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111112;
 
 # Connection: con1
 
@@ -170,8 +170,6 @@ select @@version_tokens_session;
 NULL
 
 set @@version_tokens_session= "token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=abc;;";
-set @@old_passwords= 0;
-ERROR 42000: Lengthy version token name encountered.  Maximum length allowed for a token name is 64 characters.
 
 # Connection: con1 refreshed
 
@@ -188,8 +186,6 @@ set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;   =  ;;;;
 # Connection: con1 refreshed
 
 set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;  sdf =  ;;;;";
-set @@old_passwords= 0;
-ERROR 42000: Empty version token name/value encountered
 
 # Connection: con1 refreshed
 
@@ -214,6 +210,11 @@ ERROR 42000: Version token token100 not found.
 select 1;
 1
 1
+
+# Testing VERSION_TOKEN_ADMIN
+
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT VERSION_TOKEN_ADMIN ON *.* TO u1@localhost;
 # Tests related to locking
 # Connection: vtcon1 
 SELECT version_tokens_set("a=aa;b=bb;c=cc");
@@ -250,6 +251,56 @@ ERROR HY000: Can't initialize function 'version_tokens_delete'; version_token pl
 select version_tokens_show();
 ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plugin is not installed.
 
+# VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
+SHOW PRIVILEGES;
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
+BACKUP_ADMIN	Server Admin	
+BINLOG_ADMIN	Server Admin	
+CONNECTION_ADMIN	Server Admin	
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create role	Server Admin	To create new roles
+Create routine	Databases	To use CREATE FUNCTION/PROCEDURE
+Create tablespace	Server Admin	To create/alter/drop tablespaces
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create user	Server Admin	To create new users
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+Drop role	Server Admin	To drop roles
+ENCRYPTION_KEY_ADMIN	Server Admin	
+Event	Server Admin	To create, alter, drop and execute events
+Execute	Functions,Procedures	To execute stored routines
+File	File access on server	To read and write files on the server
+GROUP_REPLICATION_ADMIN	Server Admin	
+Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+PERSIST_RO_VARIABLES_ADMIN	Server Admin	
+Process	Server Admin	To view the plain text of currently executing queries
+Proxy	Server Admin	To make proxy user possible
+REPLICATION_SLAVE_ADMIN	Server Admin	
+RESOURCE_GROUP_ADMIN	Server Admin	
+RESOURCE_GROUP_USER	Server Admin	
+ROLE_ADMIN	Server Admin	
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+SET_USER_ID	Server Admin	
+SYSTEM_VARIABLES_ADMIN	Server Admin	
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Trigger	Tables	To use triggers
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
+XA_RECOVER_ADMIN	Server Admin	
+
 drop function version_tokens_set;
 drop function version_tokens_show;
 drop function version_tokens_edit;
@@ -258,3 +309,4 @@ drop function version_tokens_lock_shared;
 drop function version_tokens_lock_exclusive;
 drop function version_tokens_unlock;
 drop user vbhagi@localhost;
+drop user u1@localhost;

@@ -2,7 +2,6 @@
 # Basic test for innodb_background_drop_list_empty.
 #
 
--- source include/have_innodb.inc
 
 # The config variable is a debug variable for now
 -- source include/have_debug.inc

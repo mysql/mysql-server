@@ -10,6 +10,6 @@ INSERT t(a) SELECT a+8 FROM t;
 INSERT t(a) SELECT a+16 FROM t;
 INSERT t(a) SELECT a+32 FROM t;
 INSERT t(a) SELECT a+64 FROM t;
-# Page types: 00080005000345bf(8)
+# Page types: 00080005000345bd45bf45bf
 # restart
 DROP TABLE t;

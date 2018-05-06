@@ -11,8 +11,8 @@ select @@session.rand_seed2;
 show global variables like 'rand_seed2';
 show session variables like 'rand_seed2';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='rand_seed2';
-select * from information_schema.session_variables where variable_name='rand_seed2';
+select * from performance_schema.global_variables where variable_name='rand_seed2';
+select * from performance_schema.session_variables where variable_name='rand_seed2';
 --enable_warnings
 
 #
@@ -21,8 +21,8 @@ select * from information_schema.session_variables where variable_name='rand_see
 set session rand_seed2=1;
 select @@session.rand_seed2;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='rand_seed2';
-select * from information_schema.session_variables where variable_name='rand_seed2';
+select * from performance_schema.global_variables where variable_name='rand_seed2';
+select * from performance_schema.session_variables where variable_name='rand_seed2';
 --enable_warnings
 --error ER_LOCAL_VARIABLE
 set global rand_seed2=1;

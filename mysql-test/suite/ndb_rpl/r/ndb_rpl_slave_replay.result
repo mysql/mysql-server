@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 use test;
 create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 STOP SLAVE;
 CHANGE MASTER TO MASTER_LOG_POS=4;
 START SLAVE;
@@ -77,7 +77,7 @@ skipped_err_count
 0
 Now get unexpected epoch back-step using fault injection
 on the Master.
-call mtr.add_suppression("NDB Binlog injector cycling gcis .*");
+call mtr.add_suppression("Binlog injector cycling gcis .*");
 set @old_debug = @@global.debug;
 set global debug="";
 set global debug="+d,ndb_binlog_injector_cycle_gcis";
@@ -91,7 +91,7 @@ insert into test.t1 values (4 + 6, repeat('E', 1000));
 insert into test.t1 values (3 + 6, repeat('E', 1000));
 insert into test.t1 values (2 + 6, repeat('E', 1000));
 insert into test.t1 values (1 + 6, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as applying epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
@@ -124,7 +124,7 @@ skipped_err_count
 0
 delete from test.t1;
 Now get unexpected epoch repeat using fault-injection on the master
-call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("Binlog injector repeating gcis .*");
 set @old_debug = @@global.debug;
 set global debug="";
 set global debug="+d,ndb_binlog_injector_repeat_gcis";
@@ -138,7 +138,7 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as attempted to reapply already committed epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
@@ -184,7 +184,7 @@ insert into test.t1 values (4, repeat('E', 1000));
 insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
-call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as attempting to apply new epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error

@@ -30,23 +30,21 @@ Table	Create Table
 this_sixty_four_byte_name_is_not_too_long_______________________	CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ---- list_files MYSQLD_DATADIR/this_sixty_four_byte_name_is_not_too_long_______________________
-db.opt
-this_sixty_four_byte_name_is_not_too_long_______________________.frm
 this_sixty_four_byte_name_is_not_too_long_______________________.ibd
-SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tables WHERE name LIKE '%long%';
 name
 this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
-SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tablespaces WHERE name LIKE '%long%';
 name
 this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
-SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
-path
+SELECT path FROM information_schema.innodb_datafiles WHERE path LIKE '%long%';
+PATH
 ./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
-file_name	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
-tablespace_name	innodb_file_per_table_##
+FILE_NAME	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+TABLESPACE_NAME	this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
 #
 # Cleanup
 #

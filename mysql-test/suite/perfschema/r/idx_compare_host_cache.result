@@ -1,0 +1,210 @@
+TABLE: "host_cache"
+INDEXES: PK (IP), KEY (HOST)
+
+===== SETUP =====
+## Connection Default
+## Disable events from the default connection
+
+## Create user1, user2, user3
+CREATE USER user1@localhost;
+CREATE USER user2@localhost;
+CREATE USER user3@localhost;
+GRANT ALL ON *.* to 'user1'@localhost;
+GRANT ALL ON *.* to 'user2'@localhost;
+GRANT ALL ON *.* to 'user3'@localhost;
+
+## Setup test connection 1
+## Setup test connection 2
+## Setup test connection 3
+
+## Default connection
+
+## Create data tables
+CREATE TABLE test.t1(a INT, b INT, c INT, d INT DEFAULT 0, PRIMARY KEY(a), INDEX index_b(b), INDEX index_cb(c, b));
+CREATE TABLE test.t2 LIKE test.t1;
+CREATE TABLE test.t3 LIKE test.t1;
+
+## Generate event data from 3 connections
+## Connection 1
+## Connection 2
+## Connection 3
+## Connection 2
+## Create prepared statements on connection 2
+PREPARE st1 FROM 'SELECT SQRT(POW(?,2) + POW(?,2)) AS hypotenuse';
+PREPARE st3 FROM 'INSERT INTO test.t1 SELECT * FROM test.t1 WHERE a<=?';
+PREPARE st4 FROM '(SELECT a FROM test.t1) UNION (SELECT a+10 FROM test.t1) ORDER BY RAND()*0+a';
+## Create stored procedure connection 2
+CREATE PROCEDURE SampleProc1()
+BEGIN
+SET @table = 'test.t1';
+SET @s = CONCAT('SELECT * FROM ', @table);
+PREPARE st2 FROM @s;
+END|
+
+Call SampleProc1() to prepare a statement
+CALL SampleProc1();
+## Connection default
+
+## Use Connection 2 for default target thread id
+
+## Create index_test() procedure
+call mtr.add_suppression("192.0.2.4");
+flush status;
+flush hosts;
+flush user_resources;
+flush privileges;
+select @@global.debug;
+@@global.debug
+
+select @@global.max_connect_errors;
+@@global.max_connect_errors
+100
+select @@global.max_user_connections;
+@@global.max_user_connections
+0
+select @@global.max_connections;
+@@global.max_connections
+151
+select `User`, `Host` from mysql.`user` where `host` like '%\\%%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '192.%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '2001:%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
+User	Host
+CREATE USER 'user4'@'santa.claus.ipv4.example.com';
+GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
+SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+SELECT "Con4 is alive" AS "";
+
+Con4 is alive
+SELECT current_user() AS "";
+
+user4@santa.claus.ipv4.example.com
+"Dumping performance_schema.host_cache"
+IP	192.0.2.4
+HOST	santa.claus.ipv4.example.com
+HOST_VALIDATED	YES
+SUM_CONNECT_ERRORS	0
+COUNT_HOST_BLOCKED_ERRORS	0
+COUNT_NAMEINFO_TRANSIENT_ERRORS	0
+COUNT_NAMEINFO_PERMANENT_ERRORS	0
+COUNT_FORMAT_ERRORS	0
+COUNT_ADDRINFO_TRANSIENT_ERRORS	0
+COUNT_ADDRINFO_PERMANENT_ERRORS	0
+COUNT_FCRDNS_ERRORS	0
+COUNT_HOST_ACL_ERRORS	0
+COUNT_NO_AUTH_PLUGIN_ERRORS	0
+COUNT_AUTH_PLUGIN_ERRORS	0
+COUNT_HANDSHAKE_ERRORS	0
+COUNT_PROXY_USER_ERRORS	0
+COUNT_PROXY_USER_ACL_ERRORS	0
+COUNT_AUTHENTICATION_ERRORS	0
+COUNT_SSL_ERRORS	0
+COUNT_MAX_USER_CONNECTIONS_ERRORS	0
+COUNT_MAX_USER_CONNECTIONS_PER_HOUR_ERRORS	0
+COUNT_DEFAULT_DATABASE_ERRORS	0
+COUNT_INIT_CONNECT_ERRORS	0
+COUNT_LOCAL_ERRORS	0
+COUNT_UNKNOWN_ERRORS	0
+FIRST_ERROR_SEEN	null
+LAST_ERROR_SEEN	null
+SET global debug= default;
+
+## Test IP
+SET @pfs_columns = "IP, HOST";
+
+===== BEGIN TEST =====
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP = '192.0.2.4'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE IP = 'impossible'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+
+## Test HOST
+SET @pfs_columns = "IP, HOST";
+
+===== BEGIN TEST =====
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE host = 'santa.claus.ipv4.example.com'
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE host IS NULL
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE host IS NOT NULL
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT IP, HOST FROM performance_schema.host_cache WHERE host = 'nohost'
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+
+===== CLEAN UP =====
+## Default connection
+DEALLOCATE PREPARE st1;
+DEALLOCATE PREPARE st2;
+DEALLOCATE PREPARE st3;
+DEALLOCATE PREPARE st4;
+DROP PROCEDURE SampleProc1;
+DROP PROCEDURE index_test;
+DROP TABLE IF EXISTS test.indexes_off;
+DROP TABLE IF EXISTS test.indexes_on;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user2@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user3@localhost;
+DROP USER user1@localhost;
+DROP USER user2@localhost;
+DROP USER user3@localhost;
+UPDATE performance_schema.threads SET INSTRUMENTED = 'YES';
+REVOKE SELECT ON test.* FROM 'user4'@'santa.claus.ipv4.example.com';
+DROP USER 'user4'@'santa.claus.ipv4.example.com';

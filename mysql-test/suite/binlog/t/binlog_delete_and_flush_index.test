@@ -14,17 +14,17 @@
 #  PREPARE:
 #   1. create some binlog events
 #   2. show index content, binlog events and binlog contents 
-#      for mysql-bin.000001
-#   3. copy the mysql-bin.000001 to mysql-bin-b34582.000001
-#   4. change the index file so that mysql-bin.000001 is replaced 
-#      with mysql-bin-b34582.000001
+#      for binlog.000001
+#   3. copy the binlog.000001 to binlog-b34582.000001
+#   4. change the index file so that binlog.000001 is replaced 
+#      with binlog-b34582.000001
 #   5. FLUSH the logs so that new index is closed and reopened
 #
 #  ASSERTIONS:
-#   1. index file contents shows mysql-bin-b34582.000001 and 
-#      mysql-bin.000002
+#   1. index file contents shows binlog-b34582.000001 and 
+#      binlog.000002
 #   1. show binary logs shows current index entries
-#   2. binlog contents for mysql-bin-b34582.000001 are displayed
+#   2. binlog contents for binlog-b34582.000001 are displayed
 #   3. Purge binlogs up to the latest one succeeds
 #   4. SHOW BINARY LOGS presents the latest one only after purging
 #   5. Purged binlogs files don't exist in the filesystem
@@ -39,7 +39,7 @@
 RESET MASTER;
 
 -- let $datadir= `SELECT @@datadir`
--- let $index=$datadir/master-bin.index
+-- let $index=$datadir/binlog.index
 -- chmod 0644 $index
 
 # action: issue one command so that binlog gets some event
@@ -48,7 +48,7 @@ CREATE TABLE t1 (a int);
 -- echo ### assertion: index file contains regular entries
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]master/master/
+-- replace_regex /\.[\\\/]binlog/binlog/
 SELECT @index;
 
 --echo ### assertion: show original binlogs
@@ -58,7 +58,7 @@ SELECT @index;
 -- source include/show_binlog_events.inc
 
 # action: copy binlogs to other names and change entries in index file
--- copy_file $datadir/master-bin.000001 $datadir/master-bin-b34582.000001
+-- copy_file $datadir/binlog.000001 $datadir/binlog-b34582.000001
 let INDEX_FILE=$index;
 perl;
 $file= $ENV{'INDEX_FILE'};
@@ -68,20 +68,20 @@ close ($file);
 EOF
 
 -- append_file $index 
-master-bin-b34582.000001
+binlog-b34582.000001
 EOF
 
 # action: should cause rotation, and creation of new binlogs
 FLUSH LOGS;
 
 # file is not used anymore - remove it (mysql closed on flush logs).
--- remove_file $datadir/master-bin.000001
+-- remove_file $datadir/binlog.000001
 
 -- echo ### assertion: index file contains renamed binlog and the new one
 -- chmod 0644 $index
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]master/master/
+-- replace_regex /\.[\\\/]binlog/binlog/
 SELECT @index;
 
 -- echo ### assertion: original binlog content still exists, despite we
@@ -102,7 +102,7 @@ DROP TABLE t1;
 
 -- echo ### assertion: assert that binlog files were indeed purged (using file_exists calls)
 -- error 1
--- file_exists $datadir/master-bin-b34852.000001
+-- file_exists $datadir/binlog-b34852.000001
 
 -- echo ### assertion: assert that not purged binlog file exists
 -- file_exists $datadir/$current_binlog
@@ -111,7 +111,7 @@ DROP TABLE t1;
 -- chmod 0644 $index
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
--- replace_regex /\.[\\\/]master/master/
+-- replace_regex /\.[\\\/]binlog/binlog/
 SELECT @index;
 
 RESET MASTER;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -39,9 +46,8 @@ void Dbtc::initData()
   ctabrecFilesize = ZTABREC_FILESIZE;
   ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
-  cdictblockref = DBDICT_REF;
-  clqhblockref = DBLQH_REF;
-  cerrorBlockref = NDBCNTR_REF;
+  cspjInstanceRR = 1;
+  m_load_balancer_location = 0;
 
   c_lqhkeyconf_direct_sent = 0;
  
@@ -79,7 +85,7 @@ void Dbtc::initRecords()
 			     c_theIndexOperationPool);
   }
   // Init all fired triggers
-  DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
+  TcFiredTriggerData_fifo triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
   while (triggers.seizeLast(tptr) == true) {
     p= tptr.p;
@@ -92,18 +98,17 @@ void Dbtc::initRecords()
   */
   c_theFiredTriggerPool.resetFreeMin();
 
-  /*
   // Init all index records
-  ArrayList<TcIndexData> indexes(c_theIndexPool);
+  TcIndexData_list indexes(c_theIndexPool);
   TcIndexDataPtr iptr;
-  while(indexes.seize(iptr) == true) {
-    new (iptr.p) TcIndexData(c_theAttrInfoListPool);
+  while(indexes.seizeFirst(iptr) == true) {
+    p= iptr.p;
+    new (p) TcIndexData();
   }
-  indexes.release();
-  */
+  while (indexes.releaseFirst());
 
   // Init all index operation records
-  SLList<TcIndexOperation> indexOps(c_theIndexOperationPool);
+  TcIndexOperation_sllist indexOps(c_theIndexOperationPool);
   TcIndexOperationPtr ioptr;
   while (indexOps.seizeFirst(ioptr) == true) {
     p= ioptr.p;
@@ -143,18 +148,36 @@ void Dbtc::initRecords()
   c_scan_frag_pool.setSize(cscanFragrecFileSize);
   {
     ScanFragRecPtr ptr;
-    SLList<ScanFragRec> tmp(c_scan_frag_pool);
+    ScanFragRec_sllist tmp(c_scan_frag_pool);
     while (tmp.seizeFirst(ptr)) {
       new (ptr.p) ScanFragRec();
     }
     while (tmp.releaseFirst());
   }
 
+  for (Uint32 i = 0; i < cscanrecFileSize; i++)
+  {
+    ScanRecordPtr ptr;
+    ptr.i = i;
+    ptrAss(ptr, scanRecord);
+    new (ptr.p) ScanRecord();
+  }
+  for (Uint32 i = 0; i < ctcConnectFilesize; i++)
+  {
+    TcConnectRecordPtr ptr;
+    ptr.i = i;
+    ptrAss(ptr, tcConnectRecord);
+    new (ptr.p) TcConnectRecord();
+  }
   while (indexOps.releaseFirst());
   
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcpFilesize);
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
   
 }//Dbtc::initRecords()
 
@@ -242,11 +265,7 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Dbtc::execDIH_SCAN_GET_NODES_CONF);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbtc::execDIH_SCAN_GET_NODES_REF);
   addRecSignal(GSN_DIVERIFYCONF, &Dbtc::execDIVERIFYCONF);
-  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbtc::execDIH_SCAN_TAB_CONF);
-  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbtc::execDIH_SCAN_TAB_REF);
   addRecSignal(GSN_GCP_NOMORETRANS, &Dbtc::execGCP_NOMORETRANS);
   addRecSignal(GSN_LQHKEYCONF, &Dbtc::execLQHKEYCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbtc::execNDB_STTOR);

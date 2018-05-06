@@ -1,0 +1,58 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression("Disk is full writing");
+CALL mtr.add_suppression("Retry in 60 secs");
+CALL mtr.add_suppression("Relay log write failure");
+CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
+#
+# Step 1 - Monitor and kill I/O thread while waiting for disk space
+#
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES(2);
+[connection slave]
+include/wait_for_slave_param.inc [Slave_IO_State]
+include/assert.inc [I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads]
+include/assert.inc [I/O thread STATE should be Waiting for disk space at information_schema.processlist]
+[connection slave1]
+STOP SLAVE IO_THREAD;
+[connection slave]
+SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
+KILL IO_THREAD;
+[connection slave1]
+[connection slave]
+include/wait_for_slave_io_error.inc [errno=13122]
+# Removing debug point 'simulate_io_thd_wait_for_disk_space' from @@GLOBAL.debug
+include/assert_grep.inc [Found the disk full error message on the slave]
+include/assert_grep.inc [Found the relay log truncate message on the slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+#
+# Step 2 - Restart the slave server while I/O thread is waiting for disk space
+#
+# Adding debug point 'simulate_io_thd_wait_for_disk_space' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+INSERT INTO t1 VALUES(6);
+INSERT INTO t1 VALUES(7);
+INSERT INTO t1 VALUES(8);
+INSERT INTO t1 VALUES(9);
+[connection slave]
+include/wait_for_slave_param.inc [Slave_IO_State]
+include/stop_slave_sql.inc
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery --log-error-verbosity=3]
+include/start_slave.inc
+include/assert_grep.inc [Found no warning messages about I/O thread waiting before stopping]
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

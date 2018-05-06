@@ -29,13 +29,13 @@ product	CREATE TABLE `product` (
   `id` int(11) NOT NULL,
   `price` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`category`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table customer;
 Table	Create Table
 customer	CREATE TABLE `customer` (
   `id` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table product_order;
 Table	Create Table
 product_order	CREATE TABLE `product_order` (
@@ -48,7 +48,7 @@ product_order	CREATE TABLE `product_order` (
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `fk1` FOREIGN KEY (`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into product values (1,1,5);
 insert into customer value (1);
 insert into product_order value (1,1,1,1);
@@ -60,13 +60,13 @@ product	CREATE TABLE `product` (
   `id` int(11) NOT NULL,
   `price` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`category`,`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table customer;
 Table	Create Table
 customer	CREATE TABLE `customer` (
   `id` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table product_order;
 Table	Create Table
 product_order	CREATE TABLE `product_order` (
@@ -79,5 +79,5 @@ product_order	CREATE TABLE `product_order` (
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `fk2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk1` FOREIGN KEY (`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table product_order, customer, product;

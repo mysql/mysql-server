@@ -1,0 +1,1874 @@
+SET optimizer_trace_max_mem_size = 1000000;
+SET optimizer_trace="enabled=on";
+CREATE TABLE t1 (col1 INT, col2 INT);
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (NULL, NULL);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+UPDATE mysql.innodb_table_stats SET n_rows = 6
+WHERE database_name = "test" AND table_name = "t1";
+EXPLAIN SELECT * FROM t1 WHERE col1 < 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` < 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 < 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` < 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` < 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` < 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` < 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` < 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` < 4)",
+                          "histogram_selectivity": 0.5
+                        }
+                      ],
+                      "final_filtering_effect": 0.5,
+                      "access_type": "scan",
+                      "resulting_rows": 3,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 3,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` < 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` < 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 > 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` > 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 > 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` > 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` > 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` > 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` > 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` > 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` > 4)",
+                          "histogram_selectivity": 0.1667
+                        }
+                      ],
+                      "final_filtering_effect": 0.1667,
+                      "access_type": "scan",
+                      "resulting_rows": 1,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` > 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` > 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 >= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` >= 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 >= 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` >= 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` >= 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` >= 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` >= 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` >= 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` >= 4)",
+                          "histogram_selectivity": 0.3333
+                        }
+                      ],
+                      "final_filtering_effect": 0.3333,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` >= 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` >= 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <= 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` <= 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` <= 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` <= 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` <= 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` <= 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` <= 4)",
+                          "histogram_selectivity": 0.6667
+                        }
+                      ],
+                      "final_filtering_effect": 0.6667,
+                      "access_type": "scan",
+                      "resulting_rows": 4,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 4,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` <= 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` <= 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` = 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 = 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` = 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` = 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "multiple equal(4, `t1`.`col1`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "multiple equal(4, `t1`.`col1`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "multiple equal(4, `t1`.`col1`)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` = 4)",
+                          "histogram_selectivity": 0.1667
+                        }
+                      ],
+                      "final_filtering_effect": 0.1667,
+                      "access_type": "scan",
+                      "resulting_rows": 1,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` = 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` = 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 != 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <> 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 != 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` <> 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` <> 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` <> 4)",
+                          "histogram_selectivity": 0.6667
+                        }
+                      ],
+                      "final_filtering_effect": 0.6667,
+                      "access_type": "scan",
+                      "resulting_rows": 4,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 4,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` <> 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` <> 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 <> 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <> 4)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 <> 4	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` <> 4)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` <> 4)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` <> 4)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` <> 4)",
+                          "histogram_selectivity": 0.6667
+                        }
+                      ],
+                      "final_filtering_effect": 0.6667,
+                      "access_type": "scan",
+                      "resulting_rows": 4,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 4,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` <> 4)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` <> 4)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` between 4 and 6)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` between 4 and 6)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` between 4 and 6)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` between 4 and 6)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` between 4 and 6)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` between 4 and 6)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` between 4 and 6)",
+                          "histogram_selectivity": 0.3333
+                        }
+                      ],
+                      "final_filtering_effect": 0.3333,
+                      "access_type": "scan",
+                      "resulting_rows": 2,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 2,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` between 4 and 6)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` between 4 and 6)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` not between 4 and 6)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` not between 4 and 6)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` not between 4 and 6)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` not between 4 and 6)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` not between 4 and 6)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` not between 4 and 6)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` not between 4 and 6)",
+                          "histogram_selectivity": 0.5
+                        }
+                      ],
+                      "final_filtering_effect": 0.5,
+                      "access_type": "scan",
+                      "resulting_rows": 3,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 3,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` not between 4 and 6)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` not between 4 and 6)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where isnull(`test`.`t1`.`col1`)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NULL	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where isnull(`t1`.`col1`)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "isnull(`t1`.`col1`)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "isnull(`t1`.`col1`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "isnull(`t1`.`col1`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "isnull(`t1`.`col1`)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "isnull(`t1`.`col1`)",
+                          "histogram_selectivity": 0.1667
+                        }
+                      ],
+                      "final_filtering_effect": 0.1667,
+                      "access_type": "scan",
+                      "resulting_rows": 1,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "isnull(`t1`.`col1`)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "isnull(`t1`.`col1`)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	83.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` is not null)
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where (`t1`.`col1` is not null)"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t1`.`col1` is not null)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(`t1`.`col1` is not null)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(`t1`.`col1` is not null)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(`t1`.`col1` is not null)"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 6,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 6,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` is not null)",
+                          "histogram_selectivity": 0.8333
+                        }
+                      ],
+                      "final_filtering_effect": 0.8333,
+                      "access_type": "scan",
+                      "resulting_rows": 5,
+                      "cost": 0.85,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 5,
+                "cost_for_plan": 0.85,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t1`.`col1` is not null)",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "(`t1`.`col1` is not null)"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+DROP TABLE t1;
+#
+# Show that histogram selecitivty estimation is printed for other acecss
+# methods as well.
+#
+# Access method: RANGE
+CREATE TABLE t1 (col1 INT, col2 INT);
+INSERT INTO t1 VALUES (15, 84), (19, 51), (70, 52), (54, 82), (33, 93), (80, 0),
+(51, 82), (50, 14), (22, 27), (96, 82), (96, 3), (86, 61), (4, 58), (95, 20),
+(28, 56), (64, 99), (10, 85), (30, 81), (13, 85), (28, 94);
+CREATE INDEX ON t1 (col1, col2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1	col1	5	NULL	18	80.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where ((`test`.`t1`.`col1` > 10) and (`test`.`t1`.`col2` < 88))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` where ((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 20,
+                    "cost": 4.35
+                  },
+                  "potential_range_indexes": [
+                    {
+                      "index": "col1",
+                      "usable": true,
+                      "key_parts": [
+                        "col1",
+                        "col2"
+                      ]
+                    }
+                  ],
+                  "best_covering_index_scan": {
+                    "index": "col1",
+                    "cost": 2.2593,
+                    "chosen": true
+                  },
+                  "setup_range_conditions": [
+                  ],
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  },
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "col1",
+                        "ranges": [
+                          "10 < col1"
+                        ],
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
+                        "index_only": true,
+                        "rows": 18,
+                        "cost": 2.0683,
+                        "chosen": true
+                      }
+                    ],
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    }
+                  },
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "col1",
+                      "rows": 18,
+                      "ranges": [
+                        "10 < col1"
+                      ]
+                    },
+                    "rows_for_plan": 18,
+                    "cost_for_plan": 2.0683,
+                    "chosen": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 18,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col2` < 88)",
+                          "histogram_selectivity": 0.8
+                        }
+                      ],
+                      "final_filtering_effect": 0.8,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "col1"
+                      },
+                      "resulting_rows": 14.4,
+                      "cost": 3.8683,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14.4,
+                "cost_for_plan": 3.8683,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+DROP TABLE t1;
+#
+# Show the difference between the calculated selectivity estimation for
+# each predicate and the total calculated selectivity estimation
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 2 AND col1 <= 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	65.62	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where ((`test`.`t1`.`col1` > 2) and (`test`.`t1`.`col1` <= 7))
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+EXPLAIN SELECT * FROM t1 WHERE col1 > 2 AND col1 <= 7	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t1`.`col1` AS `col1` from `t1` where ((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+                }
+              ]
+            }
+          },
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t1`",
+                "table_scan": {
+                  "rows": 8,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 8,
+                      "filtering_effect": [
+                        {
+                          "condition": "(`t1`.`col1` > 2)",
+                          "histogram_selectivity": 0.75
+                        },
+                        {
+                          "condition": "(`t1`.`col1` <= 7)",
+                          "histogram_selectivity": 0.875
+                        }
+                      ],
+                      "final_filtering_effect": 0.6562,
+                      "access_type": "scan",
+                      "resulting_rows": 5.25,
+                      "cost": 1.05,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 5.25,
+                "cost_for_plan": 1.05,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))",
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t1`",
+                  "attached": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+                }
+              ]
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ]
+      }
+    }
+  ]
+}	0	0
+DROP TABLE t1;

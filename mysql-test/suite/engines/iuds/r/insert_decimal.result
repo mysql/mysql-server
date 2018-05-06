@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1,t2;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 DECIMAL(10,5) UNSIGNED NOT NULL, c2 DECIMAL(10,5) SIGNED NULL, c3 DECIMAL, c4 INT, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t2(c1 DECIMAL(10,0) SIGNED NOT NULL, c2 DECIMAL(10) UNSIGNED NULL, c3 DECIMAL, c4 INT);
 INSERT INTO t1 VALUES('00100.05000','-00100.05000','00100.05000',1);
@@ -1089,6 +1087,9 @@ Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c2' at row 2
+Warning	1265	Data truncated for column 'c3' at row 2
 insert into t2 values ("1e+18446744073709551615","1e+18446744073709551615","1e+18446744073709551615",30),("1e+18446744073709551616","1e+18446744073709551616","1e+18446744073709551616",31),("1e-9223372036854775807","1e-9223372036854775807","1e-9223372036854775807",32),("1e-9223372036854775809","1e-9223372036854775809","1e-9223372036854775809",33);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1103,6 +1104,12 @@ Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
+Warning	1265	Data truncated for column 'c1' at row 3
+Warning	1265	Data truncated for column 'c2' at row 3
+Warning	1265	Data truncated for column 'c3' at row 3
+Warning	1265	Data truncated for column 'c1' at row 4
+Warning	1265	Data truncated for column 'c2' at row 4
+Warning	1265	Data truncated for column 'c3' at row 4
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13
@@ -1986,6 +1993,9 @@ Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c2' at row 2
+Warning	1265	Data truncated for column 'c3' at row 2
 insert into t2 values ("1e+18446744073709551615","1e+18446744073709551615","1e+18446744073709551615",30),("1e+18446744073709551616","1e+18446744073709551616","1e+18446744073709551616",31),("1e-9223372036854775807","1e-9223372036854775807","1e-9223372036854775807",32),("1e-9223372036854775809","1e-9223372036854775809","1e-9223372036854775809",33);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1998,6 +2008,12 @@ Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c3' at row 2
+Warning	1265	Data truncated for column 'c1' at row 3
+Warning	1265	Data truncated for column 'c2' at row 3
+Warning	1265	Data truncated for column 'c3' at row 3
+Warning	1265	Data truncated for column 'c1' at row 4
+Warning	1265	Data truncated for column 'c2' at row 4
+Warning	1265	Data truncated for column 'c3' at row 4
 SELECT * FROM t1;
 c1	c2	c3	c4
 0.00000	-0.10000	-0.1	13

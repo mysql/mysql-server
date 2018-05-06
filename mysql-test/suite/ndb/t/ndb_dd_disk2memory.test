@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ########################################
 # Author: JBM
 # Date: 2006-01-12
@@ -24,7 +19,8 @@ ENGINE=NDB;
 CREATE TABLESPACE table_space1
 ADD DATAFILE './table_space1/datafile.dat'
 USE LOGFILE GROUP log_group1
-INITIAL_SIZE 24M
+INITIAL_SIZE 28M
+EXTENT_SIZE 256K
 ENGINE NDB;
 
 
@@ -106,13 +102,19 @@ INSERT INTO test.t1 VALUES
 SELECT b, c FROM test.t1 LEFT JOIN test.t2 ON pk1=pk2 ORDER BY b;
 SELECT COUNT(*) FROM test.t1 LEFT JOIN test.t2 ON b=b2;
 SELECT COUNT(*) FROM test.t1 RIGHT JOIN test.t2 ON b=b2;
+--disable_warnings
 SHOW CREATE TABLE test.t2;
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
 ENGINE=NDB;
+--disable_warnings
 SHOW CREATE TABLE test.t2;
+--enable_warnings
 ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
+--disable_warnings
 SHOW CREATE TABLE test.t1;
+--enable_warnings
 --echo
 ######################### End Test Section 2 #################
 DROP TABLE test.t1;
@@ -220,8 +222,10 @@ while ($1)
 
 ALTER TABLE test.t1 ADD INDEX (a2), ADD INDEX (a3), ADD INDEX (a8);
 ALTER TABLE test.t2 ADD INDEX (b2), ADD INDEX (b3), ADD INDEX (b8);
+--disable_warnings
 SHOW CREATE TABLE test.t1;
 SHOW CREATE TABLE test.t2;
+--enable_warnings
 SELECT * FROM test.t1 order by a1;
 SELECT * FROM test.t2 order by b1;
 SELECT COUNT(a1), a1, COUNT(a1)*a1 FROM test.t1 GROUP BY a1;
@@ -281,16 +285,160 @@ WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
 
 DROP TABLE test.t1,test.t2;
 
+
+#####################################################
+# Testing In-Memory Dynamic Columns with Disk Columns
+####################################################
+
+--echo #
+--echo # Bug#22195588 : SETTING NULL TO A DYNAMIC IN-MEMORY COLUMN CORRUPTS DISK COLUMN VALUES
+--echo #
+
+--echo # Setting up tables
+create table t1(
+  a int unsigned auto_increment primary key,
+  b int,
+  c int default null column_format dynamic storage memory,
+  d varchar(100) default null column_format dynamic storage memory
+)tablespace table_space1 storage disk engine=ndbcluster;
+
+--echo # Populate t1
+--echo # Setting all the dynamic columns to NULL and varying disk parts
+insert into t1 () values();
+insert into t1 (b) values (10);
+
+--echo # Populating values to single dynamic column and varying disk parts
+insert into t1 (c) values (20);
+insert into t1 (b, c) values (10, 20);
+
+insert into t1 (d) values (repeat('0123456789', 3));
+insert into t1 (d) values (repeat('0123456789', 10));
+insert into t1 (b, d) values (10, repeat('0123456789',3));
+insert into t1 (b, d) values (10, repeat('0123456789',10));
+
+--echo # Both dynamic columns have non NULL values and disk columns varied
+insert into t1 (c, d) values (20, repeat('0123456789',3));
+insert into t1 (c, d) values (20, repeat('0123456789',10));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',3));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',10));
+
+--echo # Verify that they are properly stored and retrieved
+select * from t1 order by a;
+
+--echo # Update some rows to verify that the varpart is reallocating properly
+--echo # Updating NULL dynamic columns and assigning NON-NULL values
+update t1 set c = 10 where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+
+--echo # Updating and setting NULL to NON-NULL dynamic columns
+update t1 set c = null where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+
+--echo # Updating NULL dynamic var columns and assigning NON-NULL values
+update t1 set d = repeat('0123456789', 5) where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+
+--echo # Updating NULL to NON-NULL and vice versa in dynamic columns
+update t1 set c = null, d = repeat('0123456789', 10) where a in (3,4);
+select * from t1 where a in (3,4) order by a;
+
+--echo # Updating and setting NULL to NON-NULL dynamic var columns
+update t1 set c = 20, d = null where a in (5,6,7,8);
+select * from t1 where a in (5,6,7,8) order by a;
+
+--echo # Update all dynamic columns to NULL
+update t1 set c = null, d = null where a > 8;
+select * from t1 where a > 8 order by a;
+
+--echo # Update all dynamic columns to NON-NULL values
+update t1 set c = 20, d = '0123456789' where a > 8;
+select * from t1 where a > 8 order by a;
+
+select * from t1 order by a;
+
+--echo # Now do some transactions with multiple operations
+
+# Record var memory usage at start
+--source ndb_var_mem_usage.inc
+
+--echo # Add more data to dynamic varchar and then set to NULL
+--echo # Meanwhile insert value into int column
+--echo # This should reduce the var memory usage
+select * from t1 where a = 1;
+begin;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 20 where a = 1;
+update t1 set d = NULL where a = 1;
+update t1 set c = 30 where a = 1;
+commit;
+select * from t1 where a = 1;
+
+--echo # Check if the var mem has decreased
+--source ndb_var_mem_usage.inc
+--disable_query_log
+select if (@old_var_used_bytes > @var_used_bytes, 'Yes', 'No')
+       as 'Has var part memory usage decreased?';
+--enable_query_log
+
+--echo # Setting up next transaction - make dynamic columns NULL
+update t1 set c = NULL where a = 1;
+
+--echo # Checking var memory and number of var parts before transaction
+--source ndb_var_mem_usage.inc
+
+--echo # Insert and later set null to dynamic columns in the same transaction
+--echo # This should not change memory usage
+select * from t1 where a = 1;
+begin;
+update t1 set c = 30 where a = 1;
+update t1 set b = 30 where a = 1;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 45 where a = 1;
+update t1 set d = repeat('0123456789', 5) where a = 1;
+update t1 set c = NULL where a = 1;
+update t1 set d = NULL where a = 1;
+commit;
+select * from t1 where a = 1;
+
+--echo # Checking if the var mem is the same
+--source ndb_var_mem_usage.inc
+--disable_query_log
+select if (@old_var_used_bytes = @var_used_bytes, 'Yes', 'No')
+       as 'Is var part memory usage unchanged?';
+--enable_query_log
+
+--echo # Grow the dynamic varchar and then shrink it but still having more data than when it was at start.
+--echo # Insert alternatively the other dynamic column with NULL but back to a NON-NULL value at end
+--echo # This should be reflected correctly in the memory
+select * from t1 where a = 12;
+begin;
+update t1 set c = 42 where a = 12;
+update t1 set d = repeat('0123456789', 5) where a = 12;
+update t1 set c = NULL where a = 12;
+update t1 set d = repeat('0123456789', 10) where a = 12;
+update t1 set c = 30 where a = 12;
+update t1 set d = repeat('0123456789', 2) where a = 12;
+commit;
+select * from t1 where a = 12;
+
+--echo # Check if the var mem has increased
+--source ndb_var_mem_usage.inc
+--disable_query_log
+select if (@old_var_used_bytes < @var_used_bytes, 'Yes', 'No')
+       as 'Has var part memory usage increased?';
+--enable_query_log
+
+--echo # Cleanup
+drop table t1;
+
 #################
 # Test Cleanup
 #################
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;

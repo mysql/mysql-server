@@ -34,7 +34,7 @@ SET @@session.range_optimizer_max_mem_size = 0.5;
 
 --disable_warnings
 SET @@session.range_optimizer_max_mem_size = DEFAULT;
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+SELECT * FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
 --enable_warnings
 

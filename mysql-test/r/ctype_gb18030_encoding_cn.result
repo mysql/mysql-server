@@ -4,14 +4,17 @@ Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE DATABASE `中文`;
 CREATE DATABASE `数据库`;
-SELECT schema_name, HEX(schema_name) FROM information_schema.schemata WHERE schema_name NOT IN ('mtr', 'sys');
-schema_name	HEX(schema_name)
+SELECT schema_name, HEX(schema_name)
+FROM information_schema.schemata
+WHERE schema_name NOT IN ('mtr', 'sys')
+ORDER BY schema_name;
+SCHEMA_NAME	HEX(schema_name)
 information_schema	696E666F726D6174696F6E5F736368656D61
-中文	E4B8ADE69687
-数据库	E695B0E68DAEE5BA93
 mysql	6D7973716C
 performance_schema	706572666F726D616E63655F736368656D61
 test	74657374
+中文	E4B8ADE69687
+数据库	E695B0E68DAEE5BA93
 USE `数据库`;
 USE `中文`;
 DROP DATABASE `数据库`;
@@ -46,7 +49,7 @@ Field	Type	Null	Key	Default	Extra
 㐄㐄㐄	char(1)	YES		NULL	
 DESC `㐇㐈㐉`;
 Field	Type	Null	Key	Default	Extra
-㐐㐐㐐	char(1)	YES		NULL	
+㐐㐐㐐	char(1)	YES		NULL	NULL
 SHOW CREATE TABLE `表格`;
 Table	Create Table
 表格	CREATE TABLE `表格` (
@@ -735,12 +738,12 @@ CREATE TABLE t1 (c VARCHAR(10)) DEFAULT CHARSET = gb18030;
 INSERT INTO t1 VALUES ('嬽仛砻'), ('櫶'), ('怑橷'), ('獣厘濸氻'), ('嚏'), ('𠻠'), ('怑橷');
 SELECT c, COUNT(c) FROM t1 GROUP BY c;
 c	COUNT(c)
+嬽仛砻	1
+櫶	1
 怑橷	2
-𠻠	1
 獣厘濸氻	1
 嚏	1
-櫶	1
-嬽仛砻	1
+𠻠	1
 DROP TABLE t1;
 'Test for PS'
 CREATE TABLE t1 (c1 CHAR(3)) DEFAULT CHARSET = gb18030;

@@ -88,10 +88,10 @@ a	b	c
 3	-3	-3
 explain select * from t1 where b in (select c from t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	c	c	5	NULL	3	100.00	Using index
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t3	NULL	ref	c	c	5	test.t1.b	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where (`test`.`t1`.`b` = `test`.`t3`.`c`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where (`test`.`t3`.`c` = `test`.`t1`.`b`)
 # select_type=PRIMARY, type=range,ref
 select * from t1 where c in (select c from t3 where c between -2 and -1);
 a	b	c
@@ -310,13 +310,13 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`t
 # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(b) from t1 group by b;
 sum(b)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`b`
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
@@ -340,19 +340,19 @@ NULL
 -2
 explain select sum(b) from t1 group by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	c	c	5	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`c`
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(c) from t1 group by b;
 sum(c)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(c) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
 drop table t1;
@@ -522,8 +522,6 @@ col_varchar_nokey
 (1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't');
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT DISTINCT alias1.col_varchar_key AS field1
 FROM ( cc AS alias1 STRAIGHT_JOIN
 (( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
@@ -542,8 +540,6 @@ Warning	1292	Truncated incorrect DOUBLE value: 'm'
 Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#20797941: WL8149:ASSERTION !TABLE ||
 #  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET

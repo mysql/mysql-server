@@ -1,8 +1,7 @@
 !include suite/ndb/my.cnf
 
 [cluster_config.1]
-DataMemory=10M
-IndexMemory=100M
+DataMemory=30M
 
 ############
 ## MaxNoOfLocalOperations (Default 11000) is shared among 
@@ -13,3 +12,4 @@ IndexMemory=100M
 ## the default value is not sufficient.
 ##
 MaxNoOfLocalOperations = 40000
+ThreadConfig=ldm={count=1}

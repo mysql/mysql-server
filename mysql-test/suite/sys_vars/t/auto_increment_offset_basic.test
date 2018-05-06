@@ -146,7 +146,7 @@ SELECT @@session.auto_increment_offset;
 
 --disable_warnings
 SELECT @@global.auto_increment_offset = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='auto_increment_offset';
 --enable_warnings
 
@@ -158,7 +158,7 @@ WHERE VARIABLE_NAME='auto_increment_offset';
 
 --disable_warnings
 SELECT @@session.auto_increment_offset = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='auto_increment_offset';
 --enable_warnings
 

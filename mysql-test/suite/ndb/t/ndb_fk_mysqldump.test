@@ -1,7 +1,5 @@
 -- source include/have_ndb.inc
 
-# test uses mysqldump, hence not in embedded
--- source include/not_embedded.inc
 
 create table product (
   category int not null,
@@ -30,9 +28,11 @@ create table product_order (
   foreign key (customer_id) references customer(id))
 engine=ndb;
 
+--disable_warnings
 show create table product;
 show create table customer;
 show create table product_order;
+--enable_warnings
 
 insert into product values (1,1,5);
 insert into customer value (1);
@@ -49,8 +49,10 @@ drop table product_order, customer, product;
 
 --exec $MYSQL test < $dump_file
 
+--disable_warnings
 show create table product;
 show create table customer;
 show create table product_order;
+--enable_warnings
 
 drop table product_order, customer, product;

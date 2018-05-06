@@ -1,6 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -14,6 +12,8 @@ c2 CHAR(120) NOT NULL DEFAULT '',
 c21 CHAR(60) NOT NULL DEFAULT '',
 primary key(c1))
 ENGINE = INNODB DEFAULT CHARSET UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('1', 'Darmstadt', 'City');
 INSERT INTO t1 VALUES ('2', 'Berlin', 'Mitte');
 INSERT INTO t1 VALUES ('3', 'Cottbus', 'West');
@@ -49,6 +49,4 @@ c1	c2	c21
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;

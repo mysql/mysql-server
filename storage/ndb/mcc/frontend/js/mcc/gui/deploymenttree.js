@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -447,6 +454,11 @@ function deploymentTreeSetup() {
     }
 
     // Create tooltip widget and connect to the buttons
+    var install_tt = new dijit.Tooltip({
+        connectId: ["configWizardInstallCluster"],
+        label: "Install Cluster on host(s) if requested"
+    });
+
     var deploy_tt = new dijit.Tooltip({
         connectId: ["configWizardDeployCluster"],
         label: "Create necessary directories and distribute configuration files"
@@ -454,8 +466,7 @@ function deploymentTreeSetup() {
 
     var start_tt = new dijit.Tooltip({
         connectId: ["configWizardStartCluster"],
-        label: "Create necessary directories and distribute configuration " +
-                "files, start all cluster processes"
+        label: "Start all cluster processes"
     });
 
     var stop_tt = new dijit.Tooltip({
@@ -469,7 +480,6 @@ function deploymentTreeSetup() {
 
 var _statii = {};
 function getStatii(nodeid) {
-  console.log(_statii[nodeid]);
   return _statii[nodeid] ? _statii[nodeid].status : "UNKNOWN"; 
 }
  
@@ -478,10 +488,11 @@ function receiveStatusReply(reply) {
     if (reply && reply.body && reply.body.reply_properties) {
       _statii = reply.body.reply_properties;
       for (var i in reply.body.reply_properties) {
-	var curr = reply.body.reply_properties[i];
-	mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
+        var curr = reply.body.reply_properties[i];
+        mcc.storage.processStorage().getItems({NodeId: i}).then(function (processes) {
                 if (processes && processes[0]) {
-                    mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(function (proc) {
+                    mcc.storage.processTreeStorage().getItem(processes[0].getId()).then(
+                    function (proc) {
                         proc.setValue("status", curr.status);
                     });
                 }
@@ -510,7 +521,8 @@ function receiveStatusError(errMsg, reply) {
     _statii = {};
     mcc.storage.processStorage().getItems().then(function (processes) {
         for (var p in processes) {
-            mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(function (proc) {
+            mcc.storage.processTreeStorage().getItem(processes[p].getId()).then(
+            function (proc) {
                 proc.deleteAttribute("status");
             });
         }
@@ -531,8 +543,20 @@ function doPoll() {
     // Get the appropriate hostname and port number
     var host = mgmd.getValue("HostName");
     var port = mgmd.getValue("Portnumber");
-            
-    // If not overridden, get predefined host
+
+    // api.hostHasCreds localhost check breaks with old code.
+    if (!host) {
+        mcc.storage.hostStorage().getItems({id: mgmd.getValue("host")}).then(
+            function (hosts) {
+                if (hosts[0]) {
+                    host = hosts[0].getValue("name");
+                }
+            }
+        );
+    };
+    
+    // If not overridden, get predefined host. Note, old code which returns FQDN/internalIP now,
+    // left here in case both above methods fail.
     if (!host) {
         host = mcc.configuration.getPara("management", 
                                          mgmd.getId(), "HostName", "defaultValueInstance");

@@ -1,0 +1,45 @@
+--echo #
+--echo # WL7900 -- New DD: Support flexible creation and versioning of
+--echo #           virtual P_S tables
+--echo #
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+
+CALL mtr.add_suppression("Native table .* has the wrong structure");
+
+--echo # Case 1:
+--echo # Restart server with the actual P_S version number differed
+--echo # from the expected version number.
+--echo # - Using a debug flag for testing.
+--echo # - Check if abandoned P_S table is removed, in case server version is
+--echo #   changed. The test case expects P_S.cond_instances to be missed.
+
+--echo # check that in normal mode the table P_S.cond_instances exists.
+--replace_column 1 #
+SELECT COUNT(*) FROM performance_schema.cond_instances;
+
+--let $restart_parameters=restart:--debug=+d,test_p_s_metadata_version
+--source include/restart_mysqld.inc
+
+--replace_column 1 #
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM performance_schema.cond_instances;
+
+--echo # Case 2:
+--echo # Restart server should fail if P_S version is changed
+--echo # and --innodb-read-only mode is ON.
+
+--disable_warnings
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--let $INNODB_LOG_FILE_SIZE=`SELECT @@innodb_log_file_size`
+--source include/shutdown_mysqld.inc
+
+--let LOG_FILE = $MYSQLTEST_VARDIR/tmp/bootstrap.err
+--let CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb-log-file-size=$INNODB_LOG_FILE_SIZE --debug=+d,test_p_s_metadata_version --innodb-read-only --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --log-error=$LOG_FILE --secure-file-priv="" 2>&1
+--error 1
+--exec $CMD
+--enable_warnings
+
+--source include/start_mysqld.inc
+

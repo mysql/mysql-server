@@ -1,7 +1,5 @@
 drop table if exists test.setup_objects;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table test.setup_objects as
 select * from performance_schema.setup_objects;
 truncate table performance_schema.setup_objects;

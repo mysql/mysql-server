@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 #
 # Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
@@ -54,6 +50,9 @@
 # - Part 22: Special tables (views temp tables)
 # - Part 23: Special statements
 # - Part 24: Testing the strength of TABLE_SHARE version
+# Test SQLCOM_REPAIR  needs MyISAM for execution. 
+--source include/have_myisam.inc
+
 --disable_warnings
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3;
@@ -69,7 +68,7 @@ begin
   declare old_reprepare_count int default @reprepare_count;
 
   select variable_value from
-  information_schema.session_status where
+  performance_schema.session_status where
   variable_name='com_stmt_reprepare'
   into @reprepare_count;
 
@@ -673,7 +672,7 @@ deallocate prepare stmt;
 
 --echo #
 --echo # Test 3: View referencing an Information schema table
---echo #
+--echo # Not referencing P_S table until Bug#21789221 is fixed.
 create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 
 prepare stmt from "select * from t1";
@@ -1009,21 +1008,25 @@ deallocate prepare stmt;
 --echo =====================================================================
 
 prepare stmt from
- "select type, db, name from mysql.proc where name='p1'";
+ "select database_name, table_name, n_rows, sum_of_other_index_sizes from mysql.innodb_table_stats where table_name='t1'";
 
-create procedure p1() select "hi there";
+create table test.t1(f1 int);
+insert into test.t1 values (10);
 
 execute stmt;
 execute stmt;
 
-drop procedure p1;
-create procedure p1() select "hi there, again";
+drop table test.t1;
+create table test.t1(f1 int primary key, f2 int, key(f2));
+insert into test.t1 values (20, 20);
+insert into test.t1 values (30, 20);
+analyze table test.t1;
 
 execute stmt;
 execute stmt;
 call p_verify_reprepare_count(0);
 
-drop procedure p1;
+drop table test.t1;
 deallocate prepare stmt;
 
 --echo =====================================================================
@@ -1081,17 +1084,16 @@ drop table t1;
 
 --echo # SQLCOM_REPAIR:
 
-create table t1 (a int);
+create table t1 (a int) engine=MyISAM;
 
 insert into t1 values (1), (2), (3);
 
 prepare stmt from "repair table t1";
 
 execute stmt;
-execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 
 --echo # t1 has changed, and it's does not lead to reprepare
@@ -1111,7 +1113,7 @@ prepare stmt from "analyze table t1";
 execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 --echo # t1 has changed, and it's not a problem
 execute stmt;
@@ -1130,7 +1132,7 @@ prepare stmt from "optimize table t1";
 execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 
 --echo # t1 has changed, and it's not a problem
@@ -1919,7 +1921,7 @@ deallocate prepare stmt;
 drop table if exists t1;
 create table t1 (a int);
 # The gtid_executed session variable was deprecated on MySQL 5.7 and
-# only in MySQL 5.7 with GTID support (non-embedded for example) a
+# only in MySQL 5.7 with GTID support (for example) a
 # "SHOW VARIABLES" statement will throw a warning about the deprecation.
 prepare stmt from "show variables where (1) in (select * from t1)";
 # We disable the warnings only for the "execute stmt;"
@@ -2083,8 +2085,19 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_EVENTS
 --echo #
 --echo #
---echo # Please see this test in ps.test, it requires not_embedded.inc
+--echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
+--echo # after PREPARE
 --echo #
+--disable_warnings ONCE
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt from "show events where (1) in (select * from t1)";
+execute stmt;
+drop table t1;
+create table t1 (x int);
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
 
 --echo #
 --echo # SQLCOM_SET_OPTION
@@ -2211,7 +2224,7 @@ DROP TABLE t1;
 --echo # clause of CREATE TABLE and ALTER TABLE statements.
 --echo #
 CREATE TEMPORARY TABLE t1 (i INT);
-PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=MERGE UNION=(t1)';
+PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=InnoDB UNION=(t1)';
 EXECUTE stmt2;
 DROP TEMPORARY TABLE tm;
 EXECUTE stmt2;

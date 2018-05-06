@@ -5,7 +5,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` bigint(20) DEFAULT NULL,
   `col2` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into test.t1 values(1,'One');
 drop table if exists test.marker;
 create table test.marker(a int);
@@ -53,7 +53,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

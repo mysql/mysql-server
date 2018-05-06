@@ -1,19 +1,26 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ***********************************************************************/
 
@@ -28,7 +35,8 @@ Created 04/12/2011 Jimmy Yang
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql_version.h>
-#include "sql_plugin.h"
+#include "plugin.h"
+#include "sql/sql_plugin.h"
 
 /** Configuration info passed to memcached, including
 the name of our Memcached InnoDB engine and memcached configure
@@ -45,19 +53,22 @@ static char*	mci_eng_lib_path = NULL;
 static char*	mci_memcached_option = NULL;
 static unsigned int mci_r_batch_size = 1048576;
 static unsigned int mci_w_batch_size = 32;
-static my_bool	mci_enable_binlog = false;
+static bool	mci_enable_binlog = false;
 
 static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached engine library name", NULL, NULL,
 			"innodb_engine.so");
 
 static MYSQL_SYSVAR_STR(engine_lib_path, mci_eng_lib_path,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached engine library path", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(option, mci_memcached_option,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached option string", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
@@ -73,9 +84,9 @@ static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
 			 PLUGIN_VAR_READONLY,
 			 "whether to enable binlog",
-			 NULL, NULL, FALSE);
+			 NULL, NULL, false);
 
-static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
+static SYS_VAR *daemon_memcached_sys_var[] = {
 	MYSQL_SYSVAR(engine_lib_name),
 	MYSQL_SYSVAR(engine_lib_path),
 	MYSQL_SYSVAR(option),
@@ -195,6 +206,7 @@ mysql_declare_plugin(daemon_memcached)
 	"Memcached Daemon",
 	PLUGIN_LICENSE_GPL,
 	daemon_memcached_plugin_init,	/* Plugin Init */
+	NULL,	                        /* Plugin Check uninstall */
 	daemon_memcached_plugin_deinit,	/* Plugin Deinit */
 	0x0100 /* 1.0 */,
 	NULL,				/* status variables */

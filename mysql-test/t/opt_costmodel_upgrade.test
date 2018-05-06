@@ -1,0 +1,63 @@
+--source include/big_test.inc
+--source include/no_valgrind_without_big.inc
+--source include/mysql_upgrade_preparation.inc
+# mysql_upgrade currently fails with 4k pages
+--source include/have_innodb_min_8k.inc
+
+--echo
+--echo WL#10128:  Add defaults column to optimizer cost tables
+--echo
+
+# Fetch default values for current version
+SET @old_server_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.server_cost);
+SET @old_engine_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.engine_cost);
+
+# Drop columns and let upgrade script add them back
+ALTER TABLE mysql.server_cost DROP COLUMN default_value;
+ALTER TABLE mysql.engine_cost DROP COLUMN default_value;
+
+# Filter out ndb_binlog_index to mask differences due to running with
+# or without NDB
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+# Mask out the content of the last_update column
+--replace_column 3 #
+SELECT * FROM mysql.server_cost;
+--replace_column 5 #
+SELECT * FROM mysql.engine_cost;
+
+SET @new_server_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.server_cost);
+SET @new_engine_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.engine_cost);
+
+--echo # Default values after upgrade should be equal to fresh server
+SELECT @old_server_defaults=@new_server_defaults,
+       @old_engine_defaults=@new_engine_defaults;
+
+# Run upgrade script a second time to test upgrade when columns already exists
+#
+# Filter out ndb_binlog_index to mask differences due to running with
+# or without NDB
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+# Mask out the content of the last_update column
+--replace_column 3 #
+SELECT * FROM mysql.server_cost;
+--replace_column 5 #
+SELECT * FROM mysql.engine_cost;
+
+SET @new_server_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.server_cost);
+SET @new_engine_defaults =
+  (SELECT GROUP_CONCAT(default_value) FROM mysql.engine_cost);
+
+--echo # Default values after upgrade should be equal to fresh server
+SELECT @old_server_defaults=@new_server_defaults,
+       @old_engine_defaults=@new_engine_defaults;
+
+--source include/mysql_upgrade_cleanup.inc

@@ -1,5 +1,5 @@
 #
-# WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+# WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
 #
 # Setup.
 SET @session_transaction_isolation = @@SESSION.transaction_isolation;
@@ -231,6 +231,7 @@ a	b
 24	11
 25	25
 COMMIT;
+** Connection con0 **
 connection con0;
 COMMIT;
 # Testing WHERE on keys using IN clause
@@ -402,12 +403,14 @@ SELECT @@GLOBAL.transaction_isolation;
 READ-UNCOMMITTED
 READ-UNCOMMITTED Expected
 connection default;
+Disconnecting Connections con_int1, con_int2
 disconnect con_int1;
 disconnect con_int2;
 # Cleanup
 SET @@SESSION.transaction_isolation = @session_transaction_isolation;
 SET @@GLOBAL.transaction_isolation = @global_transaction_isolation;
 connection default;
+Disconnecting Connections con0, con1
 disconnect con0;
 disconnect con1;
 DROP TABLE t1;

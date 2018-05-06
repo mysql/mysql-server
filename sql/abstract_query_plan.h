@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,13 +25,17 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
-#include "my_global.h"      // uint
-#include "item_cmpfunc.h"   // Item_equal_iterator
+#include <sys/types.h>
 
-struct TABLE;
-class JOIN;
+#include "my_dbug.h"
+#include "sql/item_cmpfunc.h" // Item_equal_iterator
+
 class Item;
 class Item_field;
+class JOIN;
+class KEY_PART_INFO;
+class QEP_TAB;
+struct TABLE;
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 
@@ -60,7 +71,7 @@ namespace AQP
     sequence of n table access operations that will execute as a nested loop 
     join.
   */
-  class Join_plan : public Sql_alloc
+  class Join_plan
   {
     friend class Equal_set_iterator;
     friend class Table_access;
@@ -100,7 +111,7 @@ namespace AQP
     SELECT * FROM T1, T2, T3 WHERE T1.b = T2.a AND T2.a = T3.a
     then there would be such a set of {T1.b, T2.a, T3.a}.
   */
-  class Equal_set_iterator : public Sql_alloc
+  class Equal_set_iterator
   {
   public:
     explicit Equal_set_iterator(Item_equal& item_equal)
@@ -159,7 +170,8 @@ namespace AQP
   {
     JT_OUTER_JOIN,
     JT_INNER_JOIN,
-    JT_SEMI_JOIN
+    JT_SEMI_JOIN,
+    JT_NEST_JOIN
   };
 
   /**
@@ -168,7 +180,7 @@ namespace AQP
     owned by a Join_plan object, such that the life time of the Table_access 
     object ends when the life time of the owning Join_plan object ends.
    */
-  class Table_access : public Sql_alloc
+  class Table_access
   {
     friend class Join_plan;
     friend inline bool equal(const Table_access*, const Table_access*);
@@ -201,9 +213,7 @@ namespace AQP
     void dbug_print() const;
 
     bool uses_join_cache() const;
-
-    const Table_access* get_firstmatch_last_skipped() const;
-
+    
     bool filesort_before_join() const;
 
     /**
@@ -310,7 +320,7 @@ namespace AQP
     return m_tab_no;
   }
 
-}; 
+}
 // namespace AQP
 
 #endif

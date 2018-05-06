@@ -502,21 +502,6 @@ INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
-kld2000	1
-klw1000	0
-klw1020	0
-klw1500	0
-klw2000	0
-klw2001	0
-klw2002	0
-klw2500	0
-kmw1000	0
-kmw1500	0
-kmw2000	0
-kmw2001	0
-kmw2100	0
-kmw3000	0
-kmw3200	0
 kvw2000	26
 kvw2001	0
 kvw3000	36
@@ -543,6 +528,21 @@ kvw5510	0
 kvw5600	0
 kvw5601	0
 kvw6000	2
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+kld2000	1
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
 kld2000	1
@@ -588,8 +588,6 @@ kvw5601	0
 kvw6000	2
 drop table t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id int(11),
 pid int(11),
@@ -826,6 +824,8 @@ flag_name varchar(64) default NULL,
 flag_value text,
 UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 ts_id bigint(20) default NULL,
 inst_id tinyint(4) default NULL,
@@ -833,6 +833,8 @@ flag_name varchar(64) default NULL,
 flag_value text,
 UNIQUE KEY ts_id (ts_id,inst_id,flag_name)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (111056548820001, 0, 'flag1', NULL),
 (111056548820001, 0, 'flag2', NULL),
@@ -1336,7 +1338,7 @@ SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from `test`.`t2` where (`test`.`t2`.`a` = '1') group by rollup_const('1') with rollup
@@ -1354,13 +1356,12 @@ CREATE TABLE t1(f1 INT, f2 INT, f3 INT);
 INSERT INTO t1 VALUES (1, NULL, 3);
 CREATE TABLE t2(f1 INT, f2 INT);
 INSERT INTO t2 VALUES (2, 1);
-EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,NULL AS `f2`,'3' AS `f3`,NULL AS `f1`,NULL AS `f2` from `test`.`t2` where ((coalesce('1',NULL),'3') in ((1,3),(2,2)))
 SELECT * FROM t1 LEFT JOIN t2 ON t1.f2 = t2.f2
 WHERE (COALESCE(t1.f1, t2.f1), f3) IN ((1, 3), (2, 2));
@@ -1425,7 +1426,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(f1 INT, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 LEFT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1441,9 +1442,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt5	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
-EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
+EXPLAIN SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 RIGHT JOIN t1 AS jt2
 RIGHT JOIN t1 AS jt3
 JOIN t1 AS jt4 ON 1
@@ -1459,7 +1459,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	jt2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
 #
@@ -1474,7 +1473,7 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where 1 group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
@@ -1487,7 +1486,7 @@ EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
 WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using filesort
+1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	const	1	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select '4' AS `f1`,`test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where ((`test`.`t2`.`f1` = 4) and (`test`.`t2`.`f2` is not null)) group by `test`.`t2`.`f1`,`test`.`t2`.`f2`
@@ -1924,6 +1923,8 @@ CREATE TABLE t5 (
 col_int int(11) DEFAULT NULL,
 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t5 VALUES (1,'1');
 CREATE TABLE t6 (
 col_int_key int(11) DEFAULT NULL,
@@ -2137,7 +2138,7 @@ DROP TABLE t1, t2;
 #
 # Bug#13980954 Missing data on left join + null value + where..in
 #
-CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+CREATE TABLE t1 (ik INT, vc varchar(1)) charset utf8mb4 ENGINE=Innodb;
 explain format=json SELECT straight_join t1.vc, t1.ik
 FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
 EXPLAIN
@@ -2145,7 +2146,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.60"
+      "query_cost": "1.05"
     },
     "nested_loop": [
       {
@@ -2156,10 +2157,10 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "1.20",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.35",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "ik",
@@ -2175,10 +2176,10 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "2.40",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"
@@ -2194,10 +2195,10 @@ EXPLAIN
           "rows_produced_per_join": 1,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "0.20",
-            "prefix_cost": "3.60",
-            "data_read_per_join": "8"
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"
@@ -2617,6 +2618,7 @@ DROP TABLE ta, tb;
 CREATE TABLE m (
 machineid VARCHAR(32) NOT NULL,
 orderid bigint unsigned DEFAULT NULL,
+extra bigint unsigned DEFAULT NULL,
 PRIMARY KEY (machineid)
 );
 INSERT INTO m (machineid, orderid)
@@ -2632,9 +2634,9 @@ SELECT o.*,'|' as sep, m.*
 FROM o LEFT JOIN m
 ON m.machineid = o.machineid AND
 m.orderid = o.orderid;
-orderid	machineid	sep	machineid	orderid
-2	m2	|	m2	2
-1	m2	|	NULL	NULL
+orderid	machineid	sep	machineid	orderid	extra
+2	m2	|	m2	2	NULL
+1	m2	|	NULL	NULL	NULL
 DROP TABLE m, o;
 # Bug#23086825: Incorrect query results using left join against derived
 CREATE TABLE t1 (

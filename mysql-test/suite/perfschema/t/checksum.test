@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #
 # The checksum value itself is random (data is volatile),
 # just testing that this does not crash
@@ -56,7 +53,6 @@ checksum table performance_schema.setup_actors;
 checksum table performance_schema.setup_consumers;
 checksum table performance_schema.setup_instruments;
 checksum table performance_schema.setup_objects;
-checksum table performance_schema.setup_timers;
 checksum table performance_schema.table_io_waits_summary_by_index_usage;
 checksum table performance_schema.table_io_waits_summary_by_table;
 checksum table performance_schema.table_lock_waits_summary_by_table;
@@ -110,7 +106,6 @@ checksum table performance_schema.setup_actors extended;
 checksum table performance_schema.setup_consumers extended;
 checksum table performance_schema.setup_instruments extended;
 checksum table performance_schema.setup_objects extended;
-checksum table performance_schema.setup_timers extended;
 checksum table performance_schema.table_io_waits_summary_by_index_usage extended;
 checksum table performance_schema.table_io_waits_summary_by_table extended;
 checksum table performance_schema.table_lock_waits_summary_by_table extended;

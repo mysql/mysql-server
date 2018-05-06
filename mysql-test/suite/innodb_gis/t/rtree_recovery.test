@@ -1,16 +1,13 @@
 # WL#6745 InnoDB R-tree support
 # This test case test R-tree crash/recovery.
 
-# Restart is not supported in embedded
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
 
 # Do a clean shutdown and restart so that the redo log is cleaned up from previous tests.
 --source include/restart_mysqld.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 delimiter |;
@@ -53,7 +50,7 @@ check table t1;
 drop table t1;
 
 # Test crash recovery on point spatial index.
-create table t1 (c1 int, c2 point not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 point not null SRID 0, spatial index (c2))engine=innodb;
 
 # Some DML on point spatial index.
 CALL insert_t1(367);

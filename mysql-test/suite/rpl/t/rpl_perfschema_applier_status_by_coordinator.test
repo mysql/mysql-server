@@ -110,8 +110,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_worker, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
-let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
@@ -209,9 +209,10 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and the microseconds (after(WL#7319) so that it can be matched
+# directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
@@ -230,8 +231,9 @@ if ($worker_count != 0)
 }
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo
@@ -321,9 +323,10 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and the microseconds (after WL#7319) so that it can be matched
+# directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 # Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
@@ -342,8 +345,9 @@ if ($worker_count != 0)
 }
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 source include/stop_slave.inc;
@@ -411,8 +415,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_applier_status_by_coordinator, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
-let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
+let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 --echo

@@ -88,11 +88,14 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
 WHERE FAILED_ATTEMPTS < 5;
 USERHOST	FAILED_ATTEMPTS
 'u2'@'localhost'	4
+CREATE USER viewer@localhost IDENTIFIED BY 'abcd';
+GRANT CONNECTION_ADMIN ON *.* TO viewer@localhost;
 # After successful login, corresponding entry should disappear
 # from the view
 SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 USERHOST	FAILED_ATTEMPTS
 'u3'@'localhost'	5
+DROP USER viewer@localhost;
 # A user without privileges should not be able to any information
 SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 USERHOST	FAILED_ATTEMPTS

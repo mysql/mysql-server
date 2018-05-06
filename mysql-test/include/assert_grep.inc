@@ -94,6 +94,10 @@ if ($assert_match != '')
   my $assert_only_after= $ENV{'_AG_ASSERT_ONLY_AFTER'};
   my $out= $ENV{'_AG_OUT'};
 
+  if (!defined($assert_count)) {
+    $assert_count = '';
+  }
+
   my $result= '';
   my $count= 0;
   open(FILE, "$file") or die("Error $? opening $file: $!\n");

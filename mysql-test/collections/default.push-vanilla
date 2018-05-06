@@ -1,0 +1,4 @@
+# Run the standard 'all-default' tests to check that none of them are affected
+# by compiling MySQL Cluster vanilla i.e without NDB, ha_ndbcluster or any
+# of the other Cluster tools.
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --experimental=collections/default.experimental --unit-tests-report --no-skip --skip-ndbcluster

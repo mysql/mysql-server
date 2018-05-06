@@ -14,12 +14,12 @@ enforce_gtid_consistency	OFF
 show session variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	OFF
-select * from information_schema.global_variables where variable_name='enforce_gtid_consistency';
+select * from performance_schema.global_variables where variable_name='enforce_gtid_consistency';
 VARIABLE_NAME	VARIABLE_VALUE
-ENFORCE_GTID_CONSISTENCY	OFF
-select * from information_schema.session_variables where variable_name='enforce_gtid_consistency';
+enforce_gtid_consistency	OFF
+select * from performance_schema.session_variables where variable_name='enforce_gtid_consistency';
 VARIABLE_NAME	VARIABLE_VALUE
-ENFORCE_GTID_CONSISTENCY	OFF
+enforce_gtid_consistency	OFF
 set global enforce_gtid_consistency= 1;
 select @@global.enforce_gtid_consistency;
 @@global.enforce_gtid_consistency
@@ -27,7 +27,7 @@ ON
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	ON
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 ON
@@ -38,7 +38,7 @@ OFF
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	OFF
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 OFF
@@ -49,7 +49,7 @@ WARN
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	WARN
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 WARN
@@ -60,7 +60,7 @@ ON
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	ON
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 ON
@@ -71,7 +71,7 @@ OFF
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	OFF
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 OFF
@@ -82,7 +82,7 @@ ON
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	ON
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 ON
@@ -93,7 +93,7 @@ OFF
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	OFF
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 OFF
@@ -104,7 +104,7 @@ WARN
 show variables like 'enforce_gtid_consistency';
 Variable_name	Value
 enforce_gtid_consistency	WARN
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
 where variable_name= 'enforce_gtid_consistency';
 variable_value
 WARN

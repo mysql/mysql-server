@@ -46,17 +46,11 @@ let $more_pk_ui_tests= 0;
 # only do the first part
 let $only_part_1= 1;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
-# Does not work with --embedded
---source include/not_embedded.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files

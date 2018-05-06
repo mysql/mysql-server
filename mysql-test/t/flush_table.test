@@ -1,16 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # TODO: Only run this if we have privilege to do flush table
 
 #
 # Test of flush table
 #
 
-# Should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
+# Test needs MyISAM for few subtests
+--source include/have_myisam.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -410,14 +406,14 @@ DROP TABLE t1;
 
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine= InnoDB;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost,
+            user5@localhost;
 GRANT RELOAD, SELECT, LOCK TABLES ON *.* TO user1@localhost;
 GRANT CREATE, DROP ON *.* TO user2@localhost;
 GRANT RELOAD, SELECT ON *.* TO user3@localhost;
 GRANT SELECT, LOCK TABLES ON *.* TO user4@localhost;
 GRANT RELOAD, LOCK TABLES ON *.* TO user5@localhost;
-set sql_mode= @orig_sql_mode;
 
 --echo # Connection con1 as user1
 --connect(con1, localhost, user1)

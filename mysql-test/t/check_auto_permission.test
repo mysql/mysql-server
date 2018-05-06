@@ -22,8 +22,6 @@
 # Run only on Linux:Since file permissions vary from one os to the other
 # we execute this script only on linux to avoid test failures.
 --source include/linux.inc
-# include/restart_mysqld.inc does not work in embedded mode
---source include/not_embedded.inc
 
 CALL mtr.add_suppression("World-writable config file './auto.cnf' is ignored");
 CALL mtr.add_suppression("World-writable config file './auto.cnf' has been removed.");

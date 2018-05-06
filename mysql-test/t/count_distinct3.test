@@ -1,14 +1,13 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Bug #958 a big table without indices and select with group by doesnt work
 # this is a test for error 1032 in count(distinct) + group by, introduced in 
 # mysql-4.1
 #
-
+--source include/not_valgrind.inc
 --source include/big_test.inc
+# timeout in debug mode on sparc
+--source include/not_sparc_debug.inc
+# timeout with UBSAN
+--source include/not_ubsan.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;

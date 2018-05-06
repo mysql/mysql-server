@@ -1,0 +1,88 @@
+################################################################################
+# This test verifies that the user can break the loop that tries to assure the
+# view id order with a stop group replication command.
+#
+# To test this, the following steps are taken:
+#  0) The test requires two servers: M1 and M2.
+#  1) With both the members ONLINE. Create a table t1 on M1. Block the execution
+#     of remote transactions by locking table t1 on M1.
+#  2) Execute a transaction and stop group replication on M2.
+#  3) Stop group replication and unlock table t1 from parallel session on M1.
+#  5) Verify that M1 stopped.
+#  6) Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo #
+--echo # Setup a 2 member group and create a table
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo # Lock writes on table t1
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+LOCK TABLE t1 WRITE;
+
+--echo #
+--echo # On server2 execute a transaction and stop group replication.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Stop group replication and check it stops after the unlock
+--echo #
+
+#use this connection to send the query as debug includes can use the default ones
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--reap
+
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Clean
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--source include/group_replication_end.inc

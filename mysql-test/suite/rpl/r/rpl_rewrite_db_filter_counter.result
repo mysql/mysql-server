@@ -1,0 +1,53 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ((db1, db2));
+include/start_slave.inc
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB';
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_REWRITE_DB
+FILTER_RULE	(db1,db2)
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	0
+CREATE DATABASE db2;
+[connection master]
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+BEGIN;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+CREATE USER user1;
+CREATE VIEW v1 as SELECT 1;
+include/sync_slave_sql_with_master.inc
+#
+# Wait until the REPLICATE_REWRITE_DB filter is hit 6 times on slave
+# and all the data was replicated to db2.t1.
+#
+SELECT COUNT(*) FROM db2.t1;
+COUNT(*)
+3
+[connection master]
+DROP VIEW v1;
+DROP USER user1;
+DROP DATABASE db1;
+include/sync_slave_sql_with_master.inc
+DROP DATABASE db2;
+#
+# Verify that the REPLICATE_REWRITE_DB filter is hit 8 times on slave.
+#
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB';
+CHANNEL_NAME	
+FILTER_NAME	REPLICATE_REWRITE_DB
+FILTER_RULE	(db1,db2)
+CONFIGURED_BY	CHANGE_REPLICATION_FILTER
+COUNTER	8
+include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ();
+include/start_slave.inc
+include/rpl_end.inc

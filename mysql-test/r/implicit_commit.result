@@ -1,5 +1,4 @@
 SET GLOBAL EVENT_SCHEDULER = OFF;
-SET BINLOG_FORMAT = STATEMENT;
 CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (a INT, KEY a(a)) ENGINE=INNODB;
@@ -426,18 +425,12 @@ NO
 #
 # SQLCOM_GRANT
 #
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user mysqltest_2@localhost;
 INSERT INTO db1.trans (a) VALUES (1);
 grant all on test.t1 to mysqltest_2@localhost with grant option;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 YES
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # SQLCOM_REVOKE
 #
@@ -515,9 +508,6 @@ NO
 # SQLCOM_ALTER_DB
 #
 #
-# SQLCOM_ALTER_DB_UPGRADE
-#
-#
 # SQLCOM_DROP_DB
 #
 use db1;
@@ -564,12 +554,16 @@ YES
 # SQLCOM_ASSIGN_TO_KEYCACHE
 #
 set global keycache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache.key_buffer_size syntax is deprecated and will be removed in a future release
 INSERT INTO db1.trans (a) VALUES (1);
 cache index t3 in keycache;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 YES
 set global keycache.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache.key_buffer_size syntax is deprecated and will be removed in a future release
 #
 # SQLCOM_PRELOAD_KEYS
 #
@@ -659,14 +653,6 @@ IMPLICIT COMMIT
 YES
 INSERT INTO db1.trans (a) VALUES (1);
 rename table t4 to t3;
-CALL db1.test_if_commit();
-IMPLICIT COMMIT
-YES
-#
-# SQLCOM_RESET
-#
-INSERT INTO db1.trans (a) VALUES (1);
-reset query cache;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 YES
@@ -1064,4 +1050,5 @@ DROP TABLE t2;
 DROP TABLE t3;
 USE test;
 DROP DATABASE db1;
+SET GLOBAL EVENT_SCHEDULER = ON;
 End of tests

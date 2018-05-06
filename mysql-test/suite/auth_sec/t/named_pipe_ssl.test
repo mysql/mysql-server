@@ -1,12 +1,5 @@
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 --source include/windows.inc
---source include/not_embedded.inc
-
-# Only run this test if named pipe is available.
-let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if ($nmp != ON){
-  skip No named pipe support;
-}
 
 --echo # pipe protocol with ssl default (enabled).
 --exec $MYSQL --user=root --host=localhost --protocol=pipe -e "SHOW STATUS like 'Ssl_cipher'"

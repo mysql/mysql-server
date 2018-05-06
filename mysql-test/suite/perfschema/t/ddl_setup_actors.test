@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.setup_actors add column foo integer;
 
@@ -29,3 +26,7 @@ CREATE UNIQUE INDEX test_index ON performance_schema.setup_actors(HOST);
 
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.setup_actors ADD KEY ENA(ENABLED);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.setup_actors;

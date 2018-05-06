@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -42,6 +49,13 @@ class TupKeyReq {
 public:
   STATIC_CONST( SignalLength = 21 );
 
+  enum
+  {
+    OP_PRIMARY_REPLICA = 0,
+    OP_BACKUP_REPLICA = 1,
+    OP_NO_TRIGGERS = 2,
+  };
+
 private:
 
   /**
@@ -58,7 +72,7 @@ private:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 fragPtr;
-  Uint32 primaryReplica;
+  Uint32 triggers;
   Uint32 coordinatorTC;
   Uint32 tcOpIndex;
   Uint32 savePointId;
@@ -76,6 +90,7 @@ private:
   static Uint32 getRowidFlag(Uint32 const& requestInfo);
   static Uint32 getReorgFlag(Uint32 const& requestInfo);
   static Uint32 getPrioAFlag(Uint32 const& requestInfo);
+  static Uint32 getNrCopyFlag(Uint32 const& requestInfo);
   static void setDirtyFlag(Uint32 & requestInfo, Uint32 value);
   static void setSimpleFlag(Uint32 & requestInfo, Uint32 value);
   static void setOperation(Uint32 & requestInfo, Uint32 value);
@@ -83,13 +98,14 @@ private:
   static void setRowidFlag(Uint32 & requestInfo, Uint32 value);
   static void setReorgFlag(Uint32 & requestInfo, Uint32 value);
   static void setPrioAFlag(Uint32 & requestInfo, Uint32 value);
+  static void setNrCopyFlag(Uint32 & requestInfo, Uint32 value);
 
   /*
     Request Info
 
               111111 1111222222222233
     0123456789012345 6789012345678901
-    ds....ooo.izrra. ................
+    ds....ooo.izrrac ................
   */
 
   enum RequestInfo {
@@ -99,7 +115,8 @@ private:
     INTERPRETED_POS = 10, INTERPRETED_MASK = 1,
     ROWID_POS       = 11, ROWID_MASK       = 1,
     REORG_POS       = 12, REORG_MASK       = 3,
-    PRIO_A_POS      = 14, PRIO_A_MASK      = 1
+    PRIO_A_POS      = 14, PRIO_A_MASK      = 1,
+    NR_COPY_POS     = 15, NR_COPY_MASK     = 1
   };
 };
 
@@ -143,6 +160,12 @@ inline Uint32
 TupKeyReq::getPrioAFlag(Uint32 const& requestInfo)
 {
   return (requestInfo >> PRIO_A_POS) & PRIO_A_MASK;
+}
+
+inline Uint32
+TupKeyReq::getNrCopyFlag(Uint32 const& requestInfo)
+{
+  return (requestInfo >> NR_COPY_POS) & NR_COPY_MASK;
 }
 
 inline void
@@ -199,6 +222,14 @@ TupKeyReq::setPrioAFlag(Uint32 & requestInfo, Uint32 value)
   assert(value <= PRIO_A_MASK);
   assert((requestInfo & (PRIO_A_MASK << PRIO_A_POS)) == 0);
   requestInfo |= value << PRIO_A_POS;
+}
+
+inline void
+TupKeyReq::setNrCopyFlag(Uint32 & requestInfo, Uint32 value)
+{
+  assert(value <= NR_COPY_MASK);
+  assert((requestInfo & (NR_COPY_MASK << NR_COPY_POS)) == 0);
+  requestInfo |= value << NR_COPY_POS;
 }
 
 class TupKeyConf {

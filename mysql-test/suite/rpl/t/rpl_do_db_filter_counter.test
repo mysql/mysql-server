@@ -1,0 +1,69 @@
+# ==== Purpose ====
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# for REPLICATE_DO_DB filter rule.
+#
+# ==== Implementation ====
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'CREATE DATABASE db1' hits REPLICATE_DO_DB filter rule.
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'ALTER DATABASE db1 CHARACTER SET latin1' hits REPLICATE_DO_DB
+# filter rule.
+#
+# Verify that the replication_applier_filters.counter increases by 1
+# when 'DROP DATABASE db1' hits REPLICATE_DO_DB filter rule.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+# BUG#25455255: P_S.REPLICATION_APPLIER_FILTERS.COUNTER INCREASES BY 2
+#               FOR REPLICATE_DO_DB
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+--source include/rpl_connection_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1);
+--source include/start_slave.inc
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB"
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Verify that the replication_applier_filters.counter increases by 1
+--echo # when 'CREATE DATABASE db1' hits REPLICATE_DO_DB filter rule.
+--echo #
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB"
+
+--source include/rpl_connection_master.inc
+ALTER DATABASE db1 CHARACTER SET latin1;
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Verify that the replication_applier_filters.counter increases by 1
+--echo # when 'ALTER DATABASE db1 CHARACTER SET latin1' hits REPLICATE_DO_DB
+--echo # filter rule.
+--echo #
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB"
+
+--source include/rpl_connection_master.inc
+DROP DATABASE db1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo #
+--echo # Verify that the replication_applier_filters.counter increases by 1
+--echo # when 'DROP DATABASE db1' hits REPLICATE_DO_DB filter rule.
+--echo #
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters where FILTER_NAME = "REPLICATE_DO_DB"
+
+--source include/stop_slave.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB = ();
+--source include/start_slave.inc
+--source include/rpl_end.inc

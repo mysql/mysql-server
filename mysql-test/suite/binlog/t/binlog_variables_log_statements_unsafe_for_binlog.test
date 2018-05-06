@@ -45,8 +45,8 @@ UPDATE test.unsafe SET j = 4 LIMIT 1;
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] .* ready for connections
---let $assert_select=.* \[Warning\] Unsafe statement written to the binary log
+--let $assert_only_after=.* \[System\] \[[^]]*\] \[[^]]*\] .* ready for connections
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Unsafe statement written to the binary log
 --let $assert_text= Exactly one row should be written to the error log.
 --let $assert_count= 1
 --source include/assert_grep.inc

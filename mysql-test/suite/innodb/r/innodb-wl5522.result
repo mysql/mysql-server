@@ -33,18 +33,14 @@ a	b	c
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
 CREATE TABLE t2(a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-t1.frm
 t1.ibd
-t2.frm
 t2.ibd
 # restart
 FLUSH TABLE t1, t2 FOR EXPORT;
 # List before copying files
 t1.cfg
-t1.frm
 t1.ibd
 t2.cfg
-t2.frm
 t2.ibd
 UNLOCK TABLES;
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
@@ -65,14 +61,10 @@ a	b	c
 # restart
 # Done restarting server
 # List before t1 DISCARD
-t1.frm
 t1.ibd
-t2.frm
 t2.ibd
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
-t1.frm
-t2.frm
 t2.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 ALTER TABLE t1 ENGINE InnoDB;
@@ -90,9 +82,7 @@ a	b	c
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
 t1.cfg
-t1.frm
 t1.ibd
-t2.frm
 t2.ibd
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -111,7 +101,6 @@ DROP TABLE t1;
 ALTER TABLE t2 ROW_FORMAT=DYNAMIC;
 ALTER TABLE t2 DISCARD TABLESPACE;
 # List after t2 DISCARD
-t2.frm
 ALTER TABLE t2 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x4 and the meta-data file has 0x1)
 ALTER TABLE t2 IMPORT TABLESPACE;
@@ -139,7 +128,6 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
-t1.frm
 t1.ibd
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
@@ -147,7 +135,6 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
 DROP TABLE t1;
@@ -159,7 +146,6 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
-t1.frm
 t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -177,7 +163,6 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
-t1.frm
 t1.ibd
 FLUSH TABLES t1 FOR EXPORT;
 SELECT COUNT(*) FROM t1;
@@ -185,10 +170,8 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
-t1.frm
 t1.ibd
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
@@ -201,7 +184,6 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 t1.cfg
-t1.frm
 t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -225,7 +207,6 @@ COUNT(*)
 16
 backup: t1
 t1.cfg
-t1.frm
 t1.ibd
 UNLOCK TABLES;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
@@ -321,7 +302,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 FLUSH TABLES t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: Table '`test`.`t1`' in system tablespace
@@ -344,7 +325,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -391,7 +372,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 2 indexes)
+ERROR HY000: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 3 indexes)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -439,7 +420,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -491,7 +472,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -549,7 +530,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -625,7 +606,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -677,7 +658,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -735,7 +716,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -814,7 +795,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -866,7 +847,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -924,7 +905,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -1003,7 +984,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1;
 c1	c2
 1	1

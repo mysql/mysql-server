@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,7 +33,7 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
-extern my_bool opt_core;
+extern "C" bool opt_core;
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -1377,6 +1384,44 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runRestartOneNodeNoStart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  /* choose a random node and restart with nostart */
+  int nodeId= restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+  restarter.restartOneDbNode(nodeId, false, true);
+  /* wait for it to go to no start phase */
+  CHK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
+       "Unable to restart node");
+  return result;
+}
+
+int
+runStartAllNodes(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  CHK2(restarter.startAll() == 0, "Failed starting node");
+
+  return result;
+}
+
+int
+runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted(1) != 0)
+  {
+    g_err << "All nodes were not started " << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 static
 int
 terrorCodes[] =
@@ -1430,6 +1475,102 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+static
+int
+runAbortWithSlowChildScans(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * FK parent update/delete causes child tables to be
+   * scanned.
+   * This scanning is not considered when the transaction
+   * is being aborted, so a transaction causing child-table
+   * scans can finish aborting before the child table scans
+   * are complete.
+   * This testcase gives some coverage to that scenario,
+   * by initiating some parent deletes, resulting in
+   * child table scans, then causing the scans to stall,
+   * the transaction to abort, and then the scans to resume.
+   */
+  const int rows = ctx->getNumRecords();
+  const int batchSize = ctx->getProperty("BatchSize", DEFAULT_BATCH_SIZE);
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+ 
+  { 
+    HugoTransactions ht(*pTab);
+    if (ht.loadTable(pNdb, rows, batchSize) != 0)
+    {
+      g_err << "Load table failed" << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  /* Originally used a separate row lock to cause stall,
+   * but no need, as the blocking of the scans itself
+   * causes a transaction timeout eventually
+   */
+//   int lockedRow = rand() % rows;
+//   g_err << "Locking row " << lockedRow << endl;
+  
+//   HugoOperations ho(*pTab);
+//   if ((ho.startTransaction(pNdb) != 0) ||
+//       (ho.pkReadRecord(pNdb, 
+//                        lockedRow, 
+//                        1, 
+//                        NdbOperation::LM_Exclusive) != 0) ||
+//       (ho.execute_NoCommit(pNdb) != 0))
+//   {
+//     g_err << "Problem locking row : "
+//           << ho.getNdbError()
+//           << endl;
+//     return NDBT_FAILED;
+//   }
+  
+  /* Cause child table FK scans to block... */
+  NdbRestarter restarter;
+  /* Block FK-related child table scans... */
+  restarter.insertErrorInAllNodes(8109);
+
+  /* Now perform delete of parent rows in a separate connection
+   * Separate connection used as some validation is perfomed by
+   * TC at connection close time (TCRELEASEREQ)
+   */
+  
+  {
+    Ndb myNdb(&pNdb->get_ndb_cluster_connection());
+  
+    myNdb.init();
+
+    myNdb.setDatabaseName(pNdb->getDatabaseName());
+    
+    HugoTransactions ht(*pTab);
+  
+    /* Avoid lots of retries for the deletes... */
+    ht.setRetryMax(1);
+
+    /* Attempt to delete everything, will fail
+     * as triggered child table scans timeout
+     */
+    if (ht.pkDelRecords(&myNdb,
+                        rows) == 0)
+    {
+      g_err << "Unexpected success of ht!" << endl;
+      return NDBT_FAILED;
+    }
+    
+    /* Error is expected */
+    /* Now close Ndb object, causing some TCRELEASEREQ validation */
+  }
+
+  /* Unblock child scans */
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
+
 
 NDBT_TESTSUITE(testFK);
 TESTCASE("CreateDrop",
@@ -1545,6 +1686,35 @@ TESTCASE("CascadeError",
   INITIALIZER(runTransError);
   VERIFIER(runCleanupTable);
   VERIFIER(runDropCascadeChild);
+}
+TESTCASE("DropTableWithFKDuringRestart",
+         "1. Create a child table identical to the current table"
+         "2. Create FK mapping the similar column from both tables"
+         "3. Choose a random node and restart it with nostart"
+         "4. Drop the child table"
+         "5. Start the node at no start")
+{
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateCascadeChild);
+  INITIALIZER(runRestartOneNodeNoStart);
+  INITIALIZER(runDropCascadeChild);
+  STEP(runStartAllNodes);
+  VERIFIER(runCheckAllNodesStarted);
+}
+TESTCASE("AbortWithSlowChildScans",
+         "Some coverage of transaction abort with "
+         "outstanding FK child table scans")
+{
+  TC_PROPERTY("IDX_UNIQ", Uint32(0));
+  TC_PROPERTY("IDX_MANY", Uint32(1));
+  TC_PROPERTY("IDX_RAND", Uint32(0));
+  TC_PROPERTY("FK_UNIQ", Uint32(0));
+  TC_PROPERTY("FK_MANY", Uint32(1));
+  TC_PROPERTY("FK_RAND", Uint32(0));
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateRandom);
+  INITIALIZER(runAbortWithSlowChildScans);
+  FINALIZER(runCleanupTable);
 }
 NDBT_TESTSUITE_END(testFK);
 

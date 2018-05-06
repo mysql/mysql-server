@@ -36,15 +36,15 @@ CREATE DEFINER=a@'' FUNCTION f3() RETURNS INT
 RETURN 3;
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`a`@`` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`c` AS `c` from `t1`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`a`@`` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`c` AS `c` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE p3;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` PROCEDURE `p3`()
-SELECT 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` PROCEDURE `p3`()
+SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
-RETURN 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
+RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP TRIGGER t1_bi;
 DROP TRIGGER ti_ai;
 DROP TRIGGER ti_bu;
@@ -73,10 +73,6 @@ select count(*) from information_schema.USER_PRIVILEGES;
 count(*)
 0
 End of 5.0 tests
-#
-# Bug#29817 Queries with UDF fail with non-descriptive error
-# if mysql.proc is missing
-#
-select no_such_function(1);
-ERROR 42000: FUNCTION test.no_such_function does not exist
-End of 5.1 tests
+SET PERSIST max_connections = 18;
+SET PERSIST_ONLY max_connections = 18;
+SET GLOBAL max_connections = DEFAULT;

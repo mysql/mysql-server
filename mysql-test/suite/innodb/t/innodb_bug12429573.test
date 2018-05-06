@@ -3,8 +3,6 @@
 # WHEN RE-RUNNING ANALYZE
 #
 
--- source include/have_innodb.inc
--- source include/not_embedded.inc
 
 CREATE TABLE bug12429573 (i INTEGER PRIMARY KEY, j INTEGER, KEY(j))
 ENGINE=INNODB STATS_PERSISTENT=1;

@@ -8,8 +8,10 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
+set names latin1;
+--character_set latin1
 
-create table t1 (name char(20) not null, primary key (name));
+create table t1 (name char(20) not null, primary key (name)) charset latin1;
 create table t2 (name char(20) binary not null, primary key (name));
 insert into t1 values ("å");
 insert into t1 values ("ä");
@@ -32,7 +34,7 @@ drop table t1,t2;
 # Test of binary and normal strings
 #
 
-create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b));
+create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b)) charset latin1;
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
 select concat("-",a,"-",b,"-") from t1 where a="hello";
 select concat("-",a,"-",b,"-") from t1 where a="hello ";
@@ -62,7 +64,7 @@ drop table t1;
 #
 # Test of binary and upper/lower
 #
-create table t1 (a char(3) binary, b binary(3));
+create table t1 (a char(3) binary, b binary(3)) charset latin1;
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 select lower(a),lower(b) from t1;
@@ -90,7 +92,7 @@ drop table t1;
 #
 # Bug #6552 CHAR column w/o length is legal, BINARY w/o length is not
 #
-create table t1 (a binary);
+create table t1 (a binary) charset utf8mb4;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE

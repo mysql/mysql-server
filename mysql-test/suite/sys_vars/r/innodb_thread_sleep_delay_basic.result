@@ -17,22 +17,22 @@ innodb_thread_sleep_delay	10000
 show session variables like 'innodb_thread_sleep_delay';
 Variable_name	Value
 innodb_thread_sleep_delay	10000
-select * from information_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_THREAD_SLEEP_DELAY	10000
-select * from information_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+innodb_thread_sleep_delay	10000
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_THREAD_SLEEP_DELAY	10000
+innodb_thread_sleep_delay	10000
 set global innodb_thread_sleep_delay=10;
 select @@global.innodb_thread_sleep_delay;
 @@global.innodb_thread_sleep_delay
 10
-select * from information_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_THREAD_SLEEP_DELAY	10
-select * from information_schema.session_variables where variable_name='innodb_thread_sleep_delay';
+innodb_thread_sleep_delay	10
+select * from performance_schema.session_variables where variable_name='innodb_thread_sleep_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_THREAD_SLEEP_DELAY	10
+innodb_thread_sleep_delay	10
 set session innodb_thread_sleep_delay=1;
 ERROR HY000: Variable 'innodb_thread_sleep_delay' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_thread_sleep_delay=DEFAULT;
@@ -53,9 +53,9 @@ Warning	1292	Truncated incorrect innodb_thread_sleep_delay value: '-7'
 select @@global.innodb_thread_sleep_delay;
 @@global.innodb_thread_sleep_delay
 0
-select * from information_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+select * from performance_schema.global_variables where variable_name='innodb_thread_sleep_delay';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_THREAD_SLEEP_DELAY	0
+innodb_thread_sleep_delay	0
 set global innodb_thread_sleep_delay=0;
 select @@global.innodb_thread_sleep_delay;
 @@global.innodb_thread_sleep_delay

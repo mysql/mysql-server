@@ -1,7 +1,6 @@
 # Created: Horst Hunger 2014-05-09
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # Save the global value to be used to restore the original value.
@@ -10,7 +9,9 @@ SET @global_saved_tmp =  @@global.offline_mode;
 --enable_connect_log
 # This count may not be 1, because of the probably existing connections
 # from the previous/parallel test runs
-let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST`;
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER != 'event_scheduler'`;
+--eval SET @user_count= $user_count
 
 # test case 2.1.1 1)
 # Create 3 non-super users
@@ -70,7 +71,7 @@ SHOW STATUS LIKE 'threads_connected';
 --connect(conu3,localhost,user3)
 
 --connection default
-echo $user_count;
+SELECT @user_count;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 SHOW STATUS LIKE 'threads_connected';
 

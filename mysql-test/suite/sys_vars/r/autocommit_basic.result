@@ -55,14 +55,14 @@ SELECT @@global.autocommit;
 SET @@global.autocommit = 1;
 '#----------------------FN_DYNVARS_003_06------------------------#'
 SELECT IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='autocommit';
 IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE
 1
 '#----------------------FN_DYNVARS_003_07------------------------#'
 SET @@autocommit = 1;
 SELECT IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='autocommit';
 IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
 1

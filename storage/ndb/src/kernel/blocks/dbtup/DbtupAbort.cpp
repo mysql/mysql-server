@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +31,15 @@
 
 #define JAM_FILE_ID 409
 
+#ifdef VM_TRACE
+//#define DEBUG_LCP 1
+#endif
+
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
 
 /**
  * Abort abort this operation and all after (nextActiveOp's)
@@ -41,94 +57,120 @@ Dbtup::do_tup_abort_operation(Signal* signal,
                               Fragrecord* fragPtrP,
                               Tablerec* tablePtrP)
 {
+  /**
+   * There are a couple of things that we need to handle at abort time.
+   * Every operation needs to release its resources, the operation
+   * record and copy tuple. This is handled in the method calling this.
+   *
+   * We also need to ensure that the header bits are properly set after
+   * aborting the tuple. When a tuple was inserted as part of the
+   * transaction we need to reset the ALLOC bit and set the FREE bit.
+   * In this case we also have to release the tuple itself.
+   *
+   * Finally when we get here to abort we might have a bigger varpart
+   * than we need. We will only update this if we abort the entire
+   * transaction (reflected by aborting the first operation). In this
+   * we need to shrink the entry to its original size.
+   * If MM_GROWN wasn't set then the page entry length is still equal
+   * to the original size.
+   */
   Uint32 bits= tuple_ptr->m_header_bits;  
-  if (opPtrP->op_type != ZDELETE)
+  if (opPtrP->op_type != ZDELETE &&
+      opPtrP->op_struct.bit_field.m_disk_preallocated)
   {
+    jam();
+    Local_key key;
     Tuple_header *copy= get_copy_tuple(&opPtrP->m_copy_tuple_location);
-    
-    if (opPtrP->op_struct.bit_field.m_disk_preallocated)
+    memcpy(&key, copy->get_disk_ref_ptr(tablePtrP), sizeof(key));
+    disk_page_abort_prealloc(signal, fragPtrP, &key, key.m_page_idx);
+  }
+  if(! (bits & Tuple_header::ALLOC))
+  {
+    /**
+     * Tuple existed before starting this transaction.
+     */
+    jam();
+    if (opPtrP->is_first_operation() &&
+        bits & Tuple_header::MM_GROWN)
     {
-      jam();
-      Local_key key;
-      memcpy(&key, copy->get_disk_ref_ptr(tablePtrP), sizeof(key));
-      disk_page_abort_prealloc(signal, fragPtrP, &key, key.m_page_idx);
-    }
-
-    if(! (bits & Tuple_header::ALLOC))
-    {
-      jam();
-      if(bits & Tuple_header::MM_GROWN)
-      {
-        jam();
-	if (0) ndbout_c("abort grow");
-	Ptr<Page> vpage;
-	Uint32 idx= opPtrP->m_tuple_location.m_page_idx;
-        Uint32 *var_part;
-        
-	ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
-	
-	Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(tablePtrP);
-        
-        Local_key tmp; 
-        ref->copyout(&tmp);
-	
-        idx= tmp.m_page_idx;
-        var_part= get_ptr(&vpage, *ref);
-        Var_page* pageP = (Var_page*)vpage.p;
-        Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
-
-        /*
-          A MM_GROWN tuple was relocated with a bigger size in preparation for
-          commit, so we need to shrink it back. The original size is stored in
-          the last word of the relocated (oversized) tuple.
-        */
-        ndbassert(len > 0);
-        Uint32 sz= var_part[len-1];
-        ndbassert(sz < len);
-        if (sz)
-        {
-          jam();
-          ndbassert(fragPtrP->m_varWordsFree >= pageP->free_space);
-          fragPtrP->m_varWordsFree -= pageP->free_space;
-          pageP->shrink_entry(idx, sz);
-          // Adds the new free space value for the page to the fragment total.
-          update_free_page_list(fragPtrP, vpage);
-        }
-        else
-        {
-          jam();
-          free_var_part(fragPtrP, vpage, tmp.m_page_idx);
-          tmp.m_page_no = RNIL;
-          ref->assign(&tmp);
-          bits &= ~(Uint32)Tuple_header::VAR_PART;
-        }
-        tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
-      } 
-      else if(bits & Tuple_header::MM_SHRINK)
-      {
-        jam();
-	if (0) ndbout_c("abort shrink");
-      }
-    }
-    else if (opPtrP->is_first_operation())
-    {
-      jam();
       /**
-       * Aborting last operation that performed ALLOC
+       * A MM_GROWN tuple was relocated with a bigger size in preparation for
+       * commit, so we need to shrink it back. The original size is stored in
+       * the last word of the relocated (now oversized) tuple.
+       *
+       * We aborted the first operation of this transaction on this
+       * tuple. Now we can be certain that the original tuple is
+       * to be restored. Since we have grown the size of the
+       * page entry during operation of this transaction we can
+       * now shrink back the page entry to the original size.
+       *
+       * The execution of this aborted transaction have not changed
+       * the state of the row but it might have moved the varpart
+       * of the row. Here we will ensure that the varpart will still
+       * be of correct size.
+       *
+       * We have stored the original varpart size in the last word
+       * of the extended page entry.
        */
-      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-      tuple_ptr->m_header_bits |= Tuple_header::FREED;
-    }
+      jam();
+      Ptr<Page> vpage;
+      Uint32 idx= opPtrP->m_tuple_location.m_page_idx;
+      Uint32 *var_part;
+        
+      ndbassert(! (tuple_ptr->m_header_bits & Tuple_header::COPY_TUPLE));
+
+      Var_part_ref *ref = tuple_ptr->get_var_part_ref_ptr(tablePtrP);
+
+      Local_key tmp; 
+      ref->copyout(&tmp);
+
+      idx= tmp.m_page_idx;
+      var_part= get_ptr(&vpage, *ref);
+      Var_page* pageP = (Var_page*)vpage.p;
+      Uint32 len= pageP->get_entry_len(idx) & ~Var_page::CHAIN;
+
+      /*
+        A MM_GROWN tuple was relocated with a bigger size in preparation for
+        commit, so we need to shrink it back. The original size is stored in
+        the last word of the relocated (oversized) tuple.
+      */
+      ndbassert(len > 0);
+      Uint32 orig_sz = var_part[len-1];
+      ndbassert(orig_sz < len);
+      if (orig_sz)
+      {
+        jam();
+        ndbassert(fragPtrP->m_varWordsFree >= pageP->free_space);
+        fragPtrP->m_varWordsFree -= pageP->free_space;
+        pageP->shrink_entry(idx, orig_sz);
+        // Adds the new free space value for the page to the fragment total.
+        update_free_page_list(fragPtrP, vpage);
+      }
+      else
+      {
+        jam();
+        free_var_part(fragPtrP, vpage, tmp.m_page_idx);
+        tmp.m_page_no = RNIL;
+        ref->assign(&tmp);
+        bits &= ~(Uint32)Tuple_header::VAR_PART;
+        DEB_LCP(("MM_SHRINK ABORT: tab(%u,%u) row(%u,%u)",
+                 fragPtrP->fragTableId,
+                 fragPtrP->fragmentId,
+                 opPtrP->m_tuple_location.m_page_no,
+                 opPtrP->m_tuple_location.m_page_idx));
+      }
+      tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
+    } 
   }
   else if (opPtrP->is_first_operation())
   {
     jam();
-    if (bits & Tuple_header::ALLOC)
-    {
-      jam();
-      tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
-      tuple_ptr->m_header_bits |= Tuple_header::FREED;
-    }
+    /**
+     * ALLOC set => row created in this transaction.
+     * Aborting first operation that performed ALLOC
+     */
+    tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
+    tuple_ptr->m_header_bits |= Tuple_header::FREE;
   }
   return;
 }
@@ -161,6 +203,12 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   PagePtr page;
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  DEB_LCP(("Abort tab(%u,%u) row(%u,%u)",
+           regFragPtr.p->fragTableId,
+           regFragPtr.p->fragmentId,
+           regOperPtr.p->m_tuple_location.m_page_no,
+           regOperPtr.p->m_tuple_location.m_page_idx));
 
   if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
@@ -224,7 +272,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         }
         loopOpPtr.i = loopOpPtr.p->nextActiveOp;
       }
-      if (tuple_ptr->m_header_bits & Tuple_header::FREED)
+      if (tuple_ptr->m_header_bits & Tuple_header::FREE)
       {
         jam();
         setInvalidChecksum(tuple_ptr, regTabPtr.p);
@@ -257,7 +305,7 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
 
   if (first_and_last &&
       (flags & ZABORT_DEALLOC) &&
-      (tuple_ptr->m_header_bits & Tuple_header::FREED))
+      (tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
     jam();
     /* Free var and fixed records for this row */

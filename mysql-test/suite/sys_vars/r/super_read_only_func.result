@@ -35,6 +35,8 @@ OK	OK
 ** Creating new user with explicit super privilege**
 CREATE user sameea;
 GRANT SUPER ON *.* TO sameea;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 SET @@global.super_read_only = ON;
 ** Connecting connn using username 'sameea' **
 CREATE TABLE t2

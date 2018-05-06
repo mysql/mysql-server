@@ -1,5 +1,4 @@
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table=on;
@@ -61,7 +60,7 @@ CREATE TABLE bug52745 (
   col89 float unsigned zerofill DEFAULT NULL,
   col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-SET sql_mode = default;
+SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',
 col51=16547,
@@ -100,6 +99,7 @@ col90=repeat('gale',48);
 
 SHOW WARNINGS;
 
+SET sql_mode = default;
 DROP TABLE bug52745;
 
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

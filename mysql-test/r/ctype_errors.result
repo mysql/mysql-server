@@ -5,8 +5,10 @@ SHOW VARIABLES LIKE 'lc_messages';
 Variable_name	Value
 lc_messages	ru_RU
 CREATE TABLE t1(f1 INT);
-ERROR 42S01: \0422\0430\0431\043B\0438\0446\0430 't1' \0443\0436\0435 \0441\0443\0449\0435\0441\0442\0432\0443\0435\0442
+ERROR 42S01: Таблица 't1' уже существует
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1(f1 INT);
 ERROR 42S01: Таблица 't1' уже существует
 SHOW VARIABLES LIKE 'lc_messages';
@@ -27,6 +29,8 @@ drop table `ק`;
 ERROR 42S02: Unknown table 'test.ק'
 SET lc_messages=cs_CZ;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE nonexistant;
 ERROR 42000: Neznámá databáze 'nonexistant'
 #

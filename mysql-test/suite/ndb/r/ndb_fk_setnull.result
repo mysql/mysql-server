@@ -16,9 +16,9 @@ alter table child add constraint fkname foreign key (b) references parent (a) on
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
 insert into child values (3,3,3);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE SET NULL ON UPDATE RESTRICT)
 update child set b = 3 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE SET NULL ON UPDATE RESTRICT)
 begin;
 delete from parent where a = 1;
 select * from child order by 1,2,3;
@@ -33,9 +33,9 @@ alter table child add constraint fkname foreign key (c) references parent (a) on
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2),(3,3,1);
 update child set c = 3 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE SET NULL ON UPDATE RESTRICT)
 insert into child values (4,4,4);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE SET NULL ON UPDATE RESTRICT)
 begin;
 delete from parent where a = 1;
 select * from child order by 1,2,3;
@@ -51,9 +51,9 @@ alter table child add constraint fkname foreign key (b) references parent (b) on
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
 update child set b = 3 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE SET NULL)
 insert into child values (3,3,3);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE SET NULL)
 begin;
 update parent set b = 3 where a = 1;
 select * from child order by 1,2,3;
@@ -75,9 +75,9 @@ alter table child add constraint fkname foreign key (c) references parent (b) on
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2),(3,3,1);
 update child set c = 3 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE SET NULL)
 insert into child values (4,4,4);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE SET NULL)
 begin;
 update parent set b = 3 where a = 1;
 select * from child order by 1,2,3;

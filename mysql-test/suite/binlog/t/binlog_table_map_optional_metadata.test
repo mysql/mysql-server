@@ -1,0 +1,329 @@
+################################################################################
+# WL#4618 RBR: extended table metadata in the binary log
+#
+# Below metadata is logged into Table_map_log_event
+# - signedness of numeric columns
+# - charsets of character columns
+# - column names
+# - set/enum string values
+# - primary key
+#
+# The first two are always logged. The others are controlled by system
+# variable --binlog_row_metadata
+#
+# The test will verify if the metadata can be logged and printed by mysqlbinlog
+# correctly.
+# mysqlbinlog --print-table-metadata will print the extra metadata
+################################################################################
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+RESET MASTER;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $binlog_file= $MYSQLD_DATADIR/binlog.000001
+
+--echo #
+--echo # Temporal types can be printed correctly
+--echo #
+CREATE TABLE t1(c_year YEAR, c_date DATE, c_time TIME, c_time_f TIME(3),
+  c_datetime DATETIME, c_datetime_f DATETIME(3),
+  c_timestamp TIMESTAMP, c_timestamp_f TIMESTAMP(3) DEFAULT "2017-1-1 10:10:10");
+
+INSERT INTO t1(c_year) VALUES(2017);
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Json types can be printed correctly
+--echo #
+CREATE TABLE t1 (c_json JSON, c_char CHAR(100));
+INSERT INTO t1(c_char) VALUES("abc");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Geometry types can be printed correctly
+--echo #
+CREATE TABLE t1 (c_geo GEOMETRY, c_point POINT, c_linestring LINESTRING,
+  c_polygon POLYGON, c_multi_point MULTIPOINT,
+  c_multi_linestring MULTILINESTRING, c_multi_polygon MULTIPOLYGON,
+  c_geometrycollection GEOMETRYCOLLECTION, c_char CHAR(100));
+
+INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+SET GLOBAL binlog_row_metadata = FULL;
+
+# geometry type is binlogged, the real geometry types are printed
+INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Numeric types can be printed correctly
+--echo #
+CREATE TABLE t1(c_bit BIT(10), c_bool BOOL, c_smallint SMALLINT,
+  c_mediumint MEDIUMINT, c_int INT UNSIGNED, c_bigint BIGINT,
+  c_float FLOAT UNSIGNED, c_double DOUBLE, c_decimal DECIMAL(10, 2));
+
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1(c_bool) VALUES(1);
+
+--echo # UNSIGNED flag should be printed
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1(c_bool) VALUES(1);
+
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Character types can be printed correctly
+--echo #
+CREATE TABLE t1(c_char CHAR(10), c_varchar VARCHAR(500),
+  c_tinytext TINYTEXT, c_text TEXT,
+  c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8);
+
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1(c_char) VALUES("1");
+
+# Charset set is printed with default charset
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1(c_char) VALUES("1");
+
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Charsets can be printed correctly
+--echo #
+CREATE TABLE t1(c_char_utf8 CHAR(10) CHARSET utf8,
+  c_varchar_utf8 VARCHAR(10) CHARSET utf8,
+  c_text_utf8 TEXT CHARSET utf8);
+
+INSERT INTO t1 VALUES("1", "2", "3");
+
+# Charset set is printed with Default charset
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+# Test collation number less than 250 and collation number greater than 250
+CREATE TABLE t1(c_utf8mb4_520 CHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
+  c_utf8mb4_0900 VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_pl_0900_as_cs,
+  c_utf8mb4_def TEXT CHARSET utf8mb4);
+
+INSERT INTO t1 VALUES("1", "2", "3");
+
+# Charset set is printed without default charset
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Blob and binary columns can be printed correctly
+--echo #
+CREATE TABLE t1(c_binary BINARY(10), c_varbinary VARBINARY(10),
+  c_tinyblob TINYBLOB, c_blob BLOB,
+  c_mediumblob MEDIUMBLOB, c_longblob LONGBLOB);
+
+INSERT INTO t1 VALUES("1", "2", "3", "4", "5", "6");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Verify that SET string values can be printed correctly
+--echo #
+
+CREATE TABLE t1(
+  c_set_1 SET("set1_v1", "set1_v2", "set1_v3"),
+  c_set_2 SET("set2_v1", "set2_v2", "set2_v3"),
+  c_set_3 SET("set3_v1", "set3_v2", "set3_v3"));
+
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Verify that ENUM string values can be printed correctly
+--echo #
+
+CREATE TABLE t1(
+  c_enum_1 ENUM("enum1_v1", "enum1_v2", "enum1_v3"),
+  c_enum_2 ENUM("enum2_v1", "enum2_v2", "enum2_v3"),
+  c_enum_3 ENUM("enum3_v1", "enum3_v2", "enum3_v3"));
+
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Verify that explicit NOT NULL can be printed correctly
+--echo #
+CREATE TABLE t1(c_not_null1 INT NOT NULL, c_null1 INT, c_not_null2 INT NOT NULL,
+                c_null2 INT);
+
+INSERT INTO t1 VALUES(1, 2, 3, 4);
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Verify that primary key can be printed correctly
+--echo #
+CREATE TABLE t1(c_key1 INT, c_key3 INT, c_not_key INT, c_key2 INT,
+PRIMARY KEY(c_key1, c_key2, c_key3));
+
+INSERT INTO t1 VALUES(1, 2, 3, 4);
+--let $print_primary_key= 1
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+
+# Key has prefix
+CREATE TABLE t1(c_key1 CHAR(100), c_key3 CHAR(100), c_not_key INT, c_key2 CHAR(10),
+PRIMARY KEY(c_key1(5), c_key2, c_key3(10)));
+
+INSERT INTO t1 VALUES("1", "2", 3, "4");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+# Primary key should not be printed
+SET GLOBAL binlog_row_metadata = MINIMAL;
+
+INSERT INTO t1 VALUES("2", "2", 3, "4");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+--echo #
+--echo # Coverage test: Print column index instead of column name if column name
+--echo #                is not binlogged.
+--echo #
+SET GLOBAL binlog_row_metadata = FULL;
+
+SET SESSION debug = 'd, dont_log_column_name';
+INSERT INTO t1 VALUES("3", "2", 3, "4");
+--source extra/binlog_tests/print_optional_metadata.inc
+
+--let $print_primary_key=
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
+--echo # Coverage test: Inject an invalid column type
+--echo #
+CREATE TABLE t1(c1 int, c2 BLOB);
+
+SET SESSION debug = 'd,inject_invalid_column_type';
+INSERT INTO t1 VALUES(1, "a");
+# It prints an error
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+
+--echo #
+--echo # Coverage test: Inject an invalid BLOB metadata
+--echo #
+--let $start_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+SET SESSION debug = 'd,inject_invalid_blob_size';
+INSERT INTO t1 VALUES(2, "b");
+
+# The invalid metadata will case assertion failure on Write_rows_log_event
+# So we need to stop mysqlbinlog before reading Write_rows_log_event.
+--let $stop_position= query_get_value(SHOW BINLOG EVENTS FROM $start_pos LIMIT 3, End_log_pos, 3)
+--source extra/binlog_tests/print_optional_metadata.inc
+
+--echo #
+--echo # Coverage test: Inject an invalid Geometry type
+--echo #
+DROP TABLE t1;
+CREATE TABLE t1(c_geometry GEOMETRY, c_point POINT, c_multilinestring MULTILINESTRING);
+RESET MASTER;
+--let $start_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+SET SESSION debug = 'd,inject_invalid_geometry_type';
+INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
+
+# The invalid metadata will case assertion failure on Write_rows_log_event
+# So we need to stop mysqlbinlog before reading Write_rows_log_event.
+--let $stop_position= query_get_value(SHOW BINLOG EVENTS FROM $start_pos LIMIT 3, End_log_pos, 3)
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+--echo #
+--echo # Comptibility Test: Verify mysqlbinlog can print OLD table_map_log_event
+--echo # without any optional metadata
+--echo #
+CREATE TABLE t1(c_int INT, c_tiny_int_unsigned TINYINT UNSIGNED,
+  c_binary BINARY(10), c_text TEXT, c_point POINT);
+
+SET session debug='d,simulate_no_optional_metadata';
+INSERT INTO t1(c_int) VALUES(1);
+# TINYINT will be printed without UNSIGNED flag,
+# CHAR will be printed as BINARY(10)
+# POINT will be printed as GEOMETRY
+--let $stop_position=
+--source extra/binlog_tests/print_optional_metadata.inc
+
+DROP TABLE t1;
+RESET MASTER;
+--echo #
+--echo # Simulate error on initializing charset and primary key metadata
+--echo #
+CREATE TABLE t1(c1 char(10) PRIMARY KEY);
+
+SET session debug='d,simulate_init_charset_field_error';
+INSERT INTO t1 VALUES("a");
+
+SET GLOBAL binlog_row_metadata = FULL;
+SET session debug='d,simulate_init_primary_key_field_error';
+INSERT INTO t1 VALUES("b");
+
+--let $print_primary_key= 1
+--source extra/binlog_tests/print_optional_metadata.inc
+
+SET SESSION debug = '';
+SET GLOBAL binlog_row_metadata = MINIMAL;
+DROP TABLE t1;
+RESET MASTER;

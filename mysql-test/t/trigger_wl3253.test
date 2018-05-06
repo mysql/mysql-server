@@ -3,7 +3,7 @@
 --echo #
 
 SET @binlog_format_saved = @@binlog_format;
-SET binlog_format=ROW;
+SET binlog_format='ROW';
 
 --echo #
 --echo # Test 1.
@@ -89,7 +89,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
 
-SELECT trigger_name, created, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 SET TIMESTAMP=DEFAULT;
@@ -107,7 +109,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 SHOW TRIGGERS;
 
 --replace_column 17 #
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 --replace_column 7 #
 SHOW CREATE TRIGGER tr1_bi;
@@ -123,13 +127,17 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TRIGGER tr1_bi;
 
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -145,7 +153,9 @@ SET TIMESTAMP=UNIX_TIMESTAMP('2013-01-31 09:00:01');
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=2;
 
-SELECT trigger_name, created, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, created, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 SET TIMESTAMP=DEFAULT;
@@ -179,7 +189,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1;
 
 SHOW TRIGGERS;
 
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -197,7 +209,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 INSERT INTO t1 VALUES (1);
 SELECT * FROM t2 ORDER BY b;
@@ -217,7 +231,9 @@ CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 300);
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr3_bi INSERT INTO t2 (a) VALUES (NEW.a + 200);
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 INSERT INTO t1 VALUES (1);
 SELECT * FROM t2 ORDER BY b;
@@ -236,7 +252,9 @@ CREATE TABLE t2 (a INT, b INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a) VALUES (NEW.a + 100);
 CREATE TRIGGER tr0_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr1_bi INSERT INTO t2 (a) VALUES (NEW.a);
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 INSERT INTO t1 VALUES (1);
 SELECT * FROM t2 ORDER BY b;
@@ -258,7 +276,9 @@ CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
 --error ER_REFERENCED_TRG_DOES_NOT_EXIST
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr0_bi SET @a:=2;
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -276,7 +296,9 @@ CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=3;
 --error ER_REFERENCED_TRG_DOES_NOT_EXIST
 CREATE TRIGGER tr2_bi BEFORE INSERT ON t1 FOR EACH ROW PRECEDES tr0_bi SET @a:=2;
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -297,7 +319,9 @@ SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr2_bi SET @a:=3;
 CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
 
-SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
+SELECT trigger_name, action_order FROM information_schema.triggers
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -327,7 +351,9 @@ CREATE TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW FOLLOWS tr1_bi SET @a:=3;
 SHOW TRIGGERS;
 
 --replace_column 17 #
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
+SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE trigger_schema='test'
+  ORDER BY trigger_name, action_order;
 
 DROP TABLE t1;
 
@@ -377,47 +403,6 @@ SET TIMESTAMP=DEFAULT;
 
 # dump tables and triggers
 --exec $MYSQL_DUMP --compact --no-create-info --xml test
-
-DROP TABLE t1;
-
---echo #
---echo # Test 20. Check that the statement CHECK TABLE FOR UPGRADE outputs
---echo #          the warnings for triggers created by a server without support for wl3253.
---echo #
-
-CREATE TABLE t1 (a INT);
-
-let $MYSQLD_DATADIR=`SELECT @@datadir`;
---write_file $MYSQLD_DATADIR/test/t1.TRG
-TYPE=TRIGGERS
-triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW SET @a:=2'
-sql_modes=1073741824 1073741824
-definers='root@localhost' 'root@localhost'
-client_cs_names='latin1' 'latin1'
-connection_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
-db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
-EOF
-
---write_file $MYSQLD_DATADIR/test/tr1_bi.TRN
-TYPE=TRIGGERNAME
-trigger_table=t1
-EOF
-
---write_file $MYSQLD_DATADIR/test/tr1_ai.TRN
-TYPE=TRIGGERNAME
-trigger_table=t1
-EOF
-
-FLUSH TABLE t1;
-
-CHECK TABLE t1 FOR UPGRADE;
-
-SHOW TRIGGERS;
-
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_schema = 'test';
-
-SHOW CREATE TRIGGER tr1_bi;
-SHOW CREATE TRIGGER tr1_ai;
 
 DROP TABLE t1;
 

@@ -2,6 +2,9 @@ drop table if exists t1;
 create table t1 (a int, key (a));
 insert into t1 values (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
 (10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where not(not(a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	90.00	Using where; Using index
@@ -30,7 +33,7 @@ a
 19
 explain select * from t1 where not(not(not(a > 10)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= 10)
 select * from t1 where not(not(not(a > 10)));
@@ -48,7 +51,7 @@ a
 10
 explain select * from t1 where not(not(not(a < 5) and not(a > 10)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	6	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 10))
 select * from t1 where not(not(not(a < 5) and not(a > 10)));
@@ -95,7 +98,7 @@ a
 1
 explain select * from t1 where not(a < 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 10)
 select * from t1 where not(a < 10);
@@ -112,7 +115,7 @@ a
 19
 explain select * from t1 where not(a >= 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 select * from t1 where not(a >= 10);
@@ -129,7 +132,7 @@ a
 9
 explain select * from t1 where not(a > 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= 10)
 select * from t1 where not(a > 10);
@@ -147,7 +150,7 @@ a
 10
 explain select * from t1 where not(a <= 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 10)
 select * from t1 where not(a <= 10);
@@ -198,7 +201,7 @@ a
 NULL
 explain select * from t1 where not(a < 5 or a > 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 15))
 select * from t1 where not(a < 5 or a > 15);
@@ -216,7 +219,7 @@ a
 15
 explain select * from t1 where not(a < 15 and a > 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	12	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 15) or (`test`.`t1`.`a` <= 5))
 select * from t1 where not(a < 15 and a > 5);
@@ -234,7 +237,7 @@ a
 19
 explain select * from t1 where a = 2 or not(a < 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	12	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 2) or (`test`.`t1`.`a` >= 10))
 select * from t1 where a = 2 or not(a < 10);
@@ -252,7 +255,7 @@ a
 19
 explain select * from t1 where a > 5 and not(a > 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	5	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` > 5) and (`test`.`t1`.`a` <= 10))
 select * from t1 where a > 5 and not(a > 10);
@@ -287,7 +290,7 @@ a
 19
 explain select * from t1 where a = 2 or not(a < 5 or a > 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	12	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 2) or ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 15)))
 select * from t1 where a = 2 or not(a < 5 or a > 15);
@@ -306,7 +309,7 @@ a
 15
 explain select * from t1 where a = 7 or not(a < 15 and a > 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	13	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	12	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` >= 15) or (`test`.`t1`.`a` <= 5))
 select * from t1 where a = 7 or not(a < 15 and a > 5);
@@ -325,7 +328,7 @@ a
 19
 explain select * from t1 where NULL or not(a < 15 and a > 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	12	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 15) or (`test`.`t1`.`a` <= 5))
 select * from t1 where NULL or not(a < 15 and a > 5);
@@ -371,7 +374,7 @@ a
 0
 explain select * from t1 where not((a < 5 or a < 10) and (not(a > 16) or a > 17));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` >= 10)) or ((`test`.`t1`.`a` > 16) and (`test`.`t1`.`a` <= 17)))
 select * from t1 where not((a < 5 or a < 10) and (not(a > 16) or a > 17));
@@ -410,7 +413,7 @@ a
 19
 explain select * from t1 where ((a between 5 and 15) and (not(a like 10)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` between 5 and 15) and (not((`test`.`t1`.`a` like 10))))
 select * from t1 where ((a between 5 and 15) and (not(a like 10)));
@@ -528,18 +531,16 @@ a
 SELECT * FROM t1 WHERE NOT (NULL XOR (a > 7));
 a
 # Should be simplified to "...WHERE (a XOR a)
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE NOT ((NOT a) XOR (a));
+EXPLAIN SELECT * FROM t1 WHERE NOT ((NOT a) XOR (a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	18.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` xor `test`.`t1`.`a`)
 # Should be simplified to "...WHERE (a XOR a)
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
+EXPLAIN SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	18.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` xor `test`.`t1`.`a`)
 # End XOR
 delete from t1 where a > 3;
@@ -550,10 +551,12 @@ NULL	NULL
 1	1
 2	1
 3	1
-explain extended select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	5	80.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(`test`.`t1`.`a` <> 0) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or `test`.`t1`.`a`) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like '1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where `test`.`t1`.`a` having `test`.`t1`.`a`
 drop table t1;

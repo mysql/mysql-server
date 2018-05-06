@@ -15,39 +15,53 @@ CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 GRANT SELECT ON test.t1 TO 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user	Select
 user2	Select
 FLUSH PRIVILEGES;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user	Select
 user2	Select
 REVOKE SELECT ON test.t1 FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass';
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -55,12 +69,16 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 newuser	Update
 user2	Select
 REVOKE UPDATE ON t1 FROM 'newuser'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user2	Select
 GRANT SELECT (a) ON test.t1 TO 'user'@'localhost';
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
@@ -69,6 +87,8 @@ user	t1	a
 FLUSH PRIVILEGES;
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -76,6 +96,8 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 user2	Select
 select User, Table_name, Column_name from mysql.columns_priv ORDER BY User;
@@ -84,9 +106,13 @@ user	t1	a
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user	
@@ -94,6 +120,8 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
+mysql.sys	Select
 user	
 connect(127.0.0.1,magnus,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'magnus'@'localhost' (using password: NO)
@@ -116,11 +144,11 @@ BEGIN;
 UPDATE mysql.user SET Authentication_string = ''
 WHERE User = 'billy1';
 SET PASSWORD FOR 'billy1'@'127.0.0.1' = 'newpass';
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 146 - Lock timed out; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1297	Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB
-Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	3501	The ACL operation failed due to the following error from SE: errcode 146 - Lock timed out; Retry transaction
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Error	1205	Lock wait timeout exceeded; try restarting transaction

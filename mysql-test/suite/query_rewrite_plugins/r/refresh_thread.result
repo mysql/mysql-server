@@ -2,12 +2,6 @@
 # Tests of the dedicated thread for refreshing the rules table.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # We will now test shutting down the server while refreshing rules. We
@@ -24,6 +18,7 @@ VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 SET GLOBAL debug= '+d,dbug.block_do_refresh';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 # We have to do this in order to avoid deadlock on the memory table's
@@ -35,6 +30,7 @@ CALL query_rewrite.flush_rewrite_rules();
 SET debug_sync = 'now WAIT_FOR parked';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 #
@@ -47,6 +43,7 @@ Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:

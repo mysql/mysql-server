@@ -1,0 +1,55 @@
+Preamble
+SET GLOBAL mysqlx_read_timeout = 5;
+CREATE USER temp_user@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+GRANT ALL ON *.* TO temp_user@localhost;
+#
+# Run the test without SSL
+#
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+TCP/IP
+0 rows affected
+RUN SELECT USER()
+USER()
+temp_user@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+Sending 4 bytes raw data...
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: GLOBAL
+  payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
+}
+
+Server disconnected
+ok
+#
+# Run the test with SSL
+#
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+RUN SELECT USER()
+USER()
+temp_user@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Sending 4 bytes raw data...
+Mysqlx.Notice.Frame {
+  type: 1
+  scope: GLOBAL
+  payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 1810\nmsg: \"IO Read error: read_timeout exceeded\"\n }"
+}
+
+Server disconnected
+ok
+SET GLOBAL mysqlx_read_timeout = DEFAULT;
+DROP USER temp_user@localhost;

@@ -1,14 +1,13 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
---source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+--source include/no_valgrind_without_big.inc
+
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -101,7 +100,7 @@ DROP TABLE t1;
 
 
 
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
@@ -130,7 +129,7 @@ DROP DATABASE tde_db;
 
 --let SEARCH_FILE=$MYSQL_TMP_DIR/keyring_query_log
 let SEARCH_PATTERN= ALTER INSTANCE ROTATE INNODB MASTER KEY;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Loading tables from mysqlpump_encrypt.sql
 --exec $MYSQL --skip-comments < $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
@@ -140,9 +139,32 @@ SELECT * FROM tde_db.t1 LIMIT 10;
 DROP DATABASE tde_db;
 #
 
+
+--echo #
+--echo # Bug #26634507  CREATE_OPTIONS FLD IN INFORMATION_SCHEMA.TABLES NOT
+--echo # FILLING PROPERLY.
+--echo # The CREATE_OPTIONS field from I_S.TABLES should show the option
+--echo # 'ENCRYPTION='.
+--echo #
+
+CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
+CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
+CREATE TABLE encrypted1 (col1 INT) ENCRYPTION='y';
+CREATE TABLE encrypted2 (col1 INT) ENCRYPTION='Y';
+
+SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME like '%encrypted%'
+  ORDER BY TABLE_NAME;
+
+DROP TABLE encrypted1;
+DROP TABLE not_encrypted1;
+DROP TABLE encrypted2;
+DROP TABLE not_encrypted2;
+
+
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

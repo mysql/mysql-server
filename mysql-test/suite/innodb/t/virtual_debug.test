@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 --source include/have_debug.inc
 --source include/count_sessions.inc
@@ -216,7 +215,7 @@ DROP TABLE t1;
 
 # Create a table with 2 virtual column, one (vbidxcol) is indexed and
 # the other one (vbcol) is not
-create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic;
+create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, c char(181), vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d), index(a), index(vbidxcol), index(a,vbidxcol), index(vbidxcol,d), unique key (b(10), a, d), index(c(99), b(31)), index(b(5), c(10), a) , index(a,d)) engine=InnoDB stats_persistent=1 row_format=dynamic charset latin1;
 
 # Do an alter table rebuild table and also create a new index on this
 # non-indexed virtual column
@@ -250,6 +249,32 @@ select d,c,vbcol,b from  ibstd_14;
 select vbcol from ibstd_14;
 
 drop table ibstd_14;
+
+--echo #
+--echo # Bug#26375771 INNODB: ASSERTION FAILURE: MACH0DATA.IC:308:VAL > 0X7F
+--echo #
+create table ibstd_07 (a int not null, d int not null, b blob not null, c text, vadcol int as (a+length(d)) stored, vbcol char(2) as (substr(b,2,2)) virtual, vbidxcol char(3) as (substr(b,1,3)) virtual , index(d  desc), index(a  desc), index(vbidxcol  desc), index(vbidxcol  desc,d  asc), unique key (b(101)  desc, a  asc, d ), index(c(255)  desc, b(255)  asc), index(b(5)  desc, c(10)  asc, a ) ) engine=InnoDB default charset=latin1 row_format=redundant;
+
+insert into ibstd_07 values (2, 2, repeat('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc','281'),repeat('ouolrculuouocououooalcoraooaulouuacrolrocooraoaooooolaccralacalooolalocoaacoorarorcurccarocucla','317'), default, default, default);
+
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send alter table ibstd_07  add primary key (b(11)  desc,a  asc, d );
+
+# Do a concurrent update
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+update ibstd_07 set c=repeat('0.366710324443464crllooolarlollorlulololucrluacoorrrluroluroocouauacacruloulcurlraorcrclrolcocrrcoccolourrooclrcocruruauallo','70');
+
+
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT * FROM ibstd_07;
+
+DROP TABLE ibstd_07;
 
 --echo #
 --echo # Bug#22018745 CORRUPTION IN ONLINE TABLE REBUILD
@@ -286,3 +311,133 @@ disconnect con1;
 SET DEBUG_SYNC = 'RESET';
 
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#24658707 ASSERT: BUF0BUF.CC:2469:BUF_BLOCK_GET_STATE(BLOCK)
+--echo # == BUF_BLOCK_FILE_PAGE#
+--echo #
+
+--connect(con1,localhost,root)
+--connect(con2,localhost,root)
+
+CREATE TABLE t1 (
+     col1 int(11) NOT NULL,
+     col2 int(11) DEFAULT NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--connection con1
+SET DEBUG_SYNC='purge_wait_for_btr_search_latch WAIT_FOR go';
+--send ALTER TABLE t1 ADD COLUMN col3 INT GENERATED ALWAYS AS (col1 % col2) VIRTUAL, algorithm=inplace;
+
+--connection con2
+# Allow purge to wait for btr_search_latch
+--sleep 10
+SET DEBUG_SYNC = 'now signal go';
+
+--connection con1
+--reap
+
+SET DEBUG_SYNC = 'RESET';
+
+DROP TABLE t1;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+--echo #
+--echo # Bug#26330279 - ASSERT ON ROW_PURGE_REMOVE_SEC_IF_POSS_LEAF| INNOBASE/ROW/ROW0PURGE.CC
+--echo #
+
+SET GLOBAL innodb_purge_stop_now=ON;
+CREATE TABLE t1 (col1 INT,
+                 col2 VARCHAR(100),
+                 col3 VARCHAR(80) GENERATED ALWAYS AS (SUBSTR(col2,1,70)),
+                 PRIMARY KEY (col1), UNIQUE KEY uidx(col3(10))) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2) VALUES(1, CONCAT(1, REPEAT('z',90)));
+
+REPLACE INTO t1(col1, col2) SELECT col1, col2 FROM t1;
+
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#27319084 - INDEX CORRUPT: INNODB: FIELD 0 LEN IS NNN, SHOULD BE NNN; RECORD
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, b VARCHAR(198) NOT NULL, c CHAR(84), vbcol CHAR(2) AS (substr(b, 2, 2)) VIRTUAL, vbidxcol CHAR(3) AS (substr(b, 1, 3)) VIRTUAL, INDEX(vbidxcol ASC)) ROW_FORMAT = DYNAMIC;
+
+INSERT INTO t1(a, d, b, c) VALUES(200, 300, '1.3.1415926535', 'hello world');
+
+connect (conn1, localhost, root,,);
+
+connection default;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
+
+--send ALTER TABLE t1 ROW_FORMAT = REDUNDANT
+
+connection conn1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR altered';
+
+INSERT INTO t1(a, d, b, c) VALUES(201, 300, '3.1415926535', 'hello world');
+
+UPDATE t1 SET b = '6.1516179' WHERE a = 200;
+
+SET DEBUG_SYNC = 'now SIGNAL dmls_done';
+
+disconnect conn1;
+
+connection default;
+
+reap;
+
+SET DEBUG_SYNC = 'reset';
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, b VARCHAR(198) NOT NULL, c CHAR(84), vbcol CHAR(2) AS (substr(b, 2, 2)) VIRTUAL, vbidxcol CHAR(3) AS (substr(b, 1, 3)) VIRTUAL, INDEX(vbidxcol ASC)) ROW_FORMAT = REDUNDANT;
+
+INSERT INTO t1(a, d, b, c) VALUES(200, 300, '1.3.1415926535', 'hello world');
+
+connect (conn1, localhost, root,,);
+
+connection default;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL altered WAIT_FOR dmls_done';
+
+--send ALTER TABLE t1 ROW_FORMAT = DYNAMIC
+
+connection conn1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR altered';
+
+INSERT INTO t1(a, d, b, c) VALUES(201, 300, '3.1415926535', 'hello world');
+
+UPDATE t1 SET b = '6.1516179' WHERE a = 200;
+
+SET DEBUG_SYNC = 'now SIGNAL dmls_done';
+
+disconnect conn1;
+
+connection default;
+
+reap;
+
+SET DEBUG_SYNC = 'reset';
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

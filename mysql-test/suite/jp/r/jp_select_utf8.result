@@ -8,18 +8,38 @@ drop table if exists `Ｔ７`;
 drop table if exists `Ｔ８`;
 drop table if exists `Ｔ９`;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_database = utf8;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `Ｔ１` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ２` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ３` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ４` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ５` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ６` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ７` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ８` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `Ｔ９` (c1 char(20), INDEX(c1)) DEFAULT CHARSET = utf8 engine = MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0201_utf8.dat' INTO TABLE `Ｔ１`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0208_utf8.dat' INTO TABLE `Ｔ２`;
 LOAD DATA LOCAL INFILE 'suite/jp/std_data/jisx0212_utf8.dat' INTO TABLE `Ｔ３`;

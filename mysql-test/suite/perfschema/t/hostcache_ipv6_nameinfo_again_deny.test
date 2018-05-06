@@ -6,10 +6,8 @@
 # - getnameinfo() fails with AGAIN
 # - reported in COUNT_NAMEINFO_TRANSIENT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
---source include/have_perfschema.inc
 
 # [Warning] IP address '2001:db8::6:6' could not be resolved:
 # Temporary failure in name resolution

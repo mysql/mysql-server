@@ -1,0 +1,182 @@
+#
+# WL#9343: Logging services: log writers
+#
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_filter_internal; log_sink_internal
+
+#
+# WL#9343: Logging services: log writers: syslog
+#
+SELECT "*** SWITCHING ERROR LOG TO SYSLOG/EVENTLOG ***";
+*** SWITCHING ERROR LOG TO SYSLOG/EVENTLOG ***
+*** SWITCHING ERROR LOG TO SYSLOG/EVENTLOG ***
+INSTALL COMPONENT "file://component_log_sink_syseventlog";
+SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
+SELECT "logging to syseventlog";
+logging to syseventlog
+logging to syseventlog
+SET @start_value= @@global.log_syslog;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= DEFAULT;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SELECT @@global.log_syslog;
+@@global.log_syslog
+1
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= 0;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SELECT @@global.log_syslog;
+@@global.log_syslog
+0
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= 1;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SELECT @@global.log_syslog;
+@@global.log_syslog
+1
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= ON;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SELECT @@global.log_syslog;
+@@global.log_syslog
+1
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= OFF;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SELECT @@global.log_syslog;
+@@global.log_syslog
+0
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @@global.log_syslog= 9;
+ERROR 42000: Variable 'log_syslog' can't be set to the value of '9'
+SELECT @@global.log_syslog;
+@@global.log_syslog
+0
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET GLOBAL log_syslog= 0.01;
+ERROR 42000: Incorrect argument type to variable 'log_syslog'
+SET SESSION log_syslog= 0;
+ERROR HY000: Variable 'log_syslog' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_syslog= 0;
+ERROR HY000: Variable 'log_syslog' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.log_syslog= @start_value;
+Warnings:
+Warning	1287	'@@log_syslog' is deprecated and will be removed in a future release. Please use --log_error_services instead.
+SET @start_value= @@global.log_syslog_facility;
+SET @@global.log_syslog_facility= DEFAULT;
+SELECT @@global.log_syslog_facility, @start_value;
+@@global.log_syslog_facility	@start_value
+daemon	daemon
+SET @@global.log_syslog_facility="user";
+SELECT @@global.log_syslog_facility;
+@@global.log_syslog_facility
+user
+SET @@global.log_syslog_facility= "daemon";
+SELECT @@global.log_syslog_facility;
+@@global.log_syslog_facility
+daemon
+SET @@global.log_syslog_facility= "local0";
+SELECT @@global.log_syslog_facility;
+@@global.log_syslog_facility
+local0
+SET @@global.log_syslog_facility= 9;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_facility'
+SET GLOBAL log_syslog_facility= 0.01;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_facility'
+SET SESSION log_syslog_facility= "local1";
+ERROR HY000: Variable 'log_syslog_facility' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_syslog_facility= "local1";
+ERROR HY000: Variable 'log_syslog_facility' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.log_syslog_facility= "log_local5";
+SELECT @@global.log_syslog_facility;
+@@global.log_syslog_facility
+local5
+SET @@global.log_syslog_facility= "LOG_LOCAL7";
+SELECT @@global.log_syslog_facility;
+@@global.log_syslog_facility
+local7
+SET @@global.log_syslog_facility= "9";
+ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of '9'
+SET @@global.log_syslog_facility= "local8";
+ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of 'local8'
+SET @@global.log_syslog_facility= "";
+ERROR 42000: Variable 'log_syslog_facility' can't be set to the value of ''
+SET @@global.log_syslog_facility= @start_value;
+
+SET @start_value= @@global.log_syslog_include_pid;
+SET @@global.log_syslog_include_pid= DEFAULT;
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+1
+SET @@global.log_syslog_include_pid= 0;
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+0
+SET @@global.log_syslog_include_pid= 1;
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+1
+SET @@global.log_syslog_include_pid= ON;
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+1
+SET @@global.log_syslog_include_pid= OFF;
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+0
+SET @@global.log_syslog_include_pid= 9;
+ERROR 42000: Variable 'log_syslog_include_pid' can't be set to the value of '9'
+SELECT @@global.log_syslog_include_pid;
+@@global.log_syslog_include_pid
+0
+SET GLOBAL log_syslog_include_pid= 0.01;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_include_pid'
+SET SESSION log_syslog_include_pid= 0;
+ERROR HY000: Variable 'log_syslog_include_pid' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_syslog_include_pid= 0;
+ERROR HY000: Variable 'log_syslog_include_pid' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.log_syslog_include_pid= @start_value;
+SET @start_value= @@global.log_syslog_tag;
+SET @@global.log_syslog_tag= DEFAULT;
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+
+SET @@global.log_syslog_tag="production";
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+production
+SET @@global.log_syslog_tag= "";
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+
+SET @@global.log_syslog_tag= 9;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_tag'
+SET @@global.log_syslog_tag= "path/like";
+ERROR 42000: Variable 'log_syslog_tag' can't be set to the value of 'path/like'
+SET GLOBAL log_syslog_tag= 0.01;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_tag'
+SET SESSION log_syslog_tag= "staging";
+ERROR HY000: Variable 'log_syslog_tag' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_syslog_tag= "staging";
+ERROR HY000: Variable 'log_syslog_tag' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.log_syslog_tag= @start_value;
+FLUSH ERROR LOGS;
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+
+###
+### done
+###

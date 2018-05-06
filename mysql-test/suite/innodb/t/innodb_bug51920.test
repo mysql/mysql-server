@@ -1,8 +1,6 @@
 #
 # Bug #51920: InnoDB connections in lock wait ignore KILL until timeout
 #
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 CREATE TABLE bug51920 (i INT) ENGINE=InnoDB;
 INSERT INTO bug51920 VALUES (1);

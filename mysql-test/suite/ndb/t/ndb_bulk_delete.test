@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Basic test of bulk delete interface. Test counts number of execute
 # as measurement of number of round trips to kernel.
@@ -74,7 +69,10 @@ drop table t1;
 
 
 # Build table t2 with 2000 rows
-create table t2 (a int primary key, b varchar(256)) engine ndb;
+create table t2 (
+  a int primary key,
+  b varchar(256) character set latin1)
+engine ndb;
 --disable_result_log
 --disable_query_log
 let $i = 200;
@@ -111,14 +109,14 @@ while($i)
            $i*10+6,$i*10+7,$i*10+8,$i*10+9;
 
   # Get the execute count before DELETE
-  let $before= `select VARIABLE_VALUE from information_schema.session_status
+  let $before= `select VARIABLE_VALUE from performance_schema.session_status
                   where variable_name like 'NDB_EXECUTE_COUNT'`;
 
   # Run the query
   eval delete from t3 where a in ($in);
 
   # Check that execute count after DELETE is not greater than 3
-  let $after= `select VARIABLE_VALUE from information_schema.session_status
+  let $after= `select VARIABLE_VALUE from performance_schema.session_status
                  where variable_name like 'NDB_EXECUTE_COUNT'`;
   if (!`select $after-$before <= 3`)
   {

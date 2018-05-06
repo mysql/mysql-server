@@ -1,6 +1,6 @@
 ######## suite/innodb/t/innodb_bulk_create_index.test            #####
 #                                                                    #
-# Testcase for worklog WL#7277: InnoDB: Bulk Load for Create Index   #
+# Testcase for worklog WL#7277:  Bulk Load for Create Index   #
 #  The basic idea of bulk load is to build an index from bottom up   #
 #  (also known as sorted index build).                               #
 # Earlier index was create by repeatedly inserting records           #
@@ -13,9 +13,7 @@
 #                                                                    #
 ######################################################################
 
--- source include/not_embedded.inc
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 -- source include/big_test.inc
 
 # Test Row Format: REDUNDANT.

@@ -1,5 +1,5 @@
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -261,4 +261,3 @@ ALTER TABLE t5 ADD c2 VARBINARY(20)  NOT NULL ;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
  SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
-

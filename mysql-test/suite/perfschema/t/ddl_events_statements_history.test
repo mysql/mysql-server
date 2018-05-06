@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.events_statements_history add column foo integer;
 
@@ -14,3 +11,6 @@ ALTER TABLE performance_schema.events_statements_history ADD INDEX test_index(EV
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.events_statements_history(EVENT_ID);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_statements_history;

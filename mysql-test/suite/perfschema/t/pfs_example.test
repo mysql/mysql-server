@@ -1,0 +1,53 @@
+
+select component_urn from mysql.component;
+
+INSTALL COMPONENT "file://component_pfs_example";
+
+select component_urn from mysql.component;
+
+--sorted_result
+select * from performance_schema.setup_instruments
+  where NAME like "%/pfs_example/%";
+
+--sorted_result
+select NAME, LOCKED_BY_THREAD_ID is not NULL
+  from performance_schema.mutex_instances
+  where NAME like "wait/synch/mutex/pfs_example/%";
+
+--sorted_result
+select NAME, WRITE_LOCKED_BY_THREAD_ID is not NULL, READ_LOCKED_BY_COUNT
+  from performance_schema.rwlock_instances
+  where NAME like "wait/synch/%/pfs_example/%";
+
+--sorted_result
+select NAME
+  from performance_schema.cond_instances
+  where NAME like "wait/synch/%/pfs_example/%";
+
+UNINSTALL COMPONENT "file://component_pfs_example";
+
+select component_urn from mysql.component;
+
+--sorted_result
+select * from performance_schema.setup_instruments
+  where NAME like "wait/synch/mutex/pfs_example/%";
+
+--sorted_result
+select *
+  from performance_schema.mutex_instances
+  where NAME like "%/pfs_example/%";
+
+--sorted_result
+select *
+  from performance_schema.rwlock_instances
+  where NAME like "%/pfs_example/%";
+
+--sorted_result
+select *
+  from performance_schema.cond_instances
+  where NAME like "%/pfs_example/%";
+
+--sorted_result
+select * from performance_schema.global_status
+  where variable_name like "performance_schema%classes_lost";
+

@@ -1,8 +1,7 @@
---source include/not_embedded.inc
 
 --disable_ps_protocol
 --replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
-/*first*/SELECT * FROM information_schema.processlist;
+/*first*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query';
 --enable_ps_protocol
 
 --echo ##########################################
@@ -10,6 +9,8 @@
 --echo ##########################################
 --replace_result $TEST_SQL_PROCESSLIST TEST_SQL_PROCESSLIST
 eval INSTALL PLUGIN test_sql_processlist SONAME '$TEST_SQL_PROCESSLIST';
+let $wait_condition=SELECT count(*)>0 FROM information_schema.plugins WHERE plugin_name like 'test_sql_processlist';
+--source include/wait_condition.inc
 
 --echo ##########################################
 --echo # Plugin log
@@ -22,8 +23,10 @@ remove_file $MYSQLD_DATADIR/test_sql_processlist.log;
 --echo # Stop plugin
 --echo ##########################################
 UNINSTALL PLUGIN test_sql_processlist;
+let $wait_condition=SELECT count(*)=0 FROM information_schema.plugins WHERE plugin_name like 'test_sql_processlist';
+--source include/wait_condition.inc
 
 --disable_ps_protocol
 --replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
-/*second*/SELECT * FROM information_schema.processlist;
+/*second*/SELECT * FROM information_schema.processlist WHERE command LIKE 'query';
 --enable_ps_protocol

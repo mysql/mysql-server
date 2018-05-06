@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Check the default value
 SELECT  @@global.innodb_default_row_format;

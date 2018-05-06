@@ -4,83 +4,90 @@ DROP   USER testuser1@localhost;
 CREATE USER testuser1@localhost;
 GRANT SELECT ON db_datadict.* TO testuser1@localhost;
 SELECT * FROM information_schema.statistics
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
-def	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	db	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	db	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	db	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	engine_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	engine_cost	0	mysql	PRIMARY	2	engine_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	engine_cost	0	mysql	PRIMARY	3	device_type	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	event	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	event	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	func	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	gtid_executed	0	mysql	PRIMARY	1	source_uuid	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	gtid_executed	0	mysql	PRIMARY	2	interval_start	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_category	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_keyword	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_index_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_index_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_index_stats	0	mysql	PRIMARY	3	index_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_index_stats	0	mysql	PRIMARY	4	stat_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_table_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	innodb_table_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	ndb_binlog_index	0	mysql	PRIMARY	2	orig_server_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	ndb_binlog_index	0	mysql	PRIMARY	3	orig_epoch	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proc	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proc	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proc	0	mysql	PRIMARY	3	type	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	0	mysql	PRIMARY	4	Routine_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	procs_priv	0	mysql	PRIMARY	5	Routine_type	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proxies_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proxies_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proxies_priv	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proxies_priv	0	mysql	PRIMARY	3	Proxied_host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	proxies_priv	0	mysql	PRIMARY	4	Proxied_user	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	server_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_master_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	tables_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	tables_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_leap_second	0	mysql	PRIMARY	1	Transition_time	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_name	0	mysql	PRIMARY	1	Name	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_transition	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_transition	0	mysql	PRIMARY	2	Transition_time	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_transition_type	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	user	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE		
-def	mysql	user	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
+def	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	component	0	mysql	PRIMARY	1	component_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	db	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	db	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	db	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	default_roles	0	mysql	PRIMARY	1	HOST	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	default_roles	0	mysql	PRIMARY	2	USER	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	default_roles	0	mysql	PRIMARY	3	DEFAULT_ROLE_HOST	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	default_roles	0	mysql	PRIMARY	4	DEFAULT_ROLE_USER	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	engine_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	engine_cost	0	mysql	PRIMARY	2	engine_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	engine_cost	0	mysql	PRIMARY	3	device_type	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	func	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	global_grants	0	mysql	PRIMARY	1	USER	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	global_grants	0	mysql	PRIMARY	2	HOST	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	global_grants	0	mysql	PRIMARY	3	PRIV	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	gtid_executed	0	mysql	PRIMARY	1	source_uuid	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	gtid_executed	0	mysql	PRIMARY	2	interval_start	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_category	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_keyword	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	3	index_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_index_stats	0	mysql	PRIMARY	4	stat_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	innodb_table_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	password_history	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	password_history	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	password_history	0	mysql	PRIMARY	3	Password_timestamp	D	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	0	mysql	PRIMARY	4	Routine_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	procs_priv	0	mysql	PRIMARY	5	Routine_type	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	proxies_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	proxies_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	proxies_priv	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	proxies_priv	0	mysql	PRIMARY	3	Proxied_host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	proxies_priv	0	mysql	PRIMARY	4	Proxied_user	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	role_edges	0	mysql	PRIMARY	1	FROM_HOST	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	role_edges	0	mysql	PRIMARY	2	FROM_USER	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	role_edges	0	mysql	PRIMARY	3	TO_HOST	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	role_edges	0	mysql	PRIMARY	4	TO_USER	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	server_cost	0	mysql	PRIMARY	1	cost_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	slave_master_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	slave_relay_log_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	slave_worker_info	0	mysql	PRIMARY	1	Channel_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	slave_worker_info	0	mysql	PRIMARY	2	Id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	tables_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	tables_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_leap_second	0	mysql	PRIMARY	1	Transition_time	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_name	0	mysql	PRIMARY	1	Name	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_transition	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_transition	0	mysql	PRIMARY	2	Transition_time	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_transition_type	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	user	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
+def	mysql	user	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE			YES
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.statistics
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
 # Switch to connection default and close connection testuser1
 DROP USER testuser1@localhost;
 DROP DATABASE db_datadict;

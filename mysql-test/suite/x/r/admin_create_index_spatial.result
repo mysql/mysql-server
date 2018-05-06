@@ -1,0 +1,298 @@
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+Create collection spatial1
+==========================
+
+command ok
+
+Create and drop spatial index
+=============================
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+0 rows affected
+############################
+
+re-create spatial index after drop and check case sensitiveness for geojson term
+================================================================================
+
+command ok
+
+Check default value of srid and options
+=======================================
+Table	Create Table
+spatial1	CREATE TABLE `spatial1` (
+  `doc` json DEFAULT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL /*!80003 SRID 4326 */,
+  PRIMARY KEY (`_id`),
+  SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+0 rows affected
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+0 rows affected
+############################
+
+create_collection_index with by explicitly setting value of  srid and options
+=============================================================================
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+command ok
+
+check required status var updated
+=================================
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	3
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	2
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	6
+0 rows affected
+
+command ok
+
+command ok
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	4
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	3
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	8
+0 rows affected
+
+Run geomtery query on generated column  
+========================================
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+doc	_id	ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B)
+{"_id": "five", "first": {"type": "MultiLineString", "coordinates": [[[10, 10], [20, 20], [10, 40]], [[40, 40], [30, 30], [40, 20], [30, 10]]]}}	five	{"type": "MultiLineString", "coordinates": [[[10.0, 10.0], [20.0, 20.0], [10.0, 40.0]], [[40.0, 40.0], [30.0, 30.0], [40.0, 20.0], [30.0, 10.0]]]}
+{"_id": "four", "first": {"type": "MultiPoint", "coordinates": [[10, 40], [40, 30], [20, 20], [30, 10]]}}	four	{"type": "MultiPoint", "coordinates": [[10.0, 40.0], [40.0, 30.0], [20.0, 20.0], [30.0, 10.0]]}
+{"_id": "one", "first": {"type": "Point", "coordinates": [10, 11]}}	one	{"type": "Point", "coordinates": [10.0, 11.0]}
+{"_id": "seven", "first": {"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}]}}	seven	{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10.0, 20.0]}]}]}
+{"_id": "six", "first": {"type": "MultiPolygon", "coordinates": [[[[40, 40], [20, 45], [45, 30], [40, 40]]], [[[20, 35], [10, 30], [10, 10], [30, 5], [45, 20], [20, 35]]]]}}	six	{"type": "MultiPolygon", "coordinates": [[[[40.0, 40.0], [20.0, 45.0], [45.0, 30.0], [40.0, 40.0]]], [[[20.0, 35.0], [10.0, 30.0], [10.0, 10.0], [30.0, 5.0], [45.0, 20.0], [20.0, 35.0]]]]}
+{"_id": "three", "first": {"type": "Polygon", "coordinates": [[[30, 10], [40, 40], [20, 40], [10, 20], [30, 10]]]}}	three	{"type": "Polygon", "coordinates": [[[30.0, 10.0], [40.0, 40.0], [20.0, 40.0], [10.0, 20.0], [30.0, 10.0]]]}
+{"_id": "two", "first": {"type": "LineString", "coordinates": [[0, 0], [0, 10], [10, 10], [10, 0]]}}	two	{"type": "LineString", "coordinates": [[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0]]}
+0 rows affected
+Using of index give an unexpected result and it caused by another bug
+### Show use of index for MBRContains(st_geomfromgeojson(doc->'$.first',1,4326),st_geomfromtext('point(10 11)',4326))
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	spatial1	null	ALL	null	null	null	null	7	100.00	Using where
+0 rows affected
+############################
+
+command ok
+
+7 rows affected
+
+create_collection_index with nested member path
+===============================================
+
+command ok
+
+command ok
+
+Create two spatial indexes on the same member and drop one
+==========================================================
+
+command ok
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	one	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+Drop spatial index on $.first
+=============================
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+Is collection with spatial index still collection?
+==================================================
+name	type
+spatial1	COLLECTION
+command ok
+
+Create spatial index with(out) optional type name
+=================================================
+
+command ok
+### Columns of spatial1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
+$ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	geometry	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of spatial1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+spatial1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+spatial1	1	two	1	$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	A	0	32	null		SPATIAL			YES
+spatial1	1	three	1	$ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	A	0	32	null		SPATIAL			YES
+0 rows affected
+############################
+
+Drop collection spatial1
+========================
+
+command ok
+
+Create collection spatial2
+==========================
+
+command ok
+
+Try to create spatial index on two memebers
+===========================================
+Got expected error: Too many key parts specified; max 1 parts allowed (code 1070)
+
+Try to create "regular" index with spatial options
+==================================================
+Got expected error: Unsupported argumet specification for '$.first' (code 5017)
+
+Try to create unique spatial index
+==================================
+Got expected error: Unique spatial index is not supported (code 5017)
+
+Try to create spatial index on not requiered member
+===================================================
+Got expected error: GEOJSON index requires 'constraint.required: TRUE (code 5117)
+
+Try to create "regular" index on geometry member
+================================================
+Got expected error: BLOB/TEXT column '$ix_gj_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' used in key specification without a key length (code 1170)
+
+Try to create spatial index with negative options
+=================================================
+Got expected error: Invalid value for argument 'fields.options' (code 5017)
+
+Try to create spatial index with negative srid
+==============================================
+Got expected error: Invalid value for argument 'fields.srid' (code 5017)
+
+Try to insert invalid value to collection with spatial index
+============================================================
+
+command ok
+Got expected error: Invalid GeoJSON data provided to function st_geomfromgeojson (code 3072)
+
+Try to insert 'null' value to collection with spatial index
+===========================================================
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
+
+command ok
+
+Try to create spatial index on missing member
+=============================================
+
+1 rows affected
+Got expected error (code 0)
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

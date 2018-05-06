@@ -3,6 +3,8 @@ SET @@session.default_storage_engine = 'InnoDB';
 # Section 1. Wrong column definition options
 #            - DEFAULT <value>
 #            - AUTO_INCREMENT
+#            - SERIAL DEFAULT VALUE
+#            - ON UPDATE NOW ...
 # NOT NULL
 create table t1 (a int, b int generated always as (a+1) virtual not null);
 insert into t1(a) values(null);
@@ -47,17 +49,31 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 drop table t1;
 # DEFAULT
 create table t1 (a int, b int generated always as (a+1) virtual default 0);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0)' at line 1
+ERROR HY000: Incorrect usage of DEFAULT and generated column
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual default 0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default 0' at line 1
+ERROR HY000: Incorrect usage of DEFAULT and generated column
 drop table t1;
 # AUTO_INCREMENT
 create table t1 (a int, b int generated always as (a+1) virtual AUTO_INCREMENT);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT)' at line 1
+ERROR HY000: Incorrect usage of AUTO_INCREMENT and generated column
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTO_INCREMENT' at line 1
+ERROR HY000: Incorrect usage of AUTO_INCREMENT and generated column
+drop table t1;
+# SERIAL DEFAULT VALUE
+create table t1 (a int, b int generated always as (a+1) virtual SERIAL DEFAULT VALUE);
+ERROR HY000: Incorrect usage of SERIAL DEFAULT VALUE and generated column
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual SERIAL DEFAULT VALUE;
+ERROR HY000: Incorrect usage of SERIAL DEFAULT VALUE and generated column
+drop table t1;
+# ON UPDATE
+create table t1 (a int, b int generated always as (a+1) virtual ON UPDATE NOW());
+ERROR HY000: Incorrect usage of ON UPDATE and generated column
+create table t1 (a int);
+alter table t1 add column b int generated always as (a+1) virtual ON UPDATE NOW();
+ERROR HY000: Incorrect usage of ON UPDATE and generated column
 drop table t1;
 # [PRIMARY] KEY
 create table t1 (a int, b int generated always as (a+1) virtual key);
@@ -85,14 +101,14 @@ alter table t1 add column b int generated always as (a+1) virtual key;
 ERROR HY000: 'Defining a virtual generated column as primary key' is not supported for generated columns.
 alter table t1 add column b int generated always as (a+1) stored key;
 alter table t1 add column c int generated always as (a+2) virtual primary key;
-ERROR HY000: 'Defining a virtual generated column as primary key' is not supported for generated columns.
+ERROR 42000: Multiple primary key defined
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED NOT NULL,
   PRIMARY KEY (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add column c int generated always as (a+2) stored primary key;
 ERROR 42000: Multiple primary key defined
 drop table t1;
@@ -106,7 +122,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -119,7 +135,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -139,7 +155,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -161,7 +177,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -183,7 +199,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) stored references t2(a);
@@ -193,7 +209,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table t2;
 FK options
@@ -218,7 +234,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -230,7 +246,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -243,7 +259,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -256,7 +272,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((5 * 2)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -310,7 +326,7 @@ ERROR HY000: Generated column can refer only to generated columns defined prior 
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `c0006`))))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `c0006`))))' at line 1
 DROP TABLE t1;
 # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
 CREATE TABLE t1(a int, b int as (a + 1),
@@ -321,9 +337,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
-  `c` varchar(12) GENERATED ALWAYS AS ('aaaabb') STORED,
+  `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 order by a;
 a	b	c	d
 1	2	aaaabb	aaaabb
@@ -334,9 +350,9 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
-  `c` varchar(12) GENERATED ALWAYS AS ('aaaabb') STORED,
+  `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 AS SELECT * FROM t1;
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -345,7 +361,7 @@ t3	CREATE TABLE `t3` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t3 order by a;
 a	b	c	d
 1	2	aaaabb	aaaabb
@@ -357,7 +373,7 @@ t4	CREATE TABLE `t4` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t4 order by b;
 b	c	d
 2	aaaabb	aaaabb
@@ -427,11 +443,11 @@ DROP TABLE t1;
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `c0006`))))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `c0006`))))' at line 1
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `not_exist_col`))))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `not_exist_col`))))' at line 1
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1))))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1))))' at line 1
 DROP TABLE t1;
 # Bug#21142905: PARTITIONED GENERATED COLS -
 #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
@@ -450,20 +466,24 @@ DROP TABLE t1;
 #
 # Check for a valid syntax:
 CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ('foo bar') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS (_utf8mb4'foo bar') VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
-  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ('foo bar') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS (_utf8mb4'foo bar') VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
 SHOW CREATE TABLE t1;
@@ -471,7 +491,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   `c` int(11) GENERATED ALWAYS AS (10) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Check for a charset mismatch processing:
 CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
@@ -590,8 +610,8 @@ c	int(11)	NULL	YES		NULL	STORED GENERATED	#
 INSERT INTO t1 (a) VALUES (NULL), (1);
 SELECT * FROM t1;
 a	b	c
-NULL	NULL	NULL
 1	-1	0
+NULL	NULL	NULL
 DROP TABLE t1;
 # Bug#21854004: GCOLS:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
 CREATE TABLE t1(
@@ -719,7 +739,7 @@ t1	CREATE TABLE `t1` (
   `c` char(3) GENERATED ALWAYS AS (substr(`b`,1,3)) VIRTUAL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 order by a;
 a	b	c
 1	bbbb	bbb
@@ -775,7 +795,7 @@ INSERT INTO t1 VALUES();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
 ALGORITHM = INPLACE;

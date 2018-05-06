@@ -3,16 +3,23 @@
 --echo # the database name with the table name to make a unique table name.
 --echo #
 
---source include/have_innodb.inc
 --source include/not_windows.inc
 # This will test the limit of a filename in MySQL at 512 bytes.
 # We control that by making it a relative path starting with "./".
-# The embedded server uses an absolute path as the datadir
-# which has a non-deterministic length.
---source include/not_embedded.inc
 
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
+
+--disable_query_log
+# Suppress errors about too long filenames in error log.
+call mtr.add_suppression("\\[ERROR\\].* Operating system error number .* in a file operation.");
+call mtr.add_suppression("\\[ERROR\\].* Error number .* means '.*'");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create file .*");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'stat' returned OS error .*");
+call mtr.add_suppression("\\[WARNING\\].* '.*' name too long, can't delete!");
+--enable_query_log
 
 --echo #
 --echo # MySQL limits each database and tablename identifier to 64 characters
@@ -56,7 +63,7 @@ LET $long_db_name = ##################################################_long;
 --echo # `##################################################_long_` is expanded to
 --echo #                        (50 * 5) +                    6  = 256.
 --echo #
---replace_regex /Errcode: [0-9]+/Errcode: ##/  /@0023/#/
+--replace_regex /OS errno [0-9]+/Errcode: ##/  /@0023/#/ /Filename/File name/
 --error 13
 CREATE DATABASE `##################################################_long_`;
 
@@ -66,7 +73,7 @@ CREATE DATABASE `##################################################_long_`;
 --echo # `###########################################################_long` is expanded to
 --echo #                        (59 * 5) +                             5  = 300.
 --echo #
---replace_regex /Errcode: [0-9]+/Errcode: ##/  /@0023/#/
+--replace_regex /OS errno [0-9]+/Errcode: ##/  /@0023/#/ /Filename/File name/
 --error 13
 CREATE DATABASE `###########################################################_long`;
 
@@ -94,8 +101,8 @@ LET $long_252_byte_table_name = ################################################
 --echo #
 --echo # A 252-byte tablename is too long
 --echo #
---replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
---error ER_CANT_CREATE_TABLE
+--replace_regex /@0023/#/
+--error ER_GET_ERRNO 
 --eval CREATE TABLE `test`.`$long_252_byte_table_name` (a SERIAL)
 
 CREATE DATABASE twenty_byte_db_name_;
@@ -109,8 +116,8 @@ USE `twenty_byte_db_name_`;
 --echo #
 --echo # A 252 byte expanded table name is also too long in a longer database name
 --echo #
---replace_regex /errno: [0-9]+/errno: ##/  /@0023/#/
---error ER_CANT_CREATE_TABLE
+--replace_regex /@0023/#/
+--error ER_GET_ERRNO 
 --eval CREATE TABLE `twenty_byte_db_name_`.`$long_252_byte_table_name` (a SERIAL)
 
 --echo #
@@ -140,15 +147,15 @@ SHOW WARNINGS;
 --list_files $MYSQLD_DATADIR/@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023@0023_long
 
 --replace_result @0023 #
-SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tables WHERE name LIKE '%long%';
 --replace_result @0023 #
-SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tablespaces WHERE name LIKE '%long%';
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR  @0023 #
-SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+SELECT path FROM information_schema.innodb_datafiles WHERE path LIKE '%long%' order by path;
 --vertical_results
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR  @0023 #
-SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+SELECT file_name, tablespace_name FROM information_schema.files
+  WHERE file_name LIKE '%long%' ORDER BY file_name;
 --horizontal_results
 
 --echo #

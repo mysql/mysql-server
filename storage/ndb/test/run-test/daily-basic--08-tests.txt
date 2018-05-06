@@ -1,0 +1,144 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testLimits
+args: -n ExhaustSegmentedSectionScan WIDE_2COL
+max-time: 180
+
+cmd: testNdbApi
+args: -n GetOperationNoTab T6
+max-time: 180
+
+cmd: testScan
+args: -n CloseRefresh T1
+max-time: 180
+
+cmd: test_event
+args: -n Apiv2HQE-latestGCI T1
+max-time: 180
+
+cmd: testBasic
+args: -n Bug54944 T1
+max-time: 180
+
+cmd: testBasic
+args: -n CommitTry630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ExecuteScanWithoutOpenScan T6 D1 D2
+max-time: 180
+
+cmd: testBlobs
+args: -bug 27370 -skip p
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36276 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanReadAndPkRead T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -r 10000 -n TableAddAttrsDuring T1 T6
+max-time: 1800
+
+cmd: testScan
+args: -n ScanRead240
+max-time: 180
+
+cmd: testNdbApi
+args: -n UnlockMulti T3
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug31980 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanDelete
+max-time: 360
+
+cmd: testBasic
+args: -n PkInsert
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead488 -l 10 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanRead488O -l 10 T6 D1 D2
+max-time: 360
+
+cmd: testScan
+args: -n ScanReadError5024 T1 D1 D2
+max-time: 360
+
+cmd: testBasic
+args: -n TupError
+max-time: 540
+
+cmd: testSystemRestart
+args: -l 2 -n Bug28770 T1
+max-time: 540
+
+cmd: test_event
+args: -n Bug37442 T1
+max-time: 540
+
+cmd: test_event
+args: -n Apiv2-check_event_queue_cleared_initial T1
+max-time: 900
+
+cmd: atrt-testBackup
+args: -n BackupOne T1 T6 I3 D2
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug27283 T1
+max-time: 1260
+
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown T1
+max-time: 1080
+
+cmd: testScan
+args: -n ScanReadRestart D1 D2
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug44952 T1
+max-time: 2700
+
+cmd: testNodeRestart
+args: -n Bug18612SR T1
+max-time: 2880
+
+cmd: testIndex
+args: -n DeferredError
+max-time: 3780
+

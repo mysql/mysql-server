@@ -1,7 +1,5 @@
 # Tests for setting innodb-page-size=64k;
 
--- source include/have_innodb.inc
--- source include/have_innodb_64k.inc
 
 # Test COMPRESSED table
 -- source suite/innodb/include/create_options_invalid.inc

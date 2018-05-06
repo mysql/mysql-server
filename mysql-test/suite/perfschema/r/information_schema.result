@@ -4,6 +4,13 @@ where TABLE_SCHEMA='performance_schema';
 TABLE_SCHEMA	lower(TABLE_NAME)	TABLE_CATALOG
 performance_schema	accounts	def
 performance_schema	cond_instances	def
+performance_schema	data_lock_waits	def
+performance_schema	data_locks	def
+performance_schema	events_errors_summary_by_account_by_error	def
+performance_schema	events_errors_summary_by_host_by_error	def
+performance_schema	events_errors_summary_by_thread_by_error	def
+performance_schema	events_errors_summary_by_user_by_error	def
+performance_schema	events_errors_summary_global_by_error	def
 performance_schema	events_stages_current	def
 performance_schema	events_stages_history	def
 performance_schema	events_stages_history_long	def
@@ -13,6 +20,8 @@ performance_schema	events_stages_summary_by_thread_by_event_name	def
 performance_schema	events_stages_summary_by_user_by_event_name	def
 performance_schema	events_stages_summary_global_by_event_name	def
 performance_schema	events_statements_current	def
+performance_schema	events_statements_histogram_by_digest	def
+performance_schema	events_statements_histogram_global	def
 performance_schema	events_statements_history	def
 performance_schema	events_statements_history_long	def
 performance_schema	events_statements_summary_by_account_by_event_name	def
@@ -46,6 +55,7 @@ performance_schema	global_status	def
 performance_schema	global_variables	def
 performance_schema	host_cache	def
 performance_schema	hosts	def
+performance_schema	log_status	def
 performance_schema	memory_summary_by_account_by_event_name	def
 performance_schema	memory_summary_by_host_by_event_name	def
 performance_schema	memory_summary_by_thread_by_event_name	def
@@ -55,8 +65,11 @@ performance_schema	metadata_locks	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
+performance_schema	persisted_variables	def
 performance_schema	prepared_statements_instances	def
 performance_schema	replication_applier_configuration	def
+performance_schema	replication_applier_filters	def
+performance_schema	replication_applier_global_filters	def
 performance_schema	replication_applier_status	def
 performance_schema	replication_applier_status_by_coordinator	def
 performance_schema	replication_applier_status_by_worker	def
@@ -73,7 +86,7 @@ performance_schema	setup_actors	def
 performance_schema	setup_consumers	def
 performance_schema	setup_instruments	def
 performance_schema	setup_objects	def
-performance_schema	setup_timers	def
+performance_schema	setup_threads	def
 performance_schema	socket_instances	def
 performance_schema	socket_summary_by_event_name	def
 performance_schema	socket_summary_by_instance	def
@@ -86,15 +99,24 @@ performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
+performance_schema	user_defined_functions	def
 performance_schema	user_variables_by_thread	def
 performance_schema	users	def
 performance_schema	variables_by_thread	def
+performance_schema	variables_info	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_TYPE	ENGINE
 accounts	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
+data_lock_waits	BASE TABLE	PERFORMANCE_SCHEMA
+data_locks	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_account_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_host_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_thread_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_by_user_by_error	BASE TABLE	PERFORMANCE_SCHEMA
+events_errors_summary_global_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_current	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_history_long	BASE TABLE	PERFORMANCE_SCHEMA
@@ -104,6 +126,8 @@ events_stages_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_summary_by_user_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_stages_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_current	BASE TABLE	PERFORMANCE_SCHEMA
+events_statements_histogram_by_digest	BASE TABLE	PERFORMANCE_SCHEMA
+events_statements_histogram_global	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_history	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_history_long	BASE TABLE	PERFORMANCE_SCHEMA
 events_statements_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
@@ -137,6 +161,7 @@ global_status	BASE TABLE	PERFORMANCE_SCHEMA
 global_variables	BASE TABLE	PERFORMANCE_SCHEMA
 host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
+log_status	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_account_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_host_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 memory_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
@@ -146,8 +171,11 @@ metadata_locks	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
+persisted_variables	BASE TABLE	PERFORMANCE_SCHEMA
 prepared_statements_instances	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_configuration	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_filters	BASE TABLE	PERFORMANCE_SCHEMA
+replication_applier_global_filters	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_worker	BASE TABLE	PERFORMANCE_SCHEMA
@@ -164,7 +192,7 @@ setup_actors	BASE TABLE	PERFORMANCE_SCHEMA
 setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
 setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
 setup_objects	BASE TABLE	PERFORMANCE_SCHEMA
-setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
+setup_threads	BASE TABLE	PERFORMANCE_SCHEMA
 socket_instances	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
@@ -177,15 +205,24 @@ table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
+user_defined_functions	BASE TABLE	PERFORMANCE_SCHEMA
 user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
 variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
+variables_info	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	VERSION	ROW_FORMAT
 accounts	10	Fixed
 cond_instances	10	Dynamic
+data_lock_waits	10	Dynamic
+data_locks	10	Dynamic
+events_errors_summary_by_account_by_error	10	Dynamic
+events_errors_summary_by_host_by_error	10	Dynamic
+events_errors_summary_by_thread_by_error	10	Dynamic
+events_errors_summary_by_user_by_error	10	Dynamic
+events_errors_summary_global_by_error	10	Dynamic
 events_stages_current	10	Dynamic
 events_stages_history	10	Dynamic
 events_stages_history_long	10	Dynamic
@@ -195,6 +232,8 @@ events_stages_summary_by_thread_by_event_name	10	Dynamic
 events_stages_summary_by_user_by_event_name	10	Dynamic
 events_stages_summary_global_by_event_name	10	Dynamic
 events_statements_current	10	Dynamic
+events_statements_histogram_by_digest	10	Dynamic
+events_statements_histogram_global	10	Fixed
 events_statements_history	10	Dynamic
 events_statements_history_long	10	Dynamic
 events_statements_summary_by_account_by_event_name	10	Dynamic
@@ -228,6 +267,7 @@ global_status	10	Dynamic
 global_variables	10	Dynamic
 host_cache	10	Dynamic
 hosts	10	Fixed
+log_status	10	Dynamic
 memory_summary_by_account_by_event_name	10	Dynamic
 memory_summary_by_host_by_event_name	10	Dynamic
 memory_summary_by_thread_by_event_name	10	Dynamic
@@ -237,8 +277,11 @@ metadata_locks	10	Dynamic
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
+persisted_variables	10	Dynamic
 prepared_statements_instances	10	Dynamic
 replication_applier_configuration	10	Fixed
+replication_applier_filters	10	Dynamic
+replication_applier_global_filters	10	Dynamic
 replication_applier_status	10	Fixed
 replication_applier_status_by_coordinator	10	Dynamic
 replication_applier_status_by_worker	10	Dynamic
@@ -255,7 +298,7 @@ setup_actors	10	Fixed
 setup_consumers	10	Dynamic
 setup_instruments	10	Dynamic
 setup_objects	10	Dynamic
-setup_timers	10	Dynamic
+setup_threads	10	Dynamic
 socket_instances	10	Dynamic
 socket_summary_by_event_name	10	Dynamic
 socket_summary_by_instance	10	Dynamic
@@ -268,9 +311,11 @@ table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
+user_defined_functions	10	Dynamic
 user_variables_by_thread	10	Dynamic
 users	10	Fixed
 variables_by_thread	10	Dynamic
+variables_info	10	Dynamic
 select lower(TABLE_NAME), AVG_ROW_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema' and
@@ -278,6 +323,13 @@ lower(TABLE_NAME) not regexp '^variables|variables$|^status|session_status|globa
 lower(TABLE_NAME)	AVG_ROW_LENGTH
 accounts	0
 cond_instances	0
+data_lock_waits	0
+data_locks	0
+events_errors_summary_by_account_by_error	0
+events_errors_summary_by_host_by_error	0
+events_errors_summary_by_thread_by_error	0
+events_errors_summary_by_user_by_error	0
+events_errors_summary_global_by_error	0
 events_stages_current	0
 events_stages_history	0
 events_stages_history_long	0
@@ -287,6 +339,8 @@ events_stages_summary_by_thread_by_event_name	0
 events_stages_summary_by_user_by_event_name	0
 events_stages_summary_global_by_event_name	0
 events_statements_current	0
+events_statements_histogram_by_digest	0
+events_statements_histogram_global	0
 events_statements_history	0
 events_statements_history_long	0
 events_statements_summary_by_account_by_event_name	0
@@ -318,6 +372,7 @@ file_summary_by_event_name	0
 file_summary_by_instance	0
 host_cache	0
 hosts	0
+log_status	0
 memory_summary_by_account_by_event_name	0
 memory_summary_by_host_by_event_name	0
 memory_summary_by_thread_by_event_name	0
@@ -329,6 +384,8 @@ objects_summary_global_by_type	0
 performance_timers	0
 prepared_statements_instances	0
 replication_applier_configuration	0
+replication_applier_filters	0
+replication_applier_global_filters	0
 replication_applier_status	0
 replication_applier_status_by_coordinator	0
 replication_applier_status_by_worker	0
@@ -343,7 +400,7 @@ setup_actors	0
 setup_consumers	0
 setup_instruments	0
 setup_objects	0
-setup_timers	0
+setup_threads	0
 socket_instances	0
 socket_summary_by_event_name	0
 socket_summary_by_instance	0
@@ -352,6 +409,7 @@ table_io_waits_summary_by_index_usage	0
 table_io_waits_summary_by_table	0
 table_lock_waits_summary_by_table	0
 threads	0
+user_defined_functions	0
 user_variables_by_thread	0
 users	0
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
@@ -361,6 +419,7 @@ lower(TABLE_NAME) regexp '^variables|variables$|^status|session_status|global_st
 lower(TABLE_NAME)	TABLE_ROWS	AVG_ROW_LENGTH
 global_status	table_rows	avg_row_len
 global_variables	table_rows	avg_row_len
+persisted_variables	table_rows	avg_row_len
 session_status	table_rows	avg_row_len
 session_variables	table_rows	avg_row_len
 status_by_account	table_rows	avg_row_len
@@ -368,12 +427,20 @@ status_by_host	table_rows	avg_row_len
 status_by_thread	table_rows	avg_row_len
 status_by_user	table_rows	avg_row_len
 variables_by_thread	table_rows	avg_row_len
+variables_info	table_rows	avg_row_len
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
 accounts	0	0
 cond_instances	0	0
+data_lock_waits	0	0
+data_locks	0	0
+events_errors_summary_by_account_by_error	0	0
+events_errors_summary_by_host_by_error	0	0
+events_errors_summary_by_thread_by_error	0	0
+events_errors_summary_by_user_by_error	0	0
+events_errors_summary_global_by_error	0	0
 events_stages_current	0	0
 events_stages_history	0	0
 events_stages_history_long	0	0
@@ -383,6 +450,8 @@ events_stages_summary_by_thread_by_event_name	0	0
 events_stages_summary_by_user_by_event_name	0	0
 events_stages_summary_global_by_event_name	0	0
 events_statements_current	0	0
+events_statements_histogram_by_digest	0	0
+events_statements_histogram_global	0	0
 events_statements_history	0	0
 events_statements_history_long	0	0
 events_statements_summary_by_account_by_event_name	0	0
@@ -416,6 +485,7 @@ global_status	0	0
 global_variables	0	0
 host_cache	0	0
 hosts	0	0
+log_status	0	0
 memory_summary_by_account_by_event_name	0	0
 memory_summary_by_host_by_event_name	0	0
 memory_summary_by_thread_by_event_name	0	0
@@ -425,8 +495,11 @@ metadata_locks	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
+persisted_variables	0	0
 prepared_statements_instances	0	0
 replication_applier_configuration	0	0
+replication_applier_filters	0	0
+replication_applier_global_filters	0	0
 replication_applier_status	0	0
 replication_applier_status_by_coordinator	0	0
 replication_applier_status_by_worker	0	0
@@ -443,7 +516,7 @@ setup_actors	0	0
 setup_consumers	0	0
 setup_instruments	0	0
 setup_objects	0	0
-setup_timers	0	0
+setup_threads	0	0
 socket_instances	0	0
 socket_summary_by_event_name	0	0
 socket_summary_by_instance	0	0
@@ -456,15 +529,24 @@ table_io_waits_summary_by_index_usage	0	0
 table_io_waits_summary_by_table	0	0
 table_lock_waits_summary_by_table	0	0
 threads	0	0
+user_defined_functions	0	0
 user_variables_by_thread	0	0
 users	0	0
 variables_by_thread	0	0
+variables_info	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
 accounts	0	0	NULL
 cond_instances	0	0	NULL
+data_lock_waits	0	0	NULL
+data_locks	0	0	NULL
+events_errors_summary_by_account_by_error	0	0	NULL
+events_errors_summary_by_host_by_error	0	0	NULL
+events_errors_summary_by_thread_by_error	0	0	NULL
+events_errors_summary_by_user_by_error	0	0	NULL
+events_errors_summary_global_by_error	0	0	NULL
 events_stages_current	0	0	NULL
 events_stages_history	0	0	NULL
 events_stages_history_long	0	0	NULL
@@ -474,6 +556,8 @@ events_stages_summary_by_thread_by_event_name	0	0	NULL
 events_stages_summary_by_user_by_event_name	0	0	NULL
 events_stages_summary_global_by_event_name	0	0	NULL
 events_statements_current	0	0	NULL
+events_statements_histogram_by_digest	0	0	NULL
+events_statements_histogram_global	0	0	NULL
 events_statements_history	0	0	NULL
 events_statements_history_long	0	0	NULL
 events_statements_summary_by_account_by_event_name	0	0	NULL
@@ -507,6 +591,7 @@ global_status	0	0	NULL
 global_variables	0	0	NULL
 host_cache	0	0	NULL
 hosts	0	0	NULL
+log_status	0	0	NULL
 memory_summary_by_account_by_event_name	0	0	NULL
 memory_summary_by_host_by_event_name	0	0	NULL
 memory_summary_by_thread_by_event_name	0	0	NULL
@@ -516,8 +601,11 @@ metadata_locks	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
+persisted_variables	0	0	NULL
 prepared_statements_instances	0	0	NULL
 replication_applier_configuration	0	0	NULL
+replication_applier_filters	0	0	NULL
+replication_applier_global_filters	0	0	NULL
 replication_applier_status	0	0	NULL
 replication_applier_status_by_coordinator	0	0	NULL
 replication_applier_status_by_worker	0	0	NULL
@@ -534,7 +622,7 @@ setup_actors	0	0	NULL
 setup_consumers	0	0	NULL
 setup_instruments	0	0	NULL
 setup_objects	0	0	NULL
-setup_timers	0	0	NULL
+setup_threads	0	0	NULL
 socket_instances	0	0	NULL
 socket_summary_by_event_name	0	0	NULL
 socket_summary_by_instance	0	0	NULL
@@ -547,15 +635,24 @@ table_io_waits_summary_by_index_usage	0	0	NULL
 table_io_waits_summary_by_table	0	0	NULL
 table_lock_waits_summary_by_table	0	0	NULL
 threads	0	0	NULL
+user_defined_functions	0	0	NULL
 user_variables_by_thread	0	0	NULL
 users	0	0	NULL
 variables_by_thread	0	0	NULL
+variables_info	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
 accounts	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
+data_lock_waits	NULL	NULL	NULL
+data_locks	NULL	NULL	NULL
+events_errors_summary_by_account_by_error	NULL	NULL	NULL
+events_errors_summary_by_host_by_error	NULL	NULL	NULL
+events_errors_summary_by_thread_by_error	NULL	NULL	NULL
+events_errors_summary_by_user_by_error	NULL	NULL	NULL
+events_errors_summary_global_by_error	NULL	NULL	NULL
 events_stages_current	NULL	NULL	NULL
 events_stages_history	NULL	NULL	NULL
 events_stages_history_long	NULL	NULL	NULL
@@ -565,6 +662,8 @@ events_stages_summary_by_thread_by_event_name	NULL	NULL	NULL
 events_stages_summary_by_user_by_event_name	NULL	NULL	NULL
 events_stages_summary_global_by_event_name	NULL	NULL	NULL
 events_statements_current	NULL	NULL	NULL
+events_statements_histogram_by_digest	NULL	NULL	NULL
+events_statements_histogram_global	NULL	NULL	NULL
 events_statements_history	NULL	NULL	NULL
 events_statements_history_long	NULL	NULL	NULL
 events_statements_summary_by_account_by_event_name	NULL	NULL	NULL
@@ -598,6 +697,7 @@ global_status	NULL	NULL	NULL
 global_variables	NULL	NULL	NULL
 host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
+log_status	NULL	NULL	NULL
 memory_summary_by_account_by_event_name	NULL	NULL	NULL
 memory_summary_by_host_by_event_name	NULL	NULL	NULL
 memory_summary_by_thread_by_event_name	NULL	NULL	NULL
@@ -607,8 +707,11 @@ metadata_locks	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
+persisted_variables	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
 replication_applier_configuration	NULL	NULL	NULL
+replication_applier_filters	NULL	NULL	NULL
+replication_applier_global_filters	NULL	NULL	NULL
 replication_applier_status	NULL	NULL	NULL
 replication_applier_status_by_coordinator	NULL	NULL	NULL
 replication_applier_status_by_worker	NULL	NULL	NULL
@@ -625,7 +728,7 @@ setup_actors	NULL	NULL	NULL
 setup_consumers	NULL	NULL	NULL
 setup_instruments	NULL	NULL	NULL
 setup_objects	NULL	NULL	NULL
-setup_timers	NULL	NULL	NULL
+setup_threads	NULL	NULL	NULL
 socket_instances	NULL	NULL	NULL
 socket_summary_by_event_name	NULL	NULL	NULL
 socket_summary_by_instance	NULL	NULL	NULL
@@ -638,106 +741,130 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+user_defined_functions	NULL	NULL	NULL
 user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 variables_by_thread	NULL	NULL	NULL
+variables_info	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
-accounts	utf8_general_ci	NULL
-cond_instances	utf8_general_ci	NULL
-events_stages_current	utf8_general_ci	NULL
-events_stages_history	utf8_general_ci	NULL
-events_stages_history_long	utf8_general_ci	NULL
-events_stages_summary_by_account_by_event_name	utf8_general_ci	NULL
-events_stages_summary_by_host_by_event_name	utf8_general_ci	NULL
-events_stages_summary_by_thread_by_event_name	utf8_general_ci	NULL
-events_stages_summary_by_user_by_event_name	utf8_general_ci	NULL
-events_stages_summary_global_by_event_name	utf8_general_ci	NULL
-events_statements_current	utf8_general_ci	NULL
-events_statements_history	utf8_general_ci	NULL
-events_statements_history_long	utf8_general_ci	NULL
-events_statements_summary_by_account_by_event_name	utf8_general_ci	NULL
-events_statements_summary_by_digest	utf8_general_ci	NULL
-events_statements_summary_by_host_by_event_name	utf8_general_ci	NULL
-events_statements_summary_by_program	utf8_general_ci	NULL
-events_statements_summary_by_thread_by_event_name	utf8_general_ci	NULL
-events_statements_summary_by_user_by_event_name	utf8_general_ci	NULL
-events_statements_summary_global_by_event_name	utf8_general_ci	NULL
-events_transactions_current	utf8_general_ci	NULL
-events_transactions_history	utf8_general_ci	NULL
-events_transactions_history_long	utf8_general_ci	NULL
-events_transactions_summary_by_account_by_event_name	utf8_general_ci	NULL
-events_transactions_summary_by_host_by_event_name	utf8_general_ci	NULL
-events_transactions_summary_by_thread_by_event_name	utf8_general_ci	NULL
-events_transactions_summary_by_user_by_event_name	utf8_general_ci	NULL
-events_transactions_summary_global_by_event_name	utf8_general_ci	NULL
-events_waits_current	utf8_general_ci	NULL
-events_waits_history	utf8_general_ci	NULL
-events_waits_history_long	utf8_general_ci	NULL
-events_waits_summary_by_account_by_event_name	utf8_general_ci	NULL
-events_waits_summary_by_host_by_event_name	utf8_general_ci	NULL
-events_waits_summary_by_instance	utf8_general_ci	NULL
-events_waits_summary_by_thread_by_event_name	utf8_general_ci	NULL
-events_waits_summary_by_user_by_event_name	utf8_general_ci	NULL
-events_waits_summary_global_by_event_name	utf8_general_ci	NULL
-file_instances	utf8_general_ci	NULL
-file_summary_by_event_name	utf8_general_ci	NULL
-file_summary_by_instance	utf8_general_ci	NULL
-global_status	utf8_general_ci	NULL
-global_variables	utf8_general_ci	NULL
-host_cache	utf8_general_ci	NULL
-hosts	utf8_general_ci	NULL
-memory_summary_by_account_by_event_name	utf8_general_ci	NULL
-memory_summary_by_host_by_event_name	utf8_general_ci	NULL
-memory_summary_by_thread_by_event_name	utf8_general_ci	NULL
-memory_summary_by_user_by_event_name	utf8_general_ci	NULL
-memory_summary_global_by_event_name	utf8_general_ci	NULL
-metadata_locks	utf8_general_ci	NULL
-mutex_instances	utf8_general_ci	NULL
-objects_summary_global_by_type	utf8_general_ci	NULL
-performance_timers	utf8_general_ci	NULL
-prepared_statements_instances	utf8_general_ci	NULL
-replication_applier_configuration	utf8_general_ci	NULL
-replication_applier_status	utf8_general_ci	NULL
-replication_applier_status_by_coordinator	utf8_general_ci	NULL
-replication_applier_status_by_worker	utf8_general_ci	NULL
-replication_connection_configuration	utf8_general_ci	NULL
-replication_connection_status	utf8_general_ci	NULL
-replication_group_member_stats	utf8_general_ci	NULL
-replication_group_members	utf8_general_ci	NULL
-rwlock_instances	utf8_general_ci	NULL
-session_account_connect_attrs	utf8_bin	NULL
-session_connect_attrs	utf8_bin	NULL
-session_status	utf8_general_ci	NULL
-session_variables	utf8_general_ci	NULL
-setup_actors	utf8_general_ci	NULL
-setup_consumers	utf8_general_ci	NULL
-setup_instruments	utf8_general_ci	NULL
-setup_objects	utf8_general_ci	NULL
-setup_timers	utf8_general_ci	NULL
-socket_instances	utf8_general_ci	NULL
-socket_summary_by_event_name	utf8_general_ci	NULL
-socket_summary_by_instance	utf8_general_ci	NULL
-status_by_account	utf8_general_ci	NULL
-status_by_host	utf8_general_ci	NULL
-status_by_thread	utf8_general_ci	NULL
-status_by_user	utf8_general_ci	NULL
-table_handles	utf8_general_ci	NULL
-table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
-table_io_waits_summary_by_table	utf8_general_ci	NULL
-table_lock_waits_summary_by_table	utf8_general_ci	NULL
-threads	utf8_general_ci	NULL
-user_variables_by_thread	utf8_general_ci	NULL
-users	utf8_general_ci	NULL
-variables_by_thread	utf8_general_ci	NULL
+accounts	utf8mb4_0900_ai_ci	NULL
+cond_instances	utf8mb4_0900_ai_ci	NULL
+data_lock_waits	utf8mb4_0900_ai_ci	NULL
+data_locks	utf8mb4_0900_ai_ci	NULL
+events_errors_summary_by_account_by_error	utf8mb4_0900_ai_ci	NULL
+events_errors_summary_by_host_by_error	utf8mb4_0900_ai_ci	NULL
+events_errors_summary_by_thread_by_error	utf8mb4_0900_ai_ci	NULL
+events_errors_summary_by_user_by_error	utf8mb4_0900_ai_ci	NULL
+events_errors_summary_global_by_error	utf8mb4_0900_ai_ci	NULL
+events_stages_current	utf8mb4_0900_ai_ci	NULL
+events_stages_history	utf8mb4_0900_ai_ci	NULL
+events_stages_history_long	utf8mb4_0900_ai_ci	NULL
+events_stages_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_stages_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_stages_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_stages_summary_by_user_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_stages_summary_global_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_statements_current	utf8mb4_0900_ai_ci	NULL
+events_statements_histogram_by_digest	utf8mb4_0900_ai_ci	NULL
+events_statements_histogram_global	utf8mb4_0900_ai_ci	NULL
+events_statements_history	utf8mb4_0900_ai_ci	NULL
+events_statements_history_long	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_digest	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_program	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_by_user_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_statements_summary_global_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_transactions_current	utf8mb4_0900_ai_ci	NULL
+events_transactions_history	utf8mb4_0900_ai_ci	NULL
+events_transactions_history_long	utf8mb4_0900_ai_ci	NULL
+events_transactions_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_transactions_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_transactions_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_transactions_summary_by_user_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_transactions_summary_global_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_waits_current	utf8mb4_0900_ai_ci	NULL
+events_waits_history	utf8mb4_0900_ai_ci	NULL
+events_waits_history_long	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_by_instance	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_by_user_by_event_name	utf8mb4_0900_ai_ci	NULL
+events_waits_summary_global_by_event_name	utf8mb4_0900_ai_ci	NULL
+file_instances	utf8mb4_0900_ai_ci	NULL
+file_summary_by_event_name	utf8mb4_0900_ai_ci	NULL
+file_summary_by_instance	utf8mb4_0900_ai_ci	NULL
+global_status	utf8mb4_0900_ai_ci	NULL
+global_variables	utf8mb4_0900_ai_ci	NULL
+host_cache	utf8mb4_0900_ai_ci	NULL
+hosts	utf8mb4_0900_ai_ci	NULL
+log_status	utf8mb4_0900_ai_ci	NULL
+memory_summary_by_account_by_event_name	utf8mb4_0900_ai_ci	NULL
+memory_summary_by_host_by_event_name	utf8mb4_0900_ai_ci	NULL
+memory_summary_by_thread_by_event_name	utf8mb4_0900_ai_ci	NULL
+memory_summary_by_user_by_event_name	utf8mb4_0900_ai_ci	NULL
+memory_summary_global_by_event_name	utf8mb4_0900_ai_ci	NULL
+metadata_locks	utf8mb4_0900_ai_ci	NULL
+mutex_instances	utf8mb4_0900_ai_ci	NULL
+objects_summary_global_by_type	utf8mb4_0900_ai_ci	NULL
+performance_timers	utf8mb4_0900_ai_ci	NULL
+persisted_variables	utf8mb4_0900_ai_ci	NULL
+prepared_statements_instances	utf8mb4_0900_ai_ci	NULL
+replication_applier_configuration	utf8mb4_0900_ai_ci	NULL
+replication_applier_filters	utf8mb4_0900_ai_ci	NULL
+replication_applier_global_filters	utf8mb4_0900_ai_ci	NULL
+replication_applier_status	utf8mb4_0900_ai_ci	NULL
+replication_applier_status_by_coordinator	utf8mb4_0900_ai_ci	NULL
+replication_applier_status_by_worker	utf8mb4_0900_ai_ci	NULL
+replication_connection_configuration	utf8mb4_0900_ai_ci	NULL
+replication_connection_status	utf8mb4_0900_ai_ci	NULL
+replication_group_member_stats	utf8mb4_0900_ai_ci	NULL
+replication_group_members	utf8mb4_0900_ai_ci	NULL
+rwlock_instances	utf8mb4_0900_ai_ci	NULL
+session_account_connect_attrs	utf8mb4_bin	NULL
+session_connect_attrs	utf8mb4_bin	NULL
+session_status	utf8mb4_0900_ai_ci	NULL
+session_variables	utf8mb4_0900_ai_ci	NULL
+setup_actors	utf8mb4_0900_ai_ci	NULL
+setup_consumers	utf8mb4_0900_ai_ci	NULL
+setup_instruments	utf8mb4_0900_ai_ci	NULL
+setup_objects	utf8mb4_0900_ai_ci	NULL
+setup_threads	utf8mb4_0900_ai_ci	NULL
+socket_instances	utf8mb4_0900_ai_ci	NULL
+socket_summary_by_event_name	utf8mb4_0900_ai_ci	NULL
+socket_summary_by_instance	utf8mb4_0900_ai_ci	NULL
+status_by_account	utf8mb4_0900_ai_ci	NULL
+status_by_host	utf8mb4_0900_ai_ci	NULL
+status_by_thread	utf8mb4_0900_ai_ci	NULL
+status_by_user	utf8mb4_0900_ai_ci	NULL
+table_handles	utf8mb4_0900_ai_ci	NULL
+table_io_waits_summary_by_index_usage	utf8mb4_0900_ai_ci	NULL
+table_io_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
+table_lock_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
+threads	utf8mb4_0900_ai_ci	NULL
+user_defined_functions	utf8mb4_0900_ai_ci	NULL
+user_variables_by_thread	utf8mb4_0900_ai_ci	NULL
+users	utf8mb4_0900_ai_ci	NULL
+variables_by_thread	utf8mb4_0900_ai_ci	NULL
+variables_info	utf8mb4_0900_ai_ci	NULL
 select lower(TABLE_NAME), CREATE_OPTIONS
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	CREATE_OPTIONS
 accounts	
 cond_instances	
+data_lock_waits	
+data_locks	
+events_errors_summary_by_account_by_error	
+events_errors_summary_by_host_by_error	
+events_errors_summary_by_thread_by_error	
+events_errors_summary_by_user_by_error	
+events_errors_summary_global_by_error	
 events_stages_current	
 events_stages_history	
 events_stages_history_long	
@@ -747,6 +874,8 @@ events_stages_summary_by_thread_by_event_name
 events_stages_summary_by_user_by_event_name	
 events_stages_summary_global_by_event_name	
 events_statements_current	
+events_statements_histogram_by_digest	
+events_statements_histogram_global	
 events_statements_history	
 events_statements_history_long	
 events_statements_summary_by_account_by_event_name	
@@ -780,6 +909,7 @@ global_status
 global_variables	
 host_cache	
 hosts	
+log_status	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	
@@ -789,8 +919,11 @@ metadata_locks
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+persisted_variables	
 prepared_statements_instances	
 replication_applier_configuration	
+replication_applier_filters	
+replication_applier_global_filters	
 replication_applier_status	
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
@@ -807,7 +940,7 @@ setup_actors
 setup_consumers	
 setup_instruments	
 setup_objects	
-setup_timers	
+setup_threads	
 socket_instances	
 socket_summary_by_event_name	
 socket_summary_by_instance	
@@ -820,15 +953,24 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+user_defined_functions	
 user_variables_by_thread	
 users	
 variables_by_thread	
+variables_info	
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
 lower(TABLE_NAME)	TABLE_COMMENT
 accounts	
 cond_instances	
+data_lock_waits	
+data_locks	
+events_errors_summary_by_account_by_error	
+events_errors_summary_by_host_by_error	
+events_errors_summary_by_thread_by_error	
+events_errors_summary_by_user_by_error	
+events_errors_summary_global_by_error	
 events_stages_current	
 events_stages_history	
 events_stages_history_long	
@@ -838,6 +980,8 @@ events_stages_summary_by_thread_by_event_name
 events_stages_summary_by_user_by_event_name	
 events_stages_summary_global_by_event_name	
 events_statements_current	
+events_statements_histogram_by_digest	
+events_statements_histogram_global	
 events_statements_history	
 events_statements_history_long	
 events_statements_summary_by_account_by_event_name	
@@ -871,6 +1015,7 @@ global_status
 global_variables	
 host_cache	
 hosts	
+log_status	
 memory_summary_by_account_by_event_name	
 memory_summary_by_host_by_event_name	
 memory_summary_by_thread_by_event_name	
@@ -880,8 +1025,11 @@ metadata_locks
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+persisted_variables	
 prepared_statements_instances	
 replication_applier_configuration	
+replication_applier_filters	
+replication_applier_global_filters	
 replication_applier_status	
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
@@ -898,7 +1046,7 @@ setup_actors
 setup_consumers	
 setup_instruments	
 setup_objects	
-setup_timers	
+setup_threads	
 socket_instances	
 socket_summary_by_event_name	
 socket_summary_by_instance	
@@ -911,6 +1059,8 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+user_defined_functions	
 user_variables_by_thread	
 users	
 variables_by_thread	
+variables_info	

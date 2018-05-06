@@ -538,12 +538,12 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	#	#	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	#	#	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 drop table t1;
@@ -697,7 +697,7 @@ drop table t0, t1, t2, t3;
 # BUG#44810: index merge and order by with low sort_buffer_size 
 # crashes server!
 #
-CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B)) charset latin1;
 INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -793,7 +793,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.35"
+      "query_cost": "#"
     },
     "table": {
       "table_name": "t1",
@@ -810,10 +810,10 @@ EXPLAIN
       "rows_produced_per_join": 4,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "10.55",
-        "eval_cost": "0.80",
-        "prefix_cost": "11.35",
-        "data_read_per_join": "4K"
+        "read_cost": "#",
+        "eval_cost": "#",
+        "prefix_cost": "#",
+        "data_read_per_join": "18K"
       },
       "used_columns": [
         "key1",
@@ -986,7 +986,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2a` = 1) and (`test`.`t1`.`swt1a` = 1) and (`test`.`t1`.`st_a` = 1))
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	4000	10.00	Using where
+1	SIMPLE	t1	NULL	range	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1b	8	NULL	4000	10.00	Using index condition; Using where; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`st_a` AS `st_a`,`test`.`t1`.`swt1a` AS `swt1a`,`test`.`t1`.`swt2a` AS `swt2a`,`test`.`t1`.`st_b` AS `st_b`,`test`.`t1`.`swt1b` AS `swt1b`,`test`.`t1`.`swt2b` AS `swt2b`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2`,`test`.`t1`.`filler3` AS `filler3`,`test`.`t1`.`filler4` AS `filler4`,`test`.`t1`.`filler5` AS `filler5`,`test`.`t1`.`filler6` AS `filler6` from `test`.`t1` where ((`test`.`t1`.`swt2b` = 1) and (`test`.`t1`.`swt1b` = 1) and (`test`.`t1`.`st_b` = 1))
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
@@ -1055,7 +1055,7 @@ count(a)
 # BUG#1:
 expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
 id	select_type	ta_or_ba_or_ble	pa_or_brtitions	type	possia_or_ble_keys	key	key_len	ref	rows	filtered	Extra_or_b
-1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	6	const	4	12.50	Using where
+1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	21	const	4	12.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a_or_b`) AS `count(a_or_b)` from `test`.`t2` where ((`test`.`t2`.`a_or_b` = 'AAAAAAAA') a_or_bnd (`test`.`t2`.`a_or_b` = 'AAAAAAAA'))
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
@@ -1067,7 +1067,7 @@ count(a)
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	6	const	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	21	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` = 'ab')
 drop table t2;
@@ -1076,7 +1076,7 @@ drop table t2;
 #             try to repair it
 #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
-KEY(c1), KEY(c2), KEY(c3));
+KEY(c1), KEY(c2), KEY(c3)) charset latin1;
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t1 VALUES(0,0,0);
@@ -1096,7 +1096,7 @@ key1 int not null,
 key2 int not null,
 INDEX i1(key1),
 INDEX i2(key2)
-);
+) charset latin1;
 # No primary key
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1163,7 +1163,7 @@ key2  integer not null,
 filler char  (200),
 index (key1),
 index (key2)
-);
+) charset latin1;
 show warnings;
 Level	Code	Message
 explain select pk from t1 where key1 = 1 and key2 = 1;
@@ -1325,7 +1325,7 @@ filler2 char(250) default NULL,
 PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
 UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
 KEY IX_5 (t_vers,t_rele,t_cust)
-);
+) charset latin1;
 insert into t1 values
 ('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
 ('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
@@ -1516,7 +1516,7 @@ WHERE col_varchar_key >= 'l' OR
 (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
 AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	78.12	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,col_int_key,col_varchar_key	col_varchar_key	10	NULL	2	78.12	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`col_varchar_key` >= 'l') or (((`test`.`t1`.`pk` between 141 and 141) or (`test`.`t1`.`col_varchar_key` <> 'l')) and ((`test`.`t1`.`pk` between 141 and 141) or (`test`.`t1`.`col_int_key` > 141))))
 SELECT col_int_key
@@ -1837,7 +1837,7 @@ EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_merge	f2,f3	f2,f3	5,2	NULL	1	100.00	Using intersect(f2,f3); Using where; Using index
+2	DEPENDENT SUBQUERY	t2	NULL	index_merge	f2,f3	f2,f3	5,5	NULL	1	100.00	Using intersect(f2,f3); Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` where (((/* select#2 */ select count(0) from `test`.`t2` where ((`test`.`t2`.`f2` = '2') and (`test`.`t2`.`f3` = 'h'))) = 0))
@@ -1846,8 +1846,6 @@ DROP TABLE t1,t2;
 # Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
 #
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_int_nokey int(11) NOT NULL,
@@ -1993,7 +1991,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
 FROM t2
 WHERE (col_time_key, col_int_key, col_int_key) IN (
-('s','a', 'm'), (0, 'n', 7)
+(0, 'a', 'm'), (0, 'n', 7)
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2004,7 +2002,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
 FROM t2
 WHERE (col_time_key, col_int_key, col_int_key) IN (
-('s','a', 'm'), (0, 'n', 7)
+(0, 'a', 'm'), (0, 'n', 7)
 )
 );
 DROP TABLE t1, t2;
@@ -2023,12 +2021,11 @@ KEY covering_index (id2,id3)
 INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6), (7, 7, 7);
 INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
 INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
-EXPLAIN SELECT SQL_NO_CACHE count(*) FROM t1 WHERE id2=7 AND id3=0;
+EXPLAIN SELECT count(*) FROM t1 WHERE id2=7 AND id3=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	id2,id3,covering_index	covering_index	8	const,const	16	100.00	Using index
 Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select sql_no_cache count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`id3` = 0) and (`test`.`t1`.`id2` = 7))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`id3` = 0) and (`test`.`t1`.`id2` = 7))
 DROP TABLE t1;
 #
 # Bug#21697002 ASSERTION `KEYS >= 0.0' FAILED

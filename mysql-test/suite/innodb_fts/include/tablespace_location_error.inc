@@ -33,7 +33,7 @@ SET DEBUG = '-d,ib_fts_aux_table_error';
 
 --source suite/innodb/include/show_i_s_tables.inc
 --echo # list files in datadir/test
---let $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/
+--let $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/
 --replace_regex $regexp
 --list_files $MYSQLD_DATADIR/test
 

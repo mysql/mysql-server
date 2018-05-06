@@ -1,0 +1,317 @@
+# ********************************************************************
+# wl#8619 : Testing the functionality of portability of general
+# and remote tablespace files can be moved into any of the following
+# listed known directories
+# 1) --datadir  (mysql home)
+# 2) --innodb-directories= dir1;dir2;etc...
+# 3) --innodb-undo-dirrectory
+# 4) --innodb-data-home-dir
+# Note : --datadir as whole unit should be moved and its
+# folder hierarchy should be preserved
+# User has to follow the MySQL rules while moving the files.
+# Check general tablespaces are allowed to create only in known DIR
+# Check relative path and absolute path
+# ********************************************************************
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+
+let $MYSQLD_OLD_DATADIR = `select @@datadir`;
+
+# Create new datadir folders
+--mkdir $MYSQL_TMP_DIR/undo_directory
+--mkdir $MYSQL_TMP_DIR/undo_directory/test
+--mkdir $MYSQL_TMP_DIR/data_home_dir
+--mkdir $MYSQL_TMP_DIR/new_datadir
+--mkdir $MYSQL_TMP_DIR/new_datadir/data
+let $MYSQLD_NEW_DATADIR = $MYSQL_TMP_DIR/new_datadir/data;
+--mkdir $MYSQLD_NEW_DATADIR/test
+--mkdir $MYSQLD_NEW_DATADIR/mysql
+--mkdir $MYSQLD_NEW_DATADIR/sys
+--mkdir $MYSQLD_NEW_DATADIR/performance_schema
+--mkdir $MYSQLD_NEW_DATADIR/mtr
+
+--echo ## create all kinds of tables including absolute paths
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
+
+INSERT INTO tab1 VALUES(1, 'VISH');
+
+CREATE TABLE tab2(c1 int, c2 varchar(10)) Engine=InnoDB;
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+CREATE INDEX ix1 ON tab1(c2) USING BTREE;
+
+CREATE INDEX ix1 ON tab2(c2) ;
+
+--echo ## create a table with absolute path
+--replace_result $MYSQL_TMP_DIR db_directory1
+eval CREATE TABLE tab3(
+empno INT, ename VARCHAR(30),sal NUMERIC(3))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED
+PARTITION by hash(empno) (
+PARTITION P0 DATA DIRECTORY '$MYSQL_TMP_DIR/db_directory1',
+PARTITION P1 DATA DIRECTORY '$MYSQL_TMP_DIR/db_directory1');
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/db_directory1/ts2.ibd' Engine=InnoDB;
+
+CREATE INDEX ix1 ON tab3(ename) USING BTREE;
+
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+
+SHOW CREATE TABLE tab1;
+
+SHOW CREATE TABLE tab2;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+--echo ## Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy whole --datadir files into new locations
+--copy_file $MYSQLD_OLD_DATADIR/auto.cnf $MYSQLD_NEW_DATADIR/auto.cnf
+--copy_file $MYSQLD_OLD_DATADIR/ib_buffer_pool $MYSQL_TMP_DIR/data_home_dir/ib_buffer_pool
+--copy_file $MYSQLD_OLD_DATADIR/ibdata1 $MYSQL_TMP_DIR/data_home_dir/ibdata1
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQL_TMP_DIR/data_home_dir ib_logfile*
+
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQL_TMP_DIR/undo_directory undo*
+
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/test/  $MYSQLD_NEW_DATADIR/test/ *
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/sys/  $MYSQLD_NEW_DATADIR/sys/ *
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/performance_schema/  $MYSQLD_NEW_DATADIR/performance_schema/ *
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/mysql/  $MYSQLD_NEW_DATADIR/mysql/ *
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/mtr/  $MYSQLD_NEW_DATADIR/mtr/ *
+
+--echo ## Copy absolute path *.ibd files into new location
+--copy_files_wildcard $MYSQL_TMP_DIR/db_directory1/test/ $MYSQL_TMP_DIR/undo_directory/test tab3*.ibd
+
+--echo ## Remove the old datadir files and *.ibd files
+--remove_files_wildcard $MYSQL_TMP_DIR/db_directory1/test/ *.ibd
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ ib_buffer*
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ ib_log*
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ ibdata*
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ undo*
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ auto*
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/ *.ibd
+
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/test/ *
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/sys/ *
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/performance_schema/ *
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/mysql/ *
+--remove_files_wildcard $MYSQLD_OLD_DATADIR/mtr/ *
+
+--echo ## Start with --innodb-directories along with other initDB options
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR 
+let $innodb_dirs='$MYSQL_TMP_DIR/undo_directory';
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$innodb_dirs
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check new datadir
+--replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+--replace_result $MYSQL_TMP_DIR db_directory2
+SHOW CREATE TABLE tab3;
+
+--echo ## Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo ## Start with new --datadir only
+--replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir
+--source include/start_mysqld.inc
+
+--echo ## Check with new --datadir
+--replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+--echo ## Check the tables with SHOW
+SHOW CREATE TABLE tab1;
+
+SHOW CREATE TABLE tab2;
+
+--replace_result $MYSQL_TMP_DIR undo_directory
+SHOW CREATE TABLE tab3;
+
+--echo ## Check with DML & DDL operations
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+SELECT * FROM tab3;
+
+DELETE FROM tab1;
+
+DELETE FROM tab2;
+
+DELETE FROM tab3;
+
+ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
+
+INSERT INTO tab1 VALUES(1, 'VISH');
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+INSERT INTO tab3 VALUES (100,'VISWANATH',100,'New Column');
+
+INSERT INTO tab3 VALUES (300,'VISWANATH',100,'New Column');
+
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+SELECT * FROM tab3;
+
+# Creating general tablespace in known DIR location
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/data_home_dir/ts2.ibd' Engine=InnoDB;
+
+CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
+
+SHOW CREATE TABLE tab4;
+
+INSERT INTO tab4 VALUES(1, 'VISH');
+
+# Creating general tablespace in known DIR location
+--replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
+eval CREATE TABLESPACE ts3 ADD DATAFILE '$MYSQL_TMP_DIR/undo_directory/ts3.ibd' Engine=InnoDB;
+
+CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
+
+SHOW CREATE TABLE tab5;
+
+INSERT INTO tab5 VALUES(1, 'VISH');
+
+# Clean up new datadir
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;
+
+--echo # Stop DB server with new datadir
+--source include/shutdown_mysqld.inc
+
+--echo ## Copy back --datadir and *.ibd files into old location
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory/test $MYSQL_TMP_DIR/db_directory1/test *.ibd
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory  $MYSQL_TMP_DIR/db_directory1/test ts3.ibd
+--copy_files_wildcard $MYSQL_TMP_DIR/data_home_dir  $MYSQL_TMP_DIR/db_directory1/test ts2.ibd
+
+--copy_file $MYSQLD_NEW_DATADIR/auto.cnf $MYSQLD_OLD_DATADIR/auto.cnf
+--copy_file $MYSQL_TMP_DIR/data_home_dir/ib_buffer_pool $MYSQLD_OLD_DATADIR/ib_buffer_pool
+--copy_file $MYSQL_TMP_DIR/data_home_dir/ibdata1 $MYSQLD_OLD_DATADIR/ibdata1
+--copy_files_wildcard $MYSQL_TMP_DIR/data_home_dir $MYSQLD_OLD_DATADIR/ ib_log*
+--copy_files_wildcard $MYSQLD_NEW_DATADIR $MYSQLD_OLD_DATADIR  *.ibd
+
+--copy_files_wildcard $MYSQLD_NEW_DATADIR/sys/ $MYSQLD_OLD_DATADIR/sys/ *
+--copy_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ $MYSQLD_OLD_DATADIR/performance_schema/ *
+--copy_files_wildcard $MYSQLD_NEW_DATADIR/mysql/ $MYSQLD_OLD_DATADIR/mysql/  *
+--copy_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ $MYSQLD_OLD_DATADIR/mtr/  *
+
+--echo ## Cleanup the new DATA DIRECTORY *.ibd files
+--remove_files_wildcard $MYSQL_TMP_DIR/undo_directory/test *.ibd
+--remove_files_wildcard $MYSQL_TMP_DIR/undo_directory/ *.ibd
+--rmdir  $MYSQL_TMP_DIR/undo_directory/test
+--remove_files_wildcard $MYSQL_TMP_DIR/undo_directory undo*
+--rmdir  $MYSQL_TMP_DIR/undo_directory
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ts2.ibd
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ib_buffer*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ib_log*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ibd*
+--rmdir $MYSQL_TMP_DIR/data_home_dir
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/test/ *
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/sys/ *
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/mysql/ *
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ *
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ *
+--rmdir $MYSQLD_NEW_DATADIR/mtr
+--rmdir $MYSQLD_NEW_DATADIR/mysql
+--rmdir $MYSQLD_NEW_DATADIR/sys
+--rmdir $MYSQLD_NEW_DATADIR/test
+--rmdir $MYSQLD_NEW_DATADIR/performance_schema
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/ *
+--rmdir $MYSQLD_NEW_DATADIR
+--rmdir $MYSQL_TMP_DIR/new_datadir
+
+# Test with by providing the relative path
+--echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
+let $innodb_dirs='$MYSQL_TMP_DIR/db_directory1';
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters= restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$innodb_dirs
+--source include/start_mysqld.inc
+
+--echo # Check --datadir started with old
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+SHOW CREATE TABLE tab4;
+
+SHOW CREATE TABLE tab5;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW VARIABLES LIKE '%directories%';
+
+# Creating general tablespace in known DIR location (DATA DIRECTORY)
+--replace_result $MYSQL_TMP_DIR db_directory1
+eval CREATE TABLESPACE ts4 ADD DATAFILE '$MYSQL_TMP_DIR/db_directory1/ts4.ibd' Engine=InnoDB;
+
+CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
+
+INSERT INTO tab6 VALUES(1, 'VISH');
+
+--echo # Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo # Re-start with old --datadir only
+
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
+--source include/start_mysqld.inc
+
+# Check DML
+DELETE FROM tab3;
+
+DELETE FROM tab4;
+
+DELETE FROM tab5;
+
+DELETE FROM tab6;
+
+--replace_column 1 # 
+SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+
+# Clean up old datadir
+DROP TABLE tab3;
+
+DROP TABLE tab4;
+
+DROP TABLE tab5;
+
+DROP TABLE tab6;
+

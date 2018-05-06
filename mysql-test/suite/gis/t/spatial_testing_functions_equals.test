@@ -3,15 +3,14 @@
 # This test is aimed to focus on Functions for testing Relations between      #
 # Geometry Objects.                                                           #
 #                                                                             #
-# These functions take 2 geometries as inpout parameters and return           #
-# a qualitative or quantitavive realtion between themrealtion between them.   #
+# These functions take 2 geometries as input parameters and return            #
+# a qualitative or quantitative relation between them.                        #
 #                                                                             #
 # Creation Date: 2013-12-16                                                   #
 # Author : Horst Hunger                                                       #
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -1375,20 +1374,25 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_c
 --echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #====================================================================================
@@ -1396,20 +1400,40 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #####################################################################################
@@ -1423,7 +1447,10 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1496,7 +1523,10 @@ SELECT ST_EQUALS(,ST_GEOMFROMTEXT(@star_top));
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT MBREQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1648,10 +1678,175 @@ INSERT INTO t1 VALUES (
     POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
     POINT(4,6),POINT(4,4))))));
 
+# We don't care about the result. We just want to put all parameter type
+# combinations through the function.
+--disable_result_log
 SELECT ST_EQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT MBREQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
+
+SELECT ST_EQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+SELECT MBREQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+--enable_result_log
 
 --echo # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_EQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+SELECT MBREQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+SELECT ST_EQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+SELECT MBREQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should pass)
+SELECT ST_EQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+SELECT MBREQUALS(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL SRID 0,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))')),
+  (1, ST_GeomFromText('POLYGON((1 1, 2 1, 2 2, 1 2, 1 1))')),
+  (2, ST_GeomFromText('POINT(3 3)')),
+  (3, ST_GeomFromText('MULTIPOINT((0 0), (10 0), (10 5), (0 5), (0 0))')),
+  (4, ST_GeomFromText('MULTIPOINT((0 0), (10 5))')),
+  (5, ST_GeomFromText('POINT(5 5.00001)')),
+  (6, ST_GeomFromText('MULTIPOLYGON(((0 0, 10 0, 10 5, 0 5, 0 0)))')),
+  (7, ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(10 5))'));
+
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Equals
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Equals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Equals(c, @cart_py)
+  ORDER BY id;
+
+--echo # Geographic ST_Equals
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Equals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Equals(g, @geo_py)
+  ORDER BY id;
+
+--echo # Cartesian MBREquals
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_mpt)
+  ORDER BY id;
+
+--echo # Geographic MBREquals
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_mpt)
+  ORDER BY id;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO MBREQUALS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
+--error ER_SRS_NOT_FOUND
+DO ST_EQUALS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

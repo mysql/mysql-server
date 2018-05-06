@@ -8,9 +8,7 @@
 # Simulate failures from server quotas:
 # - reported in COUNT_MAX_CONNECTION_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
@@ -18,10 +16,10 @@
 
 select @@global.max_connections into @saved_max_connections;
 
-create user 'quota'@'santa.claus.ipv4.example.com';
-grant select on test.* to 'quota'@'santa.claus.ipv4.example.com';
-grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com'
+create user 'quota'@'santa.claus.ipv4.example.com'
   with max_connections_per_hour 3;
+grant select on test.* to 'quota'@'santa.claus.ipv4.example.com';
+grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com';
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";
@@ -74,9 +72,9 @@ connect (con2e,"127.0.0.1",quota,,test,$MASTER_MYPORT,);
 # Wait for all disconnects
 --source ../include/wait_for_pfs_thread_count.inc
 
-grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com'
+alter user 'quota'@'santa.claus.ipv4.example.com'
   with max_connections_per_hour 0;
-grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com'
+alter user 'quota'@'santa.claus.ipv4.example.com'
   with max_user_connections 3;
 flush user_resources;
 
@@ -124,7 +122,7 @@ disconnect con3c;
 # Wait for all disconnects
 --source ../include/wait_for_pfs_thread_count.inc
 
-grant usage on *.* to 'quota'@'santa.claus.ipv4.example.com'
+alter user 'quota'@'santa.claus.ipv4.example.com'
   with max_user_connections 0;
 flush user_resources;
 

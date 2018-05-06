@@ -1,1 +1,0 @@
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --big-test --testcase-timeout=60 --suite-timeout=360

@@ -40,10 +40,14 @@ SET @@global.myisam_max_sort_file_size = 2147483648*1024;
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
 2199023255552
+SET @@global.myisam_max_sort_file_size = 2147483648*2147483648;
 SELECT @@global.myisam_max_sort_file_size;
 @@global.myisam_max_sort_file_size
-2199023255552
-SET @@global.myisam_max_sort_file_size = 2147483648*2147483648;
+4611686018427387904
+SET @@global.myisam_max_sort_file_size = 9223372036853727232;
+SELECT @@global.myisam_max_sort_file_size;
+@@global.myisam_max_sort_file_size
+9223372036853727232
 '#--------------------FN_DYNVARS_094_04-------------------------#'
 SET @@myisam_max_sort_file_size = 2;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
@@ -87,13 +91,13 @@ SET @@global.myisam_max_sort_file_size = 3000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '3000'
 SELECT @@global.myisam_max_sort_file_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 @@global.myisam_max_sort_file_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_094_07-----------------------#'
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 count(VARIABLE_VALUE)
 1

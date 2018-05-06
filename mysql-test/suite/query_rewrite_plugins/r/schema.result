@@ -15,10 +15,6 @@ CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE TABLE t1 ( a VARCHAR(23) );
 INSERT INTO t1 VALUES ( 'This was not rewritten.' );
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT
 INTO query_rewrite.rewrite_rules ( pattern, pattern_database, replacement )

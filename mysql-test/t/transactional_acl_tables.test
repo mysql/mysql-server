@@ -1,0 +1,2390 @@
+
+--source include/no_valgrind_without_big.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # WL7158: Move privilege system tables from MyISAM to InnoDB
+--echo #
+
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Check that the users we're going to use in this test don't exist.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+# Create an auxiliary connection.
+--echo
+--echo # Connection: con1
+--connect (con1, localhost, root,,)
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Test plan:
+# A. Check that ACL statements are not vulnerable to the lock-wait-timeout.
+#    NOTE: In case of getting rid of the table-level MDL-locks for the ACL
+#    statements, the deadlock error should also be checked.
+# B. Check that SET PASSWORD commits a transaction.
+# C. Check the ACL statement behavior in case when multiple user accounts are
+#    given.
+# D. Check the ACL statement behavior in case of SE failures.
+# E. Check it's not possible to change the privilege table storage engine
+#    via ALTER TABLE. Also check that harmless ALTER TABLE (change SE to InnoDB
+#    when it's already InnoDB) is allowed.
+# F. Upgrade/downgrade tests.
+
+--echo
+--echo ########################################################################
+--echo # A.1. Checking lock-wait-timeout with CREATE USER.
+--echo ########################################################################
+
+# Start a transaction and insert a new row into mysql.user.
+
+START TRANSACTION;
+
+INSERT INTO mysql.user(user, host, ssl_cipher, x509_issuer, x509_subject)
+VALUES ('u2', 'h', '', '', '');
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# CREATE USER with existing user in the middle.
+# CREATE USER is expected to wait for the transaction in the other connection
+# to finish.
+
+--send CREATE USER u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # CREATE USER
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+# Drop the created users (cleanup).
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.2. Checking lock-wait-timeout with ALTER USER.
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host, password_lifetime FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# ALTER USER, the row corresponding to the second user is locked.
+# ALTER USER is expected to wait for the transaction in the other connection
+# to finish.
+send ALTER USER u1@h, u2@h, u3@h PASSWORD EXPIRE INTERVAL 250 DAY;
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # ALTER USER
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check the ALTER USER was successful.
+SELECT user, host, password_lifetime FROM mysql.user WHERE host = 'h';
+
+# Drop the created users (cleanup).
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.3. Checking lock-wait-timeout with RENAME USER.
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# RENAME USER, the row corresponding to the second user is locked.
+# RENAME USER is expected to wait for the transaction in the other connection
+# to finish.
+--send RENAME USER u1@h TO u1a@h, u2@h TO u2a@h, u3@h TO u3a@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # RENAME USER
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check the ALTER USER was successful.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+# Drop the created users (cleanup).
+DROP USER u1a@h, u2a@h, u3a@h;
+
+--echo
+--echo ########################################################################
+--echo # A.4. Checking lock-wait-timeout with SET PASSWORD.
+--echo ########################################################################
+
+CREATE USER u1@h IDENTIFIED WITH 'mysql_native_password';
+
+# Check that the user has been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u1' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# SET PASSWORD, the row corresponding to the user is locked.
+# SET PASSWORD is expected to wait for the transaction in the other connection
+# to finish.
+--send SET PASSWORD FOR u1@h = 'xxx'
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # SET PASSWORD
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check the SET PASSWORD was successful.
+SELECT user, host, authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548' FROM mysql.user WHERE host = 'h';
+
+# Drop the created users (cleanup).
+DROP USER u1@h;
+
+--echo
+--echo ########################################################################
+--echo # A.5. Checking lock-wait-timeout with DROP USER.
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# DROP USER, the row corresponding to the second user is locked.
+# DROP USER is expected to wait for the transaction in the other connection
+# to finish.
+--send DROP USER u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # DROP USER
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check the DROP USER was successful.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+--echo
+--echo ########################################################################
+--echo # A.6.1. Checking lock-wait-timeout with GRANT (global level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# GRANT, the row corresponding to the second user is locked.
+# GRANT is expected to wait for the transaction in the other connection
+# to finish.
+--send GRANT SELECT ON *.* TO u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # GRANT
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the GRANT was successful.
+SELECT user, select_priv FROM mysql.user WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.6.2. Checking lock-wait-timeout with GRANT (database level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# GRANT, the row corresponding to the second user is locked.
+# GRANT is expected to wait for the transaction in the other connection
+# to finish.
+--send GRANT SELECT ON test.* TO u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # GRANT
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the GRANT was successful.
+SELECT * FROM mysql.db WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.6.3. Checking lock-wait-timeout with GRANT (table level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+CREATE TABLE t1(a INT);
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# GRANT, the row corresponding to the second user is locked.
+# GRANT is expected to wait for the transaction in the other connection
+# to finish.
+--send GRANT SELECT ON t1 TO u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # GRANT
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the GRANT was successful.
+SELECT user, table_name, table_priv FROM mysql.tables_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.6.4. Checking lock-wait-timeout with GRANT (column level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+CREATE TABLE t1(a INT);
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# GRANT, the row corresponding to the second user is locked.
+# GRANT is expected to wait for the transaction in the other connection
+# to finish.
+--send GRANT SELECT(a) ON t1 TO u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # GRANT
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the GRANT was successful.
+SELECT user, column_name, column_priv FROM mysql.columns_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.6.5. Checking lock-wait-timeout with GRANT (stored routine level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+CREATE PROCEDURE p1() SELECT 1;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# GRANT, the row corresponding to the second user is locked.
+# GRANT is expected to wait for the transaction in the other connection
+# to finish.
+--send GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # GRANT
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the GRANT was successful.
+SELECT user, routine_name, proc_priv FROM mysql.procs_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP PROCEDURE p1;
+
+--echo
+--echo ########################################################################
+--echo # A.7.1. Checking lock-wait-timeout with REVOKE (global level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON *.* TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE SELECT ON *.* FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user, select_priv FROM mysql.user WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.7.2. Checking lock-wait-timeout with REVOKE (database level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON test.* TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE SELECT ON test.* FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT * FROM mysql.db WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.7.3. Checking lock-wait-timeout with REVOKE (table level).
+--echo ########################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON t1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE SELECT ON t1 FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, table_name, table_priv FROM mysql.tables_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.7.4. Checking lock-wait-timeout with REVOKE (column level).
+--echo ########################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT(a) ON t1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE SELECT(a) ON t1 FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, column_name, column_priv FROM mysql.columns_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.7.5. Checking lock-wait-timeout with REVOKE (stored routine level).
+--echo ########################################################################
+
+CREATE PROCEDURE p1() SELECT 1;
+CREATE USER u1@h, u2@h, u3@h;
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE EXECUTE ON PROCEDURE p1 FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, routine_name, proc_priv FROM mysql.procs_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP PROCEDURE p1;
+
+--echo
+--echo ########################################################################
+--echo # A.8.1. Checking lock-wait-timeout with REVOKE ALL (global level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON *.* TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user, select_priv FROM mysql.user WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.8.2. Checking lock-wait-timeout with REVOKE ALL (database level).
+--echo ########################################################################
+
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON test.* TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT * FROM mysql.db WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+
+--echo
+--echo ########################################################################
+--echo # A.8.3. Checking lock-wait-timeout with REVOKE ALL (table level).
+--echo ########################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT ON t1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, table_name, table_priv FROM mysql.tables_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.8.4. Checking lock-wait-timeout with REVOKE ALL (column level).
+--echo ########################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER u1@h, u2@h, u3@h;
+GRANT SELECT(a) ON t1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, column_name, column_priv FROM mysql.columns_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # A.8.5. Checking lock-wait-timeout with REVOKE ALL (stored routine level).
+--echo ########################################################################
+
+CREATE PROCEDURE p1() SELECT 1;
+CREATE USER u1@h, u2@h, u3@h;
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h, u3@h;
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+START TRANSACTION;
+
+# Lock a row.
+SELECT user, host FROM mysql.user WHERE user = 'u2' AND host = 'h' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# REVOKE, the row corresponding to the second user is locked.
+# REVOKE is expected to wait for the transaction in the other connection
+# to finish.
+--send REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h, u2@h, u3@h
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # REVOKE
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that the REVOKE was successful.
+SELECT user FROM mysql.user WHERE host = 'h';
+SELECT user, routine_name, proc_priv FROM mysql.procs_priv WHERE host = 'h';
+
+# Cleanup.
+DROP USER u1@h, u2@h, u3@h;
+DROP PROCEDURE p1;
+
+--echo
+--echo ########################################################################
+--echo # A.9. Checking lock-wait-timeout with FLUSH PRIVILEGES.
+--echo ########################################################################
+
+# Start a transaction and insert a new row into mysql.user.
+
+START TRANSACTION;
+
+INSERT INTO mysql.user(user, host, ssl_cipher, x509_issuer, x509_subject)
+VALUES ('u2', 'h', '', '', '');
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+# FLUSH PRIVILEGES is expected to wait for the transaction in the other
+# connection to finish.
+
+--send FLUSH PRIVILEGES;
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+COMMIT;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # FLUSH PRIVILEGES
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Check that all three users have been created.
+SELECT user, host FROM mysql.user WHERE host = 'h';
+
+# Drop the created user (cleanup).
+DROP USER u2@h;
+
+--echo
+--echo ########################################################################
+--echo # B.1 Check that SET PASSWORD commits a transaction.
+--echo ########################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER u1@h;
+
+START TRANSACTION;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+SELECT * FROM t1;
+ROLLBACK;
+
+--echo
+--echo # Connection: default
+--connection default
+
+SET PASSWORD FOR u1@h = '';
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+SELECT * FROM t1;
+ROLLBACK;
+
+--echo
+--echo # Connection: default
+--connection default
+
+DROP TABLE t1;
+
+--echo
+--echo ########################################################################
+--echo # B.2 Check that SET PASSWORD can't be called from a stored function
+--echo # directly or indirectly..
+--echo ########################################################################
+
+CREATE PROCEDURE p1() SET PASSWORD FOR u1@h = '12345';
+
+delimiter $;
+
+--error ER_SP_CANT_SET_AUTOCOMMIT
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  SET PASSWORD FOR u1@h = '12345';
+  RETURN 0;
+END;
+$
+
+CREATE FUNCTION f2()  RETURNS INT
+BEGIN
+  CALL p1();
+  RETURN 0;
+END;
+$
+
+delimiter ;$
+
+--error ER_SP_CANT_SET_AUTOCOMMIT
+SELECT f2();
+
+DROP FUNCTION f2;
+DROP PROCEDURE p1;
+
+DROP USER u1@h;
+
+--echo
+--echo ####################################################################
+--echo # C.1. Tests for 'DROP USER' statement
+--echo ####################################################################
+
+# 1. Positive Test cases
+
+SELECT user, host FROM mysql.user where user like 'user%';
+CREATE USER user2@localhost;
+SELECT user, host FROM mysql.user where user like 'user%';
+DROP USER user2@localhost;
+SELECT user, host FROM mysql.user where user like 'user%';
+
+# 2. Negative Test cases
+
+--error ER_CANNOT_USER
+DROP USER no_user@localhost;
+SHOW WARNINGS;
+
+# 3. Mixed test cases
+# For DROP USER statement, the current behavior is to ignore the failed
+# component and continue the statement execution. In the end, the statement
+# will report a list of failed components.
+
+CREATE USER user2@localhost, user3@localhost;
+
+--error ER_CANNOT_USER
+DROP USER no_user@localhost, user3@localhost,
+          no_user1@localhost, user2@localhost,
+          no_user2@localhost;
+
+DROP USER user2@localhost, user3@localhost;
+
+SELECT user, host FROM mysql.user where user like 'user%';
+
+--echo
+--echo ####################################################################
+--echo # C.2. Tests for 'RENAME USER' statement
+--echo ####################################################################
+
+# 1. Positive Test cases
+
+SELECT user, host FROM mysql.user where user like 'user%';
+CREATE USER user2@localhost;
+SELECT user, host FROM mysql.user where user like 'user%';
+RENAME USER user2@localhost TO user3@localhost;
+SELECT user, host FROM mysql.user where user like 'user%';
+
+# 2. Negative Test cases
+
+--error ER_CANNOT_USER
+RENAME USER no_user@localhost to user6@localhost;
+SHOW WARNINGS;
+
+# 3. Mixed test cases
+# For RENAME USER statement, the current behavior is to ignore the failed
+# component and continue the statement execution. In the end, the statement
+# will report a list of failed components.
+
+--error ER_CANNOT_USER
+RENAME USER user3@localhost TO user6@localhost,
+            no_user@localhost TO user3@localhost;
+SHOW WARNINGS;
+
+SELECT user, host FROM mysql.user where user like 'user%';
+
+CREATE user user7@localhost;
+
+--error ER_CANNOT_USER
+RENAME USER user6@localhost TO temp_user@localhost,
+            user7@localhost TO user4@localhost,
+            no_user@localhost TO no_user1@localhost,
+            temp_user@localhost to user7@localhost;
+SHOW WARNINGS;
+
+SELECT user, host FROM mysql.user where user like 'user%';
+
+--error ER_CANNOT_USER
+RENAME USER no_user@localhost TO user7@localhost,
+            user7@localhost TO user8@localhost,
+            no_user1@localhost TO user11@localhost,
+            user4@localhost TO user7@localhost,
+            no_user2@localhost TO user12@localhost;
+SHOW WARNINGS;
+
+SELECT user, host FROM mysql.user where user like 'user%';
+
+SET debug="+d,wl7158_handle_grant_table_1";
+--error ER_ACL_OPERATION_FAILED
+RENAME USER user7@localhost TO user7_1@localhost;
+SET debug="-d,wl7158_handle_grant_table_1";
+
+DROP USER user7@localhost;
+
+--echo
+--echo ####################################################################
+--echo # C.3. Tests for 'CREATE USER' statement
+--echo ####################################################################
+
+# 1. Positive Test cases
+CREATE USER user2@localhost;
+
+# 2. Negative Test cases
+# Trying to CREATE DUPLICATE USER
+--error ER_CANNOT_USER
+CREATE USER user2@localhost;
+
+# 3. Mixed test cases
+
+--error ER_CANNOT_USER
+CREATE USER user3@localhost, user2@localhost, user4@localhost;
+SHOW WARNINGS;
+
+SELECT user, host FROM mysql.user where user like 'user%';
+
+DROP USER user2@localhost, user3@localhost;
+
+--echo
+--echo ####################################################################
+--echo # C.4. Tests for 'ALTER USER' statement
+--echo ####################################################################
+
+# 1. Positive Test cases
+CREATE USER u2@l;
+ALTER USER u2@l PASSWORD EXPIRE INTERVAL 5 day;
+SELECT user, password_lifetime FROM mysql.user where USER like 'u_';
+
+# 2. Negative Test cases
+# Trying to ALTER non existing user.
+--error ER_CANNOT_USER
+ALTER USER u3@l PASSWORD EXPIRE INTERVAL 5 DAY;
+
+# 3. Mixed test cases
+# For ALTER USER statement, the current behavior is to ignore the failed
+# component and continue the statement execution. In the end, the statement
+# will report a list of failed components.
+
+--error ER_CANNOT_USER
+ALTER USER u3@l, u2@l, u4@l PASSWORD EXPIRE INTERVAL 7 DAY;
+SHOW WARNINGS;
+
+SELECT user, password_lifetime FROM mysql.user WHERE user LIKE 'u_';
+
+DROP USER u2@l;
+
+--echo
+--echo ####################################################################
+--echo # C.5. Tests for 'GRANT' and 'REVOKE' statement
+--echo ####################################################################
+
+# Suppress server log like "Did not write failed 'GRANT SELECT ON ...' into
+# binary log while granting/revoking privileges in databases.
+call mtr.add_suppression("Did not write failed .*");
+call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the slaves.");
+
+# It is not possible to execute a GRANT statement only for some users
+# (unlike 'DROP USER' which drops only existing users from the lists).
+# It is possible however, to make the GRANT statement fail by specifying
+# non-existing table or column.
+#
+# This is no the case for the REVOKE statement -- it will report an error for
+# every non-existing user from the list and skip it.
+#
+# There are plenty of test cases for GRANT and REVOKE already in grant.test.
+# This test file contains cases where statement is partially executed with
+# error.
+
+CREATE TABLE t1(a INT, b INT);
+CREATE USER u1@h, u3@h;
+GRANT SELECT(a) ON t1 TO u1@h, u3@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # GRANT on non existing column for non existing user
+--echo # (the whole statement fails, no change will be made).
+--error ER_BAD_FIELD_ERROR
+GRANT SELECT(b), SELECT(c), INSERT(b) ON t1 TO u1@h, u2@h, u3@h;
+SHOW WARNINGS;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # GRANT for non existing user.
+--echo # (only non-existing user components fail).
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT(b) ON t1 TO u1@h, u2@h, u3@h;
+SHOW WARNINGS;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # GRANT on non existing column for u1@h;
+--error ER_BAD_FIELD_ERROR
+GRANT SELECT(b), SELECT(c), INSERT(b) ON t1 TO u1@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # REVOKE with existing and non existing user (REVOKE removed privileges
+--echo # for existing accounts despite an error).
+--error ER_NONEXISTING_TABLE_GRANT
+REVOKE SELECT(a) ON t1 FROM u0@h, u1@h, u2@h, u3@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+GRANT SELECT(a) ON t1 TO u1@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # REVOKE with existing and non existing column
+--error ER_NONEXISTING_TABLE_GRANT
+REVOKE SELECT(a), SELECT(b) ON t1 FROM u1@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+GRANT SELECT(a) ON t1 TO u1@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+--echo # REVOKE with existing, non existing column / user.
+--error ER_NONEXISTING_TABLE_GRANT
+REVOKE SELECT(a),SELECT(c) ON t1 FROM u1@h;
+SELECT user, column_name, column_priv FROM mysql.columns_priv;
+
+--echo
+DROP USER u1@h, u3@h;
+DROP TABLE t1;
+
+--echo
+--echo # Check that the statement REVOKE handles correctly in the case
+--echo # when some of a user in the list for REVOKE is deleted manually
+--echo # before REVOKE has been run
+--echo
+
+CREATE USER u1@h;
+CREATE USER u2@h;
+CREATE SCHEMA test1;
+CREATE TABLE test1.t1 (a INT);
+
+GRANT SELECT ON test1.* TO u1@h;
+GRANT SELECT ON test1.* TO u2@h;
+
+# Delete explicitely a row for the u1@h. User u1@h still exists in the acl-cache
+# but doesn't in the database. For such case REVOKE has to revoke grant for other user
+# and return an error for the whole statement.
+DELETE FROM mysql.db WHERE host = 'h' AND user = 'u1';
+COMMIT;
+--error ER_NONEXISTING_GRANT
+REVOKE SELECT ON test1.* FROM u1@h, u2@h;
+
+DROP SCHEMA test1;
+DROP USER u1@h, u2@h;
+
+--echo
+--echo # Check that DROP PROCEDURE handles correctly in the case
+--echo # when grant information for some user was manually deleted
+--echo # from the mysql.procs_priv
+--echo
+CREATE USER u1@h;
+CREATE USER u2@h;
+CREATE PROCEDURE p1() SET @a :=1;
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h;
+GRANT EXECUTE ON PROCEDURE p1 TO u2@h;
+DELETE FROM mysql.procs_priv WHERE routine_name='p1';
+COMMIT;
+DROP PROCEDURE p1;
+DROP USER u1@h, u2@h;
+
+--echo
+--echo ####################################################################
+--echo # D. Simulate the SE failure and check the ACL statement behavior.
+--echo ####################################################################
+
+CREATE TABLE t1(a INT);
+CREATE USER user1@;
+GRANT UPDATE (a) ON t1 TO user1@;
+
+SET debug='+d,wl7158_grant_table_1';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SET debug='-d,wl7158_grant_table_1';
+
+SET debug='+d,wl7158_grant_table_2';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SET debug='-d,wl7158_grant_table_2';
+
+SET debug='+d,wl7158_grant_table_3';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SET debug='-d,wl7158_grant_table_3';
+
+DROP USER user1@;
+DROP TABLE t1;
+
+CREATE USER u1@h;
+
+CREATE PROCEDURE p() SET @x = 1;
+CREATE PROCEDURE p1() SET @y = 1;
+GRANT EXECUTE ON PROCEDURE p TO u1@h;
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h;
+
+SET debug='+d,wl7158_grant_load_1';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug='-d,wl7158_grant_load_1';
+
+SET debug='+d,wl7158_grant_load_proc_1';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug='-d,wl7158_grant_load_proc_1';
+
+SET debug='+d,wl7158_grant_load_2';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug='-d,wl7158_grant_load_2';
+
+SET debug="+d,wl7158_grant_load_proc_2";
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug="-d,wl7158_grant_load_proc_2";
+FLUSH PRIVILEGES;
+
+GRANT EXECUTE on PROCEDURE p to u1@h;
+SET debug="+d,wl7158_grant_load_proc_3";
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug="-d,wl7158_grant_load_proc_3";
+FLUSH PRIVILEGES;
+
+CREATE TABLE t1(a INT);
+GRANT SELECT ON t1 TO u1@h;
+SET debug='+d,wl7158_grant_load_3';
+--error ER_ACL_OPERATION_FAILED
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+SET debug='-d,wl7158_grant_load_3';
+DROP TABLE t1;
+
+DROP USER u1@h;
+DROP PROCEDURE p;
+DROP PROCEDURE p1;
+
+SET debug="+d,wl7158_replace_user_table_1";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SHOW WARNINGS;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_user_table_1";
+CREATE USER u1@h;
+
+SET debug="+d,wl7158_replace_user_table_1";
+--error ER_ACL_OPERATION_FAILED
+SET PASSWORD FOR u1@h = 'systpass';
+SHOW WARNINGS;
+SET debug="-d,wl7158_replace_user_table_1";
+
+SET debug="+d,wl7158_replace_user_table_2";
+--error ER_ACL_OPERATION_FAILED
+SET PASSWORD FOR u1@h = 'systpass';
+SHOW WARNINGS;
+SET debug="-d,wl7158_replace_user_table_2";
+DROP USER u1@h;
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_replace_user_table_1";
+--error ER_ACL_OPERATION_FAILED
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+SHOW WARNINGS;
+SET debug="-d,wl7158_replace_user_table_1";
+
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
+SET debug="+d,wl7158_replace_user_table_2";
+--error ER_ACL_OPERATION_FAILED
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+  AND SUBJECT "testsubject" ISSUER "MySQL";
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_user_table_2";
+DROP USER u1@h;
+
+SET debug="+d,wl7158_replace_user_table_1";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,wl7158_replace_user_table_1";
+
+CREATE USER u1@h;
+CREATE TABLE t1(a INT);
+SET debug="+d,mysql_table_grant_out_of_memory";
+CALL mtr.add_suppression(".*Out of memory *");
+--error ER_OUT_OF_RESOURCES, 5
+GRANT SELECT ON t1 TO u1@h;
+SET debug="-d,mysql_table_grant_out_of_memory";
+DROP TABLE t1;
+DROP USER u1@h;
+
+SET debug="+d,wl7158_replace_user_table_3";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,wl7158_replace_user_table_3";
+
+# Tests for change grants in the mysql.db table
+#
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_replace_db_table_1";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT ON mysqltest.* TO u1@h;
+SHOW WARNINGS;
+SET debug="-d,wl7158_replace_db_table_1";
+
+GRANT SELECT ON mysqltest.* TO u1@h;
+SET debug="+d,wl7158_replace_db_table_2";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT ON mysqltest.* TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_db_table_2";
+
+SET debug="+d,wl7158_replace_db_table_3";
+--error ER_ACL_OPERATION_FAILED
+REVOKE ALL PRIVILEGES ON mysqltest.* FROM u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_db_table_3";
+DROP USER u1@h;
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_replace_db_table_4";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT ON mysqltest.* TO u1@h;
+SHOW WARNINGS;
+SET debug="-d,wl7158_replace_db_table_4";
+DROP USER u1@h;
+
+SET debug="+d,mysql_handle_grant_data_fail_on_routine_table";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,mysql_handle_grant_data_fail_on_routine_table";
+
+SET debug="+d,mysql_handle_grant_data_fail_on_tables_table";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,mysql_handle_grant_data_fail_on_tables_table";
+
+SET debug="+d,mysql_handle_grant_data_fail_on_columns_table";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,mysql_handle_grant_data_fail_on_columns_table";
+
+SET debug="+d,mysql_handle_grant_data_fail_on_proxies_priv_table";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SET debug="-d,mysql_handle_grant_data_fail_on_proxies_priv_table";
+
+#
+# Test for privilege table
+#
+
+SET debug="+d,wl7158_handle_grant_table_1";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SHOW WARNINGS;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_handle_grant_table_1";
+
+SET debug="+d,wl7158_handle_grant_table_2";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SHOW WARNINGS;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_handle_grant_table_2";
+
+SET debug="+d,wl7158_handle_grant_table_3";
+--error ER_ACL_OPERATION_FAILED
+CREATE USER u1@h;
+SHOW WARNINGS;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_handle_grant_table_3";
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_modify_grant_table_1";
+# RENAME USER succeeds if there is no error in handler call.
+# Here, DBUG_EXECUTE_IF sets error after data is updated in SE.
+--error ER_ACL_OPERATION_FAILED
+rename user u1@h to u2@h;
+--error ER_NONEXISTING_GRANT
+SHOW GRANTS FOR u2@h;
+SHOW WARNINGS;
+SET debug="-d,wl7158_modify_grant_table_1";
+
+DROP USER u1@h;
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_modify_grant_table_2";
+# DROP USER succeeds if there is no error in handler call.
+# Here, DBUG_EXECUTE_IF sets error after data is removed in SE.
+--error ER_ACL_OPERATION_FAILED
+DROP USER u1@h;
+SHOW WARNINGS;
+SET debug="-d,wl7158_modify_grant_table_2";
+SHOW GRANTS FOR u1@h;
+DROP USER u1@h;
+
+#
+# Test for proxies priv
+#
+
+CREATE USER u1@h;
+SET debug="+d,wl7158_replace_proxies_priv_table_1";
+--error ER_ACL_OPERATION_FAILED
+GRANT PROXY ON plug_dest TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_proxies_priv_table_1";
+
+SET debug="+d,wl7158_replace_proxies_priv_table_2";
+--error ER_ACL_OPERATION_FAILED
+GRANT PROXY ON plug_dest TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_proxies_priv_table_2";
+
+SET debug="+d,wl7158_replace_proxies_priv_table_5";
+--error ER_ACL_OPERATION_FAILED
+GRANT PROXY ON plug_dest TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_proxies_priv_table_5";
+
+GRANT PROXY ON plug_dest TO u1@h;
+SET debug="+d,wl7158_replace_proxies_priv_table_3";
+--error ER_ACL_OPERATION_FAILED
+GRANT PROXY ON plug_dest TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_proxies_priv_table_3";
+
+SET debug="+d,wl7158_replace_proxies_priv_table_4";
+--error ER_ACL_OPERATION_FAILED
+REVOKE PROXY ON plug_dest FROM u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_proxies_priv_table_4";
+
+DROP USER u1@h;
+
+#
+# Test for Column priv
+#
+
+CREATE TABLE t1 (a INT);
+CREATE USER u1@h;
+
+SHOW GRANTS FOR u1@h;
+
+SET debug="+d,wl7158_replace_column_table_1";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_1";
+
+SET debug="+d,wl7158_replace_column_table_2";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_2";
+
+SET debug="+d,wl7158_replace_column_table_5";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_5";
+
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SET debug="+d,wl7158_replace_column_table_3";
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_3";
+
+SET debug="+d,wl7158_replace_column_table_4";
+--error ER_ACL_OPERATION_FAILED
+REVOKE SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 FROM u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_4";
+
+# CHECK if even after error, above REVOKE worked.
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SET debug="+d,wl7158_replace_column_table_6";
+--error ER_ACL_OPERATION_FAILED
+REVOKE SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 FROM u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_6";
+
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SET debug="+d,wl7158_replace_column_table_7";
+--error ER_ACL_OPERATION_FAILED
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_7";
+
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SET debug="+d,wl7158_replace_column_table_8";
+--error ER_ACL_OPERATION_FAILED
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_column_table_8";
+
+# CHECK that REVOKE ALL works correctly in case when a row from
+# columns_priv had been deleted for some user before REVOKE ALL
+# has been run.
+CREATE TABLE t2 (a INT);
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+GRANT INSERT(a) ON t2 TO u1@h;
+SELECT host, db, user, table_name, column_name, column_priv FROM mysql.columns_priv;
+SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv;
+DELETE FROM mysql.columns_priv WHERE host = 'h' AND user = 'u1'
+AND table_name = 't1';
+COMMIT;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
+
+SELECT host, db, user, table_name, column_name, column_priv FROM mysql.columns_priv;
+SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv;
+SHOW GRANTS FOR u1@h;
+
+# Check whether on FLUSH PRIVILEGES the GRANT_TABLE::init handles OUT OF MEMORY
+# condition correctly
+
+GRANT UPDATE (a) ON t1 TO u1@h;
+SET debug='+d,mysql_grant_table_init_out_of_memory';
+--error ER_OUT_OF_RESOURCES, 5
+FLUSH PRIVILEGES;
+SET debug='-d,mysql_grant_table_init_out_of_memory';
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP USER u1@h;
+
+--echo # Test case that checks the whole transaction was rolled back
+--echo # in the case of system error and that in-memory cache was reloaded after that
+CREATE USER u1@h;
+CREATE TABLE t1 (a INT);
+SET debug="+d,wl7158_replace_column_table_5";
+
+--error ER_ACL_OPERATION_FAILED
+GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
+SHOW WARNINGS;
+
+--echo # Check that changes of the whole statement have been rolled back.
+SELECT * FROM mysql.columns_priv WHERE host = 'h' AND user = 'u1';
+SELECT * FROM mysql.tables_priv WHERE host = 'h' AND user = 'u1';
+
+SET debug="-d,wl7158_replace_column_table_5";
+
+DROP TABLE t1;
+DROP USER u1@h;
+#
+# Tests for table priv
+#
+
+CREATE TABLE t1 (a INT);
+CREATE USER u1@h;
+
+SHOW GRANTS FOR u1@h;
+
+SET debug="+d,wl7158_replace_table_table_1";
+--error ER_ACL_OPERATION_FAILED
+GRANT UPDATE ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_table_table_1";
+
+SET debug="+d,wl7158_replace_table_table_3";
+--error ER_ACL_OPERATION_FAILED
+GRANT UPDATE ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_table_table_3";
+
+GRANT UPDATE ON t1 TO u1@h;
+SET debug="+d,wl7158_replace_table_table_2";
+--error ER_ACL_OPERATION_FAILED
+GRANT UPDATE ON t1 TO u1@h;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_table_table_2";
+
+DROP TABLE t1;
+DROP USER u1@h;
+
+#
+# Tests for routines priv
+#
+
+CREATE TABLE t1 (a INT);
+CREATE USER u1@h;
+CREATE PROCEDURE p() SET @x = 1;
+
+SHOW GRANTS FOR u1@h;
+
+SET debug="+d,wl7158_replace_routine_table_1";
+--error ER_ACL_OPERATION_FAILED
+GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_routine_table_1";
+
+SET debug="+d,wl7158_replace_routine_table_4";
+--error ER_ACL_OPERATION_FAILED
+GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_routine_table_4";
+
+GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
+SET debug="+d,wl7158_replace_routine_table_2";
+--error ER_ACL_OPERATION_FAILED
+GRANT USAGE ON PROCEDURE p TO u1@h WITH GRANT OPTION;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_routine_table_2";
+
+SET debug="+d,wl7158_replace_routine_table_3";
+--error ER_ACL_OPERATION_FAILED
+DROP PROCEDURE p;
+SHOW WARNINGS;
+SHOW GRANTS FOR u1@h;
+SET debug="-d,wl7158_replace_routine_table_3";
+
+DROP TABLE t1;
+DROP USER u1@h;
+
+--echo
+--echo ########################################################################
+--echo # E. Check that it is possible to ALTER  storage engine for privilege
+--echo #    tables to MyISAM.
+--echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+--echo #    to work.
+--echo ########################################################################
+
+ALTER TABLE mysql.user ENGINE = MyISAM;
+
+ALTER TABLE mysql.db ENGINE = MyISAM;
+
+ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
+
+ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
+
+ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
+
+ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
+
+SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = 'mysql' AND
+      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
+                     'proxies_priv', 'tables_priv')
+ORDER BY table_name;
+
+ALTER TABLE mysql.user ENGINE = InnoDB;
+ALTER TABLE mysql.db ENGINE = InnoDB;
+ALTER TABLE mysql.columns_priv ENGINE = InnoDB;
+ALTER TABLE mysql.procs_priv ENGINE = InnoDB;
+ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
+ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
+
+--echo ########################################################################
+--echo # Checking that it is possible to CREATE privilege tables in MyISAM.
+--echo # This is necessary for upgrade via mysqldump to work.
+--echo ########################################################################
+
+RENAME TABLE mysql.user TO mysql.user_bak;
+RENAME TABLE mysql.db TO mysql.db_bak;
+RENAME TABLE mysql.columns_priv TO mysql.columns_priv_bak;
+RENAME TABLE mysql.procs_priv TO mysql.procs_priv_bak;
+RENAME TABLE mysql.proxies_priv TO mysql.proxies_priv_bak;
+RENAME TABLE mysql.tables_priv TO mysql.tables_priv_bak;
+
+CREATE TABLE mysql.db ENGINE=MyISAM SELECT * FROM mysql.db_bak;
+
+CREATE TABLE mysql.user ENGINE=MyISAM SELECT * FROM mysql.user_bak;
+
+CREATE TABLE mysql.columns_priv ENGINE=MyISAM SELECT * FROM mysql.columns_priv_bak;
+
+CREATE TABLE mysql.procs_priv ENGINE=MyISAM SELECT * FROM mysql.procs_priv_bak;
+
+CREATE TABLE mysql.proxies_priv ENGINE=MyISAM SELECT * FROM mysql.proxies_priv_bak;
+
+CREATE TABLE mysql.tables_priv ENGINE=MyISAM SELECT * FROM mysql.tables_priv_bak;
+
+DROP TABLE mysql.user, mysql.db, mysql.columns_priv,
+           mysql.procs_priv, mysql.proxies_priv, mysql.tables_priv;
+
+RENAME TABLE mysql.user_bak TO mysql.user;
+RENAME TABLE mysql.db_bak TO mysql.db;
+RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
+RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
+RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
+RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
+
+--echo
+--echo ########################################################################
+--echo # F. Upgrade/downgrade tests.
+--echo ########################################################################
+
+--echo
+--echo # Disconnect con1
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Create the user u1@h before server upgrade.
+
+CREATE USER u1@h;
+
+--echo
+--echo # Remove the session user
+
+#This user is not compatible with 5.6 tables
+let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
+let $sess_user_account_priv=`SELECT timestamp from mysql.tables_priv where user='mysql.session'`;
+DELETE FROM mysql.tables_priv WHERE user='mysql.session';
+DELETE FROM mysql.user WHERE user='mysql.session';
+DELETE FROM mysql.db WHERE user='mysql.session';
+
+--echo
+--echo # Backup privilege tables and drop original ones
+
+RENAME TABLE mysql.user TO mysql.user_bak;
+RENAME TABLE mysql.db TO mysql.db_bak;
+RENAME TABLE mysql.columns_priv TO mysql.columns_priv_bak;
+RENAME TABLE mysql.procs_priv TO mysql.procs_priv_bak;
+RENAME TABLE mysql.proxies_priv TO mysql.proxies_priv_bak;
+RENAME TABLE mysql.tables_priv TO mysql.tables_priv_bak;
+
+--echo # Create exact structure of privilege tables as it is in 5.6
+
+CREATE TABLE IF NOT EXISTS mysql.db (   Host char(60) binary DEFAULT '' NOT NULL,
+ Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
+ Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ PRIMARY KEY Host (Host,Db,User), KEY User (User) ) engine=MyISAM
+ CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
+
+CREATE TABLE IF NOT EXISTS mysql.user (   Host char(60) binary DEFAULT '' NOT NULL,
+ User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1
+ collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci
+ DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+ ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL,
+ max_questions int(11) unsigned DEFAULT 0  NOT NULL,
+ max_updates int(11) unsigned DEFAULT 0  NOT NULL,
+ max_connections int(11) unsigned DEFAULT 0  NOT NULL,
+ max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
+ plugin char(64) DEFAULT 'mysql_native_password', authentication_string TEXT,
+ password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+ PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin
+ comment='Users and global privileges';
+
+CREATE TABLE IF NOT EXISTS mysql.tables_priv ( Host char(60) binary DEFAULT '' NOT NULL,
+ Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
+ Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(77) DEFAULT '' NOT NULL,
+ Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References',
+ 'Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+ Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT ''
+ NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) )
+ engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges';
+
+CREATE TABLE IF NOT EXISTS mysql.columns_priv ( Host char(60) binary DEFAULT '' NOT NULL,
+ Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
+ Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL,
+ Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci
+ DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) )
+ engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges';
+
+CREATE TABLE IF NOT EXISTS mysql.procs_priv ( Host char(60) binary DEFAULT '' NOT NULL,
+ Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL,
+ Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+ Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(77) DEFAULT '' NOT NULL,
+ Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
+ Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) )
+ engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
+
+CREATE TABLE IF NOT EXISTS mysql.proxies_priv (Host char(60) binary DEFAULT '' NOT NULL,
+ User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL,
+ Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL,
+ Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+ ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user),
+ KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin
+ comment='User proxy privileges';
+
+--echo # Restore original content of privilege tables
+
+INSERT INTO mysql.user(Host, User, Select_priv, Insert_priv, Update_priv, Delete_priv,
+ Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv, Grant_priv,
+ References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv, Create_tmp_table_priv,
+ Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv, Create_view_priv,
+ Show_view_priv, Create_routine_priv, Alter_routine_priv, Create_user_priv, Event_priv,
+ Trigger_priv, Create_tablespace_priv, ssl_type, ssl_cipher, x509_issuer, x509_subject,
+ max_questions, max_updates, max_connections, max_user_connections, plugin,
+ authentication_string, password_expired) SELECT Host, User, Select_priv, Insert_priv,
+ Update_priv, Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv,
+ File_priv, Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv,
+ Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv,
+ Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv, Create_user_priv,
+ Event_priv, Trigger_priv, Create_tablespace_priv, ssl_type, ssl_cipher, x509_issuer,
+ x509_subject, max_questions, max_updates, max_connections, max_user_connections, plugin,
+ authentication_string, password_expired FROM mysql.user_bak;
+
+INSERT INTO mysql.db(Host, Db, User, Select_priv, Insert_priv, Update_priv, Delete_priv,
+ Create_priv, Drop_priv, Grant_priv, References_priv, Index_priv, Alter_priv,
+ Create_tmp_table_priv, Lock_tables_priv, Create_view_priv, Show_view_priv, Create_routine_priv,
+ Alter_routine_priv, Execute_priv, Event_priv, Trigger_priv) SELECT Host, Db, User, Select_priv,
+ Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv, Grant_priv, References_priv,
+ Index_priv, Alter_priv, Create_tmp_table_priv, Lock_tables_priv, Create_view_priv,
+ Show_view_priv, Create_routine_priv, Alter_routine_priv, Execute_priv, Event_priv,
+ Trigger_priv FROM mysql.db_bak;
+
+INSERT INTO mysql.columns_priv(Host, Db, User, Table_name, Column_name, Timestamp, Column_priv)
+ SELECT Host, Db, User, Table_name, Column_name, Timestamp, Column_priv
+ FROM mysql.columns_priv_bak;
+
+INSERT INTO mysql.procs_priv(Host, Db, User, Routine_name, Routine_type, Grantor, Proc_priv,
+ Timestamp) SELECT Host, Db, User, Routine_name, Routine_type, Grantor, Proc_priv, Timestamp
+ FROM mysql.procs_priv_bak;
+
+INSERT INTO mysql.proxies_priv(Host, User, Proxied_host, Proxied_user, With_grant, Grantor,
+ Timestamp) SELECT Host, User, Proxied_host, Proxied_user, With_grant, Grantor, Timestamp
+ FROM mysql.proxies_priv_bak;
+
+INSERT INTO mysql.tables_priv(Host, Db, User, Table_name, Grantor, Timestamp, Table_priv,
+ Column_priv) SELECT Host, Db, User, Table_name, Grantor, Timestamp, Table_priv, Column_priv
+ FROM mysql.tables_priv_bak;
+COMMIT;
+
+CREATE TABLE t1 (a INT);
+call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
+
+# Since the definition of mysql.user was changed by the WL#6409 (the column
+# 'password' was removed) the number of column Event_priv was changed by 1.
+# It resulted in output of error message that the column Event_priv is not
+# located in expected position. It is expected behaviour and the error message
+# will disappear after the database upgrade is done.
+call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28");
+
+--echo
+--echo # Shutting down mysqld...
+--source include/shutdown_mysqld.inc
+
+--echo
+--echo # Starting mysqld in the regular mode...
+--echo
+--let $restart_parameters =
+
+--source include/start_mysqld.inc
+
+--echo
+--echo # Check that any ACL statement is failed when privilege tables
+--echo # have engine type MyISAM
+--echo
+
+--error ER_UNSUPPORTED_ENGINE
+CREATE USER u2@h;
+--error ER_UNSUPPORTED_ENGINE
+ALTER USER u1@h PASSWORD EXPIRE;
+--error ER_UNSUPPORTED_ENGINE
+GRANT SELECT ON t1 TO u1@h;
+--error ER_UNSUPPORTED_ENGINE
+REVOKE SELECT ON t1 FROM u1@h;
+--error ER_UNSUPPORTED_ENGINE
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM u1@h;
+--error ER_UNSUPPORTED_ENGINE
+SET PASSWORD FOR u1@h = '123';
+--error ER_UNSUPPORTED_ENGINE
+RENAME USER u1@h TO u1_1@h;
+--error ER_UNSUPPORTED_ENGINE
+DROP USER u1@h;
+
+SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = 'mysql' AND
+      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
+                     'proxies_priv', 'tables_priv')
+ORDER BY table_name;
+
+--echo
+--echo # mysql_upgrade...
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE 2>&1
+
+--echo
+--echo # Shutting down mysqld...
+--source include/shutdown_mysqld.inc
+
+--echo
+--echo # Starting mysqld in the regular mode...
+--let $restart_parameters =
+--source include/start_mysqld.inc
+
+--echo
+--echo # The ACL tables must have been upgraded.
+SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = 'mysql' AND
+      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
+                     'proxies_priv', 'tables_priv')
+ORDER BY table_name;
+
+--echo # Downgrading
+--echo
+
+--echo
+--echo # Alter the storage engine to MyISAM (downgrade).
+
+ALTER TABLE mysql.user ENGINE = MyISAM;
+ALTER TABLE mysql.db ENGINE = MyISAM;
+ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
+ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
+ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
+ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
+
+SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = 'mysql' AND
+      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
+                     'proxies_priv', 'tables_priv')
+ORDER BY table_name;
+
+--echo # 
+--echo # Clean-up. Restore original state of privilege tables.
+
+DROP TABLES mysql.user, mysql.db, mysql.columns_priv, mysql.procs_priv,
+ mysql.proxies_priv, mysql.tables_priv;
+
+RENAME TABLE mysql.user_bak TO mysql.user;
+RENAME TABLE mysql.db_bak TO mysql.db;
+RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
+RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
+RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
+RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
+
+#restore the state of the session user
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
+  'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
+  'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
+  'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
+  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
+INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
+ 'mysql.session', 'user', 'root\@localhost',
+  CURRENT_TIMESTAMP, 'Select', '');
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',
+ 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
+ 'N','N','N','N','N','N','N');
+--disable_query_log ONCE
+--eval UPDATE mysql.tables_priv SET timestamp ='$sess_user_account_priv' WHERE USER= 'mysql.session'
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore' WHERE USER= 'mysql.session'
+
+FLUSH PRIVILEGES;
+
+DROP USER u1@h;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21749169 -- ASSERTS 'ERROR != 146' PROVIDED BY WL#7158 AT VARIOUS PLACES ARE HIT
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE USER u1;
+
+# Add record into mysql.tables_priv
+GRANT ALL ON test.t1 TO 'u1' ;
+SET autocommit = 0;
+
+--connect (con1, localhost, root,,)
+--echo connection con1
+SET autocommit = 0;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SAVEPOINT A;
+
+DELETE FROM mysql . tables_priv WHERE user = 'u1' LIMIT 1;
+
+# Without a patch the following statement would leave MDL lock unreleased
+# on mysql.tables_priv. This lock has been acquired when DELETE being executed.
+# It would led to the DBUG_ASSERT(error != HA_ERR_LOCK_WAIT_TIMEOUT) later
+# when GRANT ALL be handled.
+ROLLBACK WORK TO SAVEPOINT A;
+
+--connection default
+--echo connection default
+
+SET innodb_lock_wait_timeout= 1;
+# Without the patch the following statement would fire
+# DBUG_ASSERT(error != HA_ERR_LOCK_WAIT_TIMEOUT)
+
+--send GRANT ALL ON t1 TO 'u1'
+
+--connection con1
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE state = 'Waiting for table metadata lock' AND
+      info = 'GRANT ALL ON t1 TO \'u1\'';
+--source include/wait_condition.inc
+
+--connection default
+--disconnect con1
+# Reap result of GRANT ALL ON t1 TO 'u1'
+--reap
+
+DROP USER u1;
+DROP TABLE t1;

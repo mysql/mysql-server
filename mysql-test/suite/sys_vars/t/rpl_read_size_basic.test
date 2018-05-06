@@ -1,0 +1,154 @@
+############## mysql-test\t\rpl_read_size_basic.test ##########################
+#                                                                             #
+# Variable Name: rpl_read_size                                                #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value:8192                                                          #
+# Range: 8192-4294967295                                                      #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2017-12-14                                                   #
+# Author:  Neha kumari                                                        #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable rpl_read_size            #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+########################################################################
+#              START OF rpl_read_size TESTS                            #
+########################################################################
+
+
+SET @start_rpl_read_size = @@global.rpl_read_size;
+SELECT @start_rpl_read_size;
+
+--echo '#--------------------TEST 01------------------------#'
+########################################################################
+#           Display the DEFAULT value of rpl_read_size                 #
+########################################################################
+
+SET @@global.rpl_read_size = 102400;
+SET @@global.rpl_read_size = DEFAULT;
+SELECT @@global.rpl_read_size;
+
+
+--echo '#---------------------TEST_02-------------------------#'
+###############################################
+#     Verify default value of variable        #
+###############################################
+
+SET @@global.rpl_read_size = @start_rpl_read_size;
+SELECT @@global.rpl_read_size = 8192;
+
+--echo '#--------------------TEST_03------------------------#'
+########################################################################
+#    Change the value of rpl_read_size to a valid value                #
+########################################################################
+
+SET @@global.rpl_read_size = 81920;
+SELECT @@global.rpl_read_size;
+SET @@global.rpl_read_size = 102400;
+SELECT @@global.rpl_read_size;
+
+
+--echo '#--------------------TEST_04-------------------------#'
+#########################################################################
+#      Change the value of rpl_read_size to invalid value               #
+#########################################################################
+
+SET @@global.rpl_read_size = -1;
+SELECT @@global.rpl_read_size;
+SET @@global.rpl_read_size = 4096;
+SELECT @@global.rpl_read_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.rpl_read_size = 18446744073709551616;
+SELECT @@global.rpl_read_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.rpl_read_size = 10000.01;
+SELECT @@global.rpl_read_size;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.rpl_read_size = ON;
+SELECT @@global.rpl_read_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.rpl_read_size = 'test';
+SELECT @@global.rpl_read_size;
+
+
+--echo '#-------------------TEST_05----------------------------#'
+##########################################################################
+#       Test if accessing session rpl_read_size gives error              #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.rpl_read_size = 8192;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.rpl_read_size;
+
+
+--echo '#----------------------TEST_06------------------------#'
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+SELECT @@global.rpl_read_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='rpl_read_size';
+
+SELECT @@rpl_read_size = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='rpl_read_size';
+
+
+--echo '#---------------------TEST_07----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.rpl_read_size = 16384;
+SELECT @@rpl_read_size = @@global.rpl_read_size;
+
+
+--echo '#---------------------TEST_08----------------------#'
+################################################################################
+#   Check if rpl_read_size can be accessed with and without @@ sign            #
+################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET rpl_read_size = 8192;
+SELECT @@rpl_read_size;
+--Error ER_PARSE_ERROR
+SET local.rpl_read_size = 8192
+--Error ER_UNKNOWN_TABLE
+SELECT local.rpl_read_size;
+--Error ER_PARSE_ERROR
+SET global.rpl_read_size = 8192;
+--Error ER_UNKNOWN_TABLE
+SELECT global.rpl_read_size;
+--Error ER_BAD_FIELD_ERROR
+SELECT rpl_read_size = @@session.rpl_read_size;
+
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.rpl_read_size = @start_rpl_read_size;
+SELECT @@global.rpl_read_size;
+
+
+######################################################################
+#              END OF rpl_read_size TESTS                            #
+######################################################################

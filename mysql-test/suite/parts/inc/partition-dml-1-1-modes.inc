@@ -1,6 +1,5 @@
 let $DATA_PATH=;
 let $INDEX_PATH=;
---source include/have_partition.inc
 
 --echo # Additional tests for WL#5217 by QA, testplan 1.1
 

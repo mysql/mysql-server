@@ -1,13 +1,7 @@
 SET @sys.debug                        = 'ON',
 @sys.diagnostics.allow_i_s_tables = 'ON',
 @sys.diagnostics.include_raw      = 'ON';
-SET @tmp_show_compatibility_56   = @@global.show_compatibility_56,
-GLOBAL show_compatibility_56 = ON;
 CALL sys.diagnostics(4, 2, 'full');
-SET GLOBAL show_compatibility_56 = OFF;
-CALL sys.diagnostics(4, 2, 'full');
-SET GLOBAL show_compatibility_56 = @tmp_show_compatibility_56,
-@tmp_show_compatibility_56   = NULL;
 SET @sys.debug                        = 'OFF',
 @sys.diagnostics.allow_i_s_tables = 'OFF',
 @sys.diagnostics.include_raw      = 'OFF';

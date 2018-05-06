@@ -3,7 +3,7 @@ call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large
 # create bootstrap file
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k
-# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0
+# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 USE test;
 SELECT @@innodb_page_size;
 @@innodb_page_size
@@ -98,13 +98,15 @@ count(*)
 DROP DATABASE test;
 # Run the bootstrap command with page size 16k
 # Start the DB server with page size 16k
-# restart: --innodb_page_size=16K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0
+# restart: --innodb_page_size=16K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 16384
 SELECT @@innodb_strict_mode;
 @@innodb_strict_mode
 1
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab1\` because after adding it, the row size is 8192" found
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab2\` because after adding it, the row size is 8192" found
 USE test;
 SHOW TABLES;
 Tables_in_test
@@ -117,7 +119,7 @@ ERROR 42S02: Table 'test.tab3' doesn't exist
 DROP DATABASE test;
 # Run the bootstrap command with page size 64k
 # Start the DB server with page size 64k
-# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0
+# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 65536
@@ -129,6 +131,7 @@ SHOW TABLES;
 Tables_in_test
 tab1
 tab2
+tab3
 SELECT count(*) FROM tab1;
 count(*)
 1
@@ -136,6 +139,7 @@ SELECT count(*) FROM tab2;
 count(*)
 0
 SELECT count(*) FROM tab3;
-ERROR 42S02: Table 'test.tab3' doesn't exist
+count(*)
+1
 SET innodb_strict_mode=Default;
 # restart

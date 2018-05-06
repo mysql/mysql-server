@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 --enable_warnings
@@ -187,12 +184,14 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Bug#56484: !table || (!table->read_set ||
 --echo #                       bitmap_is_set(table->read_set, field_index))
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
 --echo #
-CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
-ENGINE=MyISAM
+
+CREATE TABLE t1 (a INT NOT NULL, b TIME NOT NULL DEFAULT '00:00:00')
+ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
 
-CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 --error ER_TABLES_DIFFERENT_METADATA
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 DROP TABLE t1, t2;
@@ -221,13 +220,11 @@ DROP TABLE t2, t1, t3;
 --echo # Tests for WL#4445
 CREATE TABLE t (a INT,
   b VARCHAR(55),
-  PRIMARY KEY (a))
-ENGINE = MyISAM;
+  PRIMARY KEY (a));
 
 CREATE TABLE tp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
  PARTITION p1 VALUES LESS THAN MAXVALUE);
@@ -235,7 +232,6 @@ PARTITION BY RANGE (a)
 CREATE TABLE tsp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
 (PARTITION p0 VALUES LESS THAN (100)
@@ -340,6 +336,7 @@ SELECT * FROM t;
 --sorted_result
 SELECT * FROM tp;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+
 --echo # test different engines
 ALTER TABLE t ENGINE = MyISAM;
 ALTER TABLE tp ENGINE = InnoDB;
@@ -349,12 +346,12 @@ SHOW CREATE TABLE tp;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 SHOW CREATE TABLE t;
 SHOW CREATE TABLE tp;
+ALTER TABLE t ENGINE = InnoDB;
+
 --echo # Test different charsets
-ALTER TABLE t ENGINE = MyISAM;
 CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 RENAME TABLE t TO tmp2, tmp TO t;
-ALTER TABLE tp ENGINE = MyISAM;
 ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 --error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
@@ -363,7 +360,7 @@ DROP TABLE t;
 CREATE TABLE t (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+MAX_ROWS = 100000 MIN_ROWS = 1000;
 INSERT INTO t SELECT * FROM tmp2;
 SHOW CREATE TABLE t;
 SHOW CREATE TABLE tp;
@@ -403,8 +400,6 @@ ALTER TABLE t CHANGE c a INT;
 #                         pack_keys, delay_key_write, checksum etc.
 # test foreign keys
 --echo # test temporary table
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 ALTER TABLE t RENAME TO tmp2;
@@ -434,14 +429,13 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 # check if correct error whithout partitioning support
 DROP TABLE t, tp, tsp;
 
-
 --echo # Test with general_log
 use mysql;
 SET @old_general_log_state = @@global.general_log;
 SET GLOBAL general_log = 0;
 ALTER TABLE general_log ENGINE = MyISAM;
 CREATE TABLE t LIKE general_log;
-ALTER TABLE t PARTITION BY RANGE (thread_id)
+ALTER TABLE t ENGINE InnoDB PARTITION BY RANGE (thread_id)
 (PARTITION p0 VALUES LESS THAN (123456789),
  PARTITION pMAX VALUES LESS THAN MAXVALUE);
 --error ER_WRONG_USAGE

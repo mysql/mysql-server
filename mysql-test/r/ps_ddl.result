@@ -8,7 +8,7 @@ create procedure p_verify_reprepare_count(expected int)
 begin
 declare old_reprepare_count int default @reprepare_count;
 select variable_value from
-information_schema.session_status where
+performance_schema.session_status where
 variable_name='com_stmt_reprepare'
   into @reprepare_count;
 if old_reprepare_count + expected <> @reprepare_count then
@@ -732,7 +732,7 @@ drop temporary table t1;
 deallocate prepare stmt;
 #
 # Test 3: View referencing an Information schema table
-#
+# Not referencing P_S table until Bug#21789221 is fixed.
 create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 prepare stmt from "select * from t1";
 execute stmt;
@@ -1246,26 +1246,32 @@ deallocate prepare stmt;
 Part 21: Special tables (system tables)
 =====================================================================
 prepare stmt from
-"select type, db, name from mysql.proc where name='p1'";
-create procedure p1() select "hi there";
+"select database_name, table_name, n_rows, sum_of_other_index_sizes from mysql.innodb_table_stats where table_name='t1'";
+create table test.t1(f1 int);
+insert into test.t1 values (10);
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	0	0
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
-drop procedure p1;
-create procedure p1() select "hi there, again";
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	0	0
+drop table test.t1;
+create table test.t1(f1 int primary key, f2 int, key(f2));
+insert into test.t1 values (20, 20);
+insert into test.t1 values (30, 20);
+analyze table test.t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	2	1
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	2	1
 call p_verify_reprepare_count(0);
 SUCCESS
 
-drop procedure p1;
+drop table test.t1;
 deallocate prepare stmt;
 =====================================================================
 Part 22: Special tables (views temp tables)
@@ -1276,7 +1282,7 @@ create algorithm=temptable view v1 as select a*a as a2 from t1;
 # statement code, and should not raise ER_PS_INVALIDATED errors
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * `t1`.`a`) AS `a2` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * `t1`.`a`) AS `a2` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 prepare stmt from "select * from v1";
 insert into t1 values (1), (2), (3);
 execute stmt;
@@ -1331,17 +1337,14 @@ SUCCESS
 
 drop table t1;
 # SQLCOM_REPAIR:
-create table t1 (a int);
+create table t1 (a int) engine=MyISAM;
 insert into t1 values (1), (2), (3);
 prepare stmt from "repair table t1";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-execute stmt;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's does not lead to reprepare
 execute stmt;
@@ -1367,7 +1370,7 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's not a problem
 execute stmt;
@@ -1390,7 +1393,7 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's not a problem
 execute stmt;
@@ -2237,11 +2240,11 @@ drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show keys from t1 where (1) in (select * from t1)";
 execute stmt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 drop table t1;
 create table t1 (x int);
 execute stmt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 drop table t1;
 deallocate prepare stmt;
 #
@@ -2310,11 +2313,11 @@ drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show collation where (1) in (select * from t1)";
 execute stmt;
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 drop table t1;
 create table t1 (x int);
 execute stmt;
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 drop table t1;
 deallocate prepare stmt;
 #
@@ -2391,8 +2394,20 @@ deallocate prepare stmt;
 # SQLCOM_SHOW_EVENTS
 #
 #
-# Please see this test in ps.test, it requires not_embedded.inc
+# Bug#27430 Crash in subquery code when in PS and table DDL changed
+# after PREPARE
 #
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt from "show events where (1) in (select * from t1)";
+execute stmt;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+drop table t1;
+create table t1 (x int);
+execute stmt;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+drop table t1;
+deallocate prepare stmt;
 #
 # SQLCOM_SET_OPTION
 #
@@ -2450,8 +2465,8 @@ deallocate prepare stmt;
 # Intermediate result: number of reprepares matches the number
 # of tests
 call p_verify_reprepare_count(17);
-SUCCESS
-
+ERROR
+Expected: 17, actual: 18
 #
 # SQLCOM_ALTER_VIEW
 #
@@ -2498,7 +2513,7 @@ DROP TABLE t1;
 # clause of CREATE TABLE and ALTER TABLE statements.
 #
 CREATE TEMPORARY TABLE t1 (i INT);
-PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=MERGE UNION=(t1)';
+PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=InnoDB UNION=(t1)';
 EXECUTE stmt2;
 DROP TEMPORARY TABLE tm;
 EXECUTE stmt2;

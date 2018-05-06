@@ -1,1 +1,1 @@
---event-scheduler
+--log_statements_unsafe_for_binlog=OFF

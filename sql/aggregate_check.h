@@ -1,20 +1,27 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
    @file
@@ -26,7 +33,8 @@
 /**
   @defgroup AGGREGATE_CHECKS Aggregate checks of ONLY_FULL_GROUP_BY
 
-Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
+Checks for some semantic constraints on queries using GROUP BY, or aggregate
+functions, or DISTINCT (ONLY_FULL_GROUP_BY).
 
 We call "aggregation" the operation of taking a group of rows and replacing
 it with a single row. There are three types of aggregation: DISTINCT,
@@ -180,7 +188,7 @@ Note that C may only refer to columns of T1 or T2 (outer references
 are forbidden by MySQL in join conditions).
 
 Assuming that C is a conjunction (i.e. is made of one or more conditions,
-                                  "conjuncts", chained together with AND):
+"conjuncts", chained together with AND):
 - If one conjunct is of the form T1.A=constant, then {} -> {A} holds in R (the
 value of A is "the constant" in all rows of R).
 - If one conjunct is of the form T1.A=T2.B, then {T1.A} -> {T2.B} (and vice
@@ -225,11 +233,58 @@ not true, which is absurd). Thus, in r1 and r2 TW.B is NULL.
 matched for both, so TW.B in r1/r2 is equal to TW.A in r1/r2.
 - In conclusion, r1 and r2 have the same value of TW.B.
 
+If any conjunct references column T1.A and is not true if T1.A is NULL
+(e.g. conjunct is T1.A > 3), and T1 is part of TW, we can replace T1 with
+ (SELECT * FROM T1 WHERE T1.A IS NOT NULL) AS T1.
+We do not do such query rewriting, but a consequence is that we can and do
+treat T1.A as "known not nullable in T1".
+Proof: if we do this replacement, it means we remove from T1 some rows where
+T1.A is NULL. For the sake of the proof, let's broaden this to "we remove from
+and/or add to T1 rows where T1.A is NULL". By this operation,
+- the result of T2 JOIN T1 ON C is affected in the same manner (i.e. it's like
+if we remove from and/or add rows to the join's result, rows where T1.A is
+NULL).
+- the same is true for the result of T1 LEFT JOIN T2 ON C,
+- regarding the result of T2 LEFT JOIN T1 ON C, consider a row r2 from T2:
+   - if r2 had a match with a row of T1 where T1.A is not NULL, this match is
+   preserved after replacement of T1
+   - due to removed rows, matches with rows of T1 where T1.A is NULL may be
+   lost, and so NULL-complemented rows may appear
+   - due to added rows, matches with rows of T1 where T1.A is NULL may appear
+   - so in the result of the left join, it's like if we remove from
+   and/or add rows which all have T1.A is NULL.
+So, the net effect in all situations, on the join nest simply containing T1,
+is that "we remove from and/or add to the nest's result rows where T1.A is
+NULL".
+By induction we can go up the nest tree, for every nest it's like if we remove
+from and/or add to the join nest's result rows where T1.A is NULL.
+Going up, finally we come to the nest TS LEFT JOIN TW ON C where our
+NULL-rejecting conjunct is.
+If T1 belonged to TS, we could not say anything. But we have assumed T1
+belongs to TW: then the C condition eliminates added rows, and would have
+eliminated removed rows anyway. Thus the result of TS LEFT JOIN TW ON C is
+unchanged by our operation on T1. We can thus safely treat T1.A as not
+nullable _in_T1_. Thus, if T1.A is part of a unique constraint, we may treat
+this constraint as a primary key of T1 (@see WHEREEQ for an example).
+
 @subsection WHEREEQ Equality-based, in the result of a WHERE clause
 
 Same rule as the result of an inner join.
 Additionally, the rule is extended to T1.A=outer_reference, because an outer
 reference is a constant during one execution of this query.
+
+Moreoever, if any conjunct references column T1.A and is not true if T1.A is
+NULL (e.g. conjunct is T1.A > 3), we can treat T1.A as not nullable in T1.
+Proof: same as in previous section OUTEREQ.
+We can then derive FD information from a unique index on a nullable column;
+consider:
+ create table t1(a int null, b int null, unique(a));
+While
+ select a,b from t1 group by a;
+is invalid (because two null values of 'a' go in same group),
+ select a,b from t1 where 'a' is not null group by a;
+is valid: 'a' can be treated as non-nullable in t1, so the unique index is
+like "unique not null", so 'a' determines 'b'.
 
 Below we examine how functional dependencies in a table propagate to its
 containing join nest.
@@ -330,7 +385,7 @@ dependencies which exist in this result R. Let r1 be a row of R.
 - If C is deterministic and one conjunct is of the form TW.A=constant or
 TW.A=TS.B, then DJS -> {TW.A} holds in R, where DJS is the set of all columns
 of TS referenced by C. For NULL-friendliness, we need DJS to not be
-empty. Thus, we exclude the form TW.A= constant and consider only
+empty. Thus, we exclude the form TW.A=constant and consider only
 TW.A=TS.B. We suppose that in r1 DJS contains all NULLs. Conjunct is TW.A=TS.B
 then this equality is not true, so r1 is NULL-complemented: TW.A is NULL in
 r1.
@@ -379,12 +434,13 @@ to propagate, so does not need to be NULL-friendly.
 In the rest of this text, we will use the term "view" for "view or derived
 table". A view can be merged or materialized, in MySQL.
 Consider a view V defined by a query expression.
-If the query expression contains UNION or ROLLUP (which is based on UNION)
-there are no functional dependencies in this view.
+If the query expression contains UNION or ROLLUP (which is theoretically based
+on UNION) there are no functional dependencies in this view.
 So let's assume that the query expression is a query specification (let's note
 it VS):
 @verbatim
-CREATE VIEW V AS SELECT [DISTINCT] VE1 AS C1, VE2 AS C2, ... FROM ... WHERE ... [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+CREATE VIEW V AS SELECT [DISTINCT] VE1 AS C1, VE2 AS C2, ... FROM ... WHERE ...
+[GROUP BY ...] [HAVING ...] [ORDER BY ...]
 @endverbatim
 
 If {VE1, VE2, VE3} are columns of tables of the FROM clause, and {VE1,
@@ -437,8 +493,8 @@ for dependencies based on keys or join conditions, we simply follow
 propagation rules of the non-view sections.
 - For expression-based dependencies (VE3 depends on VE1 and VE2, VE3
 belonging to the view SELECT list), which may not be NULL-friendly, we require
-- the same non-weak-side criterion as above
-- or that the left set of the dependency be non-empty and that if VE1 and
+ - the same non-weak-side criterion as above
+ - or that the left set of the dependency be non-empty and that if VE1 and
 VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 - The same solution is used for generated columns in a base table.
 
@@ -446,14 +502,25 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include "my_global.h"
-#include "mem_root_array.h"
-#include "opt_trace.h"
-#include "item_cmpfunc.h"
-#include "item_sum.h"
-struct st_mem_root;
-class st_select_lex;
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_alloc.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"    // Item_func_any_value
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/sql_lex.h"
+
+class Opt_trace_context;
+class Opt_trace_object;
+class THD;
 struct TABLE_LIST;
+template <class T>
+class List;
 
 /**
    Re-usable shortcut, when it does not make sense to do copy objects of a
@@ -464,7 +531,6 @@ struct TABLE_LIST;
 #define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
   myclass(myclass const &);                     \
   void operator=(myclass const &)
-
 
 /**
    Utility mixin class to be able to walk() only parts of item trees.
@@ -480,36 +546,34 @@ struct TABLE_LIST;
    any sibling of X, any part of the Item tree not under X, can then be
    processed.
 */
-class Item_tree_walker
-{
-protected:
+class Item_tree_walker {
+ protected:
   Item_tree_walker() : stopped_at_item(NULL) {}
   ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
 
   /// Stops walking children of this item
-  void stop_at(const Item *i)
-  { DBUG_ASSERT(!stopped_at_item); stopped_at_item= i; }
+  void stop_at(const Item *i) {
+    DBUG_ASSERT(!stopped_at_item);
+    stopped_at_item = i;
+  }
 
   /**
      @returns if we are stopped. If item 'i' is where we stopped, restarts the
      walk for next items.
   */
-  bool is_stopped(const Item *i)
-  {
-    if (stopped_at_item)
-    {
+  bool is_stopped(const Item *i) {
+    if (stopped_at_item) {
       /*
         Walking was disabled for a tree part rooted a one ancestor of 'i' or
         rooted at 'i'.
       */
-      if (stopped_at_item == i)
-      {
+      if (stopped_at_item == i) {
         /*
           Walking was disabled for the tree part rooted at 'i'; we have now just
           returned back to this root (WALK_POSTFIX call), left the tree part:
           enable the walk again, for other tree parts.
         */
-        stopped_at_item= NULL;
+        stopped_at_item = NULL;
       }
       // No further processing to do for this item:
       return true;
@@ -517,29 +581,24 @@ protected:
     return false;
   }
 
-private:
+ private:
   const Item *stopped_at_item;
   FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
 };
 
-
 /**
    Checks for queries which have DISTINCT.
 */
-class Distinct_check: public Item_tree_walker, public Sql_alloc
-{
-public:
-
-  Distinct_check(st_select_lex *select_arg)
-    : select(select_arg), failed_ident(NULL)
-  {}
+class Distinct_check : public Item_tree_walker {
+ public:
+  Distinct_check(SELECT_LEX *select_arg)
+      : select(select_arg), failed_ident(NULL) {}
 
   bool check_query(THD *thd);
 
-private:
-
+ private:
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -556,34 +615,34 @@ private:
   FORBID_COPY_CTOR_AND_ASSIGN_OP(Distinct_check);
 };
 
-
 /**
    Checks for queries which have GROUP BY or aggregate functions.
 */
-class Group_check: public Item_tree_walker, public Sql_alloc
-{
-public:
+class Group_check : public Item_tree_walker {
+ public:
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
+      : select(select_arg),
+        search_in_underlying(false),
+        non_null_in_source(false),
+        table(NULL),
+        group_in_fd(~0ULL),
+        m_root(root),
+        fd(root),
+        whole_tables_fd(0),
+        recheck_nullable_keys(0),
+        mat_tables(root),
+        failed_ident(NULL) {}
 
-  Group_check(st_select_lex *select_arg, st_mem_root *root)
-    : select(select_arg), search_in_underlying(false),
-    non_null_in_source(false),
-    table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
-    whole_tables_fd(0), mat_tables(root), failed_ident(NULL)
-    {}
-
-  ~Group_check()
-  {
-    for (uint j= 0; j < mat_tables.size(); ++j)
-      delete mat_tables.at(j);
+  ~Group_check() {
+    for (uint j = 0; j < mat_tables.size(); ++j) destroy(mat_tables.at(j));
   }
 
   bool check_query(THD *thd);
   void to_opt_trace(THD *thd);
 
-private:
-
+ private:
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
 
   /**
      "Underlying" == expressions which are underlying in an identifier.
@@ -626,7 +685,7 @@ private:
   ulonglong group_in_fd;
 
   /// Memory for allocations (like of 'fd')
-  st_mem_root *const m_root;
+  MEM_ROOT *const m_root;
 
   /**
      Columns which are local to 'select' and functionally dependent on an
@@ -635,11 +694,13 @@ private:
      - if is_child(), columns of the result of the query expression under
      'table' which are themselves part of 'fd' of the parent Group_check.
   */
-  Mem_root_array<Item_ident *, true> fd;
+  Mem_root_array<Item_ident *> fd;
   /// Map of tables for which all columns can be considered part of 'fd'.
   table_map whole_tables_fd;
+  /// Map of tables for which we discovered known-not-nullable columns.
+  table_map recheck_nullable_keys;
   /// Children Group_checks of 'this'
-  Mem_root_array<Group_check *, true> mat_tables;
+  Mem_root_array<Group_check *> mat_tables;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -647,24 +708,33 @@ private:
   bool is_child() const { return table != NULL; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(st_select_lex *select_arg, st_mem_root *root,
-              TABLE_LIST *table_arg)
-    : select(select_arg), search_in_underlying(false),
-    non_null_in_source(false), table(table_arg),
-    group_in_fd(0ULL), m_root(root), fd(root), whole_tables_fd(0),
-    mat_tables(root)
-    {
-      DBUG_ASSERT(table);
-    }
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+      : select(select_arg),
+        search_in_underlying(false),
+        non_null_in_source(false),
+        table(table_arg),
+        group_in_fd(0ULL),
+        m_root(root),
+        fd(root),
+        whole_tables_fd(0),
+        recheck_nullable_keys(0),
+        mat_tables(root) {
+    DBUG_ASSERT(table);
+  }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()
-  bool local_column(Item *item) const
-  { return item->local_column(select).is_true(); }
-  void add_to_fd(Item *item, bool local_column, bool add_to_mat_table= true);
-  void add_to_fd(table_map m) { whole_tables_fd|= m; find_group_in_fd(NULL); }
+  bool local_column(Item *item) const {
+    return item->local_column(select).is_true();
+  }
+  void add_to_fd(Item *item, bool local_column, bool add_to_mat_table = true);
+  void add_to_fd(table_map m) {
+    whole_tables_fd |= m;
+    find_group_in_fd(NULL);
+  }
   void add_to_source_of_mat_table(Item_field *item_field, TABLE_LIST *tl);
   bool is_in_fd(Item *item);
   bool is_in_fd_of_underlying(Item_ident *item);
+  Item *get_fd_equal(Item *item);
   void analyze_conjunct(Item *cond, Item *conjunct, table_map weak_tables,
                         bool weak_side_upwards);
   void analyze_scalar_eq(Item *cond, Item *left_item, Item *right_item,
@@ -677,14 +747,8 @@ private:
   Item *select_expression(uint idx);
 
   /// Enum for argument of do_ident_check()
-  enum enum_ident_check
-  {
-    CHECK_GROUP,
-    CHECK_STRONG_SIDE_COLUMN,
-    CHECK_COLUMN
-  };
-  bool do_ident_check(Item_ident *i, table_map tm,
-                      enum enum_ident_check type);
+  enum enum_ident_check { CHECK_GROUP, CHECK_STRONG_SIDE_COLUMN, CHECK_COLUMN };
+  bool do_ident_check(Item_ident *i, table_map tm, enum enum_ident_check type);
 
   /**
      Just because we need to go through Item::walk() to reach all items to
@@ -697,6 +761,7 @@ private:
   friend bool Item_func_any_value::aggregate_check_group(uchar *arg);
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
+  friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
 
   FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };

@@ -1,9 +1,6 @@
 #
 # WL#1756
 #
--- source include/have_innodb.inc
-
---source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -60,6 +57,7 @@ xa prepare 'testb',0x2030405060,11;
 --error ER_XAER_RMFAIL
 start transaction;
 
+--sorted_result
 xa recover;
 
 # uncomment the line below when binlog will be able to prepare
@@ -68,6 +66,7 @@ connection default;
 
 xa prepare 'testa','testb';
 
+--sorted_result
 xa recover;
 
 # When this connection has already started an own XA transaction
@@ -427,6 +426,7 @@ disconnect con2;
 xa start 0xABCDEF1234567890, 0x01, 0x02 ;
 xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+--sorted_result
 xa recover convert xid;
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 
@@ -435,6 +435,7 @@ xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 xa start 0x4142434445, 0x46, 0x02 ;
 xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
+--sorted_result
 xa recover;
 xa rollback 0x4142434445, 0x46, 0x02 ;
 
@@ -638,16 +639,19 @@ connection con_tmp;
 --ERROR ER_LOCK_WAIT_TIMEOUT
 xa rollback 'test1';
 show errors;
+--sorted_result
 xa recover;
 --echo # LOCK error during COMMIT will not alter transaction state.
 --ERROR ER_LOCK_WAIT_TIMEOUT
 xa commit 'test1';
 show errors;
+--sorted_result
 xa recover;
 connection default;
 unlock tables;
 connection con_tmp;
 xa rollback 'test1';
+--sorted_result
 xa recover;
 drop table asd;
 disconnect con_tmp;
@@ -664,3 +668,137 @@ xa rollback 'testb',0x2030405060,11;
 
 # There should be no prepared transactions left.
 XA RECOVER;
+
+
+--echo #
+--echo # WL#7194 -- Define and implement authorization model to manage XA-transactions
+--echo #
+
+CREATE USER u1;
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+
+CREATE USER u2;
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--echo # Connect as user u1
+--echo # Since the privilege XA_RECOVER_ADMIN was granted to the user u1
+--echo # it is allowed to execute the statement XA RECOVER to get a list of
+--echo # xids for prepared XA transactions.
+--connect(con1,localhost,u1,'',)
+--sorted_result
+XA RECOVER;
+
+--echo # Connect as user u2
+--echo # The privilege XA_RECOVER_ADMIN wasn't granted to the user u2.
+--echo # It leads to issuing the error ER_XAER_RMERR on attempt to run
+--echo # the statement XA RECOVER.
+--connect(con2,localhost,u2,'',)
+--error ER_XAER_RMERR
+XA RECOVER;
+SHOW WARNINGS;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # The default connection was established on behalf the user root@localhost
+--echo # who has the XA_RECOVER_ADMIN privilege assigned by default.
+--echo # So for the user root@localhost the statement XA RECOVER
+--echo # can be executed successfully.
+--sorted_result
+XA RECOVER;
+XA COMMIT 'xid1';
+
+--echo # Connect as the user u2 who wasn't granted privilege XA_RECOVER_ADMIN.
+--echo # Initiates a new XA transaction on behalf the user u2 and shows that
+--echo # call XA RECOVER made by the user u2 is failed with error ER_XAER_RMERR.
+
+--connection con2
+XA START 'xid2';
+XA END 'xid2';
+XA PREPARE 'xid2';
+--error ER_XAER_RMERR
+XA RECOVER;
+SHOW WARNINGS;
+--echo # Although the user u2 can't get a list of prepared XA transaction this user
+--echo # can finalize a prepared XA transaction knowing its XID value.
+XA COMMIT 'xid2';
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER u1, u2;
+
+--echo # Check that a user who has the privilege SUPER and hasn't the privilege
+--echo # XA_RECOVER_ADMIN isn't allowed to run the statement XA RECOVER
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+SHOW GRANTS FOR u1;
+
+--connect(con1,localhost,u1,'',)
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--error ER_XAER_RMERR
+XA RECOVER;
+XA COMMIT 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER u1;
+
+--echo # End of tests fro WL#7194
+
+--echo #
+--echo # Bug #26848877 -- XA COMMIT/ROLLBACK REJECTED BY NON-AUTOCOMMIT SESSION
+--echo #                  WITH NO ACTIVE TRANSACTION
+--echo #
+
+--connect(con1,localhost,root,'',)
+
+--echo # Check that XA COMMIT finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after session reconnect
+--echo # a user turned off autocommit before running XA COMMIT
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA COMMIT 'xid1'' failed: 1399: XAER_RMFAIL: The command can't be executed
+# when global transaction is in the  NON-EXISTING state
+XA COMMIT 'xid1';
+
+--echo # Check that XA ROLLBACK finalizes XA transaction branch in case
+--echo # XA transaction was prepared successfully and after reconnect
+--echo # a user turned off autocommit before running XA ROLLBACK
+
+--connect(con1,localhost,root,'',)
+
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+SET autocommit = 0;
+XA RECOVER;
+# Without patch the following statement would fail with error message:
+# 'XA ROLLBACK 'xid1'' failed: 1399: XAER_RMFAIL: The command cannot be
+# executed when global transaction is in the  NON-EXISTING state
+XA ROLLBACK 'xid1';

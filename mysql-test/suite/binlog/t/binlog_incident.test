@@ -4,27 +4,47 @@
 # program.
 
 source include/have_log_bin.inc;
-source include/have_innodb.inc;
+#source include/have_innodb.inc;
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
+--source include/have_myisam.inc
 
-call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
-
-let $MYSQLD_DATADIR= `select @@datadir`;
 RESET MASTER;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log. An incident event has been "
+                         "written to the binary log which will stop the "
+                         "slaves.");
 
-let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
-let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+--let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
+--let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
 
-CREATE TABLE t1(a INT, b INT);
-CREATE USER u1@h;
+connect(con1,localhost,root,,);
+--connection con1
+--let $master_uuid=`SELECT @@SERVER_UUID`
+--let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $start_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 --echo #
---echo # The partially failed GRANT statement causes to log an incident event.
+--echo # A single statement on non-transactional table causes to log an incident
+--echo # event with an unique gtid due to the stmt_cache is not big enough to
+--echo # accommodate the changes.
 --echo #
---error ER_PASSWORD_NO_MATCH
-GRANT SELECT(a) ON t1 TO u1@h, u2@h;
-DROP USER u1@h;
+--disable_query_log
+--error ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
+eval INSERT INTO t1 (c1, data) VALUES (1,
+       CONCAT($data, $data, $data, $data, $data, $data));
+--enable_query_log
+--let $binlog_start= $start_pos
+--source include/show_binlog_events.inc
 DROP TABLE t1;
 
 exec $MYSQL_BINLOG --start-position=$start_pos $MYSQLD_DATADIR/$master_binlog >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
@@ -33,3 +53,9 @@ eval SELECT cont LIKE '%RELOAD DATABASE; # Shall generate syntax error%' AS `Con
 --enable_query_log
 
 remove_file $MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
+
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
+--disconnect con1

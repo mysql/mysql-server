@@ -137,7 +137,9 @@ while ($_dt_tables)
   # Compute length of ORDER BY clause.
   let $_dt_order_by_length=
     `SELECT SUM(LENGTH(column_name) + 3) FROM information_schema.columns
-            WHERE table_schema = '$_dt_database' AND table_name = '$_dt_table'`;
+            WHERE table_schema = '$_dt_database' AND
+                  table_name = '$_dt_table' AND
+                  column_type != 'JSON'`;
   if (!$_dt_order_by_length)
   {
     --echo ERROR IN TEST: table $_dt_database.$_dt_table not found in INFORMATION_SCHEMA.COLUMNS. Did you misspell it?
@@ -160,7 +162,9 @@ while ($_dt_tables)
   let $_dt_column_list=
     `SELECT GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
             FROM information_schema.columns
-            WHERE table_schema = '$_dt_database' AND table_name = '$_dt_table'`;
+            WHERE table_schema = '$_dt_database' AND
+                  table_name = '$_dt_table' AND
+                  column_type != 'json'`;
   # Restore group_concat_max_len.
   if ($_dt_old_group_concat_max_len)
   {
@@ -175,7 +179,12 @@ while ($_dt_tables)
   # the table to a file.
   --let $_dt_outfile= `SELECT @@datadir`
   --let $_dt_outfile= $_dt_outfile/diff_table-$_dt_connection-$_dt_database-$_dt_table
-  eval SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+  --let $statement = SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
+  if ($rpl_debug)
+  {
+    --echo $statement
+  }
+  --eval $statement
 
   # Compare files.
   if ($_dt_prev_outfile)

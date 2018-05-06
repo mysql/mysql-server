@@ -11,13 +11,13 @@ innodb_ft_user_stopword_table
 show session variables like 'innodb_ft_user_stopword_table';
 Variable_name	Value
 innodb_ft_user_stopword_table	
-select * from information_schema.global_variables where variable_name='innodb_ft_user_stopword_table';
+select * from performance_schema.global_variables where variable_name='innodb_ft_user_stopword_table';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_USER_STOPWORD_TABLE	
-select * from information_schema.session_variables where variable_name='innodb_ft_user_stopword_table';
+innodb_ft_user_stopword_table	
+select * from performance_schema.session_variables where variable_name='innodb_ft_user_stopword_table';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_USER_STOPWORD_TABLE	
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table Salmon does not exist.");
+innodb_ft_user_stopword_table	
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table Salmon does not exist.");
 set session innodb_ft_user_stopword_table='Salmon';
 ERROR 42000: Variable 'innodb_ft_user_stopword_table' can't be set to the value of 'Salmon'
 set @@session.innodb_ft_user_stopword_table='Salmon';

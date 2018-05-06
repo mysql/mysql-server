@@ -29,8 +29,8 @@ include/rpl_restart_server.inc [server_number=1]
 RESET MASTER;
 ###################### TEST #3
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
-CREATE TABLE t4 (a VARCHAR(16384)) Engine=MyISAM;
+CREATE TABLE t2 (a VARCHAR(16383)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16383)) Engine=MyISAM;
 INSERT INTO t1 VALUES (1);
 RESET MASTER;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data' INTO TABLE t2;
@@ -218,7 +218,7 @@ DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin' (errno: 2 - No such file or directory)
+ERROR HY000: Error writing file 'master-bin' (errno: 2 - No such file or directory)
 RESET MASTER;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');
@@ -245,12 +245,8 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL debug="-d,error_unique_log_filename";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -260,12 +256,8 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -275,12 +267,8 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
@@ -290,12 +278,8 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL debug="-d,fault_injection_openning_index";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]

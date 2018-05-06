@@ -48,7 +48,9 @@ CALL p1(1, 'MultiLineString((0 0,2 2,0 4))');
 CALL p1(1, 'MultiLineString((0 0,2 2),(0 2,2 0))');
 CALL p1(1, 'MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))');
 CALL p1(1, 'MultiLineString((0 0,0 1),(3 0,3 1))');
+--echo # Invalid geometry in input
 CALL p1(1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))');
+--echo # Invalid geometry in input
 CALL p1(1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))');
 CALL p1(1, 'GeometryCollection(Point(0 0))');
 --error ER_GIS_INVALID_DATA
@@ -82,7 +84,9 @@ CALL p1(0, 'MultiLineString((0 0,2 2))');
 CALL p1(0, 'MultiLineString((0 0,2 2,0 4))');
 CALL p1(0, 'MultiLineString((0 0,2 2),(0 2,2 0))');
 CALL p1(0, 'MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))');
+--echo # Invalid geometry in input
 CALL p1(0, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))');
+--echo # Invalid geometry in input
 CALL p1(0, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))');
 CALL p1(0, 'GeometryCollection(Point(0 0))');
 --error ER_GIS_INVALID_DATA
@@ -126,7 +130,9 @@ CALL p1(-1, 'MultiLineString((0 0,2 2),(0 2,2 0))');
 CALL p1(-1, 'MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))');
 #
 # Wrong shape
+--echo # Invalid geometry in input
 CALL p1(-1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))');
+--echo # Invalid geometry in input
 CALL p1(-1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))');
 #
 --error ER_WRONG_ARGUMENTS
@@ -176,7 +182,7 @@ SELECT ST_GeometryType(ST_BUFFER(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((3 5,2 5
 --echo # Bug#13358363 - ASSERTION: N > 0 && N < SINUSES_CALCULATED*2+1 | GET_N_SINCOS/ADD_EDGE_BUFFER
 --echo #
 
-DO ST_BUFFER(ST_GEOMCOLLFROMTEXT('linestring(1 1,2 2)'),'');
+DO ST_BUFFER(ST_LINEFROMTEXT('linestring(1 1,2 2)'),'');
 
 SELECT ST_WITHIN(
         ST_LINESTRINGFROMTEXT(' LINESTRING(3 8,9 2,3 8,3 3,7 6,4 7,4 7,8 1) '),

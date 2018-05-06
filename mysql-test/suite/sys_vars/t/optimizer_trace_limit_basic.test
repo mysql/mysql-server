@@ -8,13 +8,13 @@ SELECT @@global.optimizer_trace_limit;
 SET @@global.optimizer_trace_limit=5;
 show global variables like 'optimizer_trace_limit';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_limit';
 --enable_warnings
 
 select @@session.optimizer_trace_limit;
 show session variables like 'optimizer_trace_limit';
 --disable_warnings
-select * from information_schema.session_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.session_variables where variable_name='optimizer_trace_limit';
 --enable_warnings
 
 #

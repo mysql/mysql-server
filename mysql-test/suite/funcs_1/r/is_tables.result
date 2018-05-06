@@ -28,13 +28,13 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.TABLES;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-TABLE_TYPE	varchar(64)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+TABLE_TYPE	enum('BASE TABLE','VIEW','SYSTEM VIEW')	NO		NULL	
 ENGINE	varchar(64)	YES		NULL	
-VERSION	bigint(21) unsigned	YES		NULL	
-ROW_FORMAT	varchar(10)	YES		NULL	
+VERSION	int(2)	YES		NULL	
+ROW_FORMAT	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')	YES		NULL	
 TABLE_ROWS	bigint(21) unsigned	YES		NULL	
 AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_LENGTH	bigint(21) unsigned	YES		NULL	
@@ -42,47 +42,25 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	datetime	YES		NULL	
+CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
-TABLE_COLLATION	varchar(32)	YES		NULL	
-CHECKSUM	bigint(21) unsigned	YES		NULL	
-CREATE_OPTIONS	varchar(255)	YES		NULL	
-TABLE_COMMENT	varchar(2048)	NO			
+TABLE_COLLATION	varchar(64)	YES		NULL	
+CHECKSUM	bigint(21)	YES		NULL	
+CREATE_OPTIONS	varchar(256)	YES		NULL	
+TABLE_COMMENT	varchar(256)	YES		NULL	
 SHOW CREATE TABLE information_schema.TABLES;
-Table	Create Table
-TABLES	CREATE TEMPORARY TABLE `TABLES` (
-  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',
-  `ENGINE` varchar(64) DEFAULT NULL,
-  `VERSION` bigint(21) unsigned DEFAULT NULL,
-  `ROW_FORMAT` varchar(10) DEFAULT NULL,
-  `TABLE_ROWS` bigint(21) unsigned DEFAULT NULL,
-  `AVG_ROW_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `MAX_DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `INDEX_LENGTH` bigint(21) unsigned DEFAULT NULL,
-  `DATA_FREE` bigint(21) unsigned DEFAULT NULL,
-  `AUTO_INCREMENT` bigint(21) unsigned DEFAULT NULL,
-  `CREATE_TIME` datetime DEFAULT NULL,
-  `UPDATE_TIME` datetime DEFAULT NULL,
-  `CHECK_TIME` datetime DEFAULT NULL,
-  `TABLE_COLLATION` varchar(32) DEFAULT NULL,
-  `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
-  `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
-  `TABLE_COMMENT` varchar(2048) NOT NULL DEFAULT ''
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,internal_table_rows(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`table_rows`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `TABLE_ROWS`,internal_avg_row_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`avg_row_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `AVG_ROW_LENGTH`,internal_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`data_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `DATA_LENGTH`,internal_max_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`max_data_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `MAX_DATA_LENGTH`,internal_index_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`index_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `INDEX_LENGTH`,internal_data_free(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`data_free`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `DATA_FREE`,internal_auto_increment(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`auto_increment`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0),`tbl`.`se_private_data`) AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,internal_update_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(cast(`stat`.`update_time` as unsigned),0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `UPDATE_TIME`,internal_check_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(cast(`stat`.`check_time` as unsigned),0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,internal_checksum(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`checksum`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from (((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`tablespaces` `ts` on((`tbl`.`tablespace_id` = `ts`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.TABLES;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-TABLE_TYPE	varchar(64)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+TABLE_TYPE	enum('BASE TABLE','VIEW','SYSTEM VIEW')	NO		NULL	
 ENGINE	varchar(64)	YES		NULL	
-VERSION	bigint(21) unsigned	YES		NULL	
-ROW_FORMAT	varchar(10)	YES		NULL	
+VERSION	int(2)	YES		NULL	
+ROW_FORMAT	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')	YES		NULL	
 TABLE_ROWS	bigint(21) unsigned	YES		NULL	
 AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_LENGTH	bigint(21) unsigned	YES		NULL	
@@ -90,21 +68,21 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	datetime	YES		NULL	
+CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
-TABLE_COLLATION	varchar(32)	YES		NULL	
-CHECKSUM	bigint(21) unsigned	YES		NULL	
-CREATE_OPTIONS	varchar(255)	YES		NULL	
-TABLE_COMMENT	varchar(2048)	NO			
+TABLE_COLLATION	varchar(64)	YES		NULL	
+CHECKSUM	bigint(21)	YES		NULL	
+CREATE_OPTIONS	varchar(256)	YES		NULL	
+TABLE_COMMENT	varchar(256)	YES		NULL	
 SELECT table_catalog, table_schema, table_name
 FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> 'def';
-table_catalog	table_schema	table_name
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME
 ################################################################################
 # Testcase 3.2.12.2 + 3.2.12.3: INFORMATION_SCHEMA.TABLES accessible information
 ################################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT CREATE, CREATE VIEW, INSERT, SELECT ON db_datadict.*
@@ -115,13 +93,22 @@ DROP   USER 'testuser3'@'localhost';
 CREATE USER 'testuser3'@'localhost';
 CREATE TABLE db_datadict.tb1 (f1 INT, f2 INT, f3 INT)
 ENGINE = <engine_type>;
+ANALYZE TABLE db_datadict.tb1;
+Table	Op	Msg_type	Msg_text
+db_datadict.tb1	analyze	status	Table is already up to date
 GRANT SELECT ON db_datadict.tb1 TO 'testuser1'@'localhost';
 GRANT ALL    ON db_datadict.tb1 TO 'testuser2'@'localhost' WITH GRANT OPTION;
 # Establish connection testuser1 (user=testuser1)
 CREATE TABLE tb2 (f1 DECIMAL)
 ENGINE = <engine_type>;
+ANALYZE TABLE tb2;
+Table	Op	Msg_type	Msg_text
+db_datadict.tb2	analyze	status	Table is already up to date
 CREATE TABLE tb3 (f1 VARCHAR(200))
 ENGINE = <engine_type>;
+ANALYZE TABLE tb3;
+Table	Op	Msg_type	Msg_text
+db_datadict.tb3	analyze	status	Table is already up to date
 GRANT SELECT ON db_datadict.tb3 to 'testuser3'@'localhost';
 GRANT INSERT ON db_datadict.tb3 to 'testuser2'@'localhost';
 CREATE VIEW v3 AS SELECT * FROM tb3;
@@ -132,7 +119,7 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE
 def	db_datadict	tb1	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
 def	db_datadict	tb2	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
 def	db_datadict	tb3	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
-def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
+def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
 SHOW TABLES FROM db_datadict;
 Tables_in_db_datadict
 tb1
@@ -154,7 +141,7 @@ SELECT * FROM information_schema.tables
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 def	db_datadict	tb3	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
-def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
+def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
 SHOW TABLES FROM db_datadict;
 Tables_in_db_datadict
 tb3
@@ -166,7 +153,7 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE
 def	db_datadict	tb1	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
 def	db_datadict	tb2	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
 def	db_datadict	tb3	BASE TABLE	#ENG#	10	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	latin1_swedish_ci	#CS#		
-def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
+def	db_datadict	v3	VIEW	#ENG#	NULL	#RF#	0	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	#CRT	#UT#	#CT#	NULL	#CS#	NULL	VIEW
 SHOW TABLES FROM db_datadict;
 Tables_in_db_datadict
 tb1
@@ -183,13 +170,16 @@ DROP DATABASE db_datadict;
 #########################################################################
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 CREATE TABLE test.t1_my_table (f1 BIGINT)
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
 COMMENT = 'Initial Comment' ENGINE = <engine_type>;
+ANALYZE TABLE test.t1_my_table;
+Table	Op	Msg_type	Msg_text
+test.t1_my_table	analyze	status	Table is already up to date
 SELECT * FROM information_schema.tables
 WHERE table_name = 't1_my_table';
 TABLE_CATALOG	def
@@ -215,102 +205,125 @@ CREATE_OPTIONS
 TABLE_COMMENT	Initial Comment
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 t1_my_table
 RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
+ANALYZE TABLE test.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+test.t1_my_tablex	analyze	status	Table is already up to date
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 t1_my_tablex
 SELECT table_schema,table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 test	t1_my_tablex
 RENAME TABLE test.t1_my_tablex TO db_datadict.t1_my_tablex;
 SELECT table_schema,table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 db_datadict	t1_my_tablex
 SELECT table_name, engine FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	engine
+TABLE_NAME	ENGINE
 t1_my_tablex	<engine_type>
 ALTER TABLE db_datadict.t1_my_tablex
 ENGINE = <other_engine_type>;
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	Table is already up to date
 SELECT table_name, engine FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	engine
+TABLE_NAME	ENGINE
 t1_my_tablex	<other_engine_type>
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_rows
+TABLE_NAME	TABLE_ROWS
 t1_my_tablex	0
 INSERT INTO db_datadict.t1_my_tablex VALUES(1),(2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT table_name, table_rows FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_rows
+TABLE_NAME	TABLE_ROWS
 t1_my_tablex	2
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_collation
+TABLE_NAME	TABLE_COLLATION
 t1_my_tablex	latin1_swedish_ci
 ALTER TABLE db_datadict.t1_my_tablex DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_collation
+TABLE_NAME	TABLE_COLLATION
 t1_my_tablex	utf8_general_ci
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_collation
+TABLE_NAME	TABLE_COLLATION
 t1_my_tablex	utf8_general_ci
 ALTER TABLE db_datadict.t1_my_tablex
 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci;
 SELECT table_name, table_collation FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	table_collation
+TABLE_NAME	TABLE_COLLATION
 t1_my_tablex	latin1_german1_ci
 SELECT table_name, TABLE_COMMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	TABLE_COMMENT
+TABLE_NAME	TABLE_COMMENT
 t1_my_tablex	Initial Comment
 ALTER TABLE db_datadict.t1_my_tablex COMMENT 'Changed Comment';
 SELECT table_name, TABLE_COMMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	TABLE_COMMENT
+TABLE_NAME	TABLE_COMMENT
 t1_my_tablex	Changed Comment
 SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	AUTO_INCREMENT
+TABLE_NAME	AUTO_INCREMENT
 t1_my_tablex	NULL
 ALTER TABLE db_datadict.t1_my_tablex
 ADD f2 BIGINT AUTO_INCREMENT, ADD PRIMARY KEY (f2);
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT table_name, AUTO_INCREMENT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	AUTO_INCREMENT
+TABLE_NAME	AUTO_INCREMENT
 t1_my_tablex	3
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	ROW_FORMAT
+TABLE_NAME	ROW_FORMAT
 t1_my_tablex	Fixed
 ALTER TABLE db_datadict.t1_my_tablex ROW_FORMAT = dynamic;
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT table_name, ROW_FORMAT FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	ROW_FORMAT
+TABLE_NAME	ROW_FORMAT
 t1_my_tablex	Dynamic
 SELECT table_name, checksum FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	checksum
+TABLE_NAME	CHECKSUM
 t1_my_tablex	NULL
 ALTER TABLE db_datadict.t1_my_tablex CHECKSUM = 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT table_name, checksum IS NOT NULL FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name	checksum IS NOT NULL
+TABLE_NAME	checksum IS NOT NULL
 t1_my_tablex	1
 SELECT UPDATE_TIME, checksum INTO @UPDATE_TIME, @checksum
 FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 INSERT INTO db_datadict.t1_my_tablex SET f1 = 3;
 FLUSH TABLES;
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT UPDATE_TIME > @UPDATE_TIME
 AS "Is current UPDATE_TIME bigger than before last INSERT?"
 FROM information_schema.tables
@@ -327,14 +340,17 @@ SELECT CREATE_TIME INTO @CREATE_TIME FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 t1_my_tablex
 DROP TABLE db_datadict.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
-table_name
+TABLE_NAME
 CREATE TABLE test.t1_my_tablex (f1 BIGINT)
 ENGINE = <other_engine_type>;
+ANALYZE TABLE test.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+test.t1_my_tablex	analyze	status	Table is already up to date
 SELECT CREATE_TIME > @CREATE_TIME
 AS "Is current CREATE_TIME bigger than for the old dropped table?"
 FROM information_schema.tables
@@ -343,6 +359,10 @@ Is current CREATE_TIME bigger than for the old dropped table?
 1
 DROP TABLE test.t1_my_tablex;
 CREATE VIEW test.t1_my_tablex AS SELECT 1;
+ANALYZE TABLE test.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+test.t1_my_tablex	analyze	Error	'test.t1_my_tablex' is not BASE TABLE
+test.t1_my_tablex	analyze	status	Operation failed
 SELECT * FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
 TABLE_CATALOG	def
@@ -352,14 +372,14 @@ TABLE_TYPE	VIEW
 ENGINE	NULL
 VERSION	NULL
 ROW_FORMAT	NULL
-TABLE_ROWS	NULL
-AVG_ROW_LENGTH	NULL
-DATA_LENGTH	NULL
-MAX_DATA_LENGTH	NULL
-INDEX_LENGTH	NULL
-DATA_FREE	NULL
+TABLE_ROWS	0
+AVG_ROW_LENGTH	0
+DATA_LENGTH	0
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	0
+DATA_FREE	0
 AUTO_INCREMENT	NULL
-CREATE_TIME	NULL
+CREATE_TIME	#CRT
 UPDATE_TIME	NULL
 CHECK_TIME	NULL
 TABLE_COLLATION	NULL
@@ -369,7 +389,7 @@ TABLE_COMMENT	VIEW
 DROP VIEW test.t1_my_tablex;
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 CREATE TEMPORARY TABLE test.t1_my_tablex
 ENGINE = <other_engine_type>
 AS SELECT 1;
@@ -379,22 +399,28 @@ DROP TEMPORARY TABLE test.t1_my_tablex;
 CREATE TABLE db_datadict.t1_my_tablex
 ENGINE = <engine_type> AS
 SELECT 1;
+ANALYZE TABLE db_datadict.t1_my_tablex;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1_my_tablex	analyze	status	OK
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 t1_my_tablex
 DROP DATABASE db_datadict;
 SELECT table_name FROM information_schema.tables
 WHERE table_name = 't1_my_tablex';
-table_name
+TABLE_NAME
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
 #           DDL on INFORMATION_SCHEMA tables are not supported
 ########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
 ENGINE = <engine_type>;
+ANALYZE TABLE db_datadict.t1;
+Table	Op	Msg_type	Msg_text
+db_datadict.t1	analyze	status	Table is already up to date
 INSERT INTO information_schema.tables
 SELECT * FROM information_schema.tables;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'

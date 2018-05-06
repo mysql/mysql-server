@@ -1,0 +1,97 @@
+################################################################################
+# This test verifies the impact when a server is crashed during a incomplete
+# transaction with savepoints in progress
+#
+# Test:
+# 0. The test requires two servers: M1, M2
+# 1. Create a table on M1.
+# 2. Start a transaction t1 on M1, and crash the server M1 post savepoint and
+#    check the status of server on restart.
+# 3. Clean up
+################################################################################
+
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $member1_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo #1. Create table t1 on M1
+CREATE TABLE table1(a int primary key);
+# Insert some values
+INSERT INTO table1 values (1),(2);
+
+--source include/rpl_sync.inc
+
+--echo #2. Start transaction t1, crash server M1 post savepoint
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Transaction t1.
+BEGIN;
+INSERT INTO table1 VALUES (3);
+SAVEPOINT s1;
+UPDATE table1 SET a= -1 where a=1;
+SAVEPOINT s2;
+
+# Crash server
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $restart_parameters=restart:--group_replication_local_address=$member1_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $member1_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+# unblock group
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member1_uuid
+--source include/gr_wait_for_member_state.inc
+
+--replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1
+eval SET GLOBAL group_replication_force_members= "$member2_group_replication_local_address";
+
+# rejoin M1 to group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Upon start wait until server M1 comes online.
+let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where member_state= "ONLINE";
+--source include/wait_condition.inc
+
+# check that incomplete transaction t1 is rolled back, table1 should have only 2 tuples.
+--let $assert_text= 'There should be two values in table1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM table1, count, 1] = 2
+--source include/assert.inc
+
+--echo 3. Clean-up
+DROP TABLE table1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
+
+--source include/group_replication_end.inc

@@ -1,0 +1,13 @@
+
+--echo #
+--echo # Bug#24286064: JSON MEMORY USAGE MISSING FROM THE MEMORY SUMMARY TABLES
+--echo #
+# Do something that will allocate JSON data.
+SELECT CAST(123 AS JSON);
+# Verify that JSON is in the summary table, and that memory has been
+# allocated and freed.
+SELECT event_name, count_alloc > 0, count_alloc = count_free,
+sum_number_of_bytes_alloc > 0,
+sum_number_of_bytes_alloc = sum_number_of_bytes_free
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/sql/JSON';

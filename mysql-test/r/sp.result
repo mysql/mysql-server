@@ -8,12 +8,12 @@ drop function if exists f2;
 create table t1 (
 id   char(16) not null default '',
 data int not null
-);
+) engine=myisam;
 create table t2 (
 s   char(16),
 i   int,
 d   double
-);
+) engine=myisam;
 drop procedure if exists foo42;
 create procedure foo42()
 insert into test.t1 values ("foo", 42);
@@ -31,12 +31,12 @@ select * from t1;
 id	data
 bar	666
 delete from t1;
-drop procedure if exists empty|
-create procedure empty()
+drop procedure if exists `empty`|
+create procedure `empty`()
 begin
 end|
-call empty()|
-drop procedure empty|
+call `empty`()|
+drop procedure `empty`|
 drop procedure if exists scope|
 create procedure scope(a int, b float)
 begin
@@ -122,13 +122,13 @@ drop procedure if exists mixset|
 create procedure mixset(x char(16), y int)
 begin
 declare z int;
-set @z = y, z = 666, max_join_size = 100;
+set @z = y, z = 666;
 insert into test.t1 values (x, z);
 end|
 call mixset("mixset", 19)|
 show variables like 'max_join_size'|
 Variable_name	Value
-max_join_size	100
+max_join_size	18446744073709551615
 select id,data,@z from t1|
 id	data	@z
 mixset	666	19
@@ -314,7 +314,8 @@ delete from t1|
 drop procedure b|
 drop procedure if exists b2|
 create procedure b2(x int)
-repeat(select 1 into outfile 'b2');
+repeat
+select 1 into outfile 'b2';
 insert into test.t1 values (repeat("b2",3), x);
 set x = x-1;
 until x = 0 end repeat|
@@ -791,10 +792,10 @@ comment 'Characteristics procedure test'
   insert into t1 values ("chistics", 1)|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
+insert into t1 values ("chistics", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call chistics()|
 select * from t1|
 id	data
@@ -803,11 +804,11 @@ delete from t1|
 alter procedure chistics sql security invoker|
 show create procedure chistics|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
+insert into t1 values ("chistics", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure chistics|
 drop function if exists chistics|
 create function chistics() returns int
@@ -818,11 +819,11 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-return 42	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 42	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select chistics()|
 chistics()
 42
@@ -831,17 +832,15 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
-return 42	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 42	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function chistics|
 insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
 set @@sql_mode = 'ANSI'|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop procedure if exists modes$
 create procedure modes(out c1 int, out c2 int)
 begin
@@ -884,8 +883,8 @@ create procedure dummy(out x int)
 set x = 42|
 use test|
 drop database sp_db3|
-select type,db,name from mysql.proc where db = 'sp_db3'|
-type	db	name
+select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema = 'sp_db3'|
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 drop procedure if exists rc|
 create procedure rc()
 begin
@@ -1093,18 +1092,6 @@ ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select f4()|
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables|
-lock tables v2 read, mysql.proc read|
-select * from v2|
-a
-30
-select * from v1|
-a
-3
-select * from v1, t1|
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
-select f4()|
-ERROR HY000: Table 't2' was not locked with LOCK TABLES
-unlock tables|
 create function f9() returns int
 begin
 declare a, b int;
@@ -1223,7 +1210,7 @@ n	f
 drop table t3|
 show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure ifac|
 drop function fac|
 show function status like '%fac'|
@@ -1315,11 +1302,11 @@ set s = s+1;
 end;
 end if;
 end loop;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
-test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call ip(200)|
 select * from t3 where i=45 or i=100 or i=199|
 i	p
@@ -1337,7 +1324,7 @@ comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)|
 show procedure status like 'bar'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 alter procedure bar comment "2222222222" sql security definer|
 alter procedure bar comment "3333333333"|
 alter procedure bar|
@@ -1345,10 +1332,10 @@ show create procedure bar|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar		CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x char(16), y int)
     COMMENT '3333333333'
-insert into test.t1 values (x, y)	latin1	latin1_swedish_ci	latin1_swedish_ci
+insert into test.t1 values (x, y)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show procedure status like 'bar'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bar|
 drop procedure if exists p1|
 create procedure p1 ()
@@ -1421,8 +1408,8 @@ getcount(id)
 select * from t3|
 v	c
 bar	4
-zip	3
 foo	1
+zip	3
 drop table t3|
 drop function getcount|
 drop table if exists t3|
@@ -1914,23 +1901,23 @@ end|
 create function bug2267_4() returns int return 100|
 call bug2267_1()|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
-test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
-test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
-test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_2()|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_3()|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
 show procedure status where db='test';
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
-return 100	latin1	latin1_swedish_ci	latin1_swedish_ci
+return 100	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
@@ -2142,8 +2129,8 @@ create procedure bug3734 (param1 varchar(100))
 select * from t3 where match (title,body) against (param1)|
 call bug3734('database')|
 id	title	body
-5	MySQL vs. YourSQL	In the following database comparison ...
 1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
 call bug3734('Security')|
 id	title	body
 6	MySQL Security	When configured properly, MySQL ...
@@ -2234,19 +2221,19 @@ show create procedure bug2564_1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2564_1`()
     COMMENT 'Joe''s procedure'
-insert into `t1` values ("foo", 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
+insert into `t1` values ("foo", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug2564_2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
-insert into "t1" values ('foo', 1)	latin1	latin1_swedish_ci	latin1_swedish_ci
+insert into "t1" values ('foo', 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
-return x || y	latin1	latin1_swedish_ci	latin1_swedish_ci
+return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
-return x || y	latin1	latin1_swedish_ci	latin1_swedish_ci
+return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2564_1|
 drop procedure bug2564_2|
 drop function bug2564_3|
@@ -2314,7 +2301,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `bug2773()` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3|
 drop function bug2773|
 drop procedure if exists bug3788|
@@ -2348,6 +2335,7 @@ call bug4726()|
 drop procedure bug4726|
 drop table t3|
 drop procedure if exists bug4902|
+set SQL_BIG_SELECTS=1|
 create procedure bug4902()
 begin
 show charset like 'foo';
@@ -2359,7 +2347,7 @@ show errors;
 show columns from t1;
 show keys from t1;
 show open tables like 'foo';
-# Removed because result will differ in embedded mode.
+#show privileges need to be commented as its output differs on different platform
 #show privileges;
 show status like 'foo';
 show tables like 'foo';
@@ -2368,20 +2356,20 @@ show warnings;
 end|
 call bug4902()|
 Charset	Description	Default collation	Maxlen
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO		NULL	
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 Database	Table	In_use	Name_locked
 Variable_name	Value
 Tables_in_test (foo)
@@ -2389,20 +2377,20 @@ Variable_name	Value
 Level	Code	Message
 call bug4902()|
 Charset	Description	Default collation	Maxlen
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
   `data` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
-test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
 data	int(11)	NO		NULL	
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 Database	Table	In_use	Name_locked
 Variable_name	Value
 Tables_in_test (foo)
@@ -2464,11 +2452,11 @@ drop procedure if exists bug5251|
 create procedure bug5251()
 begin
 end|
-select created into @c1 from mysql.proc
-where db='test' and name='bug5251'|
+select created into @c1 from information_schema.routines
+where routine_schema='test' and routine_name='bug5251'|
 alter procedure bug5251 comment 'foobar'|
-select count(*) from mysql.proc
-where  db='test' and name='bug5251' and created = @c1|
+select count(*) from information_schema.routines
+where routine_schema='test' and routine_name='bug5251' and created = @c1|
 count(*)
 1
 drop procedure bug5251|
@@ -2512,7 +2500,7 @@ drop procedure if exists bug5258_aux|
 create procedure bug5258_aux()
 begin
 declare c, m char(19);
-select created,modified into c,m from mysql.proc where name = 'bug5258';
+select created,last_altered into c,m from information_schema.routines where routine_name = 'bug5258';
 if c = m then
 select 'Ok';
 else
@@ -3008,34 +2996,6 @@ select @tmp1, @tmp2|
 50	60
 drop procedure bug9598_1|
 drop procedure bug9598_2|
-drop procedure if exists bug9902|
-create function bug9902() returns int(11)
-begin
-set @x = @x + 1;
-return @x;
-end|
-set @qcs1 = @@query_cache_size|
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-set global query_cache_size = 102400|
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-set @x = 1|
-insert into t1 values ("qc", 42)|
-select bug9902() from t1|
-bug9902()
-2
-select bug9902() from t1|
-bug9902()
-3
-select @x|
-@x
-3
-set global query_cache_size = @qcs1|
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-delete from t1|
-drop function bug9902|
 drop function if exists bug9102|
 create function bug9102() returns blob return 'a'|
 select bug9102()|
@@ -3334,18 +3294,18 @@ show create procedure bug6063|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug6063		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug6063`()
 begin
-l�bel: begin end;
+lâbel: begin end;
 label: begin end;
 label1: begin end;
-end	utf8	latin1_swedish_ci	latin1_swedish_ci
+end	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug7088_1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug7088_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_1`()
-label1: begin end label1	utf8	latin1_swedish_ci	latin1_swedish_ci
+label1: begin end label1	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug7088_2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug7088_2		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_2`()
-l�bel1: begin end	utf8	latin1_swedish_ci	latin1_swedish_ci
+läbel1: begin end	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
@@ -3408,10 +3368,11 @@ drop function if exists bug10055|
 create function bug10055(v char(255)) returns char(255) return lower(v)|
 select t.column_name, bug10055(t.column_name)
 from information_schema.columns as t
-where t.table_schema = 'test' and t.table_name = 't1'|
-column_name	bug10055(t.column_name)
-id	id
+where t.table_schema = 'test' and t.table_name = 't1'
+order by t.column_name|
+COLUMN_NAME	bug10055(t.column_name)
 data	data
+id	id
 drop function bug10055|
 drop procedure if exists bug12297|
 create procedure bug12297(lim int)
@@ -3681,8 +3642,6 @@ drop procedure if exists bug6127|
 create table t3 (s1 int unique)|
 set @sm=@@sql_mode|
 set sql_mode='traditional'|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure bug6127()
 begin
 declare continue handler for sqlstate '23000'
@@ -3706,8 +3665,6 @@ s1
 0
 1
 set sql_mode=@sm|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t3|
 drop procedure bug6127|
 drop procedure if exists bug12589_1|
@@ -3742,17 +3699,17 @@ call bug12589_1()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(3,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call bug12589_2()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call bug12589_3()|
 Table	Create Table
 tm1	CREATE TEMPORARY TABLE `tm1` (
   `spv1` decimal(6,3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop procedure bug12589_1|
 drop procedure bug12589_2|
 drop procedure bug12589_3|
@@ -3907,7 +3864,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
 main_loop: begin
 return 42;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select bug14723();;
 bug14723()
 42
@@ -3920,7 +3877,7 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 bug14723		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug14723`()
 main_loop: begin
 select 42;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug14723();;
 42
 42
@@ -4245,7 +4202,7 @@ x
 drop procedure bug14376|
 drop procedure if exists bug5967|
 drop table if exists t3|
-create table t3 (a varchar(255))|
+create table t3 (a varchar(255)) engine=myisam|
 insert into t3 (a) values ("a - table column")|
 create procedure bug5967(a varchar(255))
 begin
@@ -4788,12 +4745,12 @@ create procedure bug18344_2() begin end|
 use test|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 bug18344_012345678901
 bug18344_0123456789012
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
-routine_name	routine_schema
+ROUTINE_NAME	ROUTINE_SCHEMA
 bug18344	bug18344_012345678901
 bug18344_2	bug18344_012345678901
 bug18344	bug18344_0123456789012
@@ -4802,10 +4759,10 @@ drop database bug18344_012345678901|
 drop database bug18344_0123456789012|
 select schema_name from information_schema.schemata where 
 schema_name like 'bug18344%'|
-schema_name
+SCHEMA_NAME
 select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
-routine_name	routine_schema
+ROUTINE_NAME	ROUTINE_SCHEMA
 drop function if exists bug12472|
 create function bug12472() returns int return (select count(*) from t1)|
 create table t3 as select bug12472() as i|
@@ -4813,7 +4770,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 i
 0
@@ -4824,7 +4781,7 @@ show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `j` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 j
 0
@@ -4912,7 +4869,11 @@ mysqltest1.bug18444(i)
 3
 drop database mysqltest1|
 create database mysqltest1 charset=utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create database mysqltest2 charset=utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create procedure mysqltest1.p1()
 begin
 -- alters the default collation of database test 
@@ -4927,6 +4888,8 @@ show create database mysqltest2|
 Database	Create Database
 mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */
 alter database mysqltest1 character set utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest2|
 call mysqltest1.p1()|
 show create database mysqltest1|
@@ -4974,7 +4937,11 @@ DROP PROCEDURE bug21013 |
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 CREATE FUNCTION bug16211_f1() RETURNS CHAR(10)
 RETURN ""|
@@ -4987,48 +4954,52 @@ RETURN ""|
 SHOW CREATE FUNCTION bug16211_f1|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(bug16211_f2())|
 CHARSET(bug16211_f2())
 koi8r
 SELECT CHARSET(mysqltest2.bug16211_f3())|
 CHARSET(mysqltest2.bug16211_f3())
 utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(mysqltest2.bug16211_f4())|
 CHARSET(mysqltest2.bug16211_f4())
 koi8r
@@ -5037,38 +5008,38 @@ ALTER DATABASE mysqltest2 CHARACTER SET cp1251|
 SHOW CREATE FUNCTION bug16211_f1|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
-RETURN ""	latin1	latin1_swedish_ci	utf8_general_ci
+RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT dtd_identifier
 FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
-dtd_identifier
+DTD_IDENTIFIER
 char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
@@ -5087,6 +5058,8 @@ DROP DATABASE mysqltest1|
 DROP DATABASE mysqltest2|
 DROP DATABASE IF EXISTS mysqltest1|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 CREATE PROCEDURE bug16676_p1(
 IN p1 CHAR(10),
@@ -5115,6 +5088,10 @@ CHARSET(p2)	COLLATION(p2)
 utf8	utf8_general_ci
 CHARSET(p3)	COLLATION(p3)
 utf8	utf8_general_ci
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL bug16676_p2('a', @v2, @v3)|
 CHARSET(p1)	COLLATION(p1)
 koi8r	koi8r_general_ci
@@ -5296,7 +5273,7 @@ create procedure bug21416() show create procedure bug21416|
 call bug21416()|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
-show create procedure bug21416	latin1	latin1_swedish_ci	latin1_swedish_ci
+show create procedure bug21416	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug21416|
 DROP PROCEDURE IF EXISTS bug21414|
 CREATE PROCEDURE bug21414() SELECT 1|
@@ -5306,13 +5283,6 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES|
 The following should succeed.
 DROP PROCEDURE bug21414|
-set names utf8|
-drop database if exists това_е_дълго_име_за_база_данни_нали|
-create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','', 'utf8', 'utf8_general_ci', 'utf8_general_ci', 'n/a')|
-call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
-ERROR HY000: Failed to load routine това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
-drop database това_е_дълго_име_за_база_данни_нали|
 CREATE TABLE t3 (
 Member_ID varchar(15) NOT NULL,
 PRIMARY KEY (Member_ID)
@@ -5433,8 +5403,6 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 call proc_20028_c()|
 ERROR 22012: Division by 0
 SET sql_mode='TRADITIONAL'|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function func_20028_a|
 drop function func_20028_b|
 drop function func_20028_c|
@@ -5490,8 +5458,6 @@ Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 call proc_20028_c()|
 SET @@sql_mode=@save_sql_mode|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function func_20028_a|
 drop function func_20028_b|
 drop function func_20028_c|
@@ -6073,7 +6039,7 @@ examplebug20777	CREATE TABLE `examplebug20777` (
   `2**64-2` bigint(20) unsigned DEFAULT NULL,
   `2**64-1` bigint(20) unsigned DEFAULT NULL,
   `2**64` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from examplebug20777 order by i;
 i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64
 0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615
@@ -6107,7 +6073,7 @@ create procedure proc_21513()`my_label`:BEGIN END|
 show create procedure proc_21513|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_21513		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_21513`()
-`my_label`:BEGIN END	utf8	utf8_general_ci	latin1_swedish_ci
+`my_label`:BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure proc_21513|
 End of 5.0 tests.
 drop table t1,t2;
@@ -6142,7 +6108,7 @@ CREATE FUNCTION metered(a INT) RETURNS INT RETURN 12;
 CREATE VIEW v1 AS SELECT test.metered(a) as metered FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`metered`(`t1`.`a`) AS `metered` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 DROP FUNCTION metered;
 DROP TABLE t1;
@@ -6282,7 +6248,7 @@ select 1;
 select 3;
  select 4; 
 
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_25411_a();
 1
 1
@@ -6302,10 +6268,10 @@ proc_25411_b		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_b`(
 )
 begin
 select p1, p2;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
-select name, param_list, body from mysql.proc where name like "%25411%";
-name	param_list	body
-proc_25411_a		begin
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+ROUTINE_NAME	ROUTINE_DEFINITION
+proc_25411_a	begin
 /* real comment */
 select 1;
  select 2; 
@@ -6313,21 +6279,18 @@ select 3;
  select 4; 
 
 end
-proc_25411_b	
-/* real comment */
- p1 int, 
- p2 int 
-
-	begin
+proc_25411_b	begin
 select p1, p2;
 end
-proc_25411_c		begin
+proc_25411_c	begin
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
 end
+select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
+PARAMETER_NAME
 call proc_25411_b(10, 20);
 p1	p2
 10	20
@@ -6340,7 +6303,7 @@ select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_25411_c();
 1	2	3
 1	2	3
@@ -6361,7 +6324,7 @@ select 1 /* testing */;
 show create procedure proc_26302;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_26302		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_26302`()
-select 1 /* testing */	latin1	latin1_swedish_ci	latin1_swedish_ci
+select 1 /* testing */	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
 where ROUTINE_NAME = "proc_26302";
 ROUTINE_NAME	ROUTINE_DEFINITION
@@ -6372,6 +6335,9 @@ CREATE FUNCTION f2(I INT) RETURNS INT DETERMINISTIC RETURN 3;
 CREATE TABLE t1 (c1 INT, INDEX(c1));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
@@ -6425,12 +6391,12 @@ end|
 create view v1 as select 1 as one, f1() as days;
 show create view test.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v1` AS select 1 AS `one`,`f1`() AS `days`	utf8mb4	utf8mb4_0900_ai_ci
 select column_name from information_schema.columns
-where table_name='v1' and table_schema='test';
-column_name
-one
+where table_name='v1' and table_schema='test' order by column_name;
+COLUMN_NAME
 days
+one
 drop view v1;
 drop function f1;
 
@@ -6448,7 +6414,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
 
@@ -6459,7 +6425,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
 
@@ -6468,7 +6434,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` bigint(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
 
@@ -6479,7 +6445,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` bigint(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
 
@@ -6786,7 +6752,13 @@ declare `str` text charset utf8;
 set `str` := `a`;
 select substr(`str`, `pos`+ 1 ) into `str`;
 end $
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 call `p2`('s s s s s s');
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop procedure `p2`;
 drop table if exists t1;
 drop procedure if exists p1;
@@ -6823,6 +6795,8 @@ DROP FUNCTION IF EXISTS f2;
 #
 
 CREATE FUNCTION f1() RETURNS VARCHAR(65525) RETURN 'Hello';
+Warnings:
+Note	1246	Converting column '' from VARCHAR to TEXT
 
 CREATE FUNCTION f2() RETURNS TINYINT RETURN 1;
 
@@ -6836,7 +6810,7 @@ CREATE VIEW v2 AS SELECT f2();
 
 SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
 DATA_TYPE
-varchar
+mediumtext
 
 SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v2';
 DATA_TYPE
@@ -6887,7 +6861,7 @@ Another_very_long_enum_element_identifier
 
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(p INT) RETURNS enum('Very_long_enum_element_identifier','Another_very_long_enum_element_identifier') CHARSET latin1
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(p INT) RETURNS enum('Very_long_enum_element_identifier','Another_very_long_enum_element_identifier') CHARSET utf8mb4
 BEGIN
 CASE p
 WHEN 1 THEN
@@ -6895,7 +6869,7 @@ RETURN 'Very_long_enum_element_identifier';
 ELSE
 RETURN 'Another_very_long_enum_element_identifier';
 END CASE;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 #
 # - Bug#24923: cleanup.
 #
@@ -6904,19 +6878,15 @@ DROP FUNCTION f1;
 
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
 set @@sql_mode= @old_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
-name
+select routine_name from information_schema.routines where routine_name = 'p' and sql_mode = @full_mode;
+ROUTINE_NAME
 p
 drop procedure p;
 CREATE DEFINER = 'root'@'localhost' PROCEDURE p1()
@@ -7159,7 +7129,7 @@ SELECT f1();
 f1()
 a
 Warnings:
-Warning	1265	Data truncated for column 'f4()' at row 1
+Warning	1265	Data truncated for column 'f4()' at row 2
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
@@ -7175,11 +7145,8 @@ COMMENT
 '12345678901234567890123456789012345678901234567890123456789012345678901234567890'
 BEGIN
 END;
-SELECT comment FROM mysql.proc WHERE name = "p1";
-comment
-12345678901234567890123456789012345678901234567890123456789012345678901234567890
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
-routine_comment
+ROUTINE_COMMENT
 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 DROP PROCEDURE p1;
 #
@@ -7194,15 +7161,16 @@ CREATE VIEW t1 AS SELECT 10 AS f1;
 CALL p1(1);
 ERROR HY000: The target table t1 of the INSERT is not insertable-into
 CREATE TEMPORARY TABLE t1 (f1 INT);
-# t1 still refers to the view since it was inlined
+# Since last call to p1 was unsuccessful, the query will be reparsed
+# and the procedure will refer to the temporary table
 CALL p1(2);
-ERROR HY000: The target table t1 of the INSERT is not insertable-into
 DROP VIEW t1;
-# t1 now refers to the temporary table
+# t1 still refers to the temporary table
 CALL p1(3);
 # Check which values were inserted into the temp table.
 SELECT * FROM t1;
 f1
+2
 3
 DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;
@@ -7491,6 +7459,8 @@ DROP PROCEDURE p1;
 DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 CREATE PROCEDURE p1(dt DATETIME, i INT)
 BEGIN
@@ -7514,6 +7484,10 @@ WHEN _latin1'a' THEN _latin1'b'
     END AS x4
 FROM t1;
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CALL p1('2011-04-03 05:14:10', 1);
 x1
@@ -7524,6 +7498,10 @@ x3
 A
 x4
 b
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p1('2011-04-03 05:14:11', 2);
 x1
 2011-04-03 05:14:11
@@ -7605,7 +7583,7 @@ UNION
 SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
 ) AS t2
 WHERE t2.c2 = t1.c2
-GROUP BY c1, c2
+GROUP BY c1 ASC, c2 ASC
 ;
 END|
 
@@ -7802,7 +7780,7 @@ SET @@default_storage_engine = DEFAULT;
 SET @default_storage_engine_saved = @@default_storage_engine;
 SELECT @@default_storage_engine;
 @@default_storage_engine
-MyISAM
+InnoDB
 SET @@default_storage_engine = InnoDB;
 SELECT @@default_storage_engine;
 @@default_storage_engine
@@ -7810,7 +7788,7 @@ InnoDB
 CALL p1();
 SELECT @@default_storage_engine;
 @@default_storage_engine
-MyISAM
+InnoDB
 SET @@default_storage_engine = @default_storage_engine_saved;
 DROP PROCEDURE p1;
 DROP TABLE t1;
@@ -7894,20 +7872,41 @@ DROP DATABASE db1;
 DROP USER myuser@localhost;
 DROP FUNCTION f1;
 #
-# Bug #22222013 ASSERTION `! IS_SET() || M_CAN_OVERWRITE_STATUS' FAILED
-#               IN ::SET_ERROR_STATUS
+# WL#7897 -- Use DD API for Stored Routines.
+# Basic test to verify:
+#   i) The table mysql.proc does not exists any more.
+#  ii) Stored routine metadata is still available with the
+#      information_schema tables "routines" and "parameters".
+#      These tables are filled from the new DD tables mysql.routine
+#      and mysql.parameter.
+# iii) Basic test to cover "READS SQL DATA" in ALTER operation.
 #
-CREATE DATABASE bug22222013;
-USE bug22222013;
-SET NAMES swe7;
-CREATE FUNCTION f1() RETURNS INT RETURN (1);
-CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
-SELECT sql_data_access FROM information_schema.routines WHERE
-specific_name like 'p%' and routine_schema=0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '??@?? FUNCTION ?bug22222013?.?f1?() RETURNS int(11)
-RETURN NULL' at line 1
-DROP DATABASE bug22222013;
-SET NAMES default;
+CREATE FUNCTION f1(a INT) RETURNS INT return 1;
+CREATE PROCEDURE p1(IN a INT, INOUT b INT, OUT c INT) select 1;
+# The table mysql.proc does not exists any more.
+SELECT * FROM mysql.proc;
+ERROR 42S02: Table 'mysql.proc' doesn't exist
+# Metadata of stored function f1.
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
+def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+# Metadata of stored procedure p1.
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+p1	def	test	p1	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	select 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
+def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
+def	test	p1	2	INOUT	b	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
+def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
+# Basic test to cover "READS SQL DATA" in ALTER operation.
+ALTER FUNCTION f1 READS SQL DATA;
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
 #
 # WL#9262: All system tables should support 32 character length user names
 #
@@ -7919,67 +7918,407 @@ CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostna
 CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
 SHOW PROCEDURE STATUS LIKE 'proc_test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE test.proc_test;
 SHOW FUNCTION STATUS LIKE 'f_test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION test.f_test;
-# Changing mysql.proc.definer column to char(77) - i.e. old layout (5.7.12)
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-ALTER TABLE mysql.proc
-MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-#Now we make sure that username + hostname with length of 77 or less work with
-#this old db schema
-#This should just pass as the DEFINER length is 77 chars - so the same as mysql.proc.definer
-CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-#For procedure
-CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test_1() SELECT CURRENT_USER();
-DROP PROCEDURE test.proc_test_1;
-#For function
-CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-DROP FUNCTION test.f_test_1;
-#Now definer is 93 char long so we should get error as mysql.proc.definer in old schema was only 77 char long
-#For procedure
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
-ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
-#For function
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
-# Let us check with user name + hostname of length 78
-#For procedure
-CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
-ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
-#For function
-CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-ERROR HY000: It seems that your db schema is old. The definer column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
-# DEFINER with length longer than 93 characters should fail with old plain error staying that data is too long for username
-# as upgrading to 93 characters (with mysql_upgrade) will not help
-# Let us try with 94 characters long username
-CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
-ERROR HY000: String 'user_name_robert_golebiowski12345' is too long for user name (should be no longer than 32)
-CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-ERROR HY000: String 'user_name_robert_golebiowski12345' is too long for user name (should be no longer than 32)
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 PROCEDURE test.proc_test() SELECT CURRENT_USER();
-ERROR HY000: String 'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1' is too long for host name (should be no longer than 60)
-CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 FUNCTION test.f_test_1() RETURNS INT RETURN 1;
-ERROR HY000: String 'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1' is too long for host name (should be no longer than 60)
-#Cleanup
 DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-Restore mysql.proc
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-ALTER TABLE mysql.proc
-MODIFY definer char(93) collate utf8_bin DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
+drop table if exists t1,t3;
+drop procedure if exists bug4902|
+create procedure bug4902()
+begin
+show grants for 'root'@'localhost';
+end|
+call bug4902()|
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+call bug4902()|
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+drop procedure bug4902|
+drop procedure if exists bug4902_2|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+show warnings|
+Level	Code	Message
+call bug4902_2()|
+show warnings|
+Level	Code	Message
+drop procedure bug4902_2|
+drop procedure if exists bug6807|
+create procedure bug6807()
+begin
+declare id int;
+set id = connection_id();
+kill query id;
+select 'Not reached';
+end|
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+call bug6807()|
+ERROR 70100: Query execution was interrupted
+drop procedure bug6807|
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
+drop function if exists bug10100f|
+drop procedure if exists bug10100p|
+drop procedure if exists bug10100t|
+drop procedure if exists bug10100pt|
+drop procedure if exists bug10100pv|
+drop procedure if exists bug10100pd|
+drop procedure if exists bug10100pc|
+create function bug10100f(prm int) returns int
+begin
+if prm > 1 then
+return prm * bug10100f(prm - 1);
+end if;
+return 1;
+end|
+create procedure bug10100p(prm int, inout res int)
+begin
+set res = res * prm;
+if prm > 1 then
+call bug10100p(prm - 1, res);
+end if;
+end|
+create procedure bug10100t(prm int)
+begin
+declare res int;
+set res = 1;
+call bug10100p(prm, res);
+select res;
+end|
+create table t3 (a int)|
+insert into t3 values (0)|
+create view v1 as select a from t3;
+create procedure bug10100pt(level int, lim int)
+begin
+if level < lim then
+update t3 set a=level;
+FLUSH TABLES;
+call bug10100pt(level+1, lim);
+else
+select * from t3;
+end if;
+end|
+create procedure bug10100pv(level int, lim int)
+begin
+if level < lim then
+update v1 set a=level;
+FLUSH TABLES;
+call bug10100pv(level+1, lim);
+else
+select * from v1;
+end if;
+end|
+prepare stmt2 from "select * from t3;";
+create procedure bug10100pd(level int, lim int)
+begin
+if level < lim then
+select level;
+prepare stmt1 from "update t3 set a=a+2";
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+execute stmt1;
+FLUSH TABLES;
+deallocate prepare stmt1;
+execute stmt2;
+select * from t3;
+call bug10100pd(level+1, lim);
+else
+execute stmt2;
+end if;
+end|
+create procedure bug10100pc(level int, lim int)
+begin
+declare lv int;
+declare c cursor for select a from t3;
+open c;
+if level < lim then
+select level;
+fetch c into lv;
+select lv;
+update t3 set a=level+lv;
+FLUSH TABLES;
+call bug10100pc(level+1, lim);
+else
+select * from t3;
+end if;
+close c;
+end|
+set @@max_sp_recursion_depth=255|
+set @var=1|
+call bug10100p(255, @var)|
+call bug10100pt(1,255)|
+call bug10100pv(1,255)|
+call bug10100pd(1,255)|
+call bug10100pc(1,255)|
+set @@max_sp_recursion_depth=0|
+deallocate prepare stmt2|
+drop function bug10100f|
+drop procedure bug10100p|
+drop procedure bug10100t|
+drop procedure bug10100pt|
+drop procedure bug10100pv|
+drop procedure bug10100pd|
+drop procedure bug10100pc|
+drop view v1|
+drop table t3|
+SET sql_mode = default;
+drop procedure if exists bug15298_1;
+drop procedure if exists bug15298_2;
+create user 'mysqltest_1'@'localhost';
+grant all privileges on test.* to 'mysqltest_1'@'localhost';
+create procedure 15298_1 () sql security definer show grants for current_user;
+create procedure 15298_2 () sql security definer show grants;
+call 15298_1();
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+call 15298_2();
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+drop user mysqltest_1@localhost;
+drop procedure 15298_1;
+drop procedure 15298_2;
+drop table if exists t1;
+drop procedure if exists p1;
+create table t1 (value varchar(15)) engine=Myisam;
+create procedure p1() update t1 set value='updated' where value='old';
+call p1();
+insert into t1 (value) values ("old");
+select get_lock('b26162',120);
+get_lock('b26162',120)
+1
+select 'rl_acquirer', value from t1 where get_lock('b26162',120);;
+set session low_priority_updates=on;
+call p1();;
+select 'rl_contender', value from t1;
+rl_contender	value
+rl_contender	old
+select release_lock('b26162');
+release_lock('b26162')
+1
+rl_acquirer	value
+rl_acquirer	old
+drop procedure p1;
+drop table t1;
+set session low_priority_updates=default;
+INSERT INTO mysql.user (Host, User, Select_priv, Insert_priv, Update_priv,
+Delete_priv, Create_priv, Drop_priv, Reload_priv, Shutdown_priv, Process_priv, File_priv,
+Grant_priv, References_priv, Index_priv, Alter_priv, Show_db_priv, Super_priv,
+Create_tmp_table_priv, Lock_tables_priv, Execute_priv, Repl_slave_priv, Repl_client_priv,
+Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv,
+Create_user_priv, ssl_type, ssl_cipher, x509_issuer, x509_subject, max_questions,
+max_updates, max_connections, max_user_connections)
+VALUES('%', 'mysqltest_1', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
+'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
+'', '', '', '0', '0', '0', '0');
+FLUSH PRIVILEGES;
+CREATE PROCEDURE p1(i INT) BEGIN END;
+DROP PROCEDURE p1;
+DELETE FROM mysql.user WHERE User='mysqltest_1';
+FLUSH PRIVILEGES;
+#
+# Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
+#
+SELECT GET_LOCK('Bug44521', 0);
+GET_LOCK('Bug44521', 0)
+1
+** Connection con1
+CREATE PROCEDURE p()
+BEGIN
+SELECT 1;
+SELECT GET_LOCK('Bug44521', 100);
+SELECT 2;
+END$
+CALL p();;
+** Default connection
+SELECT RELEASE_LOCK('Bug44521');
+RELEASE_LOCK('Bug44521')
+1
+DROP PROCEDURE p;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1 (inp TEXT) RETURNS INT NO SQL RETURN GET_LOCK('Bug47736', 200);
+CREATE VIEW v1 AS SELECT f1('a') FROM t1;
+SELECT GET_LOCK('Bug47736', 0);
+GET_LOCK('Bug47736', 0)
+1
+SELECT * FROM v1;;
+KILL QUERY ID;
+ERROR 70100: Query execution was interrupted
+DROP VIEW v1;
+DROP TABLE t1;
+DROP FUNCTION f1;
+# ------------------------------------------------------------------
+# -- End of 5.1 tests
+# ------------------------------------------------------------------
+#
+# Test for bug#11763757 "56510: ERROR 42000: FUNCTION DOES NOT EXIST
+# IF NOT-PRIV USER RECONNECTS ".
+#
+# The real problem was that server was unable handle properly stored
+# functions in databases which names contained dot.
+#
+DROP DATABASE IF EXISTS `my.db`;
+create database `my.db`;
+use `my.db`;
+CREATE FUNCTION f1(a int) RETURNS INT RETURN a;
+# Create new connection.
+USE `my.db`;
+SELECT f1(1);
+f1(1)
+1
+SELECT `my.db`.f1(2);
+`my.db`.f1(2)
+2
+# Switching to default connection.
+DROP DATABASE `my.db`;
+USE test;
+#
+# Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+#
+SET @@SQL_MODE = '';
+CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+DO SELECT 1 $
+SHOW EVENTS LIKE 'teste_bug11763507';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
+SHOW EVENTS LIKE 'TESTE_bug11763507';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
+SHOW CREATE EVENT teste_bug11763507;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+teste_bug11763507		SYSTEM	#	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
+SHOW CREATE EVENT TESTE_bug11763507;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+teste_bug11763507		SYSTEM	#	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
+DROP EVENT teste_bug11763507;
+#END OF BUG#11763507 test.
+
+# WL#4179: Stored programs: validation of stored program statements
+#
+# Test handle of metadata changes with events.
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1, 2);
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
+SELECT GET_LOCK('e1_lock', 60);
+GET_LOCK('e1_lock', 60)
+1
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO
+BEGIN
+DECLARE EXIT HANDLER FOR 1136 BEGIN
+INSERT INTO t3 VALUES (1);
+END; -- ER_WRONG_VALUE_COUNT_ON_ROW
+SELECT GET_LOCK('e1_lock', 60);
+SELECT RELEASE_LOCK('e1_lock');
+INSERT INTO t2 SELECT * FROM t1;
+END|
+SELECT RELEASE_LOCK('e1_lock');
+RELEASE_LOCK('e1_lock')
+1
+SELECT GET_LOCK('e1_lock', 60);
+GET_LOCK('e1_lock', 60)
+1
+ALTER TABLE t1 ADD COLUMN (c INT);
+SELECT RELEASE_LOCK('e1_lock');
+RELEASE_LOCK('e1_lock')
+1
+# Wait for new rows in t3. That means, the even has been executed,
+# and INSERT INTO t2 failed because now t1 has 3 columns.
+DROP EVENT e1;
+DROP TABLE t1, t2, t3;
+set @@global.concurrent_insert= @old_concurrent_insert;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+CREATE USER user_name_len_16@localhost;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_16@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+# Check that user_name_len16 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_16'@'localhost' for table 't1'
+# Check that user_name_len_22_01234 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_22_01234'@'localhost' for table 't1'
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+# Check that user_name_len_22_01234 has *now* SELECT permission ON t1
+SELECT * FROM test1.t1;
+int_field	char_field
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SELECT * FROM test1.t1;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+# Now user_name_len_16 should be able to SELECT FROM t1 by calling
+# p1_len22 procedure
+CALL test1.p1_len22();
+int_field	char_field
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost PROCEDURE test1.p1_len33()
+SELECT * FROM test1.t1;
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+# REVOKE the SELECT permission from user_name_len_22_01234
+REVOKE SELECT ON test1.t1 FROM user_name_len_22_01234@localhost;
+# and GRANT it to user_name_len_32_012345678901234
+GRANT SELECT ON test1.t1 TO user_name_len_32_012345678901234@localhost;
+CREATE DEFINER = user_name_len_32_012345678901234@localhost FUNCTION test1.f1_len32() RETURNS INT
+RETURN (SELECT COUNT(*) FROM test1.t1);
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_32_012345678901234@localhost;
+GRANT EXECUTE ON FUNCTION test1.f1_len32 TO user_name_len_22_01234@localhost;
+GRANT SELECT ON test1.t1 TO user_name_len_22_01234@localhost;
+# Now user_name_len_22_01234 should be able to SELECT COUNT(*) FROM t1
+# by calling f1_len32 function
+SELECT test1.f1_len32();
+test1.f1_len32()
+0
+# Recreate test1.p1_len22, this time with Security Context set to INVOKER
+DROP PROCEDURE test1.p1_len22;
+# Make sure user_name_len_22_01234 has SELECT privileges on test.t1
+SELECT * FROM test1.t1;
+int_field	char_field
+CREATE DEFINER=user_name_len_22_01234@localhost PROCEDURE test1.p1_len22()
+SQL SECURITY INVOKER
+SELECT * FROM test1.t1;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_22_01234@localhost;
+GRANT EXECUTE ON PROCEDURE test1.p1_len22 TO user_name_len_16@localhost;
+# Now user_name_len_16 should *NOT* be able to SELECT COUNT(*) FROM t1
+# by calling f1_len22 function as this function is using the INVOKER
+# security context
+CALL test1.p1_len22();
+ERROR 42000: SELECT command denied to user 'user_name_len_16'@'localhost' for table 't1'
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost FUNCTION test1.f1_len33() RETURNS INT
+RETURN (SELECT COUNT(*) FROM test1.t1);
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+DROP DATABASE test1;
+DROP USER user_name_len_16@localhost;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;

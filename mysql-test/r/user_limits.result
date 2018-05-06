@@ -1,7 +1,4 @@
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1;
 create table t1 (i int);
 delete from mysql.user where user like 'mysqltest\_%';
@@ -9,9 +6,7 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
-grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 2;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost with max_queries_per_hour 2;
 flush user_resources;
 select * from t1;
 i
@@ -22,9 +17,7 @@ ERROR 42000: User 'mysqltest_1' has exceeded the 'max_questions' resource (curre
 select * from t1;
 ERROR 42000: User 'mysqltest_1' has exceeded the 'max_questions' resource (current value: 2)
 drop user mysqltest_1@localhost;
-grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 2;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost with max_updates_per_hour 2;
 flush user_resources;
 select * from t1;
 i
@@ -43,9 +36,7 @@ ERROR 42000: User 'mysqltest_1' has exceeded the 'max_updates' resource (current
 select * from t1;
 i
 drop user mysqltest_1@localhost;
-grant usage on *.* to mysqltest_1@localhost with max_connections_per_hour 2;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost with max_connections_per_hour 2;
 flush user_resources;
 select * from t1;
 i
@@ -59,9 +50,7 @@ connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 42000: User 'mysqltest_1' has exceeded the 'max_connections_per_hour' resource (current value: 2)
 drop user mysqltest_1@localhost;
 flush privileges;
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 2;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost with max_user_connections 2;
 flush user_resources;
 select * from t1;
 i
@@ -71,9 +60,7 @@ connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 42000: User 'mysqltest_1' has exceeded the 'max_user_connections' resource (current value: 2)
 select * from t1;
 i
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 3;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+alter user mysqltest_1@localhost with max_user_connections 3;
 flush user_resources;
 select * from t1;
 i
@@ -89,9 +76,7 @@ set global max_user_connections= 2;
 select @@session.max_user_connections, @@global.max_user_connections;
 @@session.max_user_connections	@@global.max_user_connections
 2	2
-grant usage on *.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost;
 flush user_resources;
 select @@session.max_user_connections, @@global.max_user_connections;
 @@session.max_user_connections	@@global.max_user_connections
@@ -100,9 +85,7 @@ select * from t1;
 i
 connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
 ERROR 42000: User mysqltest_1 already has more than 'max_user_connections' active connections
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 3;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+alter user mysqltest_1@localhost with max_user_connections 3;
 flush user_resources;
 select @@session.max_user_connections, @@global.max_user_connections;
 @@session.max_user_connections	@@global.max_user_connections
@@ -113,5 +96,3 @@ set global max_user_connections= 0;
 drop user mysqltest_1@localhost;
 drop table t1;
 set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

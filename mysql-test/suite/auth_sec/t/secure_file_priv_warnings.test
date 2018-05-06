@@ -1,55 +1,44 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 --echo #-----------------------------------------------------------------------
 --echo # Setup
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let server_log= $MYSQLTEST_VARDIR/log/sfpw.err;
 let SEARCH_FILE= $server_log;
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 let PLUGIN_DIR= $MYSQLTEST_VARDIR/tmp;
+let common_restart_args= --log-error=$server_log;
 --echo #-----------------------------------------------------------------------
+
+--let $restart_parameters=restart:$common_restart_args
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
 
 --echo # Search for : Insecure configuration for --secure-file-priv: Current
 --echo #              value does not restrict location of generated files.
 --echo #              Consider setting it to a valid, non-empty path.
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Must show empty string
 SHOW VARIABLES LIKE 'secure_file_priv';
 
+--remove_file $server_log
+
 --echo #-----------------------------------------------------------------------
 
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server
---source include/wait_until_disconnected.inc
-
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
-
---exec echo "restart:--plugin-dir=$PLUGIN_DIR --secure-file-priv=$PLUGIN_DIR" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
---echo # Restart completed.
+--let $restart_parameters=restart:$common_restart_args --plugin-dir=$PLUGIN_DIR --secure-file-priv=$PLUGIN_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $PLUGIN_DIR PLUGIN_DIR
+--source include/restart_mysqld.inc
 
 --echo # Search for : Insecure configuration for --secure-file-priv: Plugin
 --echo #              directory is accessible through --secure-file-priv.
 --echo #              Consider choosing a different directory.
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Plugin directory is accessible through --secure-file-priv. Consider choosing a different directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo #-----------------------------------------------------------------------
 
 --echo # Clean-up
---disable_warnings
---source include/force_restart.inc
---enable_warnings
+# MTR will restart the server
+--remove_file $server_log
 
 --echo #-----------------------------------------------------------------------

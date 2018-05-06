@@ -1,0 +1,7 @@
+--replicate-do-db=global_db
+--replicate-ignore-db=global_idb
+--replicate-do-table=global_db.t1
+--replicate-ignore-table=global_idb.t1
+--replicate-wild-do-table=global_db.t%
+--replicate-wild-ignore-table=global_idb.t%
+--replicate-rewrite-db=global_db1->rewrite_db7

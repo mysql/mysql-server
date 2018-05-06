@@ -1,18 +1,25 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef DBSPJ_H
@@ -24,7 +31,7 @@
 #include <AttributeHeader.hpp>
 #include <IntrusiveList.hpp>
 #include <ArenaPool.hpp>
-#include <DataBuffer2.hpp>
+#include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include "../dbtup/tuppage.hpp"
@@ -43,6 +50,8 @@ public:
   Dbspj(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbspj();
 
+  struct Request;
+  struct TreeNode;
 private:
   BLOCK_DEFINES(Dbspj);
 
@@ -64,8 +73,6 @@ private:
 
   void execDIH_SCAN_TAB_REF(Signal*);
   void execDIH_SCAN_TAB_CONF(Signal*);
-  void execDIH_SCAN_GET_NODES_REF(Signal*);
-  void execDIH_SCAN_GET_NODES_CONF(Signal*);
 
   void execSIGNAL_DROPPED_REP(Signal*);
 
@@ -98,15 +105,13 @@ protected:
   //virtual bool getParam(const char* name, Uint32* count);
 
 public:
-  struct Request;
-  struct TreeNode;
   struct ScanFragHandle;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
-  typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
-  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Correlation_list;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_correlation_list;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Dependency_map;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_dependency_map;
+  typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > PatternStore;
+  typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   /* *********** TABLE RECORD ********************************************* */
@@ -131,6 +136,8 @@ public:
       TR_ENABLED      = 1 << 0,
       TR_DROPPING     = 1 << 1,
       TR_PREPARED     = 1 << 2
+      ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1 << 6)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -473,6 +480,11 @@ public:
     Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 7];
     STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
   };
+  typedef ArrayPool<RowPage> RowPage_pool;
+  typedef SLList<RowPage_pool> RowPage_list;
+  typedef LocalSLList<RowPage_pool> Local_RowPage_list;
+  typedef DLFifoList<RowPage_pool> RowPage_fifo;
+  typedef LocalDLFifoList<RowPage_pool> Local_RowPage_fifo;
 
   typedef Tup_varsize_page Var_page;
 
@@ -481,11 +493,11 @@ public:
     enum Buffer_type m_type;
 
     RowBuffer() : m_type(BUFFER_VOID) {}
-    DLFifoList<RowPage>::Head m_page_list;
+    RowPage_fifo::Head m_page_list;
 
     void init(enum Buffer_type type)
     {
-      new (&m_page_list) DLFifoList<RowPage>::Head();
+      new (&m_page_list) RowPage_fifo::Head();
       m_type = type;
       reset();
     }
@@ -548,10 +560,10 @@ public:
     void (Dbspj::*m_start)(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
     /**
-     * This function is used when getting a TRANSID_AI
+     * This function is called when a waited for signal arrives.
+     * Return 'true' if this completes the wait for this treeNode
      */
-    void (Dbspj::*m_execTRANSID_AI)(Signal*,Ptr<Request>,Ptr<TreeNode>,
-				    const RowPtr&);
+    bool (Dbspj::*m_countSignal)(const Signal*,Ptr<Request>,Ptr<TreeNode>);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -624,6 +636,20 @@ public:
      *  should only do local cleanup(s)
      */
     void (Dbspj::*m_cleanup)(Ptr<Request>, Ptr<TreeNode>);
+
+    /**
+     * This function is called to check the node validity within
+     * the request during debug execution
+     */
+    bool (Dbspj::*m_checkNode)(const Ptr<Request>, const Ptr<TreeNode>);
+
+    /**
+     * This function is called to dump request info to the node
+     * log for debugging purposes.  It should be used for
+     * treenode type-specific data, the generic treenode info
+     * is handled by dumpNodeCommon()
+     */
+    void (Dbspj::*m_dumpNode)(const Ptr<Request>, const Ptr<TreeNode>);
   };  //struct OpInfo
 
   struct LookupData
@@ -639,14 +665,6 @@ public:
     Uint32 m_lqhKeyReq[LqhKeyReq::FixedSignalLength + 4];
   };
 
-  struct ScanFragData
-  {
-    Uint32 m_rows_received;  // #execTRANSID_AI
-    Uint32 m_rows_expecting; // ScanFragConf
-    Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
-    Uint32 m_scanFragHandlePtrI;
-  };
-
   struct ScanFragHandle
   {
     enum SFH_State
@@ -658,18 +676,21 @@ public:
       SFH_WAIT_CLOSE   = 4
     };
 
-    void init(Uint32 fid) {
+    void init(Uint32 fid, bool readBackup)
+    {
       m_ref = 0;
       m_fragId = fid;
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
+      m_readBackup = readBackup;
       reset_ranges();
     }
 
     Uint32 m_magic;
     Uint32 m_treeNodePtrI;
     Uint16 m_fragId;
-    Uint16 m_state;
+    Uint8 m_state;
+    Uint8 m_readBackup;
     Uint32 m_ref;
 
     void reset_ranges() {
@@ -688,9 +709,9 @@ public:
     };
   };
 
-  typedef RecordPool<ScanFragHandle, ArenaPool> ScanFragHandle_pool;
-  typedef SLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> ScanFragHandle_list;
-  typedef LocalSLFifoListImpl<ScanFragHandle_pool, ScanFragHandle> Local_ScanFragHandle_list;
+  typedef RecordPool<ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
+  typedef SLFifoList<ScanFragHandle_pool> ScanFragHandle_list;
+  typedef LocalSLFifoList<ScanFragHandle_pool> Local_ScanFragHandle_list;
 
   /**
    * This class computes mean and standard deviation incrementally for a series
@@ -710,12 +731,18 @@ public:
     }
 
     // Add another sample.
-    void update(double sample);
+    void sample(double observation);
 
-    double getMean() const { return m_mean; }
+    double getMean() const {
+      return m_mean;
+    }
 
     double getStdDev() const { 
       return m_noOfSamples < 2 ? 0.0 : sqrt(m_sumSquare/(m_noOfSamples - 1));
+    }
+
+    bool isValid() const {
+      return (m_noOfSamples > 0);
     }
 
   private:
@@ -726,7 +753,7 @@ public:
     Uint32 m_noOfSamples;
   }; // IncrementalStatistics
 
-  struct ScanIndexData
+  struct ScanFragData
   {
     Uint16 m_frags_complete;
     Uint16 m_frags_outstanding;
@@ -744,11 +771,6 @@ public:
     Uint32 m_parallelism;
     // True if we are still receiving the first batch for this operation.
     bool   m_firstBatch;
-    /**
-     * True if this is the first instantiation of this operation. A child
-     * operation will be instantiated once for each batch of its parent.
-     */
-    bool m_firstExecution;
     /**
      * Mean and standard deviation for the optimal parallelism for earlier
      * executions of this operation.
@@ -946,12 +968,12 @@ public:
       T_PRUNE_PATTERN = 0x1000,
 
       /**
-       * Should index scan be parallel
+       * Should fragment scan be parallel
        */
       T_SCAN_PARALLEL = 0x2000,
 
       /**
-       * Possible requesting resultset for this index scan to be repeated
+       * Possible requesting resultset for this fragment scan to be repeated
        */
       T_SCAN_REPEATABLE = 0x4000,
 
@@ -960,6 +982,19 @@ public:
        * A ResumeEvent will later resume exec. of this operation
        */
       T_EXEC_SEQUENTIAL = 0x8000,
+
+      /**
+       * Does this node need the m_prepare() method to be called.
+       *  (Also implies RT_NEED_PREPARE is set)
+       */
+      T_NEED_PREPARE = 0x10000,
+
+      /**
+       * Does this node need the m_complete() method to be called.
+       *  (Also implies RT_NEED_COMPLETE is set)
+       *
+       */
+      T_NEED_COMPLETE = 0x20000,
 
       // End marker...
       T_END = 0
@@ -1020,8 +1055,7 @@ public:
     union
     {
       LookupData m_lookup_data;
-      ScanFragData m_scanfrag_data;
-      ScanIndexData m_scanindex_data;
+      ScanFragData m_scanFrag_data;
     };
 
     struct {
@@ -1044,13 +1078,13 @@ public:
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
-  typedef RecordPool<TreeNode, ArenaPool> TreeNode_pool;
-  typedef DLFifoListImpl<TreeNode_pool, TreeNode> TreeNode_list;
-  typedef LocalDLFifoListImpl<TreeNode_pool, TreeNode> Local_TreeNode_list;
+  typedef RecordPool<ArenaPool<TreeNode> > TreeNode_pool;
+  typedef DLFifoList<TreeNode_pool> TreeNode_list;
+  typedef LocalDLFifoList<TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef SLList<TreeNode_pool, TreeNode_cursor_ptr>
   TreeNodeCursor_list;
-  typedef LocalSLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
+  typedef LocalSLList<TreeNode_pool, TreeNode_cursor_ptr>
   Local_TreeNodeCursor_list;
 
   /**
@@ -1081,7 +1115,7 @@ public:
 
       RS_ABORTED    = 0x2008, // Aborted and waiting for SCAN_NEXTREQ
       RS_END = 0
-    };  //struct Request
+    };
 
     Request() {}
     Request(const ArenaHead & arena) : m_arena(arena) {}
@@ -1094,6 +1128,7 @@ public:
     Uint32 m_senderData;
     Uint32 m_rootResultData;
     Uint32 m_rootFragId;
+    Uint32 m_rootFragCnt;
     Uint32 m_transId[2];
     TreeNode_list::Head m_nodes;
     TreeNodeCursor_list::Head m_cursor_nodes;
@@ -1135,7 +1170,7 @@ public:
       Uint32 nextPool;
     };
     Uint32 prevHash;
-  };
+  }; //struct Request
 
 private:
   /**
@@ -1253,17 +1288,17 @@ private:
 
   } c_Counters;
 
-  typedef RecordPool<Request, ArenaPool> Request_pool;
-  typedef DLListImpl<Request_pool, Request> Request_list;
-  typedef LocalDLListImpl<Request_pool, Request> Local_Request_list;
-  typedef DLHashTableImpl<Request_pool, Request> Request_hash;
-  typedef DLHashTableImpl<Request_pool, Request>::Iterator Request_iterator;
+  typedef RecordPool<ArenaPool<Request> > Request_pool;
+  typedef DLList<Request_pool> Request_list;
+  typedef LocalDLList<Request_pool> Local_Request_list;
+  typedef DLHashTable<Request_pool> Request_hash;
+  typedef DLHashTable<Request_pool>::Iterator Request_iterator;
 
   ArenaAllocator m_arenaAllocator;
   Request_pool m_request_pool;
   Request_hash m_scan_request_hash;
   Request_hash m_lookup_request_hash;
-  ArenaPool m_dependency_map_pool;
+  ArenaPool<DataBufferSegment<14> > m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 
@@ -1282,6 +1317,8 @@ private:
   void store_scan(Ptr<Request>);
   void handle_early_scanfrag_ref(Signal*, const ScanFragReq *, Uint32 err);
 
+  bool checkRequest(const Ptr<Request>);
+
   struct BuildKeyReq
   {
     Uint32 hashInfo[4]; // Used for hashing
@@ -1297,9 +1334,9 @@ private:
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
   void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
-  void checkPrepareComplete(Signal*, Ptr<Request>, Uint32 cnt);
-  void start(Signal*, Ptr<Request>);
-  void checkBatchComplete(Signal*, Ptr<Request>, Uint32 cnt);
+  void prepare(Signal*, Ptr<Request>);
+  void checkPrepareComplete(Signal*, Ptr<Request>);
+  void checkBatchComplete(Signal*, Ptr<Request>);
   void batchComplete(Signal*, Ptr<Request>);
   void prepareNextBatch(Signal*, Ptr<Request>);
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
@@ -1410,6 +1447,11 @@ private:
   void common_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
 			     const RowPtr&);
 
+  void dumpScanFragHandle(const Ptr<ScanFragHandle> fragPtr) const;
+  void dumpNodeCommon(const Ptr<TreeNode>) const;
+  void dumpRequest(const char* reason,
+                   const Ptr<Request> requestPtr);
+
   /**
    * Lookup
    */
@@ -1419,8 +1461,7 @@ private:
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void lookup_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			     const RowPtr&);
+  bool lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1441,6 +1482,10 @@ private:
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
+  bool lookup_checkNode(const Ptr<Request> requestPtr, 
+                        const Ptr<TreeNode> treeNodePtr);
+  void lookup_dumpNode(const Ptr<Request> requestPtr,
+                       const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanFrag
@@ -1448,58 +1493,52 @@ private:
   static const OpInfo g_ScanFragOpInfo;
   Uint32 scanFrag_build(Build_context&, Ptr<Request>,
                         const QueryNode*, const QueryNodeParameters*);
+  Uint32 parseScanFrag(Build_context&, Ptr<Request>, Ptr<TreeNode>,
+                       DABuffer tree, Uint32 treeBits,
+                       DABuffer param, Uint32 paramBits);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
+  void scanFrag_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>,
+                                 Ptr<ScanFragHandle>);
+  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,
+                                  Ptr<ScanFragHandle>);
+  void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
+  void scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
   void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			       const RowPtr &);
-  void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
+  Uint32 scanFrag_send(Signal* signal,
+                       Ptr<Request> requestPtr,
+                       Ptr<TreeNode> treeNodePtr,
+                       Uint32 noOfFrags,
+                       Uint32 bs_bytes,
+                       Uint32 bs_rows,
+                       Uint32& batchRange);
+  void scanFrag_batchComplete(Signal* signal);
+  Uint32 scanFrag_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
+                           Uint32 fragId);
+  void scanFrag_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_parent_batch_repeat(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
+  void scanFrag_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  Uint32 scanFrag_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
+                                   NdbNodeBitmask);
+  void scanFrag_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
-  /**
-   * ScanIndex
-   */
-  static const OpInfo g_ScanIndexOpInfo;
-  Uint32 scanIndex_build(Build_context&, Ptr<Request>,
-                         const QueryNode*, const QueryNodeParameters*);
-  Uint32 parseScanIndex(Build_context&, Ptr<Request>, Ptr<TreeNode>,
-                        DABuffer tree, Uint32 treeBits,
-                        DABuffer param, Uint32 paramBits);
-  void scanIndex_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                const RowPtr &);
-  void scanIndex_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
-  void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
-  void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
-  Uint32 scanIndex_send(Signal* signal,
-                        Ptr<Request> requestPtr,
-                        Ptr<TreeNode> treeNodePtr,
-                        Uint32 noOfFrags,
-                        Uint32 bs_bytes,
-                        Uint32 bs_rows,
-                        Uint32& batchRange);
-  void scanIndex_batchComplete(Signal* signal);
-  Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
-                            Uint32 fragId);
-  void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_parent_batch_repeat(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
-  void scanIndex_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  Uint32 scanIndex_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
-                                  NdbNodeBitmask);
-  void scanIndex_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
-  void scanIndex_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
 
-  void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
+  Uint32 scanFrag_sendDihGetNodesReq(Signal* signal,
+                                     Ptr<Request> requestPtr,
+                                     Ptr<TreeNode> treeNodePtr);
 
-  Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
-                                      Ptr<Request> requestPtr,
-                                      Ptr<TreeNode> treeNodePtr);
+  bool scanFrag_checkNode(const Ptr<Request> requestPtr,
+                          const Ptr<TreeNode> treeNodePtr);
 
+  void scanFrag_dumpNode(const Ptr<Request> requestPtr,
+                         const Ptr<TreeNode> treeNodePtr);
+
+  Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
   /**
    * Page manager
    */
@@ -1507,8 +1546,8 @@ private:
   void releasePage(Ptr<RowPage>);
   void releasePages(Uint32 first, Ptr<RowPage> last);
   void releaseGlobal(Signal*);
-  SLList<RowPage>::Head m_free_page_list;
-  ArrayPool<RowPage> m_page_pool;
+  RowPage_list::Head m_free_page_list;
+  RowPage_pool m_page_pool;
 
   /* Random fault injection */
 
@@ -1517,6 +1556,8 @@ private:
                        const Uint32* src, Uint32 len);
 #endif
 
+  Uint32 m_location_domain_id[MAX_NDB_NODES];
+  Uint32 m_load_balancer_location;
   /**
    * Scratch buffers...
    */

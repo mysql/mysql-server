@@ -1,5 +1,4 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 --echo #-----------------------------------------------------------------------
 --echo # Setup
@@ -12,13 +11,8 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $restart_log
 
 # Following should fail
 --error 1
@@ -26,19 +20,13 @@ EOF
 
 --echo # Search for : Failed to access directory for --secure-file-priv.
 let SEARCH_PATTERN= Failed to access directory for --secure-file-priv;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Search for : No such file or directory
 let SEARCH_PATTERN= No such file or directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $restart_log 10
 
 --source include/wait_until_disconnected.inc
 # Dummy argument for restart

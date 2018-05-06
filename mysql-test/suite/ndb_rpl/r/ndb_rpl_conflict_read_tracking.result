@@ -21,10 +21,10 @@ replace into mysql.ndb_replication values
 ("test", "t2", 1, 7, "NDB$EPOCH_TRANS()");
 create table test.t1 (
 a int primary key,
-b varchar(2000)) engine=ndb;
+b varchar(2000)) engine=ndb character set latin1;
 create table test.t2 (
 a int primary key,
-b varchar(2000)) engine=ndb;
+b varchar(2000)) engine=ndb character set latin1;
 Add some data
 insert into test.t1 values
 (1, "Initial data 1"),
@@ -780,7 +780,7 @@ NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW','DELETE_ROW','REFRESH_ROW','
 NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
 NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
 primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 Populate ndb_replication table as necessary
 replace into mysql.ndb_replication values
 ("test", "t3", 3, 7, NULL),
@@ -790,7 +790,7 @@ a int primary key,
 b varchar(2000),
 c int not null unique,
 d int,
-key(d)) engine=ndb;
+key(d)) engine=ndb character set latin1;
 Add some data
 insert into test.t3 values
 (1, "Initial data 1", 1, 1),

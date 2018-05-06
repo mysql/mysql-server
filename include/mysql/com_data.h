@@ -1,115 +1,111 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the Free
-   Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
 
-   This program is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-   FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-   more details.
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc., 51
-   Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef PLUGIN_PROTOCOL_INCLUDED
 #define PLUGIN_PROTOCOL_INCLUDED
 
 #ifndef MYSQL_ABI_CHECK
-#include "my_global.h" /* Needed for my_bool in mysql_com.h */
-#include "mysql_com.h" /* mysql_enum_shutdown_level */
+#include "binary_log_types.h" /* enum_field_types */
+#include "mysql_com.h"        /* mysql_enum_shutdown_level */
 #endif
 
-
 /**
-@file
+  @file include/mysql/com_data.h
   Definition of COM_DATA to be used with the Command service as data input
   structure.
 */
 
-
-typedef struct st_com_init_db_data
-{
+struct COM_INIT_DB_DATA {
   const char *db_name;
   unsigned long length;
-} COM_INIT_DB_DATA;
+};
 
-typedef struct st_com_refresh_data
-{
+struct COM_REFRESH_DATA {
   unsigned char options;
-} COM_REFRESH_DATA;
+};
 
-typedef struct st_com_shutdown_data
-{
-  enum mysql_enum_shutdown_level level;
-} COM_SHUTDOWN_DATA;
-
-typedef struct st_com_kill_data
-{
+struct COM_KILL_DATA {
   unsigned long id;
-} COM_KILL_DATA;
+};
 
-typedef struct st_com_set_option_data
-{
+struct COM_SET_OPTION_DATA {
   unsigned int opt_command;
-} COM_SET_OPTION_DATA;
+};
 
-typedef struct st_com_stmt_execute_data
-{
+struct PS_PARAM {
+  unsigned char null_bit;
+  enum enum_field_types type;
+  unsigned char unsigned_type;
+  const unsigned char *value;
+  unsigned long length;
+};
+
+struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
-  unsigned long flags;
-  unsigned char *params;
-  unsigned long params_length;
-} COM_STMT_EXECUTE_DATA;
+  unsigned long open_cursor;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
+  unsigned char has_new_types;
+};
 
-typedef struct st_com_stmt_fetch_data
-{
+struct COM_STMT_FETCH_DATA {
   unsigned long stmt_id;
   unsigned long num_rows;
-} COM_STMT_FETCH_DATA;
+};
 
-typedef struct st_com_stmt_send_long_data_data
-{
+struct COM_STMT_SEND_LONG_DATA_DATA {
   unsigned long stmt_id;
-  unsigned int  param_number;
+  unsigned int param_number;
   unsigned char *longdata;
   unsigned long length;
-} COM_STMT_SEND_LONG_DATA_DATA;
+};
 
-typedef struct st_com_stmt_prepare_data
-{
+struct COM_STMT_PREPARE_DATA {
   const char *query;
   unsigned int length;
-} COM_STMT_PREPARE_DATA;
+};
 
-typedef struct st_stmt_close_data
-{
+struct COM_STMT_CLOSE_DATA {
   unsigned int stmt_id;
-} COM_STMT_CLOSE_DATA;
+};
 
-typedef struct st_com_stmt_reset_data
-{
+struct COM_STMT_RESET_DATA {
   unsigned int stmt_id;
-} COM_STMT_RESET_DATA;
+};
 
-typedef struct st_com_query_data
-{
+struct COM_QUERY_DATA {
   const char *query;
   unsigned int length;
-} COM_QUERY_DATA;
+};
 
-typedef struct st_com_field_list_data
-{
-  unsigned char   *table_name;
-  unsigned int    table_name_length;
+struct COM_FIELD_LIST_DATA {
+  unsigned char *table_name;
+  unsigned int table_name_length;
   const unsigned char *query;
-  unsigned int        query_length;
-} COM_FIELD_LIST_DATA;
+  unsigned int query_length;
+};
 
 union COM_DATA {
   COM_INIT_DB_DATA com_init_db;
   COM_REFRESH_DATA com_refresh;
-  COM_SHUTDOWN_DATA com_shutdown;
   COM_KILL_DATA com_kill;
   COM_SET_OPTION_DATA com_set_option;
   COM_STMT_EXECUTE_DATA com_stmt_execute;

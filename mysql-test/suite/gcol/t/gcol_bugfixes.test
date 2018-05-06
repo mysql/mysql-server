@@ -563,6 +563,32 @@ DROP TABLE t;
 
 set sql_mode= @save_old_sql_mode;
 
+--echo #
+--echo # Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOWLY..
+--echo #
+
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+--echo #              BUT TOO SLOW (II)
+--echo #
+
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+
+DROP TABLE t;
+
 --echo # Bug#21875520 Problems with virtual column indexes
 
 CREATE TABLE t(
@@ -600,7 +626,136 @@ COMMIT;
 DROP TABLE t;
 
 --echo #
---echo # Bug #25793677	INNODB: FAILING ASSERTION: CLUST_TEMPL_FOR_SEC || LEN ....
+--echo # bug#21982792: TOO MUCH SPAM: 'GOT ERROR 1 WHEN READING TABLE'
+--echo #
+CREATE TABLE t (
+  a INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+  b DATE GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+  KEY(b)
+ );
+SET @old_sql_mode=@@sql_mode;
+SET sql_mode='';
+INSERT INTO t VALUES();
+SET sql_mode= STRICT_ALL_TABLES;
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
+DROP TABLE t;
+SET sql_mode=@old_sql_mode;
+
+CREATE TABLE t (
+  a INT,
+  b INT GENERATED ALWAYS AS (1),
+  KEY i(a,b)
+  );
+INSERT INTO t (a) VALUES(1), (2);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t a RIGHT JOIN t USING(b)
+WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
+DROP TABLE t;
+
+--echo # Bug#22748217 gcols: assert in Item_func_in::resolve_type
+
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode="";
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+DROP TABLE t;
+SET sql_mode= @old_sql_mode;
+
+
+--echo #
+--echo # Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
+--echo #               ALTER_CHANGE_COLUMN_DEFAULT FLAG
+--echo #
+
+CREATE TABLE t1(
+  a INTEGER DEFAULT 5,
+  b INTEGER NOT NULL,
+  gc1 INTEGER AS (a + DEFAULT(a)) VIRTUAL,
+  gc2 INTEGER AS (a + DEFAULT(a)) STORED,
+  KEY k1(gc1)
+);
+
+INSERT INTO t1(a, b) VALUES (1 ,1);
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 1: Change the default value for a column, this should trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 6;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 2: Change the NULL property for a column, should not trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN b INTEGER NULL;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+CREATE TABLE t1 (
+  a TEXT CHARSET utf16,
+  b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+
+--echo # Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+
+SHOW CREATE TABLE t1;
+SELECT HEX(b) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX(b) FROM t1;
+SHOW CREATE TABLE t1;
+
+
+SELECT
+  length( convert( b USING utf8 ) ),
+  char_length ( convert( b USING utf8 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING utf16 ) ),
+  char_length ( convert( b USING utf16 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING latin1 ) ),
+  char_length ( convert( b USING latin1 ) )
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25615803: ASSERT IN SQL/FIELD.CC:...
+--echo #               VIRTUAL STRING* FIELD_VARSTRING::VAL_STR
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT GENERATED ALWAYS AS ( b + 1 ) STORED
+)
+PARTITION BY RANGE( a ) ( PARTITION p0 VALUES LESS THAN (1) );
+
+INSERT INTO t1 ( b ) VALUES ( 1 );
+UPDATE t1 SET c = d;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25793677 INNODB: FAILING ASSERTION: CLUST_TEMPL_FOR_SEC || LEN ....
 --echo #
 
 CREATE TABLE v (
@@ -611,3 +766,85 @@ KEY(c,b(1))) charset utf8mb4;
 INSERT INTO v (a,c) VALUES (1,1);
 SELECT (SELECT MAX(c) FROM v);
 DROP TABLE v;
+
+--echo # Bug#23021693 gcol:assertion '!table->in_use->is_error()' failed
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT,
+ c1 INTEGER,
+ gc1 INTEGER GENERATED ALWAYS AS (c1+c1) VIRTUAL,
+ gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+ c2 VARCHAR(5),
+ gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+ gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+ PRIMARY KEY (pk DESC),
+ KEY(gc1),
+ KEY(gc3),
+ UNIQUE KEY (gc1, gc3),
+ UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+
+INSERT INTO t1 (c1, c2) VALUES (3, 'cek'),(3,'eks');
+
+CREATE TABLE t2 (
+ pk INTEGER AUTO_INCREMENT,
+ c1 INTEGER,
+ gc1 INTEGER GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+ gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+ c2 VARCHAR(5),
+ gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+ gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+ PRIMARY KEY (pk DESC),
+ KEY(gc1),
+ KEY(gc3),
+ UNIQUE KEY (gc1, gc3),
+ UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+
+INSERT INTO t2 (c1, c2) VALUES
+ (3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
+ (NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
+
+--error ER_SUBQUERY_NO_1_ROW
+DELETE outr1.*
+FROM t2 AS outr1 INNER JOIN t1 AS outr2
+     ON outr1.gc4 = outr2.gc4
+WHERE outr1.pk > (SELECT innr1.gc2 AS y
+                  FROM t1 AS innr1
+                  WHERE innr1.pk = 5 OR outr2.pk <> 7
+                 );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#23321196: GCOLS: ASSERTION FAILURE:
+--echo #               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+--echo #
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+SELECT * FROM t;
+DELETE FROM t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #27041382: ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED.
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(100),
+                 c2 VARCHAR(400) GENERATED ALWAYS AS (CONCAT(c1,c1)));
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+ FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+
+--error ER_PARSE_ERROR
+INSERT INTO t1  VALUES (),();
+
+--error ER_PARSE_ERROR
+INSERT INTO t1(c1)  SELECT 1 FROM DUAL;
+
+--error ER_PARSE_ERROR
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
+ INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
+
+DROP TABLE t1;

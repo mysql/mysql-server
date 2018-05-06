@@ -1,4 +1,6 @@
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE ① (
 c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
 ENGINE = InnoDB;
@@ -22,7 +24,7 @@ t1ć	CREATE TABLE `t1ć` (
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `①` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1ć, ①;
 #
 # Bug #21364096	THE BOGUS DUPLICATE KEY ERROR IN ONLINE DDL

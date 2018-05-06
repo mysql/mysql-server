@@ -28,7 +28,7 @@
 # Test is not specific to any binlog format. Hence Running only for 'row'.
 --source include/have_binlog_format_row.inc
 
-# binlog file name is needed in the test. To use master-bin.000001,
+# binlog file name is needed in the test. To use binlog.000001,
 # RESET MASTER is needed.
 RESET MASTER;
 # kill the dump threads if there any dump threads (may be from previous test)
@@ -40,11 +40,9 @@ INSERT INTO t1 values (1);
 
 --echo # Step-2: Execute MYSQL_BINLOG with --stop-never and --raw option.
 --write_file $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
-#!/bin/bash
-(`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ master-bin.000001`) < /dev/null > /dev/null 2>&1 &
+(`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ binlog.000001`) < /dev/null > /dev/null 2>&1 &
 EOF
---chmod 0755 $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
---exec $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
+--exec /bin/bash $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
 
 --echo # Step-3: Wait till dump thread transfer is completed.
 let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
@@ -53,7 +51,7 @@ let $wait_condition= SELECT id from information_schema.processlist where process
 --echo # Step-4: copy binary log file that is downloaded till now before
 --echo #         stopping dump thread that is serving mysqlbinlog
 --echo #         --stop-never process.
---copy_file $MYSQL_TMP_DIR/master-bin.000001 $MYSQL_TMP_DIR/master-bin-back_up_file.000001
+--copy_file $MYSQL_TMP_DIR/binlog.000001 $MYSQL_TMP_DIR/binlog-back_up_file.000001
 
 --echo # Step-5: kill the dump thread serving the mysqlbinlog --stop-never process
 --source include/stop_dump_threads.inc
@@ -63,7 +61,7 @@ DROP TABLE t1;
 RESET MASTER;
 
 --echo # Step-7: Apply the data that we got from --stop-never process.
---exec $MYSQL_BINLOG $MYSQL_TMP_DIR/master-bin-back_up_file.000001 | $MYSQL --user=root --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT
+--exec $MYSQL_BINLOG $MYSQL_TMP_DIR/binlog-back_up_file.000001 | $MYSQL --user=root --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT
 
 --echo # Step-8: Check that the data is there.
 --let $assert_text= Check the table t1 exists and contains one tuple with value 1.
@@ -73,5 +71,5 @@ RESET MASTER;
 --echo # Step-9: Cleanup
 DROP TABLE t1;
 --remove_file $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
---remove_file $MYSQL_TMP_DIR/master-bin.000001
---remove_file $MYSQL_TMP_DIR/master-bin-back_up_file.000001
+--remove_file $MYSQL_TMP_DIR/binlog.000001
+--remove_file $MYSQL_TMP_DIR/binlog-back_up_file.000001

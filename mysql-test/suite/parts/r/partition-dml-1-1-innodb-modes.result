@@ -66,8 +66,6 @@ GRANT ALL PRIVILEGES ON test.* TO test_user_1 ;
 GRANT ALL PRIVILEGES ON test.* TO test_user_2 ;
 # Run in empty mode
 set @@global.sql_mode= '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #######################################################
 # UPDATE without partition selection
 connect  session1, localhost, test_user_1,'testpw',test;
@@ -284,8 +282,6 @@ INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299998, '(p3000-299999
 INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299999, '(p3000-299999-)subp14');
 # Run in ANSI mode
 set @@global.sql_mode= ansi;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #######################################################
 # UPDATE without partition selection
 connect  session1, localhost, test_user_1,'testpw',test;

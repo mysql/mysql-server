@@ -4,18 +4,16 @@
 # i.e. lower_case_filesystem=OFF
 #
 -- source include/have_case_sensitive_file_system.inc
--- source include/not_embedded.inc
 -- source include/have_lowercase0.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 connect (master,localhost,root,,);
 connection master;
 create database d1;
-grant all on d1.* to 'sample'@'localhost' identified by 'password';
+create user 'sample'@'localhost' identified by 'password';
+grant all on d1.* to 'sample'@'localhost';
 flush privileges;
 
 connect (sample,localhost,sample,password,d1);
@@ -42,6 +40,7 @@ connection default;
 #
 CREATE DATABASE d1;
 USE d1;
+CREATE USER user_1@localhost;
 CREATE TABLE T1(f1 INT);
 CREATE TABLE t1(f1 INT);
 GRANT SELECT ON T1 to user_1@localhost;
@@ -67,6 +66,7 @@ CREATE DATABASE db1;
 USE db1;
 CREATE PROCEDURE p1() BEGIN END;
 CREATE FUNCTION f1(i INT) RETURNS INT RETURN i+1;
+CREATE USER user_1@localhost, USER_1@localhost;
 
 GRANT USAGE ON db1.* to user_1@localhost;
 GRANT EXECUTE ON PROCEDURE db1.P1 to user_1@localhost;
@@ -113,3 +113,56 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a= 1;
 RENAME TABLE t1 TO T1;
 ALTER TABLE T1 RENAME t1;
 DROP TABLE t1;
+
+
+
+--echo #
+--echo # Bug #27309094: REJECT LCTN CHANGING AFTER --INITIALIZE
+--echo #
+--echo # Verify that we are not allowed to restart the server with a
+--echo # lower_case_table_names setting different than the setting
+--echo # use during --initialize.
+--echo #
+
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF  --secure-file-priv="" --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # 1. Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # 2. initialize the server.
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
+
+--echo # 3. Restart the server with a different lower_case_table_names setting. Should fail.
+--error 1
+--exec $MYSQLD $extra_args --lower_case_table_names=1 --datadir=$DDIR
+
+--echo # 4. Look for error.
+perl;
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  open(FILE, "$log") or die;
+  my $c_w= grep(/Different lower_case_table_names settings/gi,<FILE>);
+  print "#    Found lower_case_table_names error $c_w times.\n";
+  close(FILE);
+EOF
+
+--echo # 5. Restart the server against default datadir.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # 6. Cleanup.
+--echo #    Delete \$DDIR.
+--force-rmdir $DDIR
+--echo #    Delete sql files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+--echo #    Delete log files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+--echo #    Delete expect files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect

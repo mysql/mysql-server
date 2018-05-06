@@ -1,19 +1,28 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include <new>
 
 #include <ndb_global.h>
 #include <AttributeHeader.hpp>
@@ -400,7 +409,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
     info.m_ref_count += c->m_ref_count;
     c = c->m_nextClean;
   }
-  // build and query cache have at most one instance
+  // build has at most one instance
   require(type == CacheClean || info.m_count <= 1);
   NdbMutex_Unlock(m_impl.m_query_mutex);
 }
@@ -706,6 +715,15 @@ NdbIndexStat::create_listener(Ndb* ndb)
   DBUG_RETURN(0);
 }
 
+bool
+NdbIndexStat::has_listener() const
+{
+  DBUG_ENTER("NdbIndexStat::has_listener");
+  if (m_impl.m_eventOp != 0)
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
 int
 NdbIndexStat::execute_listener(Ndb* ndb)
 {
@@ -739,8 +757,7 @@ int
 NdbIndexStat::drop_listener(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::drop_listener");
-  if (m_impl.drop_listener(ndb) == -1)
-    DBUG_RETURN(-1);
+  (void)m_impl.drop_listener(ndb);
   DBUG_RETURN(0);
 }
 

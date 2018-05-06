@@ -1,18 +1,6 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 --source include/windows.inc
 
-# Only run this test if shared memory is avaliable
-let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
-if ($shm != ON){
-  skip No shm support;
-}
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
-
-let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if ($nmp != ON){
-  skip No named pipe support;
-}
 
 CREATE USER 'user_tcp'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
@@ -78,16 +66,16 @@ disconnect memory_con1;
 --echo # Ensure that server does not start and aborts when there is no
 --echo # SHM support, --require-secure-transport=on and ssl is disabled
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
 --error 1
 --exec $MYSQLD_CMD --loose-enable-named-pipe --loose-shared-memory=0 --require-secure-transport=on --skip-ssl --loose-console > $server_log 2>&1
 let SEARCH_PATTERN= Server is started with --require-secure-transport=ON but no secure transports;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= Aborting;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Now start server normally without ssl support, with MEM and require-secure-transport=on
 --exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=1 --shared_memory_base_name=server_inst_sh_mem --require-secure-transport=on --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -124,6 +112,7 @@ SET @@global.require_secure_transport = ON;
 connect(pipe_con4,localhost,root,,,,,PIPE);
 disconnect pipe_con4;
 --disable_query_log
+--replace_regex /client could not create request event \([0-9]+\)/client could not create request event (Errcode)/
 --error 2038
 connect(memory_con3,localhost,root,,,,$shm_name,SHM);
 --enable_query_log

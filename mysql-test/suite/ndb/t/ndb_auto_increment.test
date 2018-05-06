@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 connection server1;
@@ -394,7 +388,9 @@ create table t1 (a int primary key auto_increment, b int) engine=ndb;
 
 insert into t1 values (null,1),(null,2),(null,3);
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -406,7 +402,9 @@ engine=ndb;
 
 alter table t1 auto_increment=32000000;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 

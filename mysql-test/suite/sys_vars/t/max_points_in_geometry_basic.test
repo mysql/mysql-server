@@ -101,7 +101,7 @@ SELECT @@max_points_in_geometry;
 
 --disable_warnings
 SELECT @@max_points_in_geometry = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='max_points_in_geometry';
 --enable_warnings
 

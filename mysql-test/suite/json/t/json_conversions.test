@@ -3,19 +3,9 @@
 #                                                                    #
 # This test copies all tests originally in json_conversions.test     #
 ######################################################################
-#
-# This takes a long time on tiny hardware so run it only in --big-test mode
-#
---source include/big_test.inc
-#
-# Skip it in valgrind until BUG#21616914 has been fixed
-#
---source include/not_valgrind.inc
 
 --echo # Test of the conversion from JSON data type to MySQL types
 --echo # ----------------------------------------------------------------------
-
-SET NAMES utf8;
 
 --echo # Set up auxiliary table with possible JSON values. The idea here is to
 --echo # enumerate all possible types of JSON values, including the different
@@ -29,7 +19,7 @@ SET NAMES utf8;
 --echo # character set internally.
 
 
-create table t(c varchar(30), j json);
+create table t(c varchar(30) not null, j json, key(c));
 
 create table blobs(b blob); insert into blobs values(x'cafebabe');
 create table tinyblobs(b tinyblob); insert into tinyblobs values(x'cafebabe');
@@ -680,7 +670,7 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='bool';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='uint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='double';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringany';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringdecimal';
@@ -689,9 +679,9 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='object';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='array';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_decimal';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_set';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_enum';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_date';
@@ -1061,382 +1051,31 @@ insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_string';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_var_string';
 
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='null';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='bool';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='uint';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='int';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='double';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='stringany';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='stringint';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='stringdecimal';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='object';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='array';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_jsn) select concat('_jsn: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_jsn) select concat('_jsn: ',c),j from t;
 
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='null';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='bool';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='uint';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='int';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='double';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='stringany';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='stringint';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='stringdecimal';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='object';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='array';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_chr) select concat('_chr: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_chr) select concat('_chr: ',c),j from t;
 
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='null';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='bool';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='uint';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='int';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='double';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='stringany';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='stringint';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='stringdecimal';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='object';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='array';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_vch) select concat('_vch: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_vch) select concat('_vch: ',c),j from t;
 
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='null';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='bool';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='uint';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='int';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='double';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='stringany';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='stringint';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='stringdecimal';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='object';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='array';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_bin) select concat('_bin: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_bin) select concat('_bin: ',c),j from t;
 
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='null';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='bool';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='uint';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='int';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='double';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='stringany';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='stringint';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='stringdecimal';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='object';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='array';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_vbn) select concat('_vbn: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_vbn) select concat('_vbn: ',c),j from t;
 
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='null';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='bool';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='uint';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='int';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='double';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='stringany';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='stringint';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='stringdecimal';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='object';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='array';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_tbl) select concat('_tbl: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_tbl) select concat('_tbl: ',c),j from t;
 
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='null';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='bool';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='uint';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='int';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='double';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='stringany';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='stringint';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='stringdecimal';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='object';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='array';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_ttx) select concat('_ttx: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_ttx) select concat('_ttx: ',c),j from t;
 
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='null';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='bool';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='uint';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='int';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='double';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='stringany';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='stringint';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='stringdecimal';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='object';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='array';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_blb) select concat('_blb: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_blb) select concat('_blb: ',c),j from t;
 
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='null';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='bool';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='uint';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='int';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='double';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='stringany';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='stringint';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='stringdecimal';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='object';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='array';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_txt) select concat('_txt: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_txt) select concat('_txt: ',c),j from t;
 
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='null';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='bool';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='uint';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='int';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='double';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='stringany';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='stringint';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='stringdecimal';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='object';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='array';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_mbb) select concat('_mbb: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_mbb) select concat('_mbb: ',c),j from t;
 
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='null';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='bool';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='uint';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='int';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='double';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='stringany';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='stringint';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='stringdecimal';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='object';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='array';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_mtx) select concat('_mtx: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_mtx) select concat('_mtx: ',c),j from t;
 
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='null';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='bool';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='uint';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='int';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='double';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='stringany';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='stringint';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='stringdecimal';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='object';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='array';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_lbb) select concat('_lbb: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_lbb) select concat('_lbb: ',c),j from t;
 
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='null';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='bool';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='uint';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='int';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='double';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='stringany';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='stringint';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='stringdecimal';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='object';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='array';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_decimal';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_set';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_enum';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_date';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_time';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_datetime';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_geom';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_bit';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_year';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_blob';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_longblob';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_binary';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_varchar';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_string';
-insert into at(c,_ltx) select concat('_ltx: ',c),j from t where c='opaque_mysql_type_var_string';
+insert into at(c,_ltx) select concat('_ltx: ',c),j from t;
 
 --error 1265
 # insert into at(c,_enu) select concat('_enu: ',c),j from t where c='null';
@@ -2490,7 +2129,7 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='uint';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='double';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringany';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringdecimal';
@@ -2499,9 +2138,9 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='array';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
@@ -2871,382 +2510,31 @@ insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t wh
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
 
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_jsn) select concat('_jsn: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_chr) select concat('_chr: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_vch) select concat('_vch: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_bin) select concat('_bin: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_vbn) select concat('_vbn: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_tbl) select concat('_tbl: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_ttx) select concat('_ttx: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_blb) select concat('_blb: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_txt) select concat('_txt: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_mbb) select concat('_mbb: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_mtx) select concat('_mtx: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_lbb) select concat('_lbb: ',c), json_extract(j, '$') from t;
 
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='null';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='bool';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='uint';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='int';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='double';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='stringany';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='stringint';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='stringdecimal';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='object';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='array';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_longblob';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_mediumblob';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_tinyblob';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varbinary';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_binary';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_varchar';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_string';
-insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_var_string';
+insert into at(c,_ltx) select concat('_ltx: ',c), json_extract(j, '$') from t;
 
 --error 1265
 # insert into at(c,_enu) select concat('_enu: ',c), json_extract(j, '$') from t where c='null';
@@ -4300,7 +3588,7 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='bool
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='uint') from t where c='uint';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='int') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='double') from t where c='double';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringany') from t where c='stringany';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringint') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringdecimal') from t where c='stringdecimal';
@@ -4309,9 +3597,9 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='obje
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='array') from t where c='array';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_decimal') from t where c='opaque_mysql_type_decimal';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_set') from t where c='opaque_mysql_type_set';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
@@ -5592,9 +4880,6 @@ insert into at(c,_gco) select concat('_gco: ',c), (select j from t where c='opaq
 --echo # Validate the data actually inserted
 --echo # ----------------------------------------------------------------------
 
---replace_regex /NULL/N/ /2015-01-15 23:24:25.000000/--EXPECTED_TIME--/ /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/ /2015-01-15/--EXPECTED_DATE--/ /23:24:25/--EXPECTED_TIME--/ /[0-9]{4}-[0-9]{2}-[0-9]{2}/--DATE--/ /[0-9]{2}:[0-9]{2}:[0-9]{2}/--TIME--/
-select * from at;
-
 select c, _bit from at
 where c like '_bit%';
 select c, _tin from at
@@ -5703,65 +4988,9 @@ where c like '_gco%';
 --echo # ----------------------------------------------------------------------
 --echo #  C A S T   F R O M   J S O N   C O L U M N
 --echo # ----------------------------------------------------------------------
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='null';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='bool';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='uint';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='int';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='double';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='stringany';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='stringint';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='object';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='array';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t;
 
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='null';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='bool';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='uint';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='int';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='double';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='stringany';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='stringint';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='object';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='array';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t;
 
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='null';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='bool';
@@ -5782,7 +5011,6 @@ select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='o
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_datetime';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_geom';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_blob';
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_longblob';
@@ -5814,7 +5042,6 @@ select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t wh
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_geom';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_bit';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_year';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_blob';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_longblob';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_mediumblob';
@@ -5825,189 +5052,21 @@ select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t wh
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_string';
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_var_string';
 
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='null';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='bool';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='uint';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='int';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='double';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='stringany';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='stringint';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='object';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='array';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as TIME'), cast(j as TIME) from t;
 
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='null';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='bool';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='uint';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='int';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='double';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='stringany';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='stringint';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='object';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='array';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t;
 
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='null';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='bool';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='uint';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='int';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='double';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='stringany';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='stringint';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='object';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='array';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t;
 
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='null';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='bool';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='uint';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='int';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='double';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='stringany';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='stringint';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='stringdecimal';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='object';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='array';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_set';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_enum';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_date';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_time';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_geom';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_bit';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_blob';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_binary';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_string';
-select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON col ',c, ' as SIGNED'), cast(j as SIGNED) from t;
 
 
 --echo # ----------------------------------------------------------------------
 --echo #  C A S T   F R O M   J S O N   F U N C T I O N
 --echo # ----------------------------------------------------------------------
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='null';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='bool';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='uint';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='int';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='double';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='stringany';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='stringint';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='object';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='array';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t;
 
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='null';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='bool';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='uint';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='int';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='double';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='stringany';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='stringint';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='object';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='array';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t;
 
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='null';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='bool';
@@ -6028,7 +5087,6 @@ select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DAT
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_datetime';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_geom';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_blob';
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_longblob';
@@ -6061,7 +5119,6 @@ select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_geom';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_bit';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_year';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_blob';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_longblob';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_mediumblob';
@@ -6072,125 +5129,13 @@ select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_string';
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_var_string';
 
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='null';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='bool';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='uint';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='int';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='double';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='stringany';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='stringint';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='object';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='array';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as TIME'), cast(json_extract(j, '$') as TIME) from t;
 
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='null';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='bool';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='uint';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='int';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='double';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='stringany';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='stringint';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='object';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='array';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t;
 
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='null';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='bool';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='uint';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='int';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='double';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='stringany';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='stringint';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='object';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='array';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as UNSIGNED'), cast(json_extract(j, '$') as UNSIGNED) from t;
 
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='null';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='bool';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='uint';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='int';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='double';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='stringany';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='stringint';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='stringdecimal';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='object';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='array';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_decimal';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_set';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_enum';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_date';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_time';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_datetime';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_geom';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_bit';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_year';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_blob';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_longblob';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_mediumblob';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_tinyblob';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_varbinary';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_binary';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_varchar';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_string';
-select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t where c='opaque_mysql_type_var_string';
+select concat('From JSON func ',c, ' as SIGNED'), cast(json_extract(j, '$') as SIGNED) from t;
 
 --echo # ----------------------------------------------------------------------
 --echo #  C A S T   F R O M   J S O N   S U B Q U E R Y
@@ -6214,7 +5159,6 @@ select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select 
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_datetime') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_datetime';
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_geom') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_geom';
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_bit') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
-select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_year') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_year') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_year';
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_blob') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_blob';
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_longblob') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_longblob';
@@ -6275,7 +5219,6 @@ select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where
 select concat('From JSON subselect ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_datetime';
 select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_geom') as DATE) from t where c='opaque_mysql_type_geom';
 select concat('From JSON subselect ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_bit';
-select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_year') as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_year') as DATE) from t where c='opaque_mysql_type_year';
 select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_blob') as DATE) from t where c='opaque_mysql_type_blob';
 select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_longblob') as DATE) from t where c='opaque_mysql_type_longblob';
@@ -6444,171 +5387,6 @@ select concat('From JSON subselect ',c, ' as SIGNED'), cast((select j from t whe
 # data taken from this test itself.
 #---------------------------------------------------------------
 --disable_query_log
-create table jj ( col json);
-insert into jj select DISTINCT(CAST(_bit as JSON)) from at
-where _bit is not NULL and cast(_bit as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tin as JSON)) from at
-where _tin is not NULL and cast(_tin as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_boo as JSON)) from at
-where _boo is not NULL and cast(_boo as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_sms as JSON)) from at
-where _sms is not NULL and cast(_sms as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_smu as JSON)) from at
-where _smu is not NULL and cast(_smu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mes as JSON)) from at
-where _mes is not NULL and cast(_mes as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_meu as JSON)) from at
-where _meu is not NULL and cast(_meu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ins as JSON)) from at
-where _ins is not NULL and cast(_ins as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_inu as JSON)) from at
-where _inu is not NULL and cast(_inu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_bis as JSON)) from at
-where _bis is not NULL and cast(_bis as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_biu as JSON)) from at
-where _biu is not NULL and cast(_biu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dec as JSON)) from at
-where _dec is not NULL and cast(_dec as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dou as JSON)) from at
-where _dou is not NULL and cast(_dou as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dat as JSON)) from at
-where _dat is not NULL and cast(_dat as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dtt as JSON)) from at
-where _dtt is not NULL and cast(_dtt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_smp as JSON)) from at
-where _smp is not NULL and cast(_smp as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tim as JSON)) from at
-where _tim is not NULL and cast(_tim as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_yea as JSON)) from at
-where _yea is not NULL and cast(_yea as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_chr as JSON)) from at
-where _chr is not NULL and cast(_chr as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_vch as JSON)) from at
-where _vch is not NULL and cast(_vch as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_bin as JSON)) from at
-where _bin is not NULL and cast(_bin as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_vbn as JSON)) from at
-where _vbn is not NULL and cast(_vbn as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tbl as JSON)) from at
-where _tbl is not NULL and cast(_tbl as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ttx as JSON)) from at
-where _ttx is not NULL and cast(_ttx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_blb as JSON)) from at
-where _blb is not NULL and cast(_blb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_txt as JSON)) from at
-where _txt is not NULL and cast(_txt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mbb as JSON)) from at
-where _mbb is not NULL and cast(_mbb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mtx as JSON)) from at
-where _mtx is not NULL and cast(_mtx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_lbb as JSON)) from at
-where _lbb is not NULL and cast(_lbb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ltx as JSON)) from at
-where _ltx is not NULL and cast(_ltx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_enu as JSON)) from at
-where _enu is not NULL and cast(_enu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_set as JSON)) from at
-where _set is not NULL and cast(_set as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_geo as JSON)) from at
-where _geo is not NULL and cast(_geo as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_pnt as JSON)) from at
-where _pnt is not NULL and cast(_pnt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_lst as JSON)) from at
-where _lst is not NULL and cast(_lst as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_pol as JSON)) from at
-where _pol is not NULL and cast(_pol as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mpt as JSON)) from at
-where _mpt is not NULL and cast(_mpt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mls as JSON)) from at
-where _mls is not NULL and cast(_mls as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mpy as JSON)) from at
-where _mpy is not NULL and cast(_mpy as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_gco as JSON)) from at
-where _gco is not NULL and cast(_gco as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_bit as JSON)) from at
-where _bit is not NULL and cast(_bit as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tin as JSON)) from at
-where _tin is not NULL and cast(_tin as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_boo as JSON)) from at
-where _boo is not NULL and cast(_boo as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_sms as JSON)) from at
-where _sms is not NULL and cast(_sms as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_smu as JSON)) from at
-where _smu is not NULL and cast(_smu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mes as JSON)) from at
-where _mes is not NULL and cast(_mes as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_meu as JSON)) from at
-where _meu is not NULL and cast(_meu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ins as JSON)) from at
-where _ins is not NULL and cast(_ins as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_inu as JSON)) from at
-where _inu is not NULL and cast(_inu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_bis as JSON)) from at
-where _bis is not NULL and cast(_bis as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_biu as JSON)) from at
-where _biu is not NULL and cast(_biu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dec as JSON)) from at
-where _dec is not NULL and cast(_dec as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dou as JSON)) from at
-where _dou is not NULL and cast(_dou as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dat as JSON)) from at
-where _dat is not NULL and cast(_dat as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_dtt as JSON)) from at
-where _dtt is not NULL and cast(_dtt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_smp as JSON)) from at
-where _smp is not NULL and cast(_smp as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tim as JSON)) from at
-where _tim is not NULL and cast(_tim as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_yea as JSON)) from at
-where _yea is not NULL and cast(_yea as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_chr as JSON)) from at
-where _chr is not NULL and cast(_chr as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_vch as JSON)) from at
-where _vch is not NULL and cast(_vch as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_bin as JSON)) from at
-where _bin is not NULL and cast(_bin as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_vbn as JSON)) from at
-where _vbn is not NULL and cast(_vbn as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_tbl as JSON)) from at
-where _tbl is not NULL and cast(_tbl as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ttx as JSON)) from at
-where _ttx is not NULL and cast(_ttx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_blb as JSON)) from at
-where _blb is not NULL and cast(_blb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_txt as JSON)) from at
-where _txt is not NULL and cast(_txt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mbb as JSON)) from at
-where _mbb is not NULL and cast(_mbb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mtx as JSON)) from at
-where _mtx is not NULL and cast(_mtx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_lbb as JSON)) from at
-where _lbb is not NULL and cast(_lbb as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_ltx as JSON)) from at
-where _ltx is not NULL and cast(_ltx as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_enu as JSON)) from at
-where _enu is not NULL and cast(_enu as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_set as JSON)) from at
-where _set is not NULL and cast(_set as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_geo as JSON)) from at
-where _geo is not NULL and cast(_geo as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_pnt as JSON)) from at
-where _pnt is not NULL and cast(_pnt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_lst as JSON)) from at
-where _lst is not NULL and cast(_lst as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_pol as JSON)) from at
-where _pol is not NULL and cast(_pol as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mpt as JSON)) from at
-where _mpt is not NULL and cast(_mpt as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mls as JSON)) from at
-where _mls is not NULL and cast(_mls as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_mpy as JSON)) from at
-where _mpy is not NULL and cast(_mpy as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(CAST(_gco as JSON)) from at
-where _gco is not NULL and cast(_gco as JSON) not in ( select col from jj);
-insert into jj select DISTINCT(_jsn) from at
-where _jsn is not NULL and _jsn not in ( select col from jj);
-insert into jj values (NULL);
-
 
 create table t_bit select DISTINCT(_bit) FROM at;
 create table t_tin select DISTINCT(_tin) FROM at;
@@ -6652,43 +5430,113 @@ create table t_mls select DISTINCT(_mls) FROM at;
 create table t_mpy select DISTINCT(_mpy) FROM at;
 create table t_gco select DISTINCT(_gco) FROM at;
 
+CREATE TABLE jj (col JSON);
+INSERT INTO jj
+SELECT CAST(_bit AS JSON) FROM t_bit UNION
+SELECT CAST(_tin AS JSON) FROM t_tin UNION
+SELECT CAST(_boo AS JSON) FROM t_boo UNION
+SELECT CAST(_sms AS JSON) FROM t_sms UNION
+SELECT CAST(_smu AS JSON) FROM t_smu UNION
+SELECT CAST(_mes AS JSON) FROM t_mes UNION
+SELECT CAST(_meu AS JSON) FROM t_meu UNION
+SELECT CAST(_ins AS JSON) FROM t_ins UNION
+SELECT CAST(_inu AS JSON) FROM t_inu UNION
+SELECT CAST(_bis AS JSON) FROM t_bis UNION
+SELECT CAST(_biu AS JSON) FROM t_biu UNION
+SELECT CAST(_dec AS JSON) FROM t_dec UNION
+SELECT CAST(_dou AS JSON) FROM t_dou UNION
+SELECT CAST(_dat AS JSON) FROM t_dat UNION
+SELECT CAST(_dtt AS JSON) FROM t_dtt UNION
+SELECT CAST(_smp AS JSON) FROM t_smp UNION
+SELECT CAST(_tim AS JSON) FROM t_tim UNION
+SELECT CAST(_yea AS JSON) FROM t_yea UNION
+SELECT CAST(_chr AS JSON) FROM t_chr UNION
+SELECT CAST(_vch AS JSON) FROM t_vch UNION
+SELECT CAST(_bin AS JSON) FROM t_bin UNION
+SELECT CAST(_vbn AS JSON) FROM t_vbn UNION
+SELECT CAST(_tbl AS JSON) FROM t_tbl UNION
+SELECT CAST(_ttx AS JSON) FROM t_ttx UNION
+SELECT CAST(_blb AS JSON) FROM t_blb UNION
+SELECT CAST(_txt AS JSON) FROM t_txt UNION
+SELECT CAST(_mbb AS JSON) FROM t_mbb UNION
+SELECT CAST(_mtx AS JSON) FROM t_mtx UNION
+SELECT CAST(_lbb AS JSON) FROM t_lbb UNION
+SELECT CAST(_ltx AS JSON) FROM t_ltx UNION
+SELECT CAST(_enu AS JSON) FROM t_enu UNION
+SELECT CAST(_set AS JSON) FROM t_set UNION
+SELECT CAST(_geo AS JSON) FROM t_geo UNION
+SELECT CAST(_pnt AS JSON) FROM t_pnt UNION
+SELECT CAST(_lst AS JSON) FROM t_lst UNION
+SELECT CAST(_pol AS JSON) FROM t_pol UNION
+SELECT CAST(_mpt AS JSON) FROM t_mpt UNION
+SELECT CAST(_mls AS JSON) FROM t_mls UNION
+SELECT CAST(_mpy AS JSON) FROM t_mpy UNION
+SELECT CAST(_gco AS JSON) FROM t_gco UNION
+SELECT CAST(_bit AS JSON) FROM t_bit UNION
+SELECT CAST(_tin AS JSON) FROM t_tin UNION
+SELECT CAST(_boo AS JSON) FROM t_boo UNION
+SELECT CAST(_sms AS JSON) FROM t_sms UNION
+SELECT CAST(_smu AS JSON) FROM t_smu UNION
+SELECT CAST(_mes AS JSON) FROM t_mes UNION
+SELECT CAST(_meu AS JSON) FROM t_meu UNION
+SELECT CAST(_ins AS JSON) FROM t_ins UNION
+SELECT CAST(_inu AS JSON) FROM t_inu UNION
+SELECT CAST(_bis AS JSON) FROM t_bis UNION
+SELECT CAST(_biu AS JSON) FROM t_biu UNION
+SELECT CAST(_dec AS JSON) FROM t_dec UNION
+SELECT CAST(_dou AS JSON) FROM t_dou UNION
+SELECT CAST(_dat AS JSON) FROM t_dat UNION
+SELECT CAST(_dtt AS JSON) FROM t_dtt UNION
+SELECT CAST(_smp AS JSON) FROM t_smp UNION
+SELECT CAST(_tim AS JSON) FROM t_tim UNION
+SELECT CAST(_yea AS JSON) FROM t_yea UNION
+SELECT CAST(_chr AS JSON) FROM t_chr UNION
+SELECT CAST(_vch AS JSON) FROM t_vch UNION
+SELECT CAST(_bin AS JSON) FROM t_bin UNION
+SELECT CAST(_vbn AS JSON) FROM t_vbn UNION
+SELECT CAST(_tbl AS JSON) FROM t_tbl UNION
+SELECT CAST(_ttx AS JSON) FROM t_ttx UNION
+SELECT CAST(_blb AS JSON) FROM t_blb UNION
+SELECT CAST(_txt AS JSON) FROM t_txt UNION
+SELECT CAST(_mbb AS JSON) FROM t_mbb UNION
+SELECT CAST(_mtx AS JSON) FROM t_mtx UNION
+SELECT CAST(_lbb AS JSON) FROM t_lbb UNION
+SELECT CAST(_ltx AS JSON) FROM t_ltx UNION
+SELECT CAST(_enu AS JSON) FROM t_enu UNION
+SELECT CAST(_set AS JSON) FROM t_set UNION
+SELECT CAST(_geo AS JSON) FROM t_geo UNION
+SELECT CAST(_pnt AS JSON) FROM t_pnt UNION
+SELECT CAST(_lst AS JSON) FROM t_lst UNION
+SELECT CAST(_pol AS JSON) FROM t_pol UNION
+SELECT CAST(_mpt AS JSON) FROM t_mpt UNION
+SELECT CAST(_mls AS JSON) FROM t_mls UNION
+SELECT CAST(_mpy AS JSON) FROM t_mpy UNION
+SELECT CAST(_gco AS JSON) FROM t_gco UNION
+SELECT _jsn FROM at;
 
 # JSON Data Type Weigtage Function. This is used in
 # first level and second level validation
 #---------------------------------------------
 
-drop table if exists comparison_weight;
-
-create table comparison_weight(rank int, type varchar(100));
-INSERT INTO comparison_weight values ( 10,'OPAQUE');
-INSERT INTO comparison_weight values ( 9,'TIMESTAMP');
-INSERT INTO comparison_weight values ( 9,'DATETIME');
-INSERT INTO comparison_weight values ( 8,'TIME');
-INSERT INTO comparison_weight values ( 7,'DATE');
-INSERT INTO comparison_weight values ( 6,'BOOLEAN');
-INSERT INTO comparison_weight values ( 5,'ARRAY');
-INSERT INTO comparison_weight values ( 4,'OBJECT');
-INSERT INTO comparison_weight values ( 3,'STRING');
-INSERT INTO comparison_weight values ( 3,'BLOB');
-INSERT INTO comparison_weight values ( 2,'INTEGER');
-INSERT INTO comparison_weight values ( 2,'UNSIGNED INTEGER');
-INSERT INTO comparison_weight values ( 2,'DOUBLE');
-INSERT INTO comparison_weight values ( 2,'DECIMAL');
-INSERT INTO comparison_weight values ( 1,'NULL');
-INSERT INTO comparison_weight values ( NULL,NULL);
-
-
-delimiter $;
-
-CREATE FUNCTION GET_JSON_WEIGHT(json_type varchar(100)) RETURNS INT
-BEGIN
-DECLARE JSON_WEIGHT INT(11);
-SELECT rank into JSON_WEIGHT from  comparison_weight where
-(UPPER(type)=json_type ) OR
-(type is NULL) order by rank desc limit 1;
-RETURN (JSON_WEIGHT);
-END $
-delimiter ;$
+CREATE FUNCTION GET_JSON_WEIGHT(json_type VARCHAR(100))
+RETURNS INT DETERMINISTIC
+RETURN CASE json_type
+WHEN 'NULL' THEN 1
+WHEN 'DECIMAL' THEN 2
+WHEN 'DOUBLE' THEN 2
+WHEN 'UNSIGNED INTEGER' THEN 2
+WHEN 'INTEGER' THEN 2
+WHEN 'BLOB' THEN 3
+WHEN 'STRING' THEN 3
+WHEN 'OBJECT' THEN 4
+WHEN 'ARRAY' THEN 5
+WHEN 'BOOLEAN' THEN 6
+WHEN 'DATE' THEN 7
+WHEN 'TIME' THEN 8
+WHEN 'DATETIME' THEN 9
+WHEN 'TIMESTAMP' THEN 9
+WHEN 'OPAQUE' THEN 10
+END;
 
 
 # In this part comparision tests for each comparator
@@ -6752,8 +5600,5 @@ drop table t_gco;
 drop table jj;
 drop table t;
 drop table at;
-drop table comparison_weight;
 
 drop function get_json_weight;
-
-set names default;

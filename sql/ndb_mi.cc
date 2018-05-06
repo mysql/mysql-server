@@ -1,28 +1,34 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_mi.h"
-#include "ha_ndbcluster_glue.h"
+#include "sql/ndb_mi.h"
 
-#include "rpl_msr.h"
-#include "rpl_mi.h"
-#include "rpl_rli.h"
+#include "my_dbug.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"
+#include "sql/rpl_rli.h"
 
-#ifdef HAVE_NDB_BINLOG
 
 /*
   Utility class for interacting with the global structure which
@@ -120,4 +126,15 @@ bool ndb_mi_get_slave_sql_running()
   return msi.get_default_mi()->rli->slave_running;
 }
 
-#endif
+ulong ndb_mi_get_slave_parallel_workers()
+{
+  Multisource_info_guard msi;
+  return msi.get_default_mi()->rli->opt_slave_parallel_workers;
+}
+
+uint32 ndb_get_number_of_channels()
+{
+  Multisource_info_guard msi;
+  return channel_map.get_num_instances();
+}
+

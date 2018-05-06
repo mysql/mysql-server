@@ -3,9 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .*");
-call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
 ########################################################################
 #                               SET UP
 ########################################################################
@@ -350,10 +347,12 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
   PRIMARY KEY (`Channel_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -365,9 +364,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -383,9 +382,9 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ALTER TABLE mysql.slave_master_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
@@ -415,10 +414,12 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crl` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
   PRIMARY KEY (`Channel_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -430,9 +431,9 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -448,9 +449,9 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ==== end rpl_mts_crash_safe.inc:configure ====
 ########################################################################
 #                                TEST
@@ -483,7 +484,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -535,7 +536,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -604,7 +605,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -639,7 +640,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -691,7 +692,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -760,7 +761,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -812,7 +813,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -898,7 +899,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1018,7 +1019,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1070,7 +1071,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1156,7 +1157,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1276,7 +1277,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1345,7 +1346,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1465,7 +1466,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1636,7 +1637,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1705,7 +1706,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1825,7 +1826,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1996,7 +1997,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2048,7 +2049,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2117,7 +2118,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2169,7 +2170,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2238,7 +2239,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2290,7 +2291,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2359,7 +2360,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2445,7 +2446,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2565,7 +2566,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2651,7 +2652,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2771,7 +2772,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2857,7 +2858,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2977,7 +2978,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3097,7 +3098,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3268,7 +3269,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3388,7 +3389,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3559,7 +3560,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3679,7 +3680,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3850,7 +3851,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3919,7 +3920,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3988,7 +3989,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4057,7 +4058,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4126,7 +4127,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4246,7 +4247,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4366,7 +4367,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4486,7 +4487,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4606,7 +4607,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4777,7 +4778,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4948,7 +4949,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -5119,7 +5120,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -5290,7 +5291,7 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc

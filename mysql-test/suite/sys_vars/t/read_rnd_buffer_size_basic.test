@@ -125,7 +125,7 @@ SET @@session.read_rnd_buffer_size = test;
 
 
 --disable_warnings
-SELECT @@global.read_rnd_buffer_size = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='read_rnd_buffer_size';
+SELECT @@global.read_rnd_buffer_size = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='read_rnd_buffer_size';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_140_07-----------------------#'
@@ -135,7 +135,7 @@ SELECT @@global.read_rnd_buffer_size = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GL
 
 --disable_warnings
 SELECT @@session.read_rnd_buffer_size = 
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='read_rnd_buffer_size';
+VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='read_rnd_buffer_size';
 --enable_warnings
 
 

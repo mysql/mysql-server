@@ -1,0 +1,18 @@
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. *");
+RESET MASTER;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT PRIMARY KEY AUTO_INCREMENT);
+SET @foo = 1;
+INSERT INTO t1 VALUES (@foo);
+INSERT INTO t1 VALUES (rand() * 10);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+INSERT INTO t2 VALUES();
+DROP TABLE t1;
+DROP TABLE t2;
+RESET MASTER;
+include/assert.inc [The t1 table should have two entries.]
+include/assert.inc [The t2 table should have one entry.]
+DROP TABLE t1;
+DROP TABLE t2;
+RESET MASTER;

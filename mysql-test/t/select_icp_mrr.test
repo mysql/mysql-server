@@ -9,9 +9,6 @@
 # Run select.inc with index_condition_pushdown and MRR
 #
 
---source include/have_mrr.inc
---source include/have_index_condition_pushdown.inc
-
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 
 --disable_query_log
@@ -28,4 +25,3 @@ if (`select locate('materialization', @@optimizer_switch) > 0`)
 --source include/select.inc
 
 set optimizer_switch=default;
-

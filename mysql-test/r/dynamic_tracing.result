@@ -11,7 +11,7 @@ SET count = count + 1;
 END WHILE;
 SET count = 1;
 WHILE count <= 10000 DO
-SELECT SQL_NO_CACHE count(*) from t1;
+SELECT count(*) from t1;
 SET count = count + 1;
 END WHILE;
 END

@@ -1,0 +1,137 @@
+#######################################################################
+#                                                                     #
+# The aim of this test is to set up replication between a master and  #
+# slave and test the basic functionality of invisible indexes which   #
+# were introduced in WL#8697: Support for INVISIBLE indexes.          #
+#                                                                     #
+# Creation Date: 2016-05-12                                           #
+# Author: Deepa Dixit                                                 #
+#                                                                     #
+#######################################################################
+
+
+--source include/master-slave.inc
+--connection master
+
+--echo # Create a table with an index
+
+CREATE TABLE t1 ( i INT , KEY (i));
+INSERT INTO t1 VALUES (2),(3),(5),(7),(11),(13);
+ANALYZE TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check that the index is on the slave
+
+SHOW INDEXES FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Make the index invisible
+
+ALTER TABLE t1 ALTER INDEX i INVISIBLE;
+ANALYZE TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Verify that the index is invisible on the slave
+
+SHOW INDEXES FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE i=3;
+
+--echo [Connection Master]
+--connection master
+
+ALTER TABLE t1 ALTER INDEX i VISIBLE;
+ANALYZE TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Verify that the index is visible on the slave
+
+SHOW INDEXES FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE i=3;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create an invisible index on the table
+
+CREATE UNIQUE INDEX idx ON t1(i) INVISIBLE;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Verify that the invisible is created on the slave
+
+SHOW INDEXES FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+ALTER TABLE t1 DROP INDEX i, ALTER INDEX idx VISIBLE, ALTER INDEX idx INVISIBLE, ALTER INDEX idx VISIBLE;
+ANALYZE TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SHOW INDEXES FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Creation of invisible indexes on MyISAM tables
+
+CREATE TABLE t2  (i INT, KEY(i) INVISIBLE) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (2),(3),(5),(7),(11);
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo [Connection Master]
+--connection master
+
+--echo # Alter the engine and then alter the index
+
+ALTER TABLE t1 ENGINE = MYISAM;
+ALTER TABLE t1 ALTER INDEX idx INVISIBLE, ALTER INDEX idx VISIBLE;
+ANALYZE TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SHOW INDEXES FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Alter the engine and then alter the index
+
+ALTER TABLE t2 ENGINE = INNODB;
+ALTER TABLE t2 ALTER INDEX i INVISIBLE, ALTER INDEX i VISIBLE, ALTER INDEX i INVISIBLE;
+ANALYZE TABLE t2;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SHOW INDEXES FROM t2;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Clean up
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+--source include/rpl_end.inc

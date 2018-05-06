@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 -- source include/have_ndb.inc
 
 connect (con1,localhost,root,,test);
@@ -27,13 +26,13 @@ insert into parent values (1,2,3);
 
 alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,1,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,1,1);
---error 0
+
 insert into child values (2,1,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 delete from child;
@@ -41,13 +40,13 @@ alter table child drop foreign key fkname;
 
 alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,2,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,3,1);
---error 0
+
 insert into child values (2,1,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 delete from child;
@@ -55,13 +54,69 @@ alter table child drop foreign key fkname;
 
 alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,2,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,3,1);
---error 0
+
 insert into child values (2,2,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 drop table child, parent;
+
+--echo #
+--echo # Bug#21664899 : FAILURE CREATING COMPOSITE FKS REFERENCING COMPOSITE PKS OF PARENT
+--echo #
+
+--echo #create table t1
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key pk1(a,b)
+) engine=ndbcluster;
+
+--echo #create t2 with a unique key on single column
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  unique key uniquet2a(a),
+  foreign key fkt2ab(a,b) references t1(a,b)
+) engine=ndbcluster;
+
+--echo #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+--disable_warnings
+show create table t2;
+--enable_warnings
+alter table t2 drop key uniquet2a;
+
+--echo #alter add a unique constraint on single key
+alter table t2 add constraint uniquet2a unique (a);
+--echo #verify the presence of uniquet2a, fkt2ab & and an extra key for fkt2ab
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #alter add a unique constraint on all cols in fk
+alter table t2 add constraint uniquet2ab unique (a,b);
+--echo #verify the presence of uniquet2a, uniquet2ab, fkt2ab. no extra key for fkt2ab
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
+--error ER_CANNOT_ADD_FOREIGN
+alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+
+--echo #now add a unique key but on a different column order and try again
+alter table t1 add constraint uniquet1abc unique (c,a,b);
+alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
+--echo #verify the presence of new fk
+--disable_warnings
+show create table t2;
+--enable_warnings
+
+--echo #cleanup
+drop table t2, t1;

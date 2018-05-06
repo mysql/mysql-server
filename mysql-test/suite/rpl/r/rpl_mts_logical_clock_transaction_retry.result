@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET DEBUG = "d,set_commit_parent_100";
 #
 # Initialization the test
 #
@@ -18,7 +17,7 @@ INSERT INTO db2.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression("Slave SQL for channel '':.*Lock wait timeout exceeded.*");
 CALL mtr.add_suppression("Slave SQL for channel '': Worker . failed executing transaction.*");
-CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: 1756");
+CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: MY-001756");
 CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction.*");
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
@@ -42,6 +41,7 @@ c1
 10
 100
 [connection master]
+SET DEBUG = "+d,set_commit_parent_100";
 INSERT INTO db1.t1 VALUES(2, NULL);
 INSERT INTO db2.t1 VALUES(2, NULL);
 include/save_master_pos.inc
@@ -118,7 +118,7 @@ INSERT INTO db1.t1 VALUES(50, NULL);
 include/save_master_pos.inc
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1062]
-include/assert.inc [slave_retried_transactions should not increase]
+include/assert.inc [count_transactions_retries should not increase]
 DELETE FROM db1.t1 WHERE c1 = 50;
 include/start_slave_sql.inc
 include/sync_slave_sql.inc
@@ -133,6 +133,7 @@ include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 include/start_slave_sql.inc
 [connection master]
+SET DEBUG = "-d,set_commit_parent_100";
 DROP DATABASE db1;
 DROP DATABASE db2;
 include/rpl_end.inc

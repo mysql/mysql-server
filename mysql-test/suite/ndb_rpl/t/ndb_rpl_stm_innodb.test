@@ -8,7 +8,6 @@
 
 --disable_query_log
 --source include/have_ndb.inc
---source include/have_innodb.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 --enable_query_log
 

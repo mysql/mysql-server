@@ -1,0 +1,169 @@
+create user insertsqluser@localhost identified by 'insertsqluser';
+grant all on *.* to insertsqluser@localhost;
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxplugin
+
+1 rows affected
+RUN USE mysqlxplugin
+
+0 rows affected
+RUN CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL)
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED 
+
+0 rows affected
+RUN CREATE SPATIAL INDEX idx1 on tab(c2)
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+RUN CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=8 
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
+ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'),
+ST_GeomFromText('POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(3,ST_GeomFromText('POINT(4 4)'),ST_GeomFromText('LINESTRING(130 130,140 140,150 150)'),
+ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))'),
+ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(4,ST_GeomFromText('POINT(50 50)'),ST_GeomFromText('LINESTRING(200 200,300 300,400 400)'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'),
+ST_GeomFromText('POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(5,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(400 400,500 500,600 700)'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'),
+ST_GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(6,ST_GeomFromText('POINT(3 3)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'),
+ST_GeomFromText('POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(7,ST_GeomFromText('POINT(60 70)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(8,ST_GeomFromText('POINT(0 0)'),ST_GeomFromText('LINESTRING(40 40,50 50,60 70)'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'),
+ST_GeomFromText('POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(9,ST_GeomFromText('POINT(120 120)'),ST_GeomFromText('LINESTRING(100 100,110 110,120 120)'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'),
+ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))'))
+
+1 rows affected
+RUN INSERT INTO tab(c1,c2,c3,c4,c5)
+VALUES(10,ST_GeomFromText('POINT(160 160)'),ST_GeomFromText('LINESTRING(140 140,150 150,160 160)'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'),
+ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))'))
+
+1 rows affected
+RUN SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+3	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText( 'POLYGON((30 30,40 40,50 50,30 50,30 40,30 30)) ')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+1	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText('POLYGON((100 200,200 300,400 500,500 300,300 200,100 300,100 200))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+0 rows affected
+RUN SET @g1 = ST_GeomFromText('POLYGON((4 -2,5 -4,6 -5,7 -4,7 2,4 -2))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRDisjoint(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+1	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+4	POLYGON((300 300,400 400,500 500,300 500,300 400,300 300))
+5	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
+6	POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))
+7	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+8	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+9	POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))
+10	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+10	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+1	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+3	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 2,4 5,5 5,7 1,0 0 ))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+3	POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))
+0 rows affected
+RUN SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))')
+
+0 rows affected
+RUN SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1
+c1	ST_Astext(c4)
+2	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN USE  mysqlxplugin
+
+0 rows affected
+RUN DROP TABLE tab
+
+0 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxplugin
+
+0 rows affected
+RUN DROP USER insertsqluser@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

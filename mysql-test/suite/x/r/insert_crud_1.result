@@ -1,0 +1,810 @@
+create user readuser@localhost identified by 'readuser';
+grant select on *.* to readuser@localhost;
+RUN DROP SCHEMA if EXISTS xplugintest
+
+0 rows affected
+RUN CREATE SCHEMA xplugintest DEFAULT CHARSET='utf8'
+
+1 rows affected
+RUN USE xplugintest
+
+0 rows affected
+RUN CREATE TABLE categories (
+   categoryid int NOT NULL AUTO_INCREMENT,
+   categoryname varchar(100),
+   categorydescription varchar(200),
+   categoryimei tinyint,
+   categorydecimal decimal(5,2),
+   categorybool bit(1),
+   PRIMARY key (categoryid)
+  )
+
+0 rows affected
+Insert multiple rows
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "categoryid"
+  }
+  projection {
+    name: "categoryname"
+  }
+  projection {
+    name: "categorydescription"
+  }
+  projection {
+    name: "categoryimei"
+  }
+  projection {
+    name: "categorydecimal"
+  }
+  projection {
+    name: "categorybool"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Sports"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Sports related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 235.15
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Entertaiment"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Entertaiment related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 156.17
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: true
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Cooking"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Cooking related category"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 116.17
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_BOOL
+        v_bool: true
+      }
+    }
+  }
+}
+
+
+3 rows affected
+last insert id: 18
+Records: 3  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM categories
+categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categorybool
+1	Sports	Sports related category	1	235.15	0
+2	Entertaiment	Entertaiment related category	2	156.17	1
+18	Cooking	Cooking related category	18	116.17	1
+0 rows affected
+"No auto increment column mentioned in projection"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "categoryname"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "GROUND"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+last insert id: 19
+RUN SELECT * FROM categories
+categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categorybool
+1	Sports	Sports related category	1	235.15	0
+2	Entertaiment	Entertaiment related category	2	156.17	1
+18	Cooking	Cooking related category	18	116.17	1
+19	GROUND	null	null	null	null
+0 rows affected
+"Enter NULL values"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "categoryname"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+
+1 rows affected
+last insert id: 20
+RUN SELECT * FROM categories
+categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categorybool
+1	Sports	Sports related category	1	235.15	0
+2	Entertaiment	Entertaiment related category	2	156.17	1
+18	Cooking	Cooking related category	18	116.17	1
+19	GROUND	null	null	null	null
+20	null	null	null	null	null
+0 rows affected
+RUN CREATE TABLE categories_child( col1 INT , col2 JSON ,
+       FOREIGN KEY (col1) REFERENCES categories(categoryid))
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories_child"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "col1"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories_child"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "col1"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 100
+      }
+    }
+  }
+}
+
+"Insert fails as referencing value not present in parent"
+Got expected error: Cannot add or update a child row: a foreign key constraint fails (`xplugintest`.`categories_child`, CONSTRAINT `categories_child_ibfk_1` FOREIGN KEY (`col1`) REFERENCES `categories` (`categoryid`)) (code 1452)
+RUN SELECT * FROM categories_child
+col1	col2
+18	null
+0 rows affected
+"Column mismatch"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories_child"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "col1"
+  }
+  projection {
+    name: "col2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 18
+      }
+    }
+  }
+}
+
+Got expected error: Wrong number of fields in row being inserted (code 5014)
+RUN SELECT * FROM categories_child
+col1	col2
+18	null
+0 rows affected
+RUN DROP TABLE categories_child
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "maincollection"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Insert multiple rows into a Document column
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+"Non unique value for _id member of `doc` "
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Bras\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"4\"\n}"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+"Error expected as non unique value for _id provided for member of JSON doc "
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+"No _id member for JSON doc"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n                 \"name\": \"Omar Bras\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+auto-generated id(s): 0000XXXXXXXX0000000000000001
+"Error expected as _id member is not provided for JSON doc "
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+"projection is not allowed for DOCUMENT table"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  projection {
+    name: "doc"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n                 \"name\": \"Omar Bras\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Invalid projection for document operation (code 5114)
+"Error expected as projection given for DOCUMENT table "
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+"Error when inserting doc as null"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+Got expected error (one of: 5114 5115 )
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+"enter null value in doc member"
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"4\",\n         \"name\": \"Jackson\", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+{"id": null, "_id": "4", "name": "Jackson"}	4
+0 rows affected
+"Insert using transaction"
+RUN START TRANSACTION
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"5\",\n         \"name\": \"Jimmy \", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SAVEPOINT A
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"6\",\n         \"name\": \"Joe\", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SAVEPOINT B
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"7\",\n         \"name\": \"Jacky\", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN ROLLBACK TO SAVEPOINT A
+
+0 rows affected
+RUN COMMIT
+
+0 rows affected
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+{"id": null, "_id": "4", "name": "Jackson"}	4
+{"id": null, "_id": "5", "name": "Jimmy "}	5
+0 rows affected
+RUN LOCK TABLES maincollection READ
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"7\",\n         \"name\": \"Jacky\", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Table 'maincollection' was locked with a READ lock and can't be updated (code 1099)
+"Error as table is locked with read lock"
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+{"id": null, "_id": "4", "name": "Jackson"}	4
+{"id": null, "_id": "5", "name": "Jimmy "}	5
+0 rows affected
+RUN UNLOCK TABLES
+
+0 rows affected
+RUN LOCK TABLES maincollection WRITE
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "maincollection"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"7\",\n         \"name\": \"Jacky\", \"id\": null\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM maincollection
+doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+{"id": null, "_id": "4", "name": "Jackson"}	4
+{"id": null, "_id": "5", "name": "Jimmy "}	5
+{"id": null, "_id": "7", "name": "Jacky"}	7
+0 rows affected
+RUN UNLOCK TABLES
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN SET SESSION lock_wait_timeout= 3
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "categoryname"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Mountain"
+        }
+      }
+    }
+  }
+}
+
+Got expected error (one of: 1142 1205 )
+RUN SELECT * FROM xplugintest.categories
+categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categorybool
+1	Sports	Sports related category	1	235.15	0
+2	Entertaiment	Entertaiment related category	2	156.17	1
+18	Cooking	Cooking related category	18	116.17	1
+19	GROUND	null	null	null	null
+20	null	null	null	null	null
+0 rows affected
+Got expected error (one of: 0 1205 )
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+LOCK TABLES xplugintest.categories WRITE;
+RUN SET SESSION lock_wait_timeout= 3
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "categories"
+    schema: "xplugintest"
+  }
+  data_model: TABLE
+  projection {
+    name: "categoryname"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Mountain"
+        }
+      }
+    }
+  }
+}
+
+Got expected error (one of: 1142 1205 )
+RUN SELECT * FROM xplugintest.categories
+While executing SELECT * FROM xplugintest.categories:
+Got expected error (one of: 0 1205 )
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNLOCK TABLES;
+DELETE FROM xplugintest.maincollection;
+SELECT COUNT(*) FROM xplugintest.maincollection;
+COUNT(*)
+30
+DROP SCHEMA if EXISTS xplugintest;
+DROP USER readuser@localhost;

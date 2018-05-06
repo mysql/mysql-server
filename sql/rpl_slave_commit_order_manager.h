@@ -1,13 +1,20 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -15,16 +22,20 @@
 
 #ifndef RPL_SLAVE_COMMIT_ORDER_MANAGER
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
-#ifdef HAVE_REPLICATION
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
-#include "my_global.h"
-#include "sql_class.h"        // THD
-#include "rpl_rli_pdb.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "sql/rpl_rli_pdb.h"  // get_thd_worker
 
+class THD;
 
-class Commit_order_manager
-{
-public:
+class Commit_order_manager {
+ public:
   Commit_order_manager(uint32 worker_numbers);
   ~Commit_order_manager();
 
@@ -69,23 +80,17 @@ public:
 
     @param[in] worker The worker which is executing the transaction.
   */
-  void report_commit(Slave_worker *worker)
-  {
+  void report_commit(Slave_worker *worker) {
     wait_for_its_turn(worker, true);
     unregister_trx(worker);
   }
 
   void report_deadlock(Slave_worker *worker);
-private:
-  enum order_commit_status
-  {
-    OCS_WAIT,
-    OCS_SIGNAL,
-    OCS_FINISH
-  };
 
-  struct worker_info
-  {
+ private:
+  enum order_commit_status { OCS_WAIT, OCS_SIGNAL, OCS_FINISH };
+
+  struct worker_info {
     uint32 next;
     mysql_cond_t cond;
     enum order_commit_status status;
@@ -103,38 +108,29 @@ private:
   */
   uint32 queue_head;
   uint32 queue_tail;
-  static const uint32 QUEUE_EOF= 0xFFFFFFFF;
+  static const uint32 QUEUE_EOF = 0xFFFFFFFF;
   bool queue_empty() { return queue_head == QUEUE_EOF; }
 
-  void queue_pop()
-  {
-    queue_head= m_workers[queue_head].next;
-    if (queue_head == QUEUE_EOF)
-      queue_tail= QUEUE_EOF;
+  void queue_pop() {
+    queue_head = m_workers[queue_head].next;
+    if (queue_head == QUEUE_EOF) queue_tail = QUEUE_EOF;
   }
 
-  void queue_push(uint32 index)
-  {
+  void queue_push(uint32 index) {
     if (queue_head == QUEUE_EOF)
-      queue_head= index;
+      queue_head = index;
     else
-      m_workers[queue_tail].next= index;
-    queue_tail= index;
-    m_workers[index].next= QUEUE_EOF;
+      m_workers[queue_tail].next = index;
+    queue_tail = index;
+    m_workers[index].next = QUEUE_EOF;
   }
 
   uint32 queue_front() { return queue_head; }
 
   // Copy constructor is not implemented
-  Commit_order_manager(const Commit_order_manager&);
-  Commit_order_manager& operator=(const Commit_order_manager&);
+  Commit_order_manager(const Commit_order_manager &);
+  Commit_order_manager &operator=(const Commit_order_manager &);
 };
-
-inline bool has_commit_order_manager(THD *thd)
-{
-  return is_mts_worker(thd) &&
-    thd->rli_slave->get_commit_order_manager() != NULL;
-}
 
 /**
    Check if order commit deadlock happens.
@@ -194,24 +190,21 @@ inline bool has_commit_order_manager(THD *thd)
    @param[in] thd_wait_for The THD object of a session which is holding
                            a lock being acquired by current session.
 */
-inline void commit_order_manager_check_deadlock(THD* thd_self,
-                                                THD *thd_wait_for)
-{
+inline void commit_order_manager_check_deadlock(THD *thd_self,
+                                                THD *thd_wait_for) {
   DBUG_ENTER("commit_order_manager_check_deadlock");
 
-  Slave_worker *self_w= get_thd_worker(thd_self);
-  Slave_worker *wait_for_w= get_thd_worker(thd_wait_for);
-  Commit_order_manager *mngr= self_w->get_commit_order_manager();
+  Slave_worker *self_w = get_thd_worker(thd_self);
+  Slave_worker *wait_for_w = get_thd_worker(thd_wait_for);
+  Commit_order_manager *mngr = self_w->get_commit_order_manager();
 
   /* Check if both workers are working for the same channel */
   if (mngr != NULL && self_w->c_rli == wait_for_w->c_rli &&
-      wait_for_w->sequence_number() > self_w->sequence_number())
-  {
+      wait_for_w->sequence_number() > self_w->sequence_number()) {
     DBUG_PRINT("info", ("Found slave order commit deadlock"));
     mngr->report_deadlock(wait_for_w);
   }
   DBUG_VOID_RETURN;
 }
 
-#endif //HAVE_REPLICATION
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

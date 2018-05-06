@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "DblqhProxy.hpp"
 #include "Dblqh.hpp"
@@ -20,6 +27,7 @@
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/StartFragReq.hpp>
 #include <signaldata/ExecFragReq.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #define JAM_FILE_ID 442
 
@@ -29,6 +37,11 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   c_tableRecSize(0),
   c_tableRec(0)
 {
+  m_received_wait_all = false;
+  m_lcp_started = false;
+  m_outstanding_wait_lcp = 0;
+  m_outstanding_start_node_lcp_req = 0;
+
   // GSN_CREATE_TAB_REQ
   addRecSignal(GSN_CREATE_TAB_REQ, &DblqhProxy::execCREATE_TAB_REQ);
   addRecSignal(GSN_CREATE_TAB_CONF, &DblqhProxy::execCREATE_TAB_CONF);
@@ -91,6 +104,15 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_SUB_GCP_COMPLETE_REP
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &DblqhProxy::execSUB_GCP_COMPLETE_REP);
 
+  // GSN_UNDO_LOG_LEVEL_REP
+  addRecSignal(GSN_UNDO_LOG_LEVEL_REP, &DblqhProxy::execUNDO_LOG_LEVEL_REP);
+
+  // GSN_START_NODE_LCP_REQ
+  addRecSignal(GSN_START_NODE_LCP_REQ, &DblqhProxy::execSTART_NODE_LCP_REQ);
+
+  // GSN_START_NODE_LCP_CONF
+  addRecSignal(GSN_START_NODE_LCP_CONF, &DblqhProxy::execSTART_NODE_LCP_CONF);
+
   // GSN_EXEC_SRREQ
   addRecSignal(GSN_EXEC_SRREQ, &DblqhProxy::execEXEC_SRREQ);
   addRecSignal(GSN_EXEC_SRCONF, &DblqhProxy::execEXEC_SRCONF);
@@ -104,6 +126,8 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_DROP_FRAG_CONF, &DblqhProxy::execDROP_FRAG_CONF);
   addRecSignal(GSN_DROP_FRAG_REF, &DblqhProxy::execDROP_FRAG_REF);
 
+  // GSN_INFO_GCP_STOP_TIMER
+  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &DblqhProxy::execINFO_GCP_STOP_TIMER);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -154,6 +178,18 @@ DblqhProxy::callREAD_CONFIG_REQ(Signal* signal)
   for (i = 0; i < c_tableRecSize; i++)
     c_tableRec[i] = 0;
   backREAD_CONFIG_REQ(signal);
+}
+
+// GSN_INFO_GCP_STOP_TIMER
+void
+DblqhProxy::execINFO_GCP_STOP_TIMER(Signal* signal)
+{
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_INFO_GCP_STOP_TIMER, signal,
+               signal->getLength(), JBB);
+  }
 }
 
 // GSN_CREATE_TAB_REQ
@@ -502,9 +538,6 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
     // handle start of LCP in PGMAN and TSMAN
     LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
     *req = req_copy;
-    EXECUTE_DIRECT(PGMAN, GSN_LCP_FRAG_ORD,
-                   signal, LcpFragOrd::SignalLength);
-    *req = req_copy;
     EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
                    signal, LcpFragOrd::SignalLength);
 
@@ -535,7 +568,7 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
     if (getNoOfOutstanding(c_lcpRecord) == 0)
     {
       jam();
-      completeLCP_1(signal);
+      completeLCP(signal);
       return;
     }
 
@@ -591,7 +624,7 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
         (getNoOfOutstanding(c_lcpRecord) == 0))
     {
       jam();
-      completeLCP_1(signal);
+      completeLCP(signal);
     }
     return;
   }
@@ -620,7 +653,7 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
       /*
        *   and we have all fragments has been processed
        */
-      completeLCP_1(signal);
+      completeLCP(signal);
     }
     return;
   }
@@ -629,7 +662,7 @@ DblqhProxy::execLCP_FRAG_REP(Signal* signal)
 }
 
 void
-DblqhProxy::completeLCP_1(Signal* signal)
+DblqhProxy::completeLCP(Signal* signal)
 {
   ndbrequire(c_lcpRecord.m_state == LcpRecord::L_RUNNING);
   c_lcpRecord.m_state = LcpRecord::L_COMPLETING_1;
@@ -654,23 +687,6 @@ DblqhProxy::completeLCP_1(Signal* signal)
     sendSignal(workerRef(i), GSN_LCP_FRAG_ORD, signal,
                LcpFragOrd::SignalLength, JBB);
   }
-
-  /**
-   * send END_LCPREQ to all pgman instances (except "extra" pgman)
-   *   they will reply with END_LCPCONF
-   */
-  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
-  req->senderData= 0;
-  req->senderRef= reference();
-  req->backupPtr= 0;
-  req->backupId= c_lcpRecord.m_lcpId;
-  for (Uint32 i = 0; i<c_workers; i++)
-  {
-    jam();
-    c_lcpRecord.m_complete_outstanding++;
-    sendSignal(numberToRef(PGMAN, workerInstance(i), getOwnNodeId()),
-               GSN_END_LCPREQ, signal, EndLcpReq::SignalLength, JBA);
-  }
 }
 
 void
@@ -683,117 +699,41 @@ DblqhProxy::execLCP_COMPLETE_REP(Signal* signal)
 
   if (c_lcpRecord.m_complete_outstanding == 0)
   {
+    /**
+     * TSMAN needs to know when LCP is completed to know when it
+     * can start reusing extents belonging to dropped tables.
+     */
     jam();
-    completeLCP_2(signal);
-    return;
+    c_lcpRecord.m_state = LcpRecord::L_COMPLETING_2;
+    c_lcpRecord.m_complete_outstanding++;
+    EndLcpReq *req = (EndLcpReq*)signal->getDataPtr();
+    req->senderData = 0; /* Ignored */
+    req->senderRef = reference();
+    req->backupPtr = 0; /* Ignored */
+    req->backupId = c_lcpRecord.m_lcpId;
+    req->proxyBlockNo = 0; /* Ignored */
+    sendSignal(TSMAN_REF, GSN_END_LCPREQ, signal,
+               EndLcpReq::SignalLength, JBB);
   }
 }
 
 void
-DblqhProxy::execEND_LCPCONF(Signal* signal)
+DblqhProxy::execEND_LCPCONF(Signal *signal)
 {
-  jamEntry();
-  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1 ||
-             c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2 ||
-             c_lcpRecord.m_state == LcpRecord::L_COMPLETING_3);
-
   ndbrequire(c_lcpRecord.m_complete_outstanding);
   c_lcpRecord.m_complete_outstanding--;
-
-  if (c_lcpRecord.m_complete_outstanding == 0)
+  if (c_lcpRecord.m_complete_outstanding > 0)
   {
     jam();
-    if (c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1)
-    {
-      jam();
-      completeLCP_2(signal);
-      return;
-    }
-    else if (c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2)
-    {
-      jam();
-      completeLCP_3(signal);
-      return;
-    }
-    else
-    {
-      jam();
-      sendLCP_COMPLETE_REP(signal);
-      return;
-    }
+    return;
   }
-}
-
-void
-DblqhProxy::completeLCP_2(Signal* signal)
-{
-  jamEntry();
-  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_1);
-  c_lcpRecord.m_state = LcpRecord::L_COMPLETING_2;
-
-  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
-  req->senderData= 0;
-  req->senderRef= reference();
-  req->backupPtr= 0;
-  req->backupId= c_lcpRecord.m_lcpId;
-  c_lcpRecord.m_complete_outstanding++;
-
-  /**
-   * send to "extra" instance
-   *   that will checkpoint extent-pages
-   */
-  // NOTE: ugly to use MaxLqhWorkers directly
-  Uint32 instance = c_workers + 1;
-  sendSignal(numberToRef(PGMAN, instance, getOwnNodeId()),
-             GSN_END_LCPREQ, signal, EndLcpReq::SignalLength, JBA);
-}
-
-
-void
-DblqhProxy::completeLCP_3(Signal* signal)
-{
-  jamEntry();
-  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2);
-  c_lcpRecord.m_state = LcpRecord::L_COMPLETING_3;
-
-  /**
-   * And finally also checkpoint UNDO LOG
-   *   and inform TSMAN that checkpoint is "complete"
-   */
-  EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
-  req->senderData= 0;
-  req->senderRef= reference();
-  req->backupPtr= 0;
-  req->backupId= c_lcpRecord.m_lcpId;
-
-  // no reply from this
-  sendSignal(TSMAN_REF, GSN_END_LCPREQ, signal,
-             EndLcpReq::SignalLength, JBA);
-
-  if (c_lcpRecord.m_lcp_frag_rep_cnt)
-  {
-    jam();
-    c_lcpRecord.m_complete_outstanding++;
-    sendSignal(LGMAN_REF, GSN_END_LCPREQ, signal,
-               EndLcpReq::SignalLength, JBA);
-  }
-  else
-  {
-    jam();
-    /**
-     * lgman does currently not like 0 fragments,
-     *   cause then it does not get a LCP_FRAG_ORD
-     *
-     *   this should change so that it gets this first (style)
-     */
-    sendLCP_COMPLETE_REP(signal);
-  }
+  sendLCP_COMPLETE_REP(signal);
 }
 
 void
 DblqhProxy::sendLCP_COMPLETE_REP(Signal* signal)
 {
-  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_3);
+  ndbrequire(c_lcpRecord.m_state == LcpRecord::L_COMPLETING_2);
 
   LcpCompleteRep* conf = (LcpCompleteRep*)signal->getDataPtrSend();
   conf->nodeId = LcpFragRep::BROADCAST_REQ;
@@ -852,8 +792,6 @@ DblqhProxy::checkSendEMPTY_LCP_CONF_impl(Signal* signal)
   case LcpRecord::L_COMPLETING_1:
     jam();
   case LcpRecord::L_COMPLETING_2:
-    jam();
-  case LcpRecord::L_COMPLETING_3:
     jam();
     return;
   }
@@ -956,6 +894,52 @@ DblqhProxy::execSUB_GCP_COMPLETE_REP(Signal* signal)
     sendSignal(workerRef(i), GSN_SUB_GCP_COMPLETE_REP, signal,
                signal->getLength(), JBB);
   }
+}
+
+// GSN_UNDO_LOG_LEVEL_REP
+void
+DblqhProxy::execUNDO_LOG_LEVEL_REP(Signal *signal)
+{
+  jamEntry();
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_UNDO_LOG_LEVEL_REP, signal,
+               signal->getLength(), JBB);
+  }
+}
+
+// GSN_START_NODE_LCP_REQ
+void
+DblqhProxy::execSTART_NODE_LCP_REQ(Signal *signal)
+{
+  Uint32 current_gci = signal->theData[0];
+  Uint32 restorable_gci = signal->theData[1];
+  ndbrequire(m_outstanding_start_node_lcp_req == 0);
+  m_outstanding_start_node_lcp_req = c_workers;
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    signal->theData[0] = current_gci;
+    signal->theData[1] = restorable_gci;
+    sendSignal(workerRef(i), GSN_START_NODE_LCP_REQ, signal,
+               signal->getLength(), JBB);
+  }
+}
+
+void
+DblqhProxy::execSTART_NODE_LCP_CONF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(m_outstanding_start_node_lcp_req > 0);
+  m_outstanding_start_node_lcp_req--;
+  if (m_outstanding_start_node_lcp_req > 0)
+  {
+    jam();
+    return;
+  }
+  signal->theData[0] = 1;
+  sendSignal(DBDIH_REF, GSN_START_NODE_LCP_CONF, signal, 1, JBB);
 }
 
 // GSN_PREP_DROP_TAB_REQ
@@ -1362,7 +1346,7 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
     /**
      * There should be no disk-ops in flight here...check it
      */
-    signal->theData[0] = 12003;
+    signal->theData[0] = DumpStateOrd::LgmanCheckCallbacksClear;
     sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
 
     ndbrequire(ss.phaseToSend ==

@@ -36,10 +36,6 @@ Tables_in_ndbsynctest
 DROP DATABASE ndbsynctest;
 CREATE DATABASE ndbsynctest;
 USE ndbsynctest;
-SHOW TABLES;
-Tables_in_ndbsynctest
-t1
-t2
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1

@@ -140,7 +140,7 @@ col_char1 VARCHAR(30),
 col_char2 VARCHAR(30),
 col_char3 VARCHAR(30),
 col_char4 VARCHAR(30)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 ALTER TABLE t1 ADD UNIQUE KEY uidx_col_int0 (col_int0),
 ADD UNIQUE KEY uidx1 (col_int1, col_char0),
 ADD UNIQUE KEY uidx2 (col_int2, col_char0, col_int1),

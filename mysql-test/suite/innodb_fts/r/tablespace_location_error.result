@@ -1,44 +1,41 @@
 # Test with file_per_table
 SET DEBUG = '+d,ib_fts_aux_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) ;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) ;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARCHAR(200)) ENGINE=InnoDB ;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 11 from storage engine
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	33	5	Dynamic	0	Single
 # list files in datadir/test
-t1.frm
 t1.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) ;
@@ -55,208 +52,200 @@ AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 c
 1
 3
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	test/FTS_AUX_INDEX_1	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_2	test/FTS_AUX_INDEX_2	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_3	test/FTS_AUX_INDEX_3	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_4	test/FTS_AUX_INDEX_4	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_5	test/FTS_AUX_INDEX_5	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_6	test/FTS_AUX_INDEX_6	33	8	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED	test/FTS_AUX_BEING_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED_CACHE	test/FTS_AUX_BEING_DELETED_CACHE	33	4	Dynamic	0	Single
-test/FTS_AUX_CONFIG	test/FTS_AUX_CONFIG	33	5	Dynamic	0	Single
-test/FTS_AUX_DELETED	test/FTS_AUX_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_DELETED_CACHE	test/FTS_AUX_DELETED_CACHE	33	4	Dynamic	0	Single
+test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
+test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
+test/fts_aux_index_3	test/fts_aux_index_3	33	8	Dynamic	0	Single
+test/fts_aux_index_4	test/fts_aux_index_4	33	8	Dynamic	0	Single
+test/fts_aux_index_5	test/fts_aux_index_5	33	8	Dynamic	0	Single
+test/fts_aux_index_6	test/fts_aux_index_6	33	8	Dynamic	0	Single
+test/fts_aux_being_deleted	test/fts_aux_being_deleted	33	4	Dynamic	0	Single
+test/fts_aux_being_deleted_cache	test/fts_aux_being_deleted_cache	33	4	Dynamic	0	Single
+test/fts_aux_config	test/fts_aux_config	33	5	Dynamic	0	Single
+test/fts_aux_deleted	test/fts_aux_deleted	33	4	Dynamic	0	Single
+test/fts_aux_deleted_cache	test/fts_aux_deleted_cache	33	4	Dynamic	0	Single
 test/t1	test/t1	33	7	Dynamic	0	Single
 # list files in datadir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
-t1.frm
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	test/FTS_AUX_INDEX_1	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_2	test/FTS_AUX_INDEX_2	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_3	test/FTS_AUX_INDEX_3	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_4	test/FTS_AUX_INDEX_4	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_5	test/FTS_AUX_INDEX_5	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_6	test/FTS_AUX_INDEX_6	33	8	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED	test/FTS_AUX_BEING_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED_CACHE	test/FTS_AUX_BEING_DELETED_CACHE	33	4	Dynamic	0	Single
-test/FTS_AUX_CONFIG	test/FTS_AUX_CONFIG	33	5	Dynamic	0	Single
-test/FTS_AUX_DELETED	test/FTS_AUX_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_DELETED_CACHE	test/FTS_AUX_DELETED_CACHE	33	4	Dynamic	0	Single
+test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
+test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
+test/fts_aux_index_3	test/fts_aux_index_3	33	8	Dynamic	0	Single
+test/fts_aux_index_4	test/fts_aux_index_4	33	8	Dynamic	0	Single
+test/fts_aux_index_5	test/fts_aux_index_5	33	8	Dynamic	0	Single
+test/fts_aux_index_6	test/fts_aux_index_6	33	8	Dynamic	0	Single
+test/fts_aux_being_deleted	test/fts_aux_being_deleted	33	4	Dynamic	0	Single
+test/fts_aux_being_deleted_cache	test/fts_aux_being_deleted_cache	33	4	Dynamic	0	Single
+test/fts_aux_config	test/fts_aux_config	33	5	Dynamic	0	Single
+test/fts_aux_deleted	test/fts_aux_deleted	33	4	Dynamic	0	Single
+test/fts_aux_deleted_cache	test/fts_aux_deleted_cache	33	4	Dynamic	0	Single
 test/t1	test/t1	33	7	Dynamic	0	Single
 # list files in datadir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
-t1.frm
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	test/FTS_AUX_INDEX_1	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_2	test/FTS_AUX_INDEX_2	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_3	test/FTS_AUX_INDEX_3	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_4	test/FTS_AUX_INDEX_4	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_5	test/FTS_AUX_INDEX_5	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_6	test/FTS_AUX_INDEX_6	33	8	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED	test/FTS_AUX_BEING_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED_CACHE	test/FTS_AUX_BEING_DELETED_CACHE	33	4	Dynamic	0	Single
-test/FTS_AUX_CONFIG	test/FTS_AUX_CONFIG	33	5	Dynamic	0	Single
-test/FTS_AUX_DELETED	test/FTS_AUX_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_DELETED_CACHE	test/FTS_AUX_DELETED_CACHE	33	4	Dynamic	0	Single
+test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
+test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
+test/fts_aux_index_3	test/fts_aux_index_3	33	8	Dynamic	0	Single
+test/fts_aux_index_4	test/fts_aux_index_4	33	8	Dynamic	0	Single
+test/fts_aux_index_5	test/fts_aux_index_5	33	8	Dynamic	0	Single
+test/fts_aux_index_6	test/fts_aux_index_6	33	8	Dynamic	0	Single
+test/fts_aux_being_deleted	test/fts_aux_being_deleted	33	4	Dynamic	0	Single
+test/fts_aux_being_deleted_cache	test/fts_aux_being_deleted_cache	33	4	Dynamic	0	Single
+test/fts_aux_config	test/fts_aux_config	33	5	Dynamic	0	Single
+test/fts_aux_deleted	test/fts_aux_deleted	33	4	Dynamic	0	Single
+test/fts_aux_deleted_cache	test/fts_aux_deleted_cache	33	4	Dynamic	0	Single
 test/t1	test/t1	33	7	Dynamic	0	Single
 # list files in datadir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
-t1.frm
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1.ibd
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	test/FTS_AUX_INDEX_1	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_2	test/FTS_AUX_INDEX_2	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_3	test/FTS_AUX_INDEX_3	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_4	test/FTS_AUX_INDEX_4	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_5	test/FTS_AUX_INDEX_5	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_6	test/FTS_AUX_INDEX_6	33	8	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED	test/FTS_AUX_BEING_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED_CACHE	test/FTS_AUX_BEING_DELETED_CACHE	33	4	Dynamic	0	Single
-test/FTS_AUX_CONFIG	test/FTS_AUX_CONFIG	33	5	Dynamic	0	Single
-test/FTS_AUX_DELETED	test/FTS_AUX_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_DELETED_CACHE	test/FTS_AUX_DELETED_CACHE	33	4	Dynamic	0	Single
+test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
+test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
+test/fts_aux_index_3	test/fts_aux_index_3	33	8	Dynamic	0	Single
+test/fts_aux_index_4	test/fts_aux_index_4	33	8	Dynamic	0	Single
+test/fts_aux_index_5	test/fts_aux_index_5	33	8	Dynamic	0	Single
+test/fts_aux_index_6	test/fts_aux_index_6	33	8	Dynamic	0	Single
+test/fts_aux_being_deleted	test/fts_aux_being_deleted	33	4	Dynamic	0	Single
+test/fts_aux_being_deleted_cache	test/fts_aux_being_deleted_cache	33	4	Dynamic	0	Single
+test/fts_aux_config	test/fts_aux_config	33	5	Dynamic	0	Single
+test/fts_aux_deleted	test/fts_aux_deleted	33	4	Dynamic	0	Single
+test/fts_aux_deleted_cache	test/fts_aux_deleted_cache	33	4	Dynamic	0	Single
 test/t1	test/t1	33	7	Dynamic	0	Single
 # list files in datadir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
-t1.frm
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	test/FTS_AUX_INDEX_1	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_2	test/FTS_AUX_INDEX_2	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_3	test/FTS_AUX_INDEX_3	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_4	test/FTS_AUX_INDEX_4	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_5	test/FTS_AUX_INDEX_5	33	8	Dynamic	0	Single
-test/FTS_AUX_INDEX_6	test/FTS_AUX_INDEX_6	33	8	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED	test/FTS_AUX_BEING_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_BEING_DELETED_CACHE	test/FTS_AUX_BEING_DELETED_CACHE	33	4	Dynamic	0	Single
-test/FTS_AUX_CONFIG	test/FTS_AUX_CONFIG	33	5	Dynamic	0	Single
-test/FTS_AUX_DELETED	test/FTS_AUX_DELETED	33	4	Dynamic	0	Single
-test/FTS_AUX_DELETED_CACHE	test/FTS_AUX_DELETED_CACHE	33	4	Dynamic	0	Single
+test/fts_aux_index_1	test/fts_aux_index_1	33	8	Dynamic	0	Single
+test/fts_aux_index_2	test/fts_aux_index_2	33	8	Dynamic	0	Single
+test/fts_aux_index_3	test/fts_aux_index_3	33	8	Dynamic	0	Single
+test/fts_aux_index_4	test/fts_aux_index_4	33	8	Dynamic	0	Single
+test/fts_aux_index_5	test/fts_aux_index_5	33	8	Dynamic	0	Single
+test/fts_aux_index_6	test/fts_aux_index_6	33	8	Dynamic	0	Single
+test/fts_aux_being_deleted	test/fts_aux_being_deleted	33	4	Dynamic	0	Single
+test/fts_aux_being_deleted_cache	test/fts_aux_being_deleted_cache	33	4	Dynamic	0	Single
+test/fts_aux_config	test/fts_aux_config	33	5	Dynamic	0	Single
+test/fts_aux_deleted	test/fts_aux_deleted	33	4	Dynamic	0	Single
+test/fts_aux_deleted_cache	test/fts_aux_deleted_cache	33	4	Dynamic	0	Single
 test/t1	test/t1	33	7	Dynamic	0	Single
 # list files in datadir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
-t1.frm
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1.ibd
 DROP TABLE t1;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_def	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_def.ibd
+s_def	General	DEFAULT	0	Any	s_def.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 # Test with TABLESPACE
 SET DEBUG = '+d,ib_fts_aux_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) TABLESPACE=s_def;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 SET DEBUG = '+d,ib_fts_index_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) TABLESPACE=s_def;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # list files in datadir/test
 CREATE TABLE t1 (id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, title VARCHAR(200)) ENGINE=InnoDB TABLESPACE=s_def;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 11 from storage engine
+ERROR HY000: Got error 11 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD FULLTEXT INDEX (title);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_def	161	5	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT fts_idx(a,b), c INT PRIMARY KEY) TABLESPACE=s_def;
 INSERT INTO t1 VALUES
@@ -272,100 +261,95 @@ AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 c
 1
 3
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_2	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_3	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_4	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_5	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_6	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED_CACHE	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_CONFIG	s_def	161	5	Dynamic	0	General
-test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
+test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_3	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_4	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_5	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_6	s_def	161	8	Dynamic	0	General
+test/fts_aux_being_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_being_deleted_cache	s_def	161	4	Dynamic	0	General
+test/fts_aux_config	s_def	161	5	Dynamic	0	General
+test/fts_aux_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_deleted_cache	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_2	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_3	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_4	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_5	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_6	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED_CACHE	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_CONFIG	s_def	161	5	Dynamic	0	General
-test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
+test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_3	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_4	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_5	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_6	s_def	161	8	Dynamic	0	General
+test/fts_aux_being_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_being_deleted_cache	s_def	161	4	Dynamic	0	General
+test/fts_aux_config	s_def	161	5	Dynamic	0	General
+test/fts_aux_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_deleted_cache	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 ADD COLUMN pk INT NOT NULL AUTO_INCREMENT, DROP PRIMARY KEY, ADD PRIMARY KEY(pk), ALGORITHM=copy;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_2	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_3	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_4	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_5	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_6	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED_CACHE	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_CONFIG	s_def	161	5	Dynamic	0	General
-test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
+test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_3	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_4	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_5	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_6	s_def	161	8	Dynamic	0	General
+test/fts_aux_being_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_being_deleted_cache	s_def	161	4	Dynamic	0	General
+test/fts_aux_config	s_def	161	5	Dynamic	0	General
+test/fts_aux_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_deleted_cache	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_aux_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
 SET DEBUG = '-d,ib_fts_aux_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_2	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_3	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_4	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_5	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_6	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED_CACHE	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_CONFIG	s_def	161	5	Dynamic	0	General
-test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
+test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_3	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_4	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_5	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_6	s_def	161	8	Dynamic	0	General
+test/fts_aux_being_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_being_deleted_cache	s_def	161	4	Dynamic	0	General
+test/fts_aux_config	s_def	161	5	Dynamic	0	General
+test/fts_aux_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_deleted_cache	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
 ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
-ERROR HY000: Got error 1000 from storage engine
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/FTS_AUX_INDEX_1	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_2	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_3	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_4	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_5	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_INDEX_6	s_def	161	8	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_BEING_DELETED_CACHE	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_CONFIG	s_def	161	5	Dynamic	0	General
-test/FTS_AUX_DELETED	s_def	161	4	Dynamic	0	General
-test/FTS_AUX_DELETED_CACHE	s_def	161	4	Dynamic	0	General
+test/fts_aux_index_1	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_2	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_3	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_4	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_5	s_def	161	8	Dynamic	0	General
+test/fts_aux_index_6	s_def	161	8	Dynamic	0	General
+test/fts_aux_being_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_being_deleted_cache	s_def	161	4	Dynamic	0	General
+test/fts_aux_config	s_def	161	5	Dynamic	0	General
+test/fts_aux_deleted	s_def	161	4	Dynamic	0	General
+test/fts_aux_deleted_cache	s_def	161	4	Dynamic	0	General
 test/t1	s_def	161	7	Dynamic	0	General
 # list files in datadir/test
-t1.frm
 DROP TABLE t1;
 DROP TABLESPACE s_def;

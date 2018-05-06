@@ -1,9 +1,7 @@
---source include/not_embedded.inc
 
 # the variable is controlled in different ways depending on whether
 # gtid_mode=on or off.  the behavior when gtid_mode=on is tested in
 # rpl_gtid_execution.test
---source include/not_gtid_enabled.inc
 
 
 SET @start_global_value = @@global.gtid_owned;
@@ -17,8 +15,8 @@ select @@session.gtid_owned;
 show global variables like 'gtid_owned';
 show session variables like 'gtid_owned';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='gtid_owned';
-select * from information_schema.session_variables where variable_name='gtid_owned';
+select * from performance_schema.global_variables where variable_name='gtid_owned';
+select * from performance_schema.session_variables where variable_name='gtid_owned';
 --enable_warnings
 
 #

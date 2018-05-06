@@ -1,8 +1,8 @@
--- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 # Performance schema tracks prepared statements separately, and does not 
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 
 # Tests for sys schema

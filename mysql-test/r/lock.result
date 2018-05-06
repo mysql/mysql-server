@@ -85,21 +85,21 @@ unlock tables;
 drop table t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i INT);
-LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ, t1 READ;
 UNLOCK TABLES;
-LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 WRITE;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ, t1 WRITE;
 UNLOCK TABLES;
-LOCK TABLES mysql.time_zone READ, mysql.proc READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ;
 UNLOCK TABLES;
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE;
 UNLOCK TABLES;
-LOCK TABLES mysql.time_zone READ, mysql.proc WRITE, t1 READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name WRITE, t1 READ;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 READ;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE, t1 READ;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 WRITE;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE, t1 WRITE;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-LOCK TABLES mysql.time_zone READ, mysql.proc WRITE;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name WRITE;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
 DROP TABLE t1;
 
@@ -471,3 +471,17 @@ DROP TABLE m1, t1;
 #
 # End of 6.0 tests.
 #
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'user' was not locked with LOCK TABLES");
+#
+# WL#4284: Transactional DDL locking
+#
+# FLUSH PRIVILEGES should not implicitly unlock locked tables.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT);
+LOCK TABLES t1 READ;
+FLUSH PRIVILEGES;
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
+UNLOCK TABLES;
+FLUSH PRIVILEGES;
+DROP TABLE t1;

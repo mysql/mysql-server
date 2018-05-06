@@ -26,7 +26,7 @@ let $prepare = SET AUTOCOMMIT = 1;
 let $statement = SET AUTOCOMMIT = 0;
 source extra/binlog_tests/implicit.test;
 
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 let $prepare = SET AUTOCOMMIT = 0;
 let $statement = SET AUTOCOMMIT = 1;
 source extra/binlog_tests/implicit.test;

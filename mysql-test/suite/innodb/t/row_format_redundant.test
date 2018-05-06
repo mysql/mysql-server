@@ -1,7 +1,4 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
-# Embedded mode doesn't allow restarting
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#21644827 - FTS, ASSERT !SRV_READ_ONLY_MODE || M_IMPL.M_LOG_MODE ==
@@ -42,6 +39,13 @@ row_format=redundant;
 insert into t3 values(444, 'dddd', 'bbbbb', 'aaaaa');
 insert into t3 values(555, 'eeee', 'ccccc', 'aaaaa');
 
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
 # read-only restart requires the change buffer to be empty; therefore we
 # do a slow shutdown.
 SET GLOBAL innodb_fast_shutdown=0;
@@ -61,16 +65,17 @@ TRUNCATE TABLE t3;
 
 # These messages are relevant only when this debug parameter
 # "ib_table_invalid_flags" is enabled
+# In new DD, we don't load table from InnoDB data dictionary.
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` in InnoDB data dictionary contains invalid flags. SYS_TABLES.MIX_LEN=255");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table test/FTS_.* not found.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table test/t1 from the internal data dictionary of InnoDB though the .frm file for the table exists.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` in InnoDB data dictionary contains invalid flags. SYS_TABLES.MIX_LEN=255");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Parent table of FTS auxiliary table test/FTS_.* not found.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table test/t1 from the internal data dictionary of InnoDB though the .frm file for the table exists.");
 --enable_query_log
 
 let $restart_parameters = restart: --debug=d,ib_table_invalid_flags;
 --source include/restart_mysqld.inc
 
---error ER_NO_SUCH_TABLE
+#--error ER_NO_SUCH_TABLE
 SELECT * FROM t1;
 
 let $restart_parameters = restart;

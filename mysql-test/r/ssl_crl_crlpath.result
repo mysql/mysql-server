@@ -8,6 +8,7 @@ ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	MYSQL_TEST_DIR/std_data/crldir
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
 # test --crlpath for the client : should connect
 Variable_name	Value
@@ -19,5 +20,6 @@ ssl_cert	MYSQL_TEST_DIR/std_data/crl-server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	MYSQL_TEST_DIR/std_data/crldir
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/crl-server-key.pem
 # try logging in with a certificate in the server's --ssl-crlpath : should fail

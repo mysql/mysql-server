@@ -1,7 +1,5 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -303,6 +301,29 @@ select count(*) from t2;
 count(*)
 25500
 drop table t1,t2,t3;
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1 VALUES(1, 1, 1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1 VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1 VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1 VALUES(1, 1), (3, 3, 3);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1(a, b) VALUES(1, 1, 1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1, 1), (3, 3, 3);
+ERROR 21S01: Column count doesn't match value count at row 2
+DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
@@ -310,10 +331,12 @@ insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 ERROR 42000: Column 'a' specified twice
+insert into t1 (a,b) values (1,1,1);
+ERROR 21S01: Column count doesn't match value count at row 1
 insert into t1 (a,b,b) values (1,1,1);
 ERROR 42000: Column 'b' specified twice
 insert into t1 (a,a) values (1,1,1);
-ERROR 21S01: Column count doesn't match value count at row 1
+ERROR 42000: Column 'a' specified twice
 insert into t1 (a,a) values (1,1);
 ERROR 42000: Column 'a' specified twice
 insert into t1 SET a=1,b=2,a=1;
@@ -619,17 +642,19 @@ DROP TABLE t1;
 # Bug#11745889 Traditional: INSERT accepts invalid date from default val
 #
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 INSERT INTO default_date VALUES();
+INSERT INTO default_date VALUES(DEFAULT);
 SET sql_mode=default;
 INSERT INTO default_date VALUES();
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT INTO default_date VALUES(DEFAULT);
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT INTO default_date VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM default_date;
 a
+0000-00-00
 0000-00-00
 DROP TABLE default_date;
 
@@ -692,7 +717,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	Using index
+1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	End temporary
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 INSERT INTO v1
@@ -804,6 +829,17 @@ pk
 DROP VIEW v1, v2;
 DROP TABLE t1;
 #
+# Bug#22635253: ASSERTION `THD->IS_ERROR() BOOL
+#               SQL_CMD_INSERT::MYSQL_INSERT(THD*, TABLE_LIST*)
+#
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
+CREATE TABLE t2(a INT) ENGINE=MyISAM;
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES (1);
+INSERT INTO t1(b) VALUES (1);
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+DROP TABLE t2, t1;
+#
 # BUG#22037930: INSERT IGNORE FAILS TO IGNORE
 #               FOREIGN KEY CONSTRAINT
 # Setup.
@@ -856,3 +892,104 @@ INSERT IGNORE INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
 Warnings:
 Warning	1452	Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
 DROP TABLE t2, t1;
+CREATE DATABASE meow;
+CREATE TABLE table_target   ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE TABLE table_target2  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE TABLE table_target3  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
+CREATE VIEW view_target2 AS SELECT mexs_id,messzeit FROM table_target2;
+CREATE SQL SECURITY INVOKER VIEW view_target3 AS SELECT mexs_id,messzeit FROM table_target3;
+CREATE TABLE table_countries ( country CHAR(2), iso_short_en VARCHAR(64), PRIMARY KEY (country));
+INSERT INTO table_countries VALUES ('YY','Entenhausen');
+CREATE TABLE table_stations ( mexs_id VARCHAR(8), icao VARCHAR(4), country CHAR(2), PRIMARY KEY (mexs_id), UNIQUE KEY icao (icao), KEY country (country), CONSTRAINT stations_ibfk_8 FOREIGN KEY (country) REFERENCES table_countries (country) ON UPDATE CASCADE);
+INSERT INTO table_stations VALUES ('87654321','XXXX','YY');
+CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW view_stations AS select table_stations.mexs_id AS mexs_id, table_stations.icao AS icao, table_stations.country AS landescode from (table_stations join table_countries on((table_stations.country = table_countries.country)));
+CREATE TABLE table_source ( id varchar(4), datetime TIMESTAMP, PRIMARY KEY (id));
+INSERT INTO  table_source VALUES ('XXXX','2006-07-12 07:50:00');
+CREATE USER user20989@localhost;
+GRANT  SELECT                ON table_source    TO   user20989@localhost;
+GRANT  SELECT                ON table_countries TO   user20989@localhost;
+GRANT  SELECT                ON table_stations  TO   user20989@localhost;
+GRANT  SELECT                ON view_stations   TO   user20989@localhost;
+GRANT  SELECT                ON table_target    TO   user20989@localhost;
+GRANT  SELECT                ON table_target2   TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON view_target3    TO   user20989@localhost;
+REPLACE INTO    table_target
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       table_target AS old
+USING           (mexs_id);
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'table_target'
+REPLACE INTO    view_target2
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'view_target2'
+REPLACE INTO    view_target3
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target3 AS old
+USING           (mexs_id);
+ERROR HY000: View 'meow.view_target3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+GRANT  INSERT,DELETE         ON table_target    TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON view_target2    TO   user20989@localhost;
+GRANT  INSERT,DELETE,SELECT  ON table_target3   TO   user20989@localhost;
+REPLACE INTO    table_target
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       table_target AS old
+USING           (mexs_id);
+REPLACE INTO    table_target2 VALUES ('00X45Y78','2006-07-12 07:50:00');
+ERROR 42000: INSERT, DELETE command denied to user 'user20989'@'localhost' for table 'table_target2'
+REPLACE INTO    view_target2  VALUES ('12X45Y78','2006-07-12 07:50:00');
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+mexs_id	messzeit
+87654321	2006-07-12 07:50:00
+REPLACE INTO    view_target2
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target2 AS old
+USING           (mexs_id);
+REPLACE INTO    view_target3
+SELECT          stations.mexs_id AS mexs_id, datetime AS messzeit
+FROM            table_source
+INNER JOIN      view_stations AS stations
+ON              table_source.id = stations.icao
+LEFT JOIN       view_target3 AS old
+USING           (mexs_id);
+SELECT * FROM table_target;
+mexs_id	messzeit
+87654321	2006-07-12 07:50:00
+SELECT * FROM view_target2;
+mexs_id	messzeit
+12X45Y78	2006-07-12 07:50:00
+87654321	2006-07-12 07:50:00
+SELECT * FROM view_target3;
+mexs_id	messzeit
+87654321	2006-07-12 07:50:00
+DROP VIEW  view_stations;
+DROP TABLE table_source;
+DROP TABLE table_stations;
+DROP TABLE table_countries;
+DROP TABLE table_target;
+DROP TABLE table_target2;
+DROP TABLE table_target3;
+DROP VIEW  view_target2;
+DROP VIEW  view_target3;
+DROP USER  user20989@localhost;
+DROP DATABASE meow;

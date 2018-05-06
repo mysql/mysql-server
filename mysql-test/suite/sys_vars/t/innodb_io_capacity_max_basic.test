@@ -3,7 +3,6 @@
 # 2012-04-02 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_innodb_max_capacity = @@global.innodb_io_capacity_max;
 SELECT @start_innodb_max_capacity;
@@ -22,8 +21,8 @@ select @@session.innodb_io_capacity_max;
 show global variables like 'innodb_io_capacity_max';
 show session variables like 'innodb_io_capacity_max';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
-select * from information_schema.session_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity_max';
 --enable_warnings
 
 #
@@ -32,8 +31,8 @@ select * from information_schema.session_variables where variable_name='innodb_i
 set global innodb_io_capacity_max=@start_innodb_capacity + 1;
 select @@global.innodb_io_capacity_max;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
-select * from information_schema.session_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity_max';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_io_capacity_max=444;
@@ -63,12 +62,12 @@ select @@global.innodb_io_capacity_max IN (18446744073709551615,4294967295);
 set global innodb_io_capacity_max=@start_innodb_capacity - 1;
 select @@global.innodb_io_capacity_max;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 --enable_warnings
 set global innodb_io_capacity_max=-7;
 select @@global.innodb_io_capacity_max;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_io_capacity_max';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity_max';
 --enable_warnings
 
 #

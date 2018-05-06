@@ -29,23 +29,23 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
 test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm, .isl & .ibd files
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+# Verifying .ibd files
 # Verifying that there are no MyISAM files
 # Test TRUNCATE TABLE with partitioned InnoDB tables
 INSERT INTO t1 VALUES (1, "red");
@@ -65,23 +65,23 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
 test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm and InnoDB files (.isl, .ibd)
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+# Verifying .ibd files
 # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
@@ -90,23 +90,23 @@ t11	CREATE TABLE `t11` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t11#p#p0	test/t11#p#p0	97	5	Dynamic	0	Single
 test/t11#p#p1	test/t11#p#p1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t11#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
 test/t11#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t11#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
-test/t11#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
-# Verifying .frm and InnoDB files (.isl, .ibd)
+test/t11#p#p0	TABLESPACE	InnoDB	NORMAL	test/t11#p#p0	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
+test/t11#p#p1	TABLESPACE	InnoDB	NORMAL	test/t11#p#p1	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
+# Verifying .ibd files
 DROP TABLE t11;
 # Test the previous DDL as a prepared statement.
 SET GLOBAL innodb_file_per_table = ON;
@@ -124,22 +124,22 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	test/t1#p#p0	97	5	Dynamic	0	Single
 test/t1#p#p1	test/t1#p#p1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
-test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 DROP TABLE t1;
 # Test DATA DIRECTORY with Sub-partitions.
 SET GLOBAL innodb_file_per_table = ON;
@@ -180,9 +180,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
@@ -192,7 +192,7 @@ SUBPARTITION BY HASH ( TO_DAYS(purchased))
  PARTITION p2 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0#sp#s0	test/t1#p#p0#sp#s0	97	5	Dynamic	0	Single
 test/t1#p#p0#sp#s1	test/t1#p#p0#sp#s1	97	5	Dynamic	0	Single
@@ -200,7 +200,7 @@ test/t1#p#p1#sp#s2	test/t1#p#p1#sp#s2	97	5	Dynamic	0	Single
 test/t1#p#p1#sp#s3	test/t1#p#p1#sp#s3	97	5	Dynamic	0	Single
 test/t1#p#p2#sp#s4	test/t1#p#p2#sp#s4	97	5	Dynamic	0	Single
 test/t1#p#p2#sp#s5	test/t1#p#p2#sp#s5	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
 test/t1#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
@@ -210,13 +210,13 @@ test/t1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/tes
 test/t1#p#p2#sp#s5	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .isl & .ibd files
+test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0#sp#s0	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0#sp#s1	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1#sp#s2	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1#sp#s3	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2#sp#s4	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2#sp#s5	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+# Verifying .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
 SET GLOBAL innodb_file_per_table = ON;
@@ -258,9 +258,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-/*!50100 PARTITION BY RANGE ( YEAR(purchased))
-SUBPARTITION BY HASH ( TO_DAYS(purchased))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
@@ -270,7 +270,7 @@ SUBPARTITION BY HASH ( TO_DAYS(purchased))
  PARTITION p2 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0#sp#s0	test/t1#p#p0#sp#s0	97	5	Dynamic	0	Single
 test/t1#p#p0#sp#s1	test/t1#p#p0#sp#s1	97	5	Dynamic	0	Single
@@ -278,7 +278,7 @@ test/t1#p#p1#sp#s2	test/t1#p#p1#sp#s2	97	5	Dynamic	0	Single
 test/t1#p#p1#sp#s3	test/t1#p#p1#sp#s3	97	5	Dynamic	0	Single
 test/t1#p#p2#sp#s4	test/t1#p#p2#sp#s4	97	5	Dynamic	0	Single
 test/t1#p#p2#sp#s5	test/t1#p#p2#sp#s5	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1#p#p0#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
 test/t1#p#p0#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
@@ -288,13 +288,13 @@ test/t1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data/tes
 test/t1#p#p2#sp#s5	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
-test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
-test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
-test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .isl & .ibd files
+test/t1#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0#sp#s0	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+test/t1#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0#sp#s1	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1#sp#s2	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1#sp#s3	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2#sp#s4	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2#sp#s5	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+# Verifying .ibd files
 #
 # Cleanup
 #
@@ -317,14 +317,14 @@ PARTITION p2 VALUES LESS THAN (30)
 (SUBPARTITION sp6,
 SUBPARTITION sp7 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data_subpart',
 SUBPARTITION sp8));
-# Verifying .frm, .isl & .ibd files
+# Verifying .ibd files
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (10)
  (SUBPARTITION sp0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB,
   SUBPARTITION sp1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_subpart/' ENGINE = InnoDB,
@@ -351,7 +351,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB,
  PARTITION p1 ENGINE = InnoDB) */
@@ -397,9 +397,9 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
  (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
   SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
@@ -416,7 +416,7 @@ SUBPARTITION BY HASH (a)
  (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
   SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
-call mtr.add_suppression("InnoDB: Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+call mtr.add_suppression("Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (400)
 TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`);
@@ -450,21 +450,21 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
  (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
   SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
   SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (100)
- (SUBPARTITION sp3 ENGINE = InnoDB,
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
-  SUBPARTITION sp5 ENGINE = InnoDB),
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (200)
  (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
-  SUBPARTITION sp7 ENGINE = InnoDB,
-  SUBPARTITION sp8 ENGINE = InnoDB),
+  SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p3 VALUES LESS THAN (300)
  (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
   SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
@@ -485,14 +485,14 @@ t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @@global.innodb_file_per_table = ON;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -500,14 +500,14 @@ t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
 # restart
 ALTER TABLE t1 COALESCE PARTITION 1;
@@ -516,7 +516,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part' ENGINE = InnoDB) */
 SHOW CREATE TABLE t2;
@@ -525,9 +525,9 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
  (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
   SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
@@ -550,21 +550,21 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
  (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
   SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
   SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (100)
- (SUBPARTITION sp3 ENGINE = InnoDB,
+ (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
-  SUBPARTITION sp5 ENGINE = InnoDB),
+  SUBPARTITION sp5 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (200)
  (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
-  SUBPARTITION sp7 ENGINE = InnoDB,
-  SUBPARTITION sp8 ENGINE = InnoDB),
+  SUBPARTITION sp7 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p3 VALUES LESS THAN (300)
  (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
   SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
@@ -576,7 +576,7 @@ Table	Create Table
 t1	CREATE TABLE t1 (
   a int(11) NOT NULL,
   PRIMARY KEY (a)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part' ENGINE = InnoDB) */
 SHOW CREATE TABLE t2;
@@ -585,7 +585,7 @@ t2	CREATE TABLE t2 (
   a int(11) NOT NULL AUTO_INCREMENT,
   b varchar(128) DEFAULT NULL,
   PRIMARY KEY (a)
-) /*!50100 TABLESPACE ts_part1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE ts_part1 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -610,7 +610,7 @@ t3	CREATE TABLE t3 (
   a int(11) NOT NULL AUTO_INCREMENT,
   b varchar(128) DEFAULT NULL,
   PRIMARY KEY (a)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -618,19 +618,19 @@ SUBPARTITION BY HASH (a)
   SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
   SUBPARTITION sp2 TABLESPACE = ts_part4 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (100)
- (SUBPARTITION sp3 ENGINE = InnoDB,
+ (SUBPARTITION sp3 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
   SUBPARTITION sp4 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
-  SUBPARTITION sp5 ENGINE = InnoDB),
+  SUBPARTITION sp5 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN (200)
  (SUBPARTITION sp6 TABLESPACE = innodb_system ENGINE = InnoDB,
-  SUBPARTITION sp7 ENGINE = InnoDB,
-  SUBPARTITION sp8 ENGINE = InnoDB),
+  SUBPARTITION sp7 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
  PARTITION p3 VALUES LESS THAN (300)
  (SUBPARTITION sp9 TABLESPACE = ts_part4 ENGINE = InnoDB,
   SUBPARTITION sp10 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
   SUBPARTITION sp11 TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
 SET @@sql_quote_show_create=@old_sql_quote_show_create;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	test/t1#p#p0	97	4	Dynamic	0	Single
 test/t2#p#p0#sp#sp0	ts_part3	161	5	Dynamic	0	General
@@ -657,14 +657,14 @@ test/t3#p#p2#sp#sp8	test/t3#p#p2#sp#sp8	33	5	Dynamic	0	Single
 test/t3#p#p3#sp#sp10	test/t3#p#p3#sp#sp10	33	5	Dynamic	0	Single
 test/t3#p#p3#sp#sp11	test/t3#p#p3#sp#sp11	33	5	Dynamic	0	Single
 test/t3#p#p3#sp#sp9	ts_part4	161	5	Dynamic	0	General
-test/t_file_per_table_off	innodb_system	33	5	Dynamic	0	System
+test/t_file_per_table_off	innodb_system	161	5	Dynamic	0	System
 test/t_file_per_table_on	test/t_file_per_table_on	33	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-ts_part1	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part1.ibd
-ts part2	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part2.ibd
-ts_part3	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part3.ibd
-ts_part4	General	DEFAULT	0	Any	MYSQLD_DATADIR/ts_part4.ibd
+ts_part1	General	DEFAULT	0	Any	ts_part1.ibd
+ts part2	General	DEFAULT	0	Any	ts_part2.ibd
+ts_part3	General	DEFAULT	0	Any	ts_part3.ibd
+ts_part4	General	DEFAULT	0	Any	ts_part4.ibd
 test/t2#p#p1#sp#sp4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
 test/t2#p#p3#sp#sp10	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
 test/t2#p#p3#sp#sp11	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
@@ -683,18 +683,18 @@ ts_part1	TABLESPACE	InnoDB	NORMAL	ts_part1	MYSQLD_DATADIR/ts_part1.ibd
 ts part2	TABLESPACE	InnoDB	NORMAL	ts part2	MYSQLD_DATADIR/ts_part2.ibd
 ts_part3	TABLESPACE	InnoDB	NORMAL	ts_part3	MYSQLD_DATADIR/ts_part3.ibd
 ts_part4	TABLESPACE	InnoDB	NORMAL	ts_part4	MYSQLD_DATADIR/ts_part4.ibd
-test/t2#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
-test/t2#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
-test/t2#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
-test/t3#p#p1#sp#sp3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
-test/t3#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
-test/t3#p#p1#sp#sp5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
-test/t3#p#p2#sp#sp7	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
-test/t3#p#p2#sp#sp8	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
-test/t3#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
-test/t3#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
-test/t_file_per_table_on	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
-test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
+test/t2#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	test/t2#p#p1#sp#sp4	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
+test/t2#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	test/t2#p#p3#sp#sp10	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
+test/t2#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	test/t2#p#p3#sp#sp11	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
+test/t3#p#p1#sp#sp3	TABLESPACE	InnoDB	NORMAL	test/t3#p#p1#sp#sp3	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd
+test/t3#p#p1#sp#sp4	TABLESPACE	InnoDB	NORMAL	test/t3#p#p1#sp#sp4	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd
+test/t3#p#p1#sp#sp5	TABLESPACE	InnoDB	NORMAL	test/t3#p#p1#sp#sp5	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd
+test/t3#p#p2#sp#sp7	TABLESPACE	InnoDB	NORMAL	test/t3#p#p2#sp#sp7	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd
+test/t3#p#p2#sp#sp8	TABLESPACE	InnoDB	NORMAL	test/t3#p#p2#sp#sp8	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd
+test/t3#p#p3#sp#sp10	TABLESPACE	InnoDB	NORMAL	test/t3#p#p3#sp#sp10	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd
+test/t3#p#p3#sp#sp11	TABLESPACE	InnoDB	NORMAL	test/t3#p#p3#sp#sp11	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
+test/t_file_per_table_on	TABLESPACE	InnoDB	NORMAL	test/t_file_per_table_on	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
 DROP TABLE t1,t2,t3;
 DROP TABLESPACE ts_part1;
 DROP TABLESPACE `ts part2`;
@@ -707,14 +707,14 @@ t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @@global.innodb_file_per_table = OFF;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -722,13 +722,71 @@ t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t_file_per_table_on;
 DROP TABLE t_file_per_table_off;
+CREATE TABLE t0 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB
+TABLESPACE innodb_system PARTITION BY RANGE(col1 * 2)
+( PARTITION p2 VALUES LESS THAN MAXVALUE );
+ALTER TABLE t0 OPTIMIZE PARTITION ALL;
+Table	Op	Msg_type	Msg_text
+test.t0	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t0	optimize	status	OK
+DROP TABLE t0;
+#
+# Test case for bug#25524498.
+#
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB TABLESPACE gt1;
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+ERROR 42S21: Duplicate column name 'col5'
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+#
+# Test case for bug#25533133.
+#
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT) ENGINE = InnoDB TABLESPACE gt1;
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY RANGE(col1 * 2)
+( PARTITION p3 VALUES LESS THAN MAXVALUE );
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+TRUNCATE TABLE t1;
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+#
+# Test case for bug#25616303.
+#
+CREATE TABLESPACE  gt1 ADD DATAFILE  '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col5 VARCHAR(500)) ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 4;
+ALTER TABLE t1 ALGORITHM COPY , TABLESPACE innodb_system;
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500);
+ERROR 42S21: Duplicate column name 'col5'
+ALTER TABLE t1 ALGORITHM COPY , TABLESPACE  gt1;
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+#
+# Bug#25695284: PARTITION INFO AFTER FAILING ALTER INCORRECTLY
+#               REFLECTED IN SUBSEQUENT ALTER
+#
+CREATE TABLESPACE gt1 ADD DATAFILE 'gt1.ibd' ENGINE = InnoDB;
+CREATE TABLESPACE gt2 ADD DATAFILE 'gt2.ibd' ENGINE = InnoDB;
+CREATE TABLE t1 (str VARCHAR(10)) TABLESPACE gt2;
+ALTER TABLE t1 ALGORITHM COPY PARTITION BY KEY(str) PARTITIONS 4;
+ALTER TABLE t1 ALGORITHM COPY, ADD COLUMN str VARCHAR(10);
+ERROR 42S21: Duplicate column name 'str'
+ALTER TABLE t1 ALGORITHM COPY, TABLESPACE gt1;
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+DROP TABLESPACE gt2;

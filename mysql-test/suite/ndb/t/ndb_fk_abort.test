@@ -1,0 +1,37 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+
+-- disable_warnings
+drop table if exists t1,t2;
+-- enable_warnings
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb comment="NDB_TABLE=FULLY_REPLICATED=1";
+
+alter table t2 add constraint fk1 foreign key (b) references t1(a);
+
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+
+--exec $NDB_MGM -e "ALL ERROR 5102" >> $NDB_TOOLS_OUTPUT
+--error 1297
+delete from t2 where b = 1;
+--error 1297
+insert into t2 values (2,1);
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+
+-- disable_warnings
+drop table t2;
+drop table t1;
+-- enable_warnings

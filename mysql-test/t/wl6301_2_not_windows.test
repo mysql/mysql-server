@@ -8,9 +8,10 @@
 # Options: --skip-name-resolve --bind-address=0.0.0.0 (see corresponding opt file).
 #
 
-# Can't be tested with embedded server
---source include/not_embedded.inc
-
 --let WL6301_LOG_FILE = $MYSQLTEST_VARDIR/log/wl6301_2_not_windows.debug.log
 
+--source include/add_extra_root_users.inc
+
 --source include/wl6301.inc
+
+--source include/remove_extra_root_users.inc

@@ -1,0 +1,44 @@
+################################################################################
+#
+#  Test GENERATED ALWAYS AS ... STORED with index
+#  access by unique index on generated column
+#  access by ordered index on generated column
+#
+#  "j generated ... stored unique" has both unique and ordered indexes
+################################################################################
+
+--source include/have_ndb.inc
+
+create table test_gcol_index (
+  i int not null primary key,
+  j int generated always as (100+mod(i,10)) stored unique
+) engine = 'ndbcluster';
+
+insert into test_gcol_index
+  values
+    (1, default),
+    (2, default),
+    (3, default),
+    (4, default),
+    (5, default),
+    (6, default),
+    (7, default),
+    (8, default),
+    (9, default);
+
+# Access by primary key
+select * from test_gcol_index where i = 4;
+
+# Index read access
+select * from test_gcol_index where j = 104;
+explain select * from test_gcol_index where j = 104;
+
+# Scan with pushed condition
+select * from test_gcol_index where j > 106 order by j;
+explain select * from test_gcol_index where j > 106;
+
+# DUPLICATE KEY ERROR on the unique index
+--error 1062
+insert into test_gcol_index values(13, default);
+
+drop table test_gcol_index;

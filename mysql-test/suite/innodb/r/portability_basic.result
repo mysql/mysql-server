@@ -1,0 +1,61 @@
+## create tables and tablespaces without absolute paths
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
+INSERT INTO tab1 VALUES(1, 'VISH');
+CREATE TABLE tab2(c1 int, c2 varchar(10)) Engine=InnoDB;
+INSERT INTO tab2 VALUES(2, 'VISH');
+CREATE INDEX ix1 ON tab1(c2) USING BTREE;
+CREATE INDEX ix1 ON tab2(c2) ;
+## Stop DB server
+# Copy whole --datadir files into new location
+## Start with new --datadir
+## Check datadir started with new one
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/
+## Check with SHOW
+SHOW CREATE TABLE tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`) USING BTREE
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE tab2;
+Table	Create Table
+tab2	CREATE TABLE `tab2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+## Check with DML and DDL
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+DELETE FROM tab1;
+DELETE FROM tab2;
+ALTER TABLE tab1 add column c3 varchar(10);
+INSERT INTO tab1 VALUES(1, 'VISH','NATH');
+INSERT INTO tab2 VALUES(2, 'VISH');
+SELECT * FROM tab1;
+c1	c2	c3
+1	VISH	NATH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;
+# Stop DB server with new datadir
+# Re-start with old --datadir
+# restart: --datadir=OLD_DATADIR
+# Check --datadir started with old
+SELECT @@datadir;
+@@datadir
+OLD_DATADIR
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;

@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.innodb_data_home_dir)
 0 Expected
 '#---------------------BS_STVARS_025_03----------------------#'
 SELECT @@GLOBAL.innodb_data_home_dir = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_data_home_dir';
 @@GLOBAL.innodb_data_home_dir = VARIABLE_VALUE
 NULL
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.innodb_data_home_dir)
 0
 0 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_data_home_dir';
 COUNT(VARIABLE_VALUE)
 1

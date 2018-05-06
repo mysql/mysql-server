@@ -21,12 +21,12 @@ innodb_ft_enable_stopword	ON
 show session variables like 'innodb_ft_enable_stopword';
 Variable_name	Value
 innodb_ft_enable_stopword	ON
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
+innodb_ft_enable_stopword	ON
 set global innodb_ft_enable_stopword='OFF';
 set session innodb_ft_enable_stopword='OFF';
 select @@global.innodb_ft_enable_stopword;
@@ -35,12 +35,12 @@ select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 @@session.innodb_ft_enable_stopword
 0
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	OFF
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	OFF
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	OFF
+innodb_ft_enable_stopword	OFF
 set @@global.innodb_ft_enable_stopword=1;
 set @@session.innodb_ft_enable_stopword=1;
 select @@global.innodb_ft_enable_stopword;
@@ -49,12 +49,12 @@ select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 @@session.innodb_ft_enable_stopword
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
+innodb_ft_enable_stopword	ON
 set global innodb_ft_enable_stopword=0;
 set session innodb_ft_enable_stopword=0;
 select @@global.innodb_ft_enable_stopword;
@@ -63,12 +63,12 @@ select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 @@session.innodb_ft_enable_stopword
 0
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	OFF
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	OFF
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	OFF
+innodb_ft_enable_stopword	OFF
 set @@global.innodb_ft_enable_stopword='ON';
 set @@session.innodb_ft_enable_stopword='ON';
 select @@global.innodb_ft_enable_stopword;
@@ -77,12 +77,12 @@ select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 @@session.innodb_ft_enable_stopword
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
+innodb_ft_enable_stopword	ON
 set global innodb_ft_enable_stopword=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_ft_enable_stopword'
 set session innodb_ft_enable_stopword=1.1;
@@ -108,12 +108,12 @@ select @@global.innodb_ft_enable_stopword;
 select @@session.innodb_ft_enable_stopword;
 @@session.innodb_ft_enable_stopword
 1
-select * from information_schema.global_variables where variable_name='innodb_ft_enable_stopword';
+select * from performance_schema.global_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
-select * from information_schema.session_variables where variable_name='innodb_ft_enable_stopword';
+innodb_ft_enable_stopword	ON
+select * from performance_schema.session_variables where variable_name='innodb_ft_enable_stopword';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_STOPWORD	ON
+innodb_ft_enable_stopword	ON
 SET @@global.innodb_ft_enable_stopword = @start_global_value;
 SELECT @@global.innodb_ft_enable_stopword;
 @@global.innodb_ft_enable_stopword

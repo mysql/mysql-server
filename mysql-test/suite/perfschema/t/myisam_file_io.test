@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Setup
 
 update performance_schema.setup_instruments set enabled='NO';
@@ -50,7 +47,7 @@ select event_name,
   order by thread_id, event_id;
 
 # In case of failures, this will tell if file io are lost.
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 
 # Cleanup
 

@@ -20,11 +20,11 @@ c$new varchar(2000),
 ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
 ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count)) 
-engine ndb;
+engine ndb character set latin1;
 create table test.t1 (
 k int primary key,
 v int,
-c varchar(2000)) engine=ndb;
+c varchar(2000)) engine=ndb character set latin1;
 Setup conflict roles
 --------------------
 STOP SLAVE;

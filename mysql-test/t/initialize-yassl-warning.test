@@ -3,19 +3,14 @@
 #
 
 --source include/big_test.inc
---source include/not_embedded.inc
---source include/have_no_undo_tablespaces.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 --source include/have_yassl.inc
 
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
-
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -38,18 +33,14 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c= grep(/.Warning. Failed to set up SSL.*/gi,<FILE>);
+  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
   print "ssl failed message found $c times\n";
   close(FILE);
 EOF
 
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 --echo # delete mysqld log
 remove_file $MYSQLD_LOG;
 
@@ -69,18 +60,14 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c= grep(/.Warning. Failed to set up SSL.*/gi,<FILE>);
+  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
   print "ssl failed message found $c times\n";
   close(FILE);
 EOF
 
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 --echo # delete mysqld log
 remove_file $MYSQLD_LOG;
 

@@ -26,8 +26,6 @@ ORDER BY ch1.ch, ch2.ch, ch3.ch;
 DROP TEMPORARY TABLE head, tail;
 DROP TEMPORARY TABLE ch1, ch2, ch3;
 SET sql_mode='PAD_CHAR_TO_FULL_LENGTH';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Check [U+D800, U+DFFF] maps to ?(0x3F)
 SELECT COUNT(*) FROM t1 WHERE CONVERT(code USING gb18030) <> 0x3F AND
 code >= 0xD800 AND code <= 0xDFFF;
@@ -67658,7 +67656,7 @@ FFFF	EFBFBF
 # Compare the results between ucs2 BMP->utf8mb4 and ucs2 BMP->gb18030->utf8mb4
 # GB18030 will treat code points in (0xD800, 0xE000] as 0x3F, this is the only difference
 SELECT HEX(code) FROM t1 WHERE
-HEX(CONVERT(code USING utf8mb4)) <> HEX(CONVERT(CONVERT(code USING gb18030) USING utf8mb4)) AND (code < 0xD800 OR code >= 0xE000);
+(code < 0xD800 OR code >= 0xE000) AND HEX(CONVERT(code USING utf8mb4)) <> HEX(CONVERT(CONVERT(code USING gb18030) USING utf8mb4));
 HEX(code)
 # Test for differences between upper(ucs2_to_utf8mb4(_ucs2 x)) and gb18030_to_utf8mb4(upper(ucs2_to_gb18030(_ucs2 x)) for BMP
 SELECT HEX(code), UPPER(CAST(code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_520_ci), CONVERT(UPPER(CONVERT(code USING gb18030)) USING utf8mb4) FROM t1 WHERE

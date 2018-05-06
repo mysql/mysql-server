@@ -1,0 +1,17 @@
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 (a, b) VALUES
+(1, "Row 1"),
+(11, "Row 2"),
+(12, "The third row"),
+(37, "And of course number 37");
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+4
+TRUNCATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+DROP TABLE t1;

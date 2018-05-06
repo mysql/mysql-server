@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -33,14 +40,21 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
 
   enum OpType
   {
-    QN_LOOKUP     = 0x1,
-    QN_SCAN_FRAG  = 0x2,
-    QN_SCAN_INDEX = 0x3,
+    QN_LOOKUP        = 0x1,
+    QN_SCAN_FRAG_v1  = 0x2,  //deprecated
+    QN_SCAN_INDEX_v1 = 0x3,  //deprecated
+    QN_SCAN_FRAG     = 0x4,  //Replaces both SCAN_*_v1's above
     QN_END = 0
   };
 
   static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
   static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
+
+  static const QueryNode* nextQueryNode(const QueryNode* node)
+  {
+    const Uint32 len = QueryNode::getLength(node->len);
+    return (const QueryNode*)((Uint32*)node + len);
+  }
 
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
 
@@ -58,9 +72,10 @@ struct QueryNodeParameters  // Effectively used as a base class for QN_xxxParame
 
   enum OpType
   {
-    QN_LOOKUP     = 0x1,
-    QN_SCAN_FRAG  = 0x2,
-    QN_SCAN_INDEX = 0x3,
+    QN_LOOKUP        = 0x1,
+    QN_SCAN_FRAG_v1  = 0x2,  //deprecated
+    QN_SCAN_INDEX_v1 = 0x3,  //deprecated
+    QN_SCAN_FRAG     = 0x4,  //Replaces both SCAN_*_v1's above
     QN_END = 0
   };
 
@@ -195,9 +210,9 @@ struct QN_LookupParameters // Is a QueryNodeParameters subclass
 };
 
 /**
- * This node describes a table/index-fragment scan
+ * This node describes a table/index-fragment scan, Deprecated
  */
-struct QN_ScanFragNode // Is a QueryNode subclass
+struct QN_ScanFragNode_v1 // Is a QueryNode subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -213,9 +228,9 @@ struct QN_ScanFragNode // Is a QueryNode subclass
 
 /**
  * This struct describes parameters that are associated with
- *  a QN_ScanFragNode
+ *  a QN_ScanFragNode. Deprecated, was used for QN_SCAN_FRAG_v1
  */
-struct QN_ScanFragParameters // Is a QueryNodeParameters subclass
+struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -229,9 +244,9 @@ struct QN_ScanFragParameters // Is a QueryNodeParameters subclass
 };
 
 /**
- * This node describes a IndexScan
+ * This node describes a IndexScan, Deprecated
  */
-struct QN_ScanIndexNode
+struct QN_ScanIndexNode_v1
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -268,9 +283,9 @@ struct QN_ScanIndexNode
 
 /**
  * This struct describes parameters that are associated with
- *  a QN_ScanIndexNode
+ *  a QN_ScanIndexNode. Deprecated, was used with QN_SCAN_INDEX_v1
  */
-struct QN_ScanIndexParameters
+struct QN_ScanIndexParameters_v1
 {
   Uint32 len;
   Uint32 requestInfo;
@@ -302,6 +317,87 @@ struct QN_ScanIndexParameters
    */
   Uint32 optional[1];
 };
+
+
+/**
+ * This node describes a Fragment scan (QN_SCAN_FRAG)
+ */
+struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
+{
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 tableId;      // 16-bit
+  Uint32 tableVersion;
+  STATIC_CONST( NodeSize = 4 );
+
+  enum ScanFragBits    // Note: Same enum as old ScanIndexBits_v1
+  {
+    /**
+     * If doing equality search that can be pruned
+     *   a pattern that creates the key to hash with is stored before
+     *   the DA optional part
+     */
+    SF_PRUNE_PATTERN = 0x10000,
+
+    // Do pattern contain parameters
+    SF_PRUNE_PARAMS = 0x20000,
+
+    // Is prune pattern dependant on parent key (or only on parameters / constants)
+    SF_PRUNE_LINKED = 0x40000,
+
+    // Should it be parallel scan (can also be set as in parameters)
+    SF_PARALLEL = 0x80000,
+
+    SF_END = 0
+  };
+
+  /**
+   * See DABits::NodeInfoBits
+   */
+  Uint32 optional[1];
+};
+
+/**
+ * This struct describes parameters that are associated with
+ *  the new QN_ScanFragNode. (QN_SCAN_FRAG)
+ */
+struct QN_ScanFragParameters
+{
+  Uint32 len;
+  Uint32 requestInfo;
+  Uint32 resultData;   // Api connect ptr
+  Uint32 batch_size_rows;
+  Uint32 batch_size_bytes;
+
+  Uint32 unused0;      // Future
+  Uint32 unused1;
+  Uint32 unused2;
+
+  STATIC_CONST ( NodeSize = 8 );
+
+  enum ScanFragParamBits
+  {
+    /**
+     * Do arguments contain parameters for prune-pattern
+     */
+    SFP_PRUNE_PARAMS = 0x10000,
+
+    /**
+     * Should it scan fragments in parallel
+     *   This is needed for "multi-cursor" semantics
+     *   with (partial) ordering
+     */
+    SFP_PARALLEL = 0x20000,
+
+    SFP_END = 0
+  };
+
+  /**
+   * See DABits::ParamInfoBits
+   */
+  Uint32 optional[1];
+};
+
 
 /**
  * This is the definition of a QueryTree

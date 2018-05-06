@@ -11,45 +11,53 @@ INSERT INTO t1 VALUES (1002, REPEAT('a', 4096));
 INSERT INTO t1 VALUES (1, REPEAT('a', 4096));
 INSERT INTO t1 VALUES (2, REPEAT('a', 4096));
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 page_number	number_records
-3	2
-4	3
+4	2
 5	3
+6	3
 INSERT INTO t1 VALUES (999, REPEAT('a', 4096));
 SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
 page_number	number_records
-3	3
-4	3
-5	3
-6	1
-INSERT INTO t1 VALUES (998, REPEAT('a', 4096));
-SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
-page_number	number_records
-3	3
-4	3
-5	3
-6	2
-INSERT INTO t1 VALUES (997, REPEAT('a', 4096));
-SELECT page_number, number_records
-FROM information_schema.innodb_sys_tablespaces s1,
-information_schema.innodb_buffer_page s2
-WHERE s1.space = s2.space AND name = 'test/t1'
-AND page_type = "INDEX" ORDER BY page_number;
-page_number	number_records
-3	3
 4	3
 5	3
 6	3
+7	1
+INSERT INTO t1 VALUES (998, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
+page_number	number_records
+4	3
+5	3
+6	3
+7	2
+INSERT INTO t1 VALUES (997, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_tablespaces s1,
+information_schema.innodb_buffer_page s2,
+information_schema.innodb_tables s3
+WHERE s1.space = s2.space AND s3.name = 'test/t1'
+AND page_type = "INDEX" AND s1.space = s3.space
+ORDER BY page_number;
+page_number	number_records
+4	3
+5	3
+6	3
+7	3
 DROP TABLE t1;

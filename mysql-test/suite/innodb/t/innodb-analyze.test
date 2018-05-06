@@ -3,7 +3,6 @@
 # different values of the parameter innodb_stats_transient_sample_pages.
 #
 
--- source include/have_innodb.inc
 
 # we care only that the following SQL commands do not produce errors
 # and do not crash the server

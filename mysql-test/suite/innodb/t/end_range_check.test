@@ -1,5 +1,3 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/big_test.inc
 
 --echo # Bug #23481444	OPTIMISER CALL ROW_SEARCH_MVCC() AND READ
@@ -27,7 +25,7 @@ CALL populate_t1(10001, 20000);
 
 connect (con1,localhost,root,,);
 connection con1;
-SELECT SQL_NO_CACHE f2, f3 FROM t1 WHERE f2=10000 and f3 between 9999 and 10000;
+SELECT f2, f3 FROM t1 WHERE f2=10000 and f3 between 9999 and 10000;
 connection default;
 DROP TABLE t1;
 
@@ -40,7 +38,7 @@ BEGIN;
 CALL populate_t1(10001, 20000);
 
 connection con1;
-SELECT SQL_NO_CACHE f2, f3 FROM t1 WHERE f2=10000 and f3 between 9999 and 10000;
+SELECT f2, f3 FROM t1 WHERE f2=10000 and f3 between 9999 and 10000;
 connection default;
 DROP TABLE t1;
 
@@ -68,7 +66,7 @@ BEGIN;
 CALL populate_t1(10001, 20000);
 
 connection con1;
-SELECT SQL_NO_CACHE COUNT(*) FROM t1
+SELECT COUNT(*) FROM t1
 WHERE f2 BETWEEN 9999 AND 10000 OR f2 >= 100000;
 connection default;
 COMMIT;
@@ -129,7 +127,7 @@ CALL populate_t2(10001, 20000);
 
 connection con1;
 SELECT /*+ NO_ICP(t2) */ f1 FROM t2 WHERE f2 = repeat('a', 100)
-                and f3 BETWEEN 10000 and 10001;
+		and f3 BETWEEN 10000 and 10001;
 disconnect con1;
 connection default;
 DROP PROCEDURE populate_t2;

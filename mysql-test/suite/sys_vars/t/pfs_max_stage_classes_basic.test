@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 #
 # Only global
@@ -15,10 +13,10 @@ show global variables like 'performance_schema_max_stage_classes';
 show session variables like 'performance_schema_max_stage_classes';
 
 --disable_warnings
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
   where variable_name='performance_schema_max_stage_classes';
 
-select * from information_schema.session_variables
+select * from performance_schema.session_variables
   where variable_name='performance_schema_max_stage_classes';
 --enable_warnings
 

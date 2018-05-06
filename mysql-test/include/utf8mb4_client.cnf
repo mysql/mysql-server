@@ -1,0 +1,19 @@
+#
+# We use default-character-set=latin1 to avoid character set auto-detection
+# when running tests - not to depend on the current machine localization.
+#
+
+[mysql]
+default-character-set=utf8mb4
+
+[mysqlshow]
+default-character-set=utf8mb4
+
+[mysqlimport]
+default-character-set=utf8mb4
+
+[mysqlcheck]
+default-character-set=utf8mb4
+
+[mysql_upgrade]
+default-character-set=utf8mb4

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -7,7 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
-CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 [connection master]

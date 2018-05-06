@@ -1,5 +1,5 @@
-call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`articles`");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`articles`");
 CREATE TABLE articles (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),

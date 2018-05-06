@@ -1,17 +1,24 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Unit tests for MDL subsystem which require DEBUG_SYNC facility
@@ -19,63 +26,60 @@
 */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "mdl.h"
-#include "test_utils.h"
-#include "thread_utils.h"
-#include "debug_sync.h"
+#include "sql/debug_sync.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 namespace mdl_sync_unittest {
 
-using thread::Thread;
-using thread::Notification;
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
+using thread::Notification;
+using thread::Thread;
 
-
-class MDLSyncTest : public ::testing::Test
-{
-protected:
+class MDLSyncTest : public ::testing::Test {
+ protected:
   MDLSyncTest() {}
 
-  void SetUp()
-  {
+  void SetUp() {
     /* Set debug sync timeout of 60 seconds. */
-    opt_debug_sync_timeout= 60;
+    opt_debug_sync_timeout = 60;
     debug_sync_init();
     /* Force immediate destruction of unused MDL_lock objects. */
-    mdl_locks_unused_locks_low_water= 0;
-    max_write_lock_count= ULONG_MAX;
+    mdl_locks_unused_locks_low_water = 0;
+    max_write_lock_count = ULONG_MAX;
     mdl_init();
 
     m_initializer.SetUp();
-    m_thd= m_initializer.thd();
+    m_thd = m_initializer.thd();
+    table_def_init();
   }
 
-  void TearDown()
-  {
-
+  void TearDown() {
     m_initializer.TearDown();
     mdl_destroy();
     debug_sync_end();
-    opt_debug_sync_timeout= 0;
-    mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
+    opt_debug_sync_timeout = 0;
+    mdl_locks_unused_locks_low_water = MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
+    table_def_free();
   }
 
   Server_initializer m_initializer;
   THD *m_thd;
 };
 
-
 /** Wrapper function which simplify usage of debug_sync_set_action(). */
 
-bool debug_sync_set_action(THD *thd, const char *sync)
-{
+static bool debug_sync_set_action(THD *thd, const char *sync) {
   return debug_sync_set_action(thd, sync, strlen(sync));
 }
-
 
 /**
   Set sync point and acquires and then releases the specified type of lock
@@ -84,43 +88,42 @@ bool debug_sync_set_action(THD *thd, const char *sync)
   release by using notifications.
 */
 
-class MDLSyncThread : public Thread
-{
-public:
+class MDLSyncThread : public Thread {
+ public:
   MDLSyncThread(const char *main_table_arg, enum_mdl_type main_mdl_type_arg,
-                const char *sync_arg,
-                Notification *grabbed_arg, Notification *release_arg)
-    : m_main_table(main_table_arg), m_main_mdl_type(main_mdl_type_arg),
-      m_sync(sync_arg),
-      m_lock_grabbed(grabbed_arg), m_lock_release(release_arg),
-      m_pre_table(NULL), m_pre_mdl_type(MDL_INTENTION_EXCLUSIVE),
-      m_pre_sync(NULL)
-  {}
+                const char *sync_arg, Notification *grabbed_arg,
+                Notification *release_arg)
+      : m_main_table(main_table_arg),
+        m_main_mdl_type(main_mdl_type_arg),
+        m_sync(sync_arg),
+        m_lock_grabbed(grabbed_arg),
+        m_lock_release(release_arg),
+        m_pre_table(NULL),
+        m_pre_mdl_type(MDL_INTENTION_EXCLUSIVE),
+        m_pre_sync(NULL) {}
 
   MDLSyncThread(const char *main_table_arg, enum_mdl_type main_mdl_type_arg,
-                const char *sync_arg,
-                Notification *grabbed_arg, Notification *release_arg,
-                const char *pre_table_arg, enum_mdl_type pre_mdl_type_arg,
-                const char *pre_sync_arg)
-    : m_main_table(main_table_arg), m_main_mdl_type(main_mdl_type_arg),
-      m_sync(sync_arg),
-      m_lock_grabbed(grabbed_arg), m_lock_release(release_arg),
-      m_pre_table(pre_table_arg), m_pre_mdl_type(pre_mdl_type_arg),
-      m_pre_sync(pre_sync_arg)
-  {}
+                const char *sync_arg, Notification *grabbed_arg,
+                Notification *release_arg, const char *pre_table_arg,
+                enum_mdl_type pre_mdl_type_arg, const char *pre_sync_arg)
+      : m_main_table(main_table_arg),
+        m_main_mdl_type(main_mdl_type_arg),
+        m_sync(sync_arg),
+        m_lock_grabbed(grabbed_arg),
+        m_lock_release(release_arg),
+        m_pre_table(pre_table_arg),
+        m_pre_mdl_type(pre_mdl_type_arg),
+        m_pre_sync(pre_sync_arg) {}
 
-  virtual void run()
-  {
+  virtual void run() {
     m_initializer.SetUp();
-    m_thd= m_initializer.thd();
-    m_mdl_context= &m_thd->mdl_context;
+    m_thd = m_initializer.thd();
+    m_mdl_context = &m_thd->mdl_context;
 
-    if (m_pre_table)
-    {
+    if (m_pre_table) {
       Mock_error_handler error_handler(m_thd, 0);
 
-      if (m_pre_sync)
-      {
+      if (m_pre_sync) {
         EXPECT_FALSE(debug_sync_set_action(m_thd, m_pre_sync));
       }
 
@@ -142,8 +145,7 @@ public:
     {
       Mock_error_handler error_handler(m_thd, 0);
 
-      if (m_sync)
-      {
+      if (m_sync) {
         EXPECT_FALSE(debug_sync_set_action(m_thd, m_sync));
       }
 
@@ -152,15 +154,11 @@ public:
                        m_main_mdl_type, MDL_TRANSACTION);
 
       EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
-      EXPECT_TRUE(m_mdl_context->
-                  owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                              "db", m_main_table,
-                                              m_main_mdl_type));
+      EXPECT_TRUE(m_mdl_context->owns_equal_or_stronger_lock(
+          MDL_key::TABLE, "db", m_main_table, m_main_mdl_type));
 
-      if (m_lock_grabbed)
-        m_lock_grabbed->notify();
-      if (m_lock_release)
-        m_lock_release->wait_for_notification();
+      if (m_lock_grabbed) m_lock_grabbed->notify();
+      if (m_lock_release) m_lock_release->wait_for_notification();
 
       m_mdl_context->release_transactional_locks();
 
@@ -171,7 +169,7 @@ public:
     m_initializer.TearDown();
   }
 
-private:
+ private:
   Server_initializer m_initializer;
   THD *m_thd;
   MDL_context *m_mdl_context;
@@ -185,21 +183,20 @@ private:
   const char *m_pre_sync;
 };
 
-
 /*
   Checks that "fast path" lock acquisition correctly handles MDL_lock objects
   which already have been marked as destroyed but still present in MDL_map.
 */
 
-TEST_F(MDLSyncTest, IsDestroyedFastPath)
-{
+TEST_F(MDLSyncTest, IsDestroyedFastPath) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
                         NULL, NULL);
   MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_acquire_lock_is_destroyed_fast_path "
-                        "SIGNAL resume_removal", NULL, NULL);
+                        "SIGNAL resume_removal",
+                        NULL, NULL);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -229,21 +226,20 @@ TEST_F(MDLSyncTest, IsDestroyedFastPath)
   thread2.join();
 }
 
-
 /*
   Checks that "slow path" lock acquisition correctly handles MDL_lock objects
   which already have been marked as destroyed but still present in MDL_map.
 */
 
-TEST_F(MDLSyncTest, IsDestroyedSlowPath)
-{
+TEST_F(MDLSyncTest, IsDestroyedSlowPath) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
                         NULL, NULL);
   MDLSyncThread thread2("table", MDL_SHARED_NO_READ_WRITE,
                         "mdl_acquire_lock_is_destroyed_slow_path "
-                        "SIGNAL resume_removal", NULL, NULL);
+                        "SIGNAL resume_removal",
+                        NULL, NULL);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -273,14 +269,12 @@ TEST_F(MDLSyncTest, IsDestroyedSlowPath)
   thread2.join();
 }
 
-
 /*
   Checks that code responsible for destroying of random unused MDL_lock
   object correctly handles situation then it fails to find such an object.
 */
 
-TEST_F(MDLSyncTest, DoubleDestroyTakeOne)
-{
+TEST_F(MDLSyncTest, DoubleDestroyTakeOne) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_before_search "
                         "SIGNAL before_search WAIT_FOR start_search",
@@ -318,22 +312,21 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeOne)
   thread1.join();
 }
 
-
 /*
   Checks that code responsible for destroying of random unused MDL_lock
   object correctly handles situation then it discovers that object
   which was chosen for destruction is already destroyed.
 */
 
-TEST_F(MDLSyncTest, DoubleDestroyTakeTwo)
-{
+TEST_F(MDLSyncTest, DoubleDestroyTakeTwo) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
                         NULL, NULL);
   MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
-                        "SIGNAL resume_destroy", NULL, NULL);
+                        "SIGNAL resume_destroy",
+                        NULL, NULL);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -370,22 +363,20 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeTwo)
   thread2.join();
 }
 
-
 /*
   Checks that code responsible for destroying of random unused MDL_lock
   object correctly handles situation then it discovers that object
   which was chosen for destruction is re-used again and can't be destroyed.
 */
 
-TEST_F(MDLSyncTest, DestroyUsed)
-{
+TEST_F(MDLSyncTest, DestroyUsed) {
   Notification lock_grabbed, lock_release;
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
                         NULL, NULL);
-  MDLSyncThread thread2("table", MDL_SHARED,
-                        NULL, &lock_grabbed, &lock_release);
+  MDLSyncThread thread2("table", MDL_SHARED, NULL, &lock_grabbed,
+                        &lock_release);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -424,34 +415,31 @@ TEST_F(MDLSyncTest, DestroyUsed)
   thread2.join();
 }
 
-
 /*
   Test that shows that reschedule of waiters in cases when we acquire
   "hog" locks without waiting and this changes priority matrice is
   important.
 */
 
-TEST_F(MDLSyncTest, PriorityDeadlock)
-{
+TEST_F(MDLSyncTest, PriorityDeadlock) {
   Notification first_grabbed, first_release;
-  MDLSyncThread thread1("alpha", MDL_SHARED_READ,
-                        NULL, &first_grabbed, &first_release);
+  MDLSyncThread thread1("alpha", MDL_SHARED_READ, NULL, &first_grabbed,
+                        &first_release);
   MDLSyncThread thread2("alpha", MDL_SHARED_NO_READ_WRITE,
-                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ",
-                        NULL, NULL);
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", NULL,
+                        NULL);
   MDLSyncThread thread3("alpha", MDL_SHARED_READ,
                         "mdl_acquire_lock_wait SIGNAL sr_blocked "
-                        "WAIT_FOR sr_resume", NULL, NULL,
-                        "beta", MDL_SHARED_WRITE, NULL);
-  MDLSyncThread thread4("beta", MDL_SHARED_NO_WRITE,
-                        NULL, NULL, NULL,
-                        "alpha", MDL_SHARED_NO_WRITE, NULL);
+                        "WAIT_FOR sr_resume",
+                        NULL, NULL, "beta", MDL_SHARED_WRITE, NULL);
+  MDLSyncThread thread4("beta", MDL_SHARED_NO_WRITE, NULL, NULL, NULL, "alpha",
+                        MDL_SHARED_NO_WRITE, NULL);
 
   /*
     Set "max_write_lock_count" to low value to ensure that switch of priority
     matrices happens early.
   */
-  max_write_lock_count= 1;
+  max_write_lock_count = 1;
 
   /* Start the first thread which acquires SR lock on "alpha". */
   thread1.start();
@@ -516,37 +504,33 @@ TEST_F(MDLSyncTest, PriorityDeadlock)
   thread2.join();
 }
 
-
 /*
   Test that shows that reschedule is also important when priority
   matrice is changed due to "hog" lock being granted after wait.
 */
 
-TEST_F(MDLSyncTest, PriorityDeadlock2)
-{
-  Notification first_grabbed, first_release,
-               second_grabbed, second_release;
-  MDLSyncThread thread1("alpha", MDL_SHARED_WRITE,
-                        NULL, &first_grabbed, &first_release);
-  MDLSyncThread thread2("alpha", MDL_SHARED_READ,
-                        NULL, &second_grabbed, &second_release);
+TEST_F(MDLSyncTest, PriorityDeadlock2) {
+  Notification first_grabbed, first_release, second_grabbed, second_release;
+  MDLSyncThread thread1("alpha", MDL_SHARED_WRITE, NULL, &first_grabbed,
+                        &first_release);
+  MDLSyncThread thread2("alpha", MDL_SHARED_READ, NULL, &second_grabbed,
+                        &second_release);
   MDLSyncThread thread3("alpha", MDL_SHARED_NO_READ_WRITE,
-                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ",
-                        NULL, NULL);
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", NULL,
+                        NULL);
   MDLSyncThread thread4("alpha", MDL_SHARED_READ,
                         "mdl_acquire_lock_wait SIGNAL sr_blocked "
-                        "WAIT_FOR sr_resume", NULL, NULL,
-                        "beta", MDL_SHARED_WRITE, NULL);
-  MDLSyncThread thread5("beta", MDL_SHARED_NO_WRITE,
-                        NULL, NULL, NULL,
-                        "alpha", MDL_SHARED_NO_WRITE,
+                        "WAIT_FOR sr_resume",
+                        NULL, NULL, "beta", MDL_SHARED_WRITE, NULL);
+  MDLSyncThread thread5("beta", MDL_SHARED_NO_WRITE, NULL, NULL, NULL, "alpha",
+                        MDL_SHARED_NO_WRITE,
                         "mdl_acquire_lock_wait SIGNAL snw_blocked");
 
   /*
     Set "max_write_lock_count" to low value to ensure that switch of priority
     matrices happens early.
   */
-  max_write_lock_count= 1;
+  max_write_lock_count = 1;
 
   /* Start the first thread which acquires SW lock on "alpha". */
   thread1.start();
@@ -579,7 +563,6 @@ TEST_F(MDLSyncTest, PriorityDeadlock2)
     EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR sr_blocked"));
     EXPECT_EQ(0, error_handler.handle_called());
   }
-
 
   /*
     Start the fifth thread. It will try to acquire SNW lock on "alpha".
@@ -634,15 +617,12 @@ TEST_F(MDLSyncTest, PriorityDeadlock2)
   thread3.join();
 }
 
-
 /** Dummy MDL_context_visitor which does nothing. */
 
-class MDLSyncContextVisitor : public MDL_context_visitor
-{
-public:
-  virtual void visit_context(const MDL_context *ctx) { };
+class MDLSyncContextVisitor : public MDL_context_visitor {
+ public:
+  virtual void visit_context(const MDL_context *){};
 };
-
 
 /*
   Checks that MDL_context::find_lock_owner() correctly handles MDL_lock
@@ -650,8 +630,7 @@ public:
   in MDL_map.
 */
 
-TEST_F(MDLSyncTest, IsDestroyedFindLockOwner)
-{
+TEST_F(MDLSyncTest, IsDestroyedFindLockOwner) {
   MDLSyncThread thread1("table", MDL_EXCLUSIVE,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
@@ -678,7 +657,8 @@ TEST_F(MDLSyncTest, IsDestroyedFindLockOwner)
     Ensure that once MDL_context::find_lock_owner() sees object marked
     as destroyed it resumes the above thread.
   */
-  EXPECT_FALSE(debug_sync_set_action(m_thd, "mdl_find_lock_owner_is_destroyed SIGNAL resume_removal"));
+  EXPECT_FALSE(debug_sync_set_action(
+      m_thd, "mdl_find_lock_owner_is_destroyed SIGNAL resume_removal"));
   EXPECT_EQ(0, error_handler.handle_called());
 
   /*
@@ -687,10 +667,10 @@ TEST_F(MDLSyncTest, IsDestroyedFindLockOwner)
   */
   EXPECT_FALSE(m_thd->mdl_context.find_lock_owner(&mdl_key, &dummy_visitor));
 
-  /* Check that thread performing destruction of MDL_lock object has finished. */
+  /* Check that thread performing destruction of MDL_lock object has finished.
+   */
   thread1.join();
 }
 
-
-}
+}  // namespace mdl_sync_unittest
 #endif

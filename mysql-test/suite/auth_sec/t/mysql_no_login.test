@@ -1,5 +1,4 @@
 --source include/have_mysql_no_login_plugin.inc
---source include/not_embedded.inc
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN';
@@ -47,12 +46,6 @@ GRANT EXECUTE ON noauthdb.* TO noauth@localhost;
 --echo # Connect as noauth - should fail.
 --error 1, ER_ACCESS_DENIED_ERROR
 --exec $MYSQL --user=noauth   -e "select user(), current_user(), @@proxy_user"
-
---echo #try to set password of this plugin user with password function - should warn
-SET PASSWORD FOR noauth@localhost = '';
-
---echo #try to set password of this plugin user with password hash - should warn
-grant all on *.* to noauth@localhost identified by password '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29';
 
 --echo #try to expire password of this plugin user - should warn
 --error ER_CANNOT_USER

@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
 --source include/windows.inc
---source include/not_embedded.inc
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
@@ -15,13 +14,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --exec echo "restart: --secure-file-priv=$MYSQLTEST_VARDIR/mysqld.1/Data" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
@@ -33,7 +26,7 @@ EOF
 --echo #              directory is accessible through --secure-file-priv.
 --echo #              Consider choosing a different directory.
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Data directory is accessible through --secure-file-priv. Consider choosing a different directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --disable_warnings
 --source include/force_restart.inc

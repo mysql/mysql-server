@@ -3,14 +3,10 @@
 # Test behavior of various per-account limits (aka quotas)
 #
 
-# Requires privileges to be enabled
---source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 # Prepare play-ground
 --disable_warnings
@@ -28,7 +24,7 @@ flush privileges;
 --disable_ps_protocol
 
 # Test of MAX_QUERIES_PER_HOUR limit
-grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 2;
+create user mysqltest_1@localhost with max_queries_per_hour 2;
 # This ensures that counters are reset and makes test scheduling independent
 flush user_resources;
 connect (mqph, localhost, mysqltest_1,,);
@@ -48,7 +44,7 @@ disconnect mqph;
 disconnect mqph2;
 
 # Test of MAX_UPDATES_PER_HOUR limit
-grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 2;
+create user mysqltest_1@localhost with max_updates_per_hour 2;
 flush user_resources;
 connect (muph, localhost, mysqltest_1,,);
 connection muph;
@@ -72,7 +68,7 @@ disconnect muph;
 disconnect muph2;
 
 # Test of MAX_CONNECTIONS_PER_HOUR limit
-grant usage on *.* to mysqltest_1@localhost with max_connections_per_hour 2;
+create user mysqltest_1@localhost with max_connections_per_hour 2;
 flush user_resources;
 connect (mcph1, localhost, mysqltest_1,,);
 connection mcph1;
@@ -99,7 +95,7 @@ drop user mysqltest_1@localhost;
 # Test of MAX_USER_CONNECTIONS limit
 # We need this to reset internal mqh_used variable
 flush privileges;
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 2;
+create user mysqltest_1@localhost with max_user_connections 2;
 flush user_resources;
 connect (muc1, localhost, mysqltest_1,,);
 connection muc1;
@@ -116,7 +112,7 @@ connect (muc3, localhost, mysqltest_1,,);
 select * from t1;
 # Changing of limit should also help (and immediately)
 connection default;
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 3;
+alter user mysqltest_1@localhost with max_user_connections 3;
 flush user_resources;
 connect (muc4, localhost, mysqltest_1,,);
 connection muc4;
@@ -142,7 +138,7 @@ set session max_user_connections= 2;
 set global max_user_connections= 2;
 select @@session.max_user_connections, @@global.max_user_connections;
 # Let us check that global limit works
-grant usage on *.* to mysqltest_1@localhost;
+create user mysqltest_1@localhost;
 flush user_resources;
 connect (muca1, localhost, mysqltest_1,,);
 connection muca1;
@@ -155,7 +151,7 @@ select * from t1;
 connect (muca3, localhost, mysqltest_1,,);
 # Now we are testing that per-account limit prevails over gloabl limit
 connection default;
-grant usage on *.* to mysqltest_1@localhost with max_user_connections 3;
+alter user mysqltest_1@localhost with max_user_connections 3;
 flush user_resources;
 connect (muca3, localhost, mysqltest_1,,);
 connection muca3;

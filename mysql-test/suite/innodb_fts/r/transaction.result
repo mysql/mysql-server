@@ -311,13 +311,19 @@ id	a	b
 7	when To Use MySQL Well	for free faq  mail@xyz.com ...
 DROP TABLE t1;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 "In connection 1"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -327,6 +333,8 @@ INSERT INTO t1 (a,b) VALUES
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -523,13 +531,19 @@ id	a	b
 5	when To Use MySQL Well	for free faq  xyz.com ...
 DROP TABLE t1;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 "In connection 1"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -539,11 +553,11 @@ INSERT INTO t1 (a,b) VALUES
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
-REPEATABLE-READ
 Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -641,13 +655,19 @@ id	a	b
 7	adding record using session 1	for verifying multiple concurrent transactions
 DROP TABLE t1;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 "In connection 1"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -655,11 +675,11 @@ INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
-REPEATABLE-READ
 Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -785,13 +805,19 @@ id	a	b
 7	Sævör grét	áðan því úlpan var ónýt
 DROP TABLE t1;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 "In connection 1"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -801,11 +827,11 @@ INSERT INTO t1 (a,b) VALUES
 ('Sævör grét', 'áðan því úlpan var ónýt');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
-REPEATABLE-READ
 Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -908,13 +934,19 @@ id	a	b
 8	Мога да ям стъкло	то Mне ми вреди
 DROP TABLE t1;
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = UTF8,ENGINE = InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 "In connection 1"
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
 ('when To Use MySQL Well','After that you went through a ...'),
@@ -922,11 +954,11 @@ INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне Mне вредит');
 "In connection 2"
 SET NAMES UTF8;
-select @@session.tx_isolation;
-@@session.tx_isolation
-REPEATABLE-READ
 Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID

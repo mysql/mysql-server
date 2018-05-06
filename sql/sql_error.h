@@ -1,13 +1,20 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,14 +23,25 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
-#include "sql_list.h"
-#include "sql_string.h"                        /* String */
-#include "sql_plist.h" /* I_P_List */
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h" /* I_P_List */
+#include "sql_string.h"    /* String */
 
 class THD;
 class my_decimal;
-typedef struct st_mysql_lex_string LEX_STRING;
+struct MYSQL_TIME;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -32,51 +50,46 @@ typedef struct st_mysql_lex_string LEX_STRING;
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
 */
-class Sql_condition : public Sql_alloc
-{
-public:
+class Sql_condition {
+ public:
   /**
     Enumeration value describing the severity of the condition.
   */
-  enum enum_severity_level
-  { SL_NOTE, SL_WARNING, SL_ERROR, SEVERITY_END};
+  enum enum_severity_level { SL_NOTE, SL_WARNING, SL_ERROR, SEVERITY_END };
 
   /**
     Get the MESSAGE_TEXT of this condition.
     @return the message text.
   */
-  const char* message_text() const
-  { return m_message_text.ptr(); }
+  const char *message_text() const { return m_message_text.ptr(); }
 
   /**
     Get the MESSAGE_OCTET_LENGTH of this condition.
     @return the length in bytes of the message text.
   */
-  size_t message_octet_length() const
-  { return m_message_text.length(); }
+  size_t message_octet_length() const { return m_message_text.length(); }
 
   /**
     Get the RETURNED_SQLSTATE of this condition.
     @return the sql state.
   */
-  const char* returned_sqlstate() const
-  { return m_returned_sqlstate; }
+  const char *returned_sqlstate() const { return m_returned_sqlstate; }
 
   /**
     Get the MYSQL_ERRNO of this condition.
     @return the sql error number condition item.
   */
-  uint mysql_errno() const
-  { return m_mysql_errno; }
+  uint mysql_errno() const { return m_mysql_errno; }
 
   /**
     Get the severity level of this condition.
     @return the severity level condition item.
   */
-  Sql_condition::enum_severity_level severity() const
-  { return m_severity_level; }
+  Sql_condition::enum_severity_level severity() const {
+    return m_severity_level;
+  }
 
-private:
+ private:
   /*
     The interface of Sql_condition is mostly private, by design,
     so that only the following code:
@@ -113,17 +126,15 @@ private:
     @param mysql_errno       MYSQL_ERRNO
     @param returned_sqlstate RETURNED_SQLSTATE
     @param severity          Severity level - error, warning or note.
-    @param message_Text      MESSAGE_TEXT
+    @param message_text      MESSAGE_TEXT
   */
-  Sql_condition(MEM_ROOT *mem_root,
-                uint mysql_errno,
-                const char* returned_sqlstate,
+  Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
+                const char *returned_sqlstate,
                 Sql_condition::enum_severity_level severity,
                 const char *message_text);
 
   /** Destructor. */
-  ~Sql_condition()
-  {}
+  ~Sql_condition() {}
 
   /**
     Copy optional condition items attributes.
@@ -136,19 +147,18 @@ private:
     @param message_text  Message text, expressed in the character set derived
                          from the server --language option
   */
-  void set_message_text(const char* message_text);
+  void set_message_text(const char *message_text);
 
   /** Set the RETURNED_SQLSTATE of this condition. */
-  void set_returned_sqlstate(const char* sqlstate)
-  {
+  void set_returned_sqlstate(const char *sqlstate) {
     memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
-    m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
+    m_returned_sqlstate[SQLSTATE_LENGTH] = '\0';
   }
 
   /** Set the CLASS_ORIGIN and SUBCLASS_ORIGIN of this condition. */
   void set_class_origins();
 
-private:
+ private:
   /** SQL CLASS_ORIGIN condition item. */
   String m_class_origin;
 
@@ -189,7 +199,7 @@ private:
     SQL RETURNED_SQLSTATE condition item.
     This member is always NUL terminated.
   */
-  char m_returned_sqlstate[SQLSTATE_LENGTH+1];
+  char m_returned_sqlstate[SQLSTATE_LENGTH + 1];
 
   /** Severity (error, warning, note) of this condition. */
   Sql_condition::enum_severity_level m_severity_level;
@@ -207,49 +217,43 @@ private:
 size_t err_conv(char *buff, size_t to_length, const char *from,
                 size_t from_length, const CHARSET_INFO *from_cs);
 
-class ErrConvString
-{
+class ErrConvString {
   char err_buffer[MYSQL_ERRMSG_SIZE];
   size_t buf_length;
-public:
-  explicit ErrConvString(String *str)
-  {
-    buf_length= err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
-                         str->length(), str->charset());
+
+ public:
+  explicit ErrConvString(const String *str) {
+    buf_length = err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
+                          str->length(), str->charset());
   }
 
-  ErrConvString(const char *str, const CHARSET_INFO* cs)
-  {
-    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
+  ErrConvString(const char *str, const CHARSET_INFO *cs) {
+    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
-  ErrConvString(const char *str, size_t length)
-  {
-    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length,
-                         &my_charset_latin1);
+  ErrConvString(const char *str, size_t length) {
+    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, length,
+                          &my_charset_latin1);
   }
 
-  ErrConvString(const char *str, size_t length, const CHARSET_INFO* cs)
-  {
-    buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
+  ErrConvString(const char *str, size_t length, const CHARSET_INFO *cs) {
+    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
   }
 
-  ErrConvString(longlong nr)
-  {
-    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+  ErrConvString(longlong nr) {
+    buf_length = snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
   }
 
-  ErrConvString(longlong nr, bool unsigned_flag)
-  {
-    buf_length= longlong10_to_str(nr, err_buffer, unsigned_flag ? 10 : -10) -
-                err_buffer;
+  ErrConvString(longlong nr, bool unsigned_flag) {
+    buf_length = longlong10_to_str(nr, err_buffer, unsigned_flag ? 10 : -10) -
+                 err_buffer;
   }
 
   ErrConvString(double nr);
   ErrConvString(const my_decimal *nr);
-  ErrConvString(const struct st_mysql_time *ltime, uint dec);
- 
-  ~ErrConvString() { };
+  ErrConvString(const MYSQL_TIME *ltime, uint dec);
+
+  ~ErrConvString(){};
   char *ptr() { return err_buffer; }
   size_t length() const { return buf_length; }
 };
@@ -262,25 +266,22 @@ public:
   can hold either OK, ERROR, or EOF status.
   Can not be assigned twice per statement.
 */
-class Diagnostics_area
-{
+class Diagnostics_area {
   /** The type of the counted and doubly linked list of conditions. */
-  typedef I_P_List<Sql_condition,
-                   I_P_List_adapter<Sql_condition,
-                                    &Sql_condition::m_next_condition,
-                                    &Sql_condition::m_prev_condition>,
-                   I_P_List_counter,
-                   I_P_List_fast_push_back<Sql_condition> >
-          Sql_condition_list;
+  typedef I_P_List<
+      Sql_condition,
+      I_P_List_adapter<Sql_condition, &Sql_condition::m_next_condition,
+                       &Sql_condition::m_prev_condition>,
+      I_P_List_counter, I_P_List_fast_push_back<Sql_condition>>
+      Sql_condition_list;
 
-public:
+ public:
   /** Const iterator used to iterate through the condition list. */
   typedef Sql_condition_list::Const_Iterator Sql_condition_iterator;
 
-  enum enum_diagnostics_status
-  {
+  enum enum_diagnostics_status {
     /** The area is cleared at start of a statement. */
-    DA_EMPTY= 0,
+    DA_EMPTY = 0,
     /** Set whenever one calls my_ok(). */
     DA_OK,
     /** Set whenever one calls my_eof(). */
@@ -294,12 +295,13 @@ public:
   Diagnostics_area(bool allow_unlimited_conditions);
   ~Diagnostics_area();
 
-  void set_overwrite_status(bool can_overwrite_status)
-  { m_can_overwrite_status= can_overwrite_status; }
+  void set_overwrite_status(bool can_overwrite_status) {
+    m_can_overwrite_status = can_overwrite_status;
+  }
 
   bool is_sent() const { return m_is_sent; }
 
-  void set_is_sent(bool is_sent) { m_is_sent= is_sent; }
+  void set_is_sent(bool is_sent) { m_is_sent = is_sent; }
 
   /**
     Set OK status -- ends commands that do not return a
@@ -311,8 +313,7 @@ public:
                           @sa Diagnostics_area::m_last_insert_id.
     @param message_text   The OK-message text.
   */
-  void set_ok_status(ulonglong affected_rows,
-                     ulonglong last_insert_id,
+  void set_ok_status(ulonglong affected_rows, ulonglong last_insert_id,
                      const char *message_text);
 
   /**
@@ -327,9 +328,10 @@ public:
     report fatal errors (such as out-of-memory errors) when no further
     processing is possible.
 
+    @param thd              Thread handle
     @param mysql_errno      SQL-condition error number
   */
-  void set_error_status(uint mysql_errno);
+  void set_error_status(THD *thd, uint mysql_errno);
 
   /**
     Set ERROR status in the Diagnostics Area.
@@ -338,21 +340,18 @@ public:
     @param message_text       SQL-condition message
     @param returned_sqlstate  SQL-condition state
   */
-  void set_error_status(uint mysql_errno,
-                        const char *message_text,
+  void set_error_status(uint mysql_errno, const char *message_text,
                         const char *returned_sqlstate);
 
   /**
     Mark the Diagnostics Area as 'DISABLED'.
 
     This is used in rare cases when the COM_ command at hand sends a response
-    in a custom format. One example is the query cache, another is
-    COM_STMT_PREPARE.
+    in a custom format. One example is COM_STMT_PREPARE.
   */
-  void disable_status()
-  {
+  void disable_status() {
     DBUG_ASSERT(m_status == DA_EMPTY);
-    m_status= DA_DISABLED;
+    m_status = DA_DISABLED;
   }
 
   /**
@@ -374,53 +373,47 @@ public:
 
   enum_diagnostics_status status() const { return m_status; }
 
-  const char *message_text() const
-  {
+  const char *message_text() const {
     DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK);
     return m_message_text;
   }
 
-  uint mysql_errno() const
-  {
+  uint mysql_errno() const {
     DBUG_ASSERT(m_status == DA_ERROR);
     return m_mysql_errno;
   }
 
-  const char* returned_sqlstate() const
-  {
+  const char *returned_sqlstate() const {
     DBUG_ASSERT(m_status == DA_ERROR);
     return m_returned_sqlstate;
   }
 
-  ulonglong affected_rows() const
-  {
+  ulonglong affected_rows() const {
     DBUG_ASSERT(m_status == DA_OK);
     return m_affected_rows;
   }
 
-  ulonglong last_insert_id() const
-  {
+  ulonglong last_insert_id() const {
     DBUG_ASSERT(m_status == DA_OK);
     return m_last_insert_id;
   }
 
-  uint last_statement_cond_count() const
-  {
+  uint last_statement_cond_count() const {
     DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
     return m_last_statement_cond_count;
   }
 
   /** Return the number of conditions raised by the current statement. */
-  ulong current_statement_cond_count() const
-  { return m_current_statement_cond_count; }
+  ulong current_statement_cond_count() const {
+    return m_current_statement_cond_count;
+  }
 
   /**
     Reset between two COM_ commands. Conditions are preserved
     between commands, but m_current_statement_cond_count indicates
     the number of conditions of this particular statement only.
   */
-  void reset_statement_cond_count()
-  { m_current_statement_cond_count= 0; }
+  void reset_statement_cond_count() { m_current_statement_cond_count = 0; }
 
   /**
     Checks if the condition list contains SQL-condition with the given message.
@@ -452,16 +445,20 @@ public:
   void reset_condition_info(THD *thd);
 
   /** Return the current counter value. */
-  ulong current_row_for_condition() const
-  { return m_current_row_for_condition; }
+  ulong current_row_for_condition() const {
+    return m_current_row_for_condition;
+  }
 
   /** Increment the current row counter to point at the next row. */
-  void inc_current_row_for_condition()
-  { m_current_row_for_condition++; }
+  void inc_current_row_for_condition() { m_current_row_for_condition++; }
 
-  /** Reset the current row counter. Start counting from the first row. */
-  void reset_current_row_for_condition()
-  { m_current_row_for_condition= 1; }
+  /** Set the current row counter to point to the given row number. */
+  void set_current_row_for_condition(ulong rowno) {
+    m_current_row_for_condition = rowno;
+  }
+
+  /** Reset the current row counter. Start counting from 1. */
+  void reset_current_row_for_condition() { m_current_row_for_condition = 1; }
 
   /**
     The number of errors, or number of rows returned by SHOW ERRORS,
@@ -478,11 +475,9 @@ public:
   /**
     The number of conditions (errors, warnings and notes) in the list.
   */
-  uint cond_count() const
-  { return m_conditions_list.elements(); }
+  uint cond_count() const { return m_conditions_list.elements(); }
 
-  Sql_condition_iterator sql_conditions() const
-  { return m_conditions_list; }
+  Sql_condition_iterator sql_conditions() const { return m_conditions_list; }
 
   /** Make sure there is room for the given number of conditions. */
   void reserve_number_of_conditions(THD *thd, uint count);
@@ -499,11 +494,10 @@ public:
 
     @return a pointer to the added SQL-condition.
   */
-  Sql_condition *push_warning(THD *thd,
-                              uint mysql_errno,
-                              const char* returned_sqlstate,
+  Sql_condition *push_warning(THD *thd, uint mysql_errno,
+                              const char *returned_sqlstate,
                               Sql_condition::enum_severity_level severity,
-                              const char* message_text);
+                              const char *message_text);
 
   /**
     Mark current SQL-conditions so that we can later know which
@@ -543,7 +537,7 @@ public:
   */
   Sql_condition *error_condition() const;
 
-private:
+ private:
   /**
     Add a new SQL-condition to the current list and increment the respective
     counters.
@@ -588,10 +582,9 @@ private:
     Returns the Diagnostics Area below the current diagnostics
     area on the stack.
   */
-  const Diagnostics_area *stacked_da() const
-  { return m_stacked_da; }
+  const Diagnostics_area *stacked_da() const { return m_stacked_da; }
 
-private:
+ private:
   /** Pointer to the Diagnostics Area below on the stack. */
   Diagnostics_area *m_stacked_da;
 
@@ -615,7 +608,7 @@ private:
 
   enum_diagnostics_status m_status;
 
-private:
+ private:
   /*
     This section contains basic attributes of Sql_condition to store
     information about error (SQL-condition of error severity) or OK-message.
@@ -634,7 +627,7 @@ private:
     SQL RETURNED_SQLSTATE condition item.
     This member is always NUL terminated.
   */
-  char m_returned_sqlstate[SQLSTATE_LENGTH+1];
+  char m_returned_sqlstate[SQLSTATE_LENGTH + 1];
 
   /**
     SQL error number. One of ER_ codes from share/errmsg.txt.
@@ -679,7 +672,7 @@ private:
   uint m_current_statement_cond_count;
 
   /** A break down of the number of conditions per severity (level). */
-  uint m_current_statement_cond_count_by_sl[(uint) Sql_condition::SEVERITY_END];
+  uint m_current_statement_cond_count_by_sl[(uint)Sql_condition::SEVERITY_END];
 
   /**
     Row counter, to print in errors and warnings. Not increased in
@@ -698,9 +691,17 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text);
+
+/**
+  Convenience function for sending a warning with level SL_WARNING and no
+  arguments to the message.
+
+  @param thd The session to send the warning to.
+  @param code The warning number.
+*/
+void push_warning(THD *thd, uint code);
 
 /*
   Note that this MY_ATTRIBUTE check cannot detect number/type mismatch
@@ -710,7 +711,7 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
 */
 void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
                          uint code, const char *format, ...)
-                         MY_ATTRIBUTE((format(printf, 4, 5)));
+    MY_ATTRIBUTE((format(printf, 4, 5)));
 
 /**
   Generates a warning that a feature is deprecated.
@@ -721,11 +722,15 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
     "The syntax 'BAD' is deprecated and will be removed in a
      future release. Please use 'GOOD' instead"
 
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
+
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
-  @param old_syntax
-  @param new_syntax
+  @param old_syntax  Deprecated syntax.
+  @param new_syntax  Replacement syntax.
 */
 void push_deprecated_warn(THD *thd, const char *old_syntax,
                           const char *new_syntax);
@@ -739,24 +744,27 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
     "The syntax 'old' is deprecated and will be removed in a
      future release.
 
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
+
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
-  @param old_syntax
+  @param old_syntax  Deprecated syntax.
 */
 void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax);
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 size_t convert_error_message(char *to, size_t to_length,
-                             const CHARSET_INFO *to_cs,
-                             const char *from, size_t from_length,
-                             const CHARSET_INFO *from_cs, uint *errors);
+                             const CHARSET_INFO *to_cs, const char *from,
+                             size_t from_length, const CHARSET_INFO *from_cs,
+                             uint *errors);
 
 extern const LEX_STRING warning_level_names[];
 
 bool is_sqlstate_valid(const LEX_STRING *sqlstate);
-
 
 /**
   Checks if the specified SQL-state-string defines COMPLETION condition.
@@ -767,9 +775,9 @@ bool is_sqlstate_valid(const LEX_STRING *sqlstate);
   @retval true if the given string defines COMPLETION condition.
   @retval false otherwise.
 */
-inline bool is_sqlstate_completion(const char *s)
-{ return s[0] == '0' && s[1] == '0'; }
-
+inline bool is_sqlstate_completion(const char *s) {
+  return s[0] == '0' && s[1] == '0';
+}
 
 /**
   Checks if the specified SQL-state-string defines WARNING condition.
@@ -780,9 +788,9 @@ inline bool is_sqlstate_completion(const char *s)
   @retval true if the given string defines WARNING condition.
   @retval false otherwise.
 */
-inline bool is_sqlstate_warning(const char *s)
-{ return s[0] == '0' && s[1] == '1'; }
-
+inline bool is_sqlstate_warning(const char *s) {
+  return s[0] == '0' && s[1] == '1';
+}
 
 /**
   Checks if the specified SQL-state-string defines NOT FOUND condition.
@@ -793,9 +801,9 @@ inline bool is_sqlstate_warning(const char *s)
   @retval true if the given string defines NOT FOUND condition.
   @retval false otherwise.
 */
-inline bool is_sqlstate_not_found(const char *s)
-{ return s[0] == '0' && s[1] == '2'; }
-
+inline bool is_sqlstate_not_found(const char *s) {
+  return s[0] == '0' && s[1] == '2';
+}
 
 /**
   Checks if the specified SQL-state-string defines EXCEPTION condition.
@@ -806,8 +814,8 @@ inline bool is_sqlstate_not_found(const char *s)
   @retval true if the given string defines EXCEPTION condition.
   @retval false otherwise.
 */
-inline bool is_sqlstate_exception(const char *s)
-{ return s[0] != '0' || s[1] > '2'; }
+inline bool is_sqlstate_exception(const char *s) {
+  return s[0] != '0' || s[1] > '2';
+}
 
-
-#endif // SQL_ERROR_H
+#endif  // SQL_ERROR_H

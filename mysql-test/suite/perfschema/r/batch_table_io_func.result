@@ -124,12 +124,12 @@ select t1.*, t2.*, t3.*
 from t1 join t2 using (id1) join t3 using (id2);
 call after_payload();
 number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
-11	TABLE	test	t1	NULL	fetch	1
 1	TABLE	test	t1	NULL	read external	NULL
-101	TABLE	test	t2	NULL	fetch	1
 1	TABLE	test	t2	NULL	read external	NULL
-1	TABLE	test	t3	NULL	fetch	1000
 1	TABLE	test	t3	NULL	read external	NULL
+11	TABLE	test	t1	NULL	fetch	1
+101	TABLE	test	t2	NULL	fetch	1
+1	TABLE	test	t3	NULL	fetch	1000
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
 TABLE	test	t0	NULL	0	0	0
 TABLE	test	t1	NULL	11	11	0
@@ -158,12 +158,12 @@ select t1.*, t2.*, t3.*
 from t1 join t2 using (id1) join t3 using (id2);
 call after_payload();
 number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
-11	TABLE	test	t1	NULL	fetch	1
 1	TABLE	test	t1	id1	read external	NULL
-110	TABLE	test	t2	id1	fetch	1
 1	TABLE	test	t2	id2	read external	NULL
-100	TABLE	test	t3	id2	fetch	10
 1	TABLE	test	t3	id3	read external	NULL
+11	TABLE	test	t1	NULL	fetch	1
+110	TABLE	test	t2	id1	fetch	1
+100	TABLE	test	t3	id2	fetch	10
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
 TABLE	test	t0	NULL	0	0	0
 TABLE	test	t1	NULL	11	11	0

@@ -90,15 +90,15 @@ SET @@session.sql_big_selects = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_big_selects = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = TRÜE;
+SET @@session.sql_big_selects = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_big_selects = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.sql_big_selects = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = ÓFF;
+SET @@session.sql_big_selects = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = '¹';
+SET @@session.sql_big_selects = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_big_selects = NO;
 
@@ -119,7 +119,7 @@ SET @@global.sql_big_selects = 1-@@global.sql_big_selects;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_big_selects';
 --enable_warnings
 
@@ -130,14 +130,14 @@ WHERE VARIABLE_NAME='sql_big_selects';
 
 --disable_warnings
 SELECT IF(@@session.sql_big_selects, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_big_selects';
 --enable_warnings
 SELECT @@session.sql_big_selects;
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_big_selects';
 --enable_warnings
 

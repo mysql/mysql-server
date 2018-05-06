@@ -143,7 +143,7 @@ SELECT @@session.optimizer_search_depth;
 
 --disable_warnings
 SELECT @@global.optimizer_search_depth = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='optimizer_search_depth';
 --enable_warnings
 
@@ -155,7 +155,7 @@ WHERE VARIABLE_NAME='optimizer_search_depth';
 
 --disable_warnings
 SELECT @@session.optimizer_search_depth = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='optimizer_search_depth';
 --enable_warnings
 

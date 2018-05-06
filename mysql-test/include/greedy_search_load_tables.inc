@@ -20,14 +20,16 @@ WHILE ($i < 10)
   --let $stmt= INSERT INTO t10_$i (colidx, col) SELECT k, k FROM tbl10
   --eval $stmt;
   # Update index statistics
-  ANALYZE TABLE t10_$i;
-  
+  --let $stmt= ANALYZE TABLE t10_$i
+  --eval $stmt;
+
   --let $stmt= CREATE TABLE t100_$i (pk int PRIMARY KEY AUTO_INCREMENT, colidx int, col int, index (colidx))
   --eval $stmt;
   --let $stmt= INSERT INTO t100_$i (colidx, col) SELECT a.k, a.k FROM tbl10 a JOIN tbl10 b;
   --eval $stmt;
   # Update index statistics
-  ANALYZE TABLE t100_$i;
+  --let $stmt= ANALYZE TABLE t100_$i
+  --eval $stmt;
 
   inc $i;
 }  

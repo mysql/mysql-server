@@ -57,9 +57,9 @@ Level	Code	Message
 Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because INNODB_PAGE_SIZE=32768.
 Error	1528	Failed to create TABLESPACE s_64k
 Error	1031	Table storage engine for 's_64k' doesn't have this option
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_32k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_32k.ibd
+s_32k	General	DEFAULT	0	Any	s_32k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	MYSQLD_DATADIR/s_32k.ibd
@@ -115,11 +115,7 @@ INSERT INTO t_dyn_in_32k VALUES (1,'a'),(2,'b'),(3,'c');
 # Try to drop a tablespace which is not empty
 #
 DROP TABLESPACE s_32k;
-ERROR HY000: Failed to drop TABLESPACE s_32k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_32k
-Error	3120	Tablespace `s_32k` is not empty.
+ERROR HY000: Tablespace `s_32k` is not empty.
 #
 # Add more data to the existing Tables
 #
@@ -130,18 +126,19 @@ INSERT INTO t_dyn_in_32k VALUES (4,'d');
 # Restart the server and make sure that everything is OK.
 #
 # restart
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_32k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_32k.ibd
+s_32k	General	DEFAULT	0	Any	s_32k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	MYSQLD_DATADIR/s_32k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_32k	s_32k	129	5	Compact	0	General
 test/t_dyn_in_32k	s_32k	161	5	Dynamic	0	General
 test/t_red_in_32k	s_32k	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
+mysql.ibd
 s_32k.ibd
 # Directory of MYSQLD_DATADIR/test/
 #

@@ -6,17 +6,17 @@ CREATE TABLE t
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c TEXT(30)
-);
+) charset latin1;
 CREATE TABLE t1
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c BLOB(30)
-);
+) charset latin1;
 CREATE TABLE t2
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c TEXT(30)
-);
+) charset latin1;
 '#--------------------FN_DYNVARS_098_01-------------------------#'
 ** Connecting test_con1 using username 'root' **
 ** Connection test_con1 **
@@ -143,9 +143,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 ** Results should not be sorted **
-RESET QUERY CACHE;
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_098_04-------------------------#'
 SET max_sort_length=29;
 SELECT c from t ORDER BY c, id;
@@ -227,16 +224,16 @@ SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
 30
-INSERT INTO t1 set c = repeat('x',29);
-INSERT INTO t1 set c = concat(repeat('x',28),'r','x');
-INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
-INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
+INSERT INTO t1 set c = repeat('x',28);
+INSERT INTO t1 set c = concat(repeat('x',27),'r','x');
+INSERT INTO t1 set c = concat(repeat('x',27),'s','y');
+INSERT INTO t1 set c = concat(repeat('x',27),'g','w');
 SELECT c from t1 ORDER BY c, id;
 c
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxgw
+xxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ** Results should be sorted **
 SET @@session.max_sort_length = 20;
 SELECT @@session.max_sort_length;
@@ -248,11 +245,11 @@ INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
 INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
 SELECT c from t1 ORDER BY c, id;
 c
+xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxrx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxsy
+xxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw

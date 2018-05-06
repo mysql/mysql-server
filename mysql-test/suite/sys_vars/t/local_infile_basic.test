@@ -114,7 +114,7 @@ SELECT @@session.local_infile = 1;
 
 --disable_warnings
 SELECT IF(@@global.local_infile, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='local_infile';
 --enable_warnings
 

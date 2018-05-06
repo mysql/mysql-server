@@ -1,0 +1,308 @@
+# ==== Purpose ====
+#
+# This test will fake an upgrade from MySQL 5.6.30 to MySQL 5.7.13+, with
+# respect to the slave_master_info table, certifying that all slave
+# capabilities remain operational after the upgrade. It will also ensure that
+# a slave with Tls_version field of mysql.slave_master_info table switched
+# position with Channel_name field will handle the failure properly. Finally
+# it will setup and use three channels (default + two), will change the
+# repository table and will restart the slave to assert the expected errors
+# on generating the slave infrastructure based on the repository during
+# server initialization.
+#
+# First part: the upgrade
+#
+# The test case will drop the current slave_master_info table, creating one
+# just like MySQL 5.6.30 installation would create.
+#
+# Then, the test case will call mysql_upgrade, and will restart the slave
+# after the upgrade.
+#
+# The test case will create two additional channels, assert that the channels
+# were created and are displayed at SHOW SLAVE STATUS, will execute a RESET
+# SLAVE ALL and will recreate the default channel.
+#
+# Finally, the test will generate some workload on the master and will sync
+# the slave before finishing the test case.
+#
+# Second part: switching positions of Tls_version and Channel_name
+#
+# For this part, the test case will alter the table and try to perform
+# some channel operations.
+#
+# Notice that in this test case, because we need to run mysql_upgrade, we
+# inverted the server's roles (slave is server #1 and master is server #2).
+#
+# Third part: switching positions of Tls_version and Channel_name after having
+#             channels configured and used.
+#
+# For this part, the test case will create and use (generating workload on the
+# master and waiting for it to be replicated) three channels (the default + two
+# additional channels). Then, the test will stop the slave, will alter the
+# repository table and will restart the slave server. After restarting, it will
+# try to perform some channel operations.
+#
+# Notice that in this test case, because we need to run mysql_upgrade, we
+# inverted the server's roles (slave is server #1 and master is server #2).
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#23180202 REPLICATION CHANNELS ARE GETTING SAME NAME IN MSR AFTER UPGRADE
+#
+
+--source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+# Using this unusual topology because of mysql_upgrade
+--let $rpl_topology= 2->1
+--source include/rpl_init.inc
+
+# First part: the upgrade
+
+--echo # DROP slave_master_info table and re-create it as of MySQL 5.6.30
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+--source include/stop_slave.inc
+USE mysql;
+DROP TABLE `slave_master_info`;
+CREATE TABLE `slave_master_info` (
+  `Number_of_lines` INT(10) UNSIGNED NOT NULL COMMENT 'Number of lines in the file.',
+  `Master_log_name` TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  `Master_log_pos` bigint(20) UNSIGNED NOT NULL COMMENT 'The master log position of the last read event.',
+  `Host` CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '' COMMENT 'The host name of the master.',
+  `User_name` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
+  `User_password` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.',
+  `Port` INT(10) UNSIGNED NOT NULL COMMENT 'The network port used to connect to the master.',
+  `Connect_retry` INT(10) UNSIGNED NOT NULL COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.',
+  `Enabled_ssl` TINYINT(1) NOT NULL COMMENT 'Indicates whether the server supports SSL connections.',
+  `Ssl_ca` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  `Ssl_capath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  `Ssl_cert` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
+  `Ssl_cipher` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  `Ssl_key` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
+  `Ssl_verify_server_cert` TINYINT(1) NOT NULL COMMENT 'Whether to verify the server certificate.',
+  `Heartbeat` FLOAT NOT NULL,
+  `Bind` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  `Ignored_server_ids` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  `Uuid` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
+  `Retry_count` BIGINT(20) UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
+  `Ssl_crl` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  `Ssl_crlpath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  `Enabled_auto_position` TINYINT(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
+  PRIMARY KEY (`Host`,`Port`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
+
+--echo # Running mysql_upgrade to update slave_master_info table
+--disable_result_log
+--exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force 2>&1
+--enable_result_log
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+# Create two additional channels on the slave
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_2 MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_1'
+--replace_result $SERVER_MYPORT_2 MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2 FOR CHANNEL 'channel_2'
+
+# Assert that all three channels are reached by name in SHOW SLAVE STATUS
+--let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 1)
+--let $assert_text= Default channel name is ''
+--let $assert_cond= "$channel_name" = ""
+--source include/assert.inc
+
+--let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 2)
+--let $assert_text= Second channel name is 'channel_1'
+--let $assert_cond= "$channel_name" = "channel_1"
+--source include/assert.inc
+
+--let $channel_name= query_get_value(SHOW SLAVE STATUS, Channel_Name, 3)
+--let $assert_text= Third channel name is 'channel_2'
+--let $assert_cond= "$channel_name" = "channel_2"
+--source include/assert.inc
+
+# Stop slave and reset the slave removing all channels
+--source include/stop_slave.inc
+RESET SLAVE ALL;
+
+# Create the default channel again
+--replace_result $SERVER_MYPORT_2 MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2
+--source include/start_slave.inc
+
+# Generate traffic on the master
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+--source include/save_master_pos.inc
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/sync_slave_sql.inc
+
+# In order to make check-testcase.test happy, we need to do two small changes
+# on mysql.slave_master_info table
+
+ALTER TABLE slave_master_info
+  MODIFY Host CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NULL COMMENT 'The host name of the master.',
+  ALTER COLUMN Channel_name DROP DEFAULT;
+
+# Second part: switching positions of Tls_version and Channel_name
+
+--source include/stop_slave.inc
+
+# The slave will throw the following errors:
+CALL mtr.add_suppression('Info table has a problem with its key field.*slave_master_info');
+CALL mtr.add_suppression('Error in checking mysql.slave_master_info repository info type of TABLE');
+CALL mtr.add_suppression('Error creating master info');
+
+# Change the position of the slave_master_info table primary key
+ALTER TABLE slave_master_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
+  AFTER Tls_version;
+
+# We cannot perform repository operations until the repository be fixed
+
+--error ER_MASTER_INFO
+RESET SLAVE ALL;
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
+# Show entries only after the last occurrence of the following pattern
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
+# Each test will log only one warning line
+--let $assert_count= 1
+# Assert that there is the expected warning log line but just after the last restart
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Info table has a problem with its key field.*slave_master_info
+--let $assert_text= Found the expected error line in the error log.
+--source include/assert_grep.inc
+
+--replace_result $SERVER_MYPORT_2 MASTER_PORT
+--error ER_SLAVE_CONFIGURATION
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2
+
+--error ER_SLAVE_CONFIGURATION
+START SLAVE;
+
+# Restore the position of the slave_master_info table primary key
+ALTER TABLE slave_master_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
+  AFTER Enabled_auto_position;
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+# This now should work fine now
+RESET SLAVE ALL;
+
+# Create the default channel again
+# to replicate from the last synced position
+--replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos
+--source include/start_slave.inc
+
+# Third part: switching positions of Tls_version and Channel_name after having
+#             channels configured and used.
+
+# The slave will throw the following errors:
+CALL mtr.add_suppression('Failed to create a channel from master info table repository');
+CALL mtr.add_suppression('Could not create channel list');
+CALL mtr.add_suppression('Failed to create or recover replication info repositories');
+
+# Make each channel to replicate something
+# On default channel
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+--let $sync_slave_connection= server_1
+# [--let $rpl_channel_name= 'NAME']
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+# On channel_1
+--replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos FOR CHANNEL 'channel_1'
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave.inc
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (3);
+--let $sync_slave_connection= server_1
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+# On channel_2
+--replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos FOR CHANNEL 'channel_2'
+--let $rpl_channel_name= 'channel_2'
+--source include/start_slave.inc
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (4);
+--let $sync_slave_connection= server_1
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+# Change the position of the slave_master_info table primary key
+ALTER TABLE slave_master_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
+  AFTER Tls_version;
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+# We cannot perform repository operations until the repository be fixed
+--error ER_SLAVE_CONFIGURATION
+RESET SLAVE ALL;
+
+# File to GREP
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
+# Show entries only after the last occurrence of the following pattern
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
+# Each test will log only one warning line
+--let $assert_count= 1
+# Assert that there is the expected warning log line but just after the last restart
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Slave: Failed to create a channel from master info table repository
+--let $assert_text= Found the expected error line in the error log generated on server startup.
+--source include/assert_grep.inc
+
+# Restore the position of the slave_master_info table primary key
+ALTER TABLE slave_master_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL
+  COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication'
+  AFTER Enabled_auto_position;
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+# This now should work fine now
+--let $rpl_channel_name=
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/stop_slave.inc
+RESET SLAVE ALL;
+
+# Create the default channel again
+# to replicate from the last synced position
+--replace_result $SERVER_MYPORT_2 MASTER_PORT $_saved_file FILE $_saved_pos POS
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_LOG_FILE='$_saved_file', MASTER_LOG_POS=$_saved_pos
+--source include/start_slave.inc
+
+# Cleanup
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_end.inc
+
+# The above two assert_grep.inc sources require to restart server.
+--source include/force_restart.inc

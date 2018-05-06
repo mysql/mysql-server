@@ -1,6 +1,4 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 drop view if exists v1;
@@ -44,12 +42,14 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 ERROR 42000: Unknown database 'not_existing_database'
+create temporary table not_existing_database.test (a int);
+ERROR 42000: Unknown database 'not_existing_database'
 create table `a/a` (a int);
 show create table `a/a`;
 Table	Create Table
 a/a	CREATE TABLE `a/a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t1 like `a/a`;
 drop table `a/a`;
 drop table `t1`;
@@ -77,7 +77,7 @@ select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 1a20	1e+ 1e+10
 1	10000000001
 drop table 1ea10;
-create table t1 (t1.index int);
+create table t1 (`index` int);
 drop table t1;
 drop database if exists mysqltest;
 Warnings:
@@ -112,7 +112,7 @@ insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	B	B	21	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	B	B	81	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`B` AS `B` from `test`.`t2` where (`test`.`t2`.`B` = 'world')
 select * from t2 where b="world";
@@ -248,7 +248,7 @@ t1	CREATE TABLE `t1` (
   KEY `b_29` (`b`),
   KEY `b_30` (`b`),
   KEY `b_31` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select if(1,'1','0'), month("2002-08-02");
 drop table t1;
@@ -266,7 +266,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET SESSION default_storage_engine="gemini";
 ERROR 42000: Unknown storage engine 'gemini'
@@ -278,7 +278,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_storage_engine=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
@@ -337,9 +337,9 @@ ERROR 42000: Incorrect column name 'a '
 create table t1 (a int,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 create table t1 (a int,,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
 create table t1 (,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t2,t1;
@@ -353,7 +353,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
 id	name
 create table if not exists t3 like t1;
@@ -367,7 +367,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=latin1
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
 id
 drop table t3;
@@ -376,7 +376,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
 id	name
 drop table t2, t3;
@@ -388,14 +388,14 @@ Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=latin1
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL,
   `name` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t2;
 id	name
 create table t3 like t1;
@@ -430,7 +430,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET SESSION default_storage_engine="gemini";
 ERROR 42000: Unknown storage engine 'gemini'
@@ -442,7 +442,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_storage_engine=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
@@ -505,7 +505,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(d,d)` int(11) DEFAULT NULL,
   `ifnull(e,e)` bigint(20) DEFAULT NULL,
   `ifnull(f,f)` float(3,2) DEFAULT NULL,
-  `ifnull(g,g)` double(4,3) DEFAULT NULL,
+  `ifnull(g,g)` double(22,3) DEFAULT NULL,
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
   `ifnull(i,i)` year(4) DEFAULT NULL,
   `ifnull(j,j)` date DEFAULT NULL,
@@ -514,7 +514,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(m,m)` varchar(1) DEFAULT NULL,
   `ifnull(n,n)` varchar(3) DEFAULT NULL,
   `ifnull(o,o)` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
 insert into t1 values ('','',0,0.0);
@@ -582,14 +582,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `primary` int(11) DEFAULT NULL,
   KEY `primary_2` (`primary`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 (`PRIMARY` int, index(`PRIMARY`));
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `PRIMARY` int(11) DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t3 (a int);
 alter table t3 add index `primary` (a);
 ERROR 42000: Incorrect index name 'primary'
@@ -602,7 +602,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `primary` int(11) DEFAULT NULL,
   KEY `primary_2` (`primary`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t5 (`PRIMARY` int);
 alter table t5 add index(`PRIMARY`);
 show create table t5;
@@ -610,7 +610,7 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `PRIMARY` int(11) DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2, t3, t4, t5;
 CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
 INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
@@ -643,15 +643,18 @@ flush tables with read lock;
 unlock tables;
 drop table t1;
 create table t1(column.name int);
-ERROR 42000: Incorrect table name 'column'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
 create table t1(test.column.name int);
-ERROR 42000: Incorrect table name 'column'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.column.name int)' at line 1
 create table t1(xyz.t1.name int);
-ERROR 42000: Incorrect database name 'xyz'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t1.name int)' at line 1
 create table t1(t1.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
 create table t2(test.t2.name int);
-drop table t1,t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t2.name int)' at line 1
 CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
@@ -681,7 +684,7 @@ Warnings:
 Note	1007	Can't create database 'mysqltest'; database exists
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 drop database mysqltest;
 use test;
 create table t1 (a int);
@@ -693,12 +696,14 @@ create table t1 (
 a varchar(112) charset utf8 collate utf8_bin not null,
 primary key (a)
 ) select 'test' as a ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(112) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t2 (
 a int(11) default NULL
@@ -708,19 +713,22 @@ create table t1 (
 a varchar(12) charset utf8 collate utf8_bin not null, 
 b int not null, primary key (a)
 ) select a, 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null, 
 b int not null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
@@ -729,12 +737,14 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null, 
 b int null, primary key (a)
 ) select a, 1 as c from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -742,31 +752,35 @@ t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin,
 b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 ( 
 a1 int not null,
@@ -778,11 +792,15 @@ a1 varchar(12) charset utf8 collate utf8_bin not null,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2;
 create table t2 ( 
 a1 varchar(12) charset utf8 collate utf8_bin,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1, t2;
 create table t1 ( 
 a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
@@ -793,6 +811,8 @@ a1 varchar(12) charset utf8 collate utf8_bin not null,
 a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
 primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2;
 create table t2 ( a int default 3, b int default 3)
 select a1,a2 from t1;
@@ -803,7 +823,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT '3',
   `a1` int(11) DEFAULT NULL,
   `a2` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1(a set("a,b","c,d") not null);
 ERROR 22007: Illegal set 'a,b' value found during parsing
@@ -812,25 +832,25 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=4294967295
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=4294967295
 alter table t1 max_rows=100;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=100
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=100
 alter table t1 max_rows=100000000000;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MAX_ROWS=4294967295
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=4294967295
 drop table t1;
 create table t1 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create table t1 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create table t1 (primary key(a)) select "b" as b;
 ERROR 42000: Key column 'a' doesn't exist in table
@@ -855,7 +875,7 @@ Note	1050	Table 't1' already exists
 select * from t1;
 i
 drop table t1;
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
@@ -936,7 +956,7 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	23
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -949,13 +969,13 @@ CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH			YES
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 create user mysqltest_1@'test@test';
 ERROR HY000: Malformed hostname (illegal symbol: '@')
@@ -1020,6 +1040,8 @@ ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
 use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
 select database();
@@ -1042,21 +1064,21 @@ from имя_таблицы_в_кодировке_утф8_длиной_больш
 select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 select TABLE_NAME from information_schema.tables where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 TABLE_NAME
 имя_вью_кодировке_утф8_длиной_больше_чем_42
 имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48
 select COLUMN_NAME from information_schema.columns where
-table_schema='test';
+table_schema='test' order by COLUMN_NAME;
 COLUMN_NAME
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 имя_поля_в_кодировке_утф8_длиной_больше_чем_45
 select INDEX_NAME from information_schema.statistics where
-table_schema='test';
+table_schema='test' order by INDEX_NAME;
 INDEX_NAME
 имя_индекса_в_кодировке_утф8_длиной_больше_чем_48
 select TABLE_NAME from information_schema.views where
-table_schema='test';
+table_schema='test' order by TABLE_NAME;
 TABLE_NAME
 имя_вью_кодировке_утф8_длиной_больше_чем_42
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
@@ -1064,7 +1086,7 @@ Table	Create Table
 имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48	CREATE TABLE `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48` (
   `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` int(11) DEFAULT NULL,
   KEY `имя_индекса_в_кодировке_утф8_длиной_больше_чем_48` (`имя_поля_в_кодировке_утф8_длиной_больше_чем_45`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
 View	Create View	character_set_client	collation_connection
 имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8	utf8_general_ci
@@ -1150,15 +1172,15 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 drop table t1;
-create table t1 like information_schema.character_sets;
+create table t1 as select * from information_schema.character_sets;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` varchar(32) NOT NULL DEFAULT '',
-  `DEFAULT_COLLATE_NAME` varchar(32) NOT NULL DEFAULT '',
-  `DESCRIPTION` varchar(60) NOT NULL DEFAULT '',
-  `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
+  `MAXLEN` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 
 # --
@@ -1177,6 +1199,8 @@ c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
 c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
 c6 VARCHAR(255))
 COLLATE latin1_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1184,7 +1208,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT '12' COMMENT 'column1',
   `c2` int(11) DEFAULT NULL COMMENT 'column2',
   `c3` int(11) NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
@@ -1197,10 +1221,10 @@ t2	CREATE TABLE `t2` (
   `c1` int(11) DEFAULT '12' COMMENT 'column1',
   `c2` int(11) DEFAULT NULL COMMENT 'column2',
   `c3` int(11) NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t2;
 DROP TABLE t1;
@@ -1226,9 +1250,6 @@ Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
 DROP TABLE t2;
 
-CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
-ERROR 42000: Invalid default value for 'c2'
-
 # -- Check that NULL column still can be created.
 CREATE TABLE t2(c1 TIMESTAMP NULL);
 
@@ -1244,16 +1265,12 @@ CREATE TABLE t3(c1 DATETIME NOT NULL) ENGINE=MYISAM;
 INSERT INTO t3 VALUES (0);
 
 SET sql_mode = TRADITIONAL;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 ALTER TABLE t3 ADD INDEX(c1);
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
 
 # -- Cleanup.
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
@@ -1273,7 +1290,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` year(4) DEFAULT '2008',
   `c2` year(4) DEFAULT '0000'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 INSERT INTO t1 VALUES();
 
@@ -1288,7 +1305,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` year(4) DEFAULT '0000',
   `c2` year(4) DEFAULT '0000'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 INSERT INTO t1 VALUES();
 
@@ -1451,12 +1468,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` datetime DEFAULT '2008-02-31 00:00:00'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `dt` datetime DEFAULT '2008-02-31 00:00:00'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @@sql_mode= @old_mode;
 drop tables t1, t2;
 CREATE TABLE t1 (id int);
@@ -1469,7 +1486,7 @@ Warnings:
 Note	1050	Table 'v1' already exists
 SHOW CREATE TABLE v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 id
 2
@@ -1857,7 +1874,7 @@ drop function f;
 # BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
 #                       REDUCE USER CONFUSION 
 #
-CREATE TABLE t1 (v varchar(65535));
+CREATE TABLE t1 (v varchar(65535) CHARACTER SET latin1);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 #
 # Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO
@@ -1873,12 +1890,164 @@ ERROR 42000: Identifier name 't0123456789012345678901234567890123456789012345678
 #
 CREATE DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
-ERROR HY000: Error dropping database (can't rmdir './db_with_no_tables_and_an_unrelated_file_in_data_directory/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db_with_no_tables_and_an_unrelated_file_in_data_directory/', errno: ## - ...)
 DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
 CREATE DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
-ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: ## - ...)
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
-ERROR HY000: Error dropping database (can't rmdir './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/', errno: 17)
-DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Schema 'db_created_with_mkdir_and_an_unrelated_file_in_data_directory' does not exist, but schema directory './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
+#
+# Bug#20857556: IMPROPER ERROR DURING CREATE TABLE
+#
+# Without the patch ER_WRONG_TABLE_NAME was getting reported.
+CREATE TABLE t1 (id INT) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################';
+ERROR HY000: The path specified for INDEX DIRECTORY is too long.
+CREATE TABLE t2 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################'
+);
+ERROR HY000: The path specified for INDEX DIRECTORY is too long.
+CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
+ERROR HY000: Incorrect path value: 'test'
+CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
+);
+ERROR HY000: Incorrect path value: 'test'
+#
+# Bug #27331588: ASSERTION `THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK
+# MDL_KEY::TABLESPACE
+#
+SET GLOBAL innodb_file_per_table= 0;
+CREATE TABLE t (i INT) PARTITION BY HASH(i) PARTITIONS 2;
+CREATE TABLE t_like LIKE t;
+DROP TABLES t, t_like;
+SET GLOBAL innodb_file_per_table= DEFAULT;
+#
+# BUG 27516741 - MYSQL SERVER DOES NOT WRITE INNODB ROW_TYPE
+#                TO .FRM FILE WHEN DEFAULT USED
+# Set up.
+SET @saved_innodb_default_row_format= @@global.innodb_default_row_format;
+SET @saved_show_create_table_verbosity= @@session.show_create_table_verbosity;
+# Current InnoDB default row format and 'show_create_table_verbosity'
+# values respectively.
+SELECT @@global.innodb_default_row_format;
+@@global.innodb_default_row_format
+dynamic
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+CREATE TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= COMPRESSED;
+# Test without show_create_table_verbosity enabled.
+# Row format used is not displayed for all tables
+# except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fl1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+# Test with show_create_table_verbosity enabled.
+# Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fl1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+SET GLOBAL innodb_default_row_format= 'DYNAMIC';
+SET SESSION show_create_table_verbosity= OFF;
+# Test with corresponding temporary tables.
+CREATE TEMPORARY TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TEMPORARY TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= REDUNDANT;
+# Test without show_create_table_verbosity enabled.
+# Row format used is not displayed for all tables
+# except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `fl1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+# Test with show_create_table_verbosity enabled.
+# Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `fld1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `fl1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+# Clean up.
+DROP TABLE t1, t2, t3, t4;
+DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
+SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;

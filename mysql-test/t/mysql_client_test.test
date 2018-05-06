@@ -1,10 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
-
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
-
 --source include/no_valgrind_without_big.inc
 
 # need to have the dynamic loading turned on for the client plugin tests
@@ -13,7 +6,6 @@
 SET @old_general_log= @@global.general_log;
 SET @old_slow_query_log= @@global.slow_query_log;
 
-# We run with different binaries for normal and --embedded-server
 #
 # If this test fails with "command "$MYSQL_CLIENT_TEST" failed",
 # you should either run mysql_client_test separartely against a running
@@ -35,3 +27,56 @@ echo ok;
 
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
+
+--echo #
+--echo # Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
+--echo # INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE
+--echo #
+
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--echo # First start the server with --initialize
+--exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+
+--echo # Restart the server against DDIR.
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Run the single test.
+--echo # Following command would crash if run without fix.
+--exec $MYSQL_CLIENT_TEST test_bug24963580 >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
+
+--echo # Shutdown server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Cleanup.
+--echo #   Delete \$DDIR.
+--force-rmdir $DDIR
+--echo #   Delete sql files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+--echo #   Delete log files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+--echo #   Delete expect files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect
+
+--echo # Restart server without --lower-case-table-names
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

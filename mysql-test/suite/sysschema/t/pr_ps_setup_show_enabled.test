@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 # Add to users to the setup_actors table: one enabled, and one disabled
 INSERT INTO performance_schema.setup_actors
@@ -24,8 +23,10 @@ UPDATE performance_schema.setup_consumers
 UPDATE performance_schema.threads
    SET INSTRUMENTED = 'NO'
  WHERE NAME LIKE 'thread/innodb/srv\_%'
+    OR NAME LIKE 'thread/innodb/trx\_%'
     OR NAME LIKE '%con\_%'
-    OR NAME LIKE '%signal_handler%';
+    OR NAME LIKE '%signal_handler%'
+    OR NAME LIKE '%thread_timer_notifier';
 
 # Show limited info (no thread or instrument info)
 CALL sys.ps_setup_show_enabled(FALSE, FALSE);

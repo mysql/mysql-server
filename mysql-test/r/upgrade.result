@@ -9,12 +9,12 @@ create table `#mysql50#mysqltest-1`.`t1` (a int);
 create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int);
 show create database `mysqltest1`;
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show create database `mysqltest-1`;
 ERROR 42000: Unknown database 'mysqltest-1'
 show create database `#mysql50#mysqltest-1`;
 Database	Create Database
-#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET latin1 */
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show tables in `mysqltest1`;
 Tables_in_mysqltest1
 #mysql50#t-1
@@ -23,26 +23,22 @@ show tables in `#mysql50#mysqltest-1`;
 Tables_in_#mysql50#mysqltest-1
 #mysql50#t-1
 t1
-WARNING: --fix-db-names is deprecated and will be removed in a future version
-WARNING: --fix-table-names is deprecated and will be removed in a future version
 show create database `mysqltest1`;
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
-show create database `mysqltest-1`;
-Database	Create Database
-mysqltest-1	CREATE DATABASE `mysqltest-1` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show create database `#mysql50#mysqltest-1`;
-ERROR 42000: Unknown database '#mysql50#mysqltest-1'
+Database	Create Database
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show tables in `mysqltest1`;
 Tables_in_mysqltest1
+#mysql50#t-1
 t1
-t-1
-show tables in `mysqltest-1`;
-Tables_in_mysqltest-1
+show tables in `#mysql50#mysqltest-1`;
+Tables_in_#mysql50#mysqltest-1
+#mysql50#t-1
 t1
-t-1
 drop database `mysqltest1`;
-drop database `mysqltest-1`;
+drop database `#mysql50#mysqltest-1`;
 drop table if exists `txu@0023p@0023p1`;
 drop table if exists `txu#p#p1`;
 create table `txu#p#p1` (s1 int);
@@ -59,90 +55,14 @@ s1
 1
 drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
-#
-# Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
-#
-# copy table created using mysql4.0 into the data dir
-# check the table created using mysql 4.0
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
-# query the table created using mysql 4.0
-SELECT * FROM t1;
-c1	c2	c3
-DROP TABLE t1;
-truncate t1;
-drop table t1;
-drop database if exists `tabc`;
-drop database if exists `a-b-c`;
-create database `tabc` default character set latin2;
-create table tabc.t1 (a int);
-FLUSH TABLES;
-show databases like '%a-b-c%';
-Database (%a-b-c%)
-#mysql50#a-b-c
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-Warnings:
-Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
-show databases like '%a-b-c%';
-Database (%a-b-c%)
-a-b-c
-show create database `a-b-c`;
-Database	Create Database
-a-b-c	CREATE DATABASE `a-b-c` /*!40100 DEFAULT CHARACTER SET latin2 */
-show tables in `a-b-c`;
-Tables_in_a-b-c
-t1
-show create table `a-b-c`.`t1`;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin2
-drop database `a-b-c`;
-drop database `tabc`;
-use `#mysql50#a-b-c`;
-create table t1(f1 char(10));
-show databases like '%a-b-c%';
-Database (%a-b-c%)
-#mysql50#a-b-c
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-Warnings:
-Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
-show databases like '%a-b-c%';
-Database (%a-b-c%)
-a-b-c
-show create view `a-b-c`.v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `a`.`f1` AS `f1` from (`a-b-c`.`t1` `a` join `information_schema`.`tables` `b`) where (convert(`a`.`f1` using utf8) = `b`.`TABLE_NAME`)	utf8	utf8_general_ci
-select * from `a-b-c`.v1;
-f1
-drop database `a-b-c`;
 use test;
 # End of 5.0 tests
 #
 # Bug #53804: serious flaws in the alter database .. upgrade data
 #             directory name command
 #
-ALTER DATABASE `#mysql50#:` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Unknown database '#mysql50#:'
-ALTER DATABASE `#mysql50#.` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#.'
-ALTER DATABASE `#mysql50#../` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#../'
-ALTER DATABASE `#mysql50#../..` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#../..'
-ALTER DATABASE `#mysql50#../../` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#../../'
-ALTER DATABASE `#mysql50#./blablabla` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#./blablabla'
-ALTER DATABASE `#mysql50#../blablabla` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#../blablabla'
-ALTER DATABASE `#mysql50#/` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#/'
-ALTER DATABASE `#mysql50#/.` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Incorrect database name '#mysql50#/.'
 USE `#mysql50#.`;
-ERROR 42000: Incorrect database name '#mysql50#.'
+ERROR 42000: Unknown database '#mysql50#.'
 USE `#mysql50#../blablabla`;
-ERROR 42000: Incorrect database name '#mysql50#../blablabla'
+ERROR 42000: Unknown database '#mysql50#../blablabla'
 # End of 5.1 tests

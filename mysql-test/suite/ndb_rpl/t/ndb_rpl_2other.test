@@ -5,7 +5,6 @@
 # to other engines (innodb, myisam).
 ##############################################################
 --source include/have_ndb.inc
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 
 let $rpl_skip_start_slave= 1; # Don't start slave automatically
@@ -19,28 +18,40 @@ SET default_storage_engine=ndb;
 --echo
 --source include/rpl_connection_slave.inc
 
-# Remove any old ndb_apply_status from slaves datadir
-let $datadir= `SELECT @@datadir`;
---error 0,1
-remove_file $datadir/mysql/ndb_apply_status.frm;
---error 0,1
-remove_file $datadir/mysql/ndb_apply_status.ndb;
-
 set @old_slave_exec_mode= @@global.slave_exec_mode;
 set @@global.slave_exec_mode= 'IDEMPOTENT';
+
+# Silence warning about MyISAM not supporting HASH index algorithm
+# when creating mysql.ndb_apply_status
+disable_warnings ONCE;
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,
                    log_name VARCHAR(255) BINARY NOT NULL,
                    start_pos BIGINT UNSIGNED NOT NULL,
                    end_pos BIGINT UNSIGNED NOT NULL,
-                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM
+                   CHARACTER SET latin1;
 
 # Reconfigure slave to use MyISAM as default engine
 SET @old_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=myisam;
 
 --source include/start_slave.inc
+
+# Check if log-slave-updates and slave-preserve-commit-order
+# have been turned off
+
+if (`select @@log_slave_updates`)
+{
+  die Test requires log-slave-updates=0;
+}
+
+if (`select @@slave_preserve_commit_order`)
+{
+  die Test requires slave-preserve-commit-order=0;
+}
+
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc

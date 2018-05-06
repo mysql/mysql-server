@@ -1,0 +1,45 @@
+##############################################################################
+# This test checks that keys that are considered the same under a collation do
+# not pass certification as being different keys.
+#
+# 0. 2 Server with running GR
+# 1. Create a table with collation latin1
+# 2. Execute in concurrency transaction with equivalent keys under latin1
+# 3. Cleanup
+##############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ###########################
+--echo # Create a table on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (
+  u_str VARCHAR(32) NOT NULL,
+  value VARCHAR(32) NOT NULL,
+  PRIMARY KEY (u_str)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ######################################################################
+--echo # Execute in concurrency transaction with equivalent keys under latin1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
+--let $remote_server_connection=server2
+--let $local_transaction= INSERT INTO t1 (u_str, value)  VALUES ('Ã',  "A value");
+--let $remote_transaction=INSERT INTO t1 (u_str, value)  VALUES ('á',  "Another value");
+--let $conflict_test=1
+--source include/gr_parallel_local_and_remote_transactions.inc
+
+--echo
+--echo ###########
+--echo # Clean up.
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

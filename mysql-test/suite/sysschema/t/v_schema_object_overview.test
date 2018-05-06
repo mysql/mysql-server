@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.schema_object_overview view
@@ -10,4 +9,3 @@ DESC sys.schema_object_overview;
 --disable_result_log
 SELECT * FROM sys.schema_object_overview;
 --enable_result_log
-

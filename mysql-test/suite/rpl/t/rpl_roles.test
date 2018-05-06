@@ -1,0 +1,101 @@
+################# suite/rpl/t/rpl_roles.test #########################
+#                                                                    #
+# Testing of roles feature in replication setup                      #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2016-08-26 prabprad Added this test as part of WL#988 Roles        #
+#                                                                    #
+# WL#10886 : Add/Extend mtr tests for Replication/GR for roles       #
+# This test was extended to verify starting of replication           #
+# by using roles to grant privileges to user.                        #
+######################################################################
+
+--source include/master-slave.inc
+# Create roles, user and role hierarchy on master
+CREATE ROLE r1, r2, r3;
+CREATE USER u1@localhost;
+GRANT r1 TO r2;
+GRANT r2 TO u1@localhost;
+GRANT r3 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE ALL;
+--source include/sync_slave_sql_with_master.inc
+
+# On slave, check if all objects created on master are
+# replicated to slave or not. Also do basic operations on
+# master and ensure that they are replicated as expected
+# All the operations done in master will affect the
+# mysql.roles_edges and mysql.default_roles table only.
+# Hence only this table is checked on slave.
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--source include/rpl_connection_master.inc
+REVOKE r3 FROM u1@localhost;
+GRANT r1 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--source include/rpl_connection_master.inc
+ALTER USER u1@localhost DEFAULT ROLE NONE;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--source include/rpl_connection_master.inc
+REVOKE r1 FROM r2;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+
+# Start replication by using roles to grant priviliges to user
+# STOP SLAVE
+--source include/stop_slave.inc
+set sql_log_bin=0;
+call mtr.add_suppression(".*Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed.*");
+call mtr.add_suppression(".*Slave I/O thread couldn't register on master");
+set sql_log_bin=1;
+
+# Create role,user on master for replication
+--source include/rpl_connection_master.inc
+CREATE ROLE r4;
+GRANT REPLICATION SLAVE ON *.* TO r4;
+GRANT r4 to u1@localhost;
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_USER='u1';
+START SLAVE;
+
+# Wait until IO_THREAD is inactive
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE service_state='OFF'
+--source include/wait_condition_or_abort.inc
+
+# Error ER_SLAVE_MASTER_COM_FAILURE as user 'u1' doesn't have REPLICATION SLAVE privilege
+--let $slave_io_errno=convert_error(ER_SLAVE_MASTER_COM_FAILURE)
+--source include/wait_for_slave_io_error.inc
+
+# Enable role 'r4' for user 'u1'
+--source include/rpl_connection_master.inc
+ALTER USER u1@localhost DEFAULT ROLE ALL;
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+
+--source include/rpl_connection_slave.inc
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_to_start.inc
+
+--echo # Cleanup Statement
+--source include/rpl_connection_master.inc
+DROP ROLE r1, r2, r3,r4;
+DROP USER u1@localhost;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+source include/show_binlog_events.inc;
+
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root';
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -1,13 +1,7 @@
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CREATE USER mysqluser1@localhost;
 INSERT INTO query_rewrite.rewrite_rules ( pattern ) VALUES ( '' );
 ERROR 42000: INSERT command denied to user 'mysqluser1'@'localhost' for table 'rewrite_rules'

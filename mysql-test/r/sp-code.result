@@ -1,11 +1,11 @@
-drop procedure if exists empty;
+drop procedure if exists `empty`;
 drop procedure if exists code_sample;
-create procedure empty()
+create procedure `empty`()
 begin
 end;
-show procedure code empty;
+show procedure code `empty`;
 Pos	Instruction
-drop procedure empty;
+drop procedure `empty`;
 create function almost_empty()
 returns int
 return 0;
@@ -70,19 +70,19 @@ begin
 drop temporary table if exists sudoku_work, sudoku_schedule;
 create temporary table sudoku_work
 (
-row smallint not null,
+`row` smallint not null,
 col smallint not null,
 dig smallint not null,
 cnt smallint,
 key using btree (cnt),
-key using btree (row),
+key using btree (`row`),
 key using btree (col),
-unique key using hash (row,col)
+unique key using hash (`row`,col)
 );
 create temporary table sudoku_schedule
 (
 idx int not null auto_increment primary key,
-row smallint not null,
+`row` smallint not null,
 col smallint not null
 );
 call sudoku_init();
@@ -91,8 +91,8 @@ update sudoku_work set cnt = 0 where dig = 0;
 else
 call sudoku_count();
 end if;
-insert into sudoku_schedule (row,col)
-select row,col from sudoku_work where cnt is not null order by cnt desc;
+insert into sudoku_schedule (`row`,col)
+select `row`,col from sudoku_work where cnt is not null order by cnt desc;
 begin
 declare v_scounter bigint default 0;
 declare v_i smallint default 1;
@@ -107,18 +107,18 @@ sched:
 while v_i <= v_schedmax do
 begin
 declare v_row, v_col smallint;
-select row,col into v_row,v_col from sudoku_schedule where v_i = idx;
+select `row`,col into v_row,v_col from sudoku_schedule where v_i = idx;
 select dig into v_dig from sudoku_work
-where v_row = row and v_col = col;
+where v_row = `row` and v_col = col;
 case v_dig
 when 0 then
 set v_dig = 1;
 update sudoku_work set dig = 1
-where v_row = row and v_col = col;
+where v_row = `row` and v_col = col;
 when 9 then
 if v_i > 0 then
 update sudoku_work set dig = 0
-where v_row = row and v_col = col;
+where v_row = `row` and v_col = col;
 set v_i = v_i - 1;
 iterate sched;
 else
@@ -128,7 +128,7 @@ end if;
 else
 set v_dig = v_dig + 1;
 update sudoku_work set dig = v_dig
-where v_row = row and v_col = col;
+where v_row = `row` and v_col = col;
 end case;
 set v_tcounter = v_tcounter + 1;
 if not sudoku_digit_ok(v_row, v_col, v_dig) then
@@ -160,7 +160,7 @@ Pos	Instruction
 5	stmt "update sudoku_work set cnt = 0 where ..."
 6	jump 8
 7	stmt "call sudoku_count()"
-8	stmt "insert into sudoku_schedule (row,col)..."
+8	stmt "insert into sudoku_schedule (`row`,co..."
 9	set v_scounter@2 0
 10	set v_i@3 1
 11	set v_dig@4 NULL
@@ -170,7 +170,7 @@ Pos	Instruction
 15	jump_if_not 39(39) (v_i@3 <= v_schedmax@5)
 16	set v_row@7 NULL
 17	set v_col@8 NULL
-18	stmt "select row,col into v_row,v_col from ..."
+18	stmt "select `row`,col into v_row,v_col fro..."
 19	stmt "select dig into v_dig from sudoku_wor..."
 20	set_case_expr (34) 0 v_dig@4
 21	jump_if_not_case_when 25(34) (case_expr@0 = 0)
@@ -948,8 +948,6 @@ DROP TABLE t1;
 # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
 #
 SET @@SQL_MODE = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION testf_bug11763507() RETURNS INT
 BEGIN
 RETURN 0;

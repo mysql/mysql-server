@@ -20,7 +20,6 @@
 # start position of the group.
 #############################################################
 --source include/not_group_replication_plugin.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 --source include/master-slave.inc
 --echo
@@ -64,15 +63,14 @@ SELECT * FROM t2 ORDER BY a;
 SELECT * FROM t3 ORDER BY a;
 
 --connection slave
-call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.* Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.*, Error_code: MY-001146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # in MTS case error is either of two:
-#--let $slave_sql_errno= 1146,1593
+--let $slave_sql_errno= 1146,1593
 # whereas in the single-threaded case:
 # 1146 = ER_NO_SUCH_TABLE
 #--let $slave_sql_errno= 1146
-
 --source include/wait_for_slave_sql_to_stop.inc
 let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
@@ -118,6 +116,20 @@ ALTER TABLE t3 ADD PRIMARY KEY (a);
 --source include/sync_slave_sql_with_master.inc
 RENAME TABLE t3 TO t3_bak;
 
+if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
+{
+  --disable_query_log
+  SET @saved_slave_preserve_commit_order= @@GLOBAL.slave_preserve_commit_order;
+  STOP SLAVE SQL_THREAD;
+  # Set slave_preserve_commit_order to ON to make the following
+  # INSERT statements execute in commit order to make the following
+  # SELECT statements output the consistent result even when
+  # binlog_transaction_dependency_tracking is set to WRITESET.
+  SET GLOBAL slave_preserve_commit_order= ON;
+  START SLAVE SQL_THREAD;
+  --enable_query_log
+}
+
 --connection master
 INSERT INTO t3 VALUES(2, 'B');
 INSERT INTO t2 VALUES(2, 'B');
@@ -148,6 +160,13 @@ SELECT * FROM t3 ORDER BY a;
 SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
+
+if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
+{
+  --disable_query_log
+  SET GLOBAL slave_preserve_commit_order= @saved_slave_preserve_commit_order;
+  --enable_query_log
+}
 
 --source include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;

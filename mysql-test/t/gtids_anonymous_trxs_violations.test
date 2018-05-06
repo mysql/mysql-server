@@ -1,4 +1,3 @@
---source include/not_gtid_enabled.inc
 
 --let $old_server_id= `SELECT @@GLOBAL.server_id`
 --let $new_server_id= `SELECT $old_server_id + 1`

@@ -1,4 +1,4 @@
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL);
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0);
 CREATE SPATIAL INDEX idx1 on tab(c2);
 INSERT INTO tab(c1,c2) VALUES(1,ST_GeomFromText('POINT(10 10)'));
 
@@ -21,7 +21,7 @@ COMMIT;
 
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 include/assert.inc ['There is a 8 in tab']
 SELECT c1 FROM tab;
 c1

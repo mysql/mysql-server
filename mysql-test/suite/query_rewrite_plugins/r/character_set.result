@@ -2,28 +2,11 @@
 # Tests that the character set setting is properly picked up by the
 # session that reads the rules table.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
-# Let's be clear on what the global and session values are
-# for this variable.
-SHOW VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
-SHOW SESSION VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
-SHOW GLOBAL VARIABLES LIKE 'character_set_client';
-Variable_name	Value
-character_set_client	latin1
 DELETE FROM query_rewrite.rewrite_rules;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CREATE DATABASE mydb;
 CREATE TABLE mydb.mytable ( mycol char(3), mycol2 CHAR(100) );
 INSERT INTO mydb.mytable VALUES ( 'xxx', 'Not supposed to be seeing this.' );
@@ -35,7 +18,7 @@ Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 's
 DROP DATABASE mydb;
 # We now set the global value of the variable, this should not affect
 # the plugin. It should copy the session value from our session.
-SET @@global.character_set_client = utf8;
+SET @@global.character_set_client = utf8mb4;
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
@@ -69,7 +52,7 @@ SET @@global.character_set_client = DEFAULT;
 # This is perhaps an unwanted result, but the rules table-reading
 # session can't access our session's setting.
 #
-SET @@session.character_set_client = utf8;
+SET @@session.character_set_client = utf8mb4;
 DELETE FROM query_rewrite.rewrite_rules;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );

@@ -1,50 +1,190 @@
---source include/have_innodb_64k.inc
---source include/have_debug.inc
+# Truncate a fts table with hidden fts doc id index but without
+# fts index, the hidden index should be kept.
 
---echo #
---echo # Bug#25053705 - INVALID I/O ON TABLE AFTER TRUNCATE
---echo #
+--echo # Case 1 : CREATE FULLTEXT/ID + TRUNCATE
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT fidx(title, body)
+) ENGINE=InnoDB;
 
-CREATE TABLE t1 (a INT, d INT, b VARCHAR(198), c CHAR(158), FULLTEXT fts1(c,b),
-FULLTEXT fts2(c));
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
 
-TRUNCATE TABLE t1;
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
 
-INSERT INTO t1 (a,d,b,c) VALUES (
-'79795','6',repeat('uololoaroolccaaruolraloouuoocorrcorurlu','1'),
-repeat('orouculcaocuocloooolooloooaorlroclouulrrucclulalouaulrluorooaclllluuorc
-cuullucocraloracurooulrooauuar','1'));
+TRUNCATE TABLE articles;
 
-# The following CREATE TABLE and INSERTs are used to remove the pages related to table t1
-# from the buffer pool.
-CREATE TABLE t2 (a INT, d INT, b VARCHAR(198), c CHAR(158), FULLTEXT fts1(c,b));
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
 
-INSERT INTO t2 VALUES (1, 1, repeat('uololoaroolccaaruolraloouuoocorrcorurlu','1'),
-repeat('orouculcaocuocloooolooloooaorlroclouulrrucclulalouaulrluorooaclllluuorccuullucocraloracurooulrooauuar','1'));
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
 
-delimiter |;
-create procedure insert_t2(IN total int)
-begin
-        declare i int default 1;
-        while (i <= total) DO
-                insert into t2 select * from t2;
-                set i = i + 1;
-        end while;
-end|
-delimiter ;|
+ALTER TABLE articles DROP KEY fidx;
 
-CALL insert_t2(15);
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
 
-SET SESSION debug="+d,innodb_invalid_read_after_truncate";
+TRUNCATE TABLE articles;
 
-INSERT INTO t1 (a,d,b,c) VALUES (
-'7795','6',repeat('uololoaroolccaaruolraloouuoocorrcorurlu','1'),
-repeat('orouculcaocuocloooolooloooaorlroclouulrrucclulalouaulrluorooaclllluuorc
-cuullucocraloracurooulrooauuar','1'));
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
 
-SET SESSION debug="-d,innodb_invalid_read_after_truncate";
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
 
-DROP PROCEDURE insert_t2;
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
 
-DROP TABLE t1;
-DROP TABLE t2;
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;
+
+--echo # Case 2 : CREATE FULLTEXT/ID + ALTER +  TRUNCATE
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT
+) ENGINE=InnoDB;
+
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+TRUNCATE TABLE articles;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles DROP KEY fidx;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+TRUNCATE TABLE articles;
+
+--source include/restart_mysqld.inc
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;
+
+--echo # Case 3 : CREATE FULLTEXT + TRUNCATE
+CREATE TABLE articles (
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT fidx(title, body)
+) ENGINE=InnoDB;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+TRUNCATE TABLE articles;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles DROP KEY fidx;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+TRUNCATE TABLE articles;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;
+
+--echo # Case 4 : CREATE FULLTEXT + ALTER + TRUNCATE
+CREATE TABLE articles (
+       title VARCHAR(200),
+       body TEXT
+) ENGINE=InnoDB;
+
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+TRUNCATE TABLE articles;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles DROP KEY fidx;
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+TRUNCATE TABLE articles;
+
+--source include/restart_mysqld.inc
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+ALTER TABLE articles ADD FULLTEXT KEY fidx(title, body);
+
+INSERT INTO articles (title, body) VALUES
+  ('MySQL Tutorial','DBMS stands for MySQL DataBase ...');
+
+SELECT title, body FROM articles WHERE
+        MATCH(title, body) AGAINST('mysql');
+
+DROP TABLE articles;

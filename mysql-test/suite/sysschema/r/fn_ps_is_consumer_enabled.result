@@ -5,6 +5,8 @@ NO
 SELECT sys.ps_is_consumer_enabled('global_instrumentation');
 sys.ps_is_consumer_enabled('global_instrumentation')
 YES
+SELECT sys.ps_is_consumer_enabled('events_stages_histONg');
+ERROR HY000: Invalid argument error: events_stages_histONg in function sys.ps_is_consumer_enabled.
 UPDATE performance_schema.setup_consumers SET enabled = 'NO' WHERE name = 'events_stages_current';
 UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'events_stages_history';
 SELECT sys.ps_is_consumer_enabled('events_stages_history');

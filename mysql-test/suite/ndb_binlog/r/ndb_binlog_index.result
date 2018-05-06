@@ -18,7 +18,7 @@ ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
   `next_position` bigint(20) unsigned NOT NULL,
   `next_file` varchar(255) NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 mysql.ndb_binlog_index has next_file column? 1
 create table t1 (a int, b varchar(400)) engine=ndb;
 Test pure epochs
@@ -131,7 +131,7 @@ ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
   `orig_epoch` bigint(20) unsigned NOT NULL,
   `gci` int(10) unsigned NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 mysql.ndb_binlog_index has next_file column? 0
 create table t1 (a int, b varchar(400)) engine=ndb;
 Test pure epochs

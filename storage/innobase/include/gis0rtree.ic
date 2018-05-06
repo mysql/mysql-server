@@ -1,274 +1,247 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include gis0rtree.h
-R-tree Inline code
+/** @file include gis0rtree.h
+ R-tree Inline code
 
-Created 2013/03/27 Jimmy Yang and Allen Lai
-***********************************************************************/
+ Created 2013/03/27 Jimmy Yang and Allen Lai
+ ***********************************************************************/
 
-/**************************************************************//**
-Sets the child node mbr in a node pointer. */
+/** Sets the child node mbr in a node pointer. */
 UNIV_INLINE
-void
-rtr_page_cal_mbr(
-/*=============*/
-	const dict_index_t*	index,	/*!< in: index */
-	const buf_block_t*	block,	/*!< in: buffer block */
-	rtr_mbr_t*		rtr_mbr,/*!< out: MBR encapsulates the page */
-	mem_heap_t*		heap)	/*!< in: heap for the memory
-					allocation */
+void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
+                      const buf_block_t *block,  /*!< in: buffer block */
+                      rtr_mbr_t *rtr_mbr, /*!< out: MBR encapsulates the page */
+                      mem_heap_t *heap)   /*!< in: heap for the memory
+                                          allocation */
 {
-	page_t*		page;
-	rec_t*		rec;
-	byte*		field;
-	ulint		len;
-	ulint*		offsets = NULL;
-	double		bmin, bmax;
-	double*		amin;
-	double*		amax;
-	ulint		inc = 0;
-	double*		mbr;
+  page_t *page;
+  rec_t *rec;
+  byte *field;
+  ulint len;
+  ulint *offsets = NULL;
+  double bmin, bmax;
+  double *amin;
+  double *amax;
+  ulint inc = 0;
+  double *mbr;
 
-	rtr_mbr->xmin = DBL_MAX;
-	rtr_mbr->ymin = DBL_MAX;
-	rtr_mbr->xmax = -DBL_MAX;
-	rtr_mbr->ymax = -DBL_MAX;
+  rtr_mbr->xmin = DBL_MAX;
+  rtr_mbr->ymin = DBL_MAX;
+  rtr_mbr->xmax = -DBL_MAX;
+  rtr_mbr->ymax = -DBL_MAX;
 
-	mbr = reinterpret_cast<double*>(rtr_mbr);
+  mbr = reinterpret_cast<double *>(rtr_mbr);
 
-	page = buf_block_get_frame(block);
+  page = buf_block_get_frame(block);
 
-	rec = page_rec_get_next(page_get_infimum_rec(page));
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+  rec = page_rec_get_next(page_get_infimum_rec(page));
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	do {
-		/* The mbr address is in the first field. */
-		field = rec_get_nth_field(rec, offsets, 0, &len);
+  do {
+    /* The mbr address is in the first field. */
+    field = rec_get_nth_field(rec, offsets, 0, &len);
 
-		ut_ad(len == DATA_MBR_LEN);
-		inc = 0;
-		for (int i = 0; i < SPDIMS; i++) {
-			bmin = mach_double_read(field + inc);
-			bmax = mach_double_read(field + inc + sizeof(double));
+    ut_ad(len == DATA_MBR_LEN);
+    inc = 0;
+    for (int i = 0; i < SPDIMS; i++) {
+      bmin = mach_double_read(field + inc);
+      bmax = mach_double_read(field + inc + sizeof(double));
 
-			amin = mbr + i * SPDIMS;
-			amax = mbr + i * SPDIMS + 1;
+      amin = mbr + i * SPDIMS;
+      amax = mbr + i * SPDIMS + 1;
 
-			if (*amin > bmin)
-				*amin = bmin;
-			if (*amax < bmax)
-				*amax = bmax;
+      if (*amin > bmin) *amin = bmin;
+      if (*amax < bmax) *amax = bmax;
 
-			inc += 2 * sizeof(double);
-		}
+      inc += 2 * sizeof(double);
+    }
 
-		rec = page_rec_get_next(rec);
+    rec = page_rec_get_next(rec);
 
-		if (rec == NULL) {
-			break;
-		}
-	} while (!page_rec_is_supremum(rec));
+    if (rec == NULL) {
+      break;
+    }
+  } while (!page_rec_is_supremum(rec));
 }
 
-/**************************************************************//**
-push a nonleaf index node to the search path */
+/** push a nonleaf index node to the search path */
 UNIV_INLINE
-void
-rtr_non_leaf_stack_push(
-/*====================*/
-	rtr_node_path_t*	path,		/*!< in/out: search path */
-	ulint			pageno,		/*!< in: pageno to insert */
-	node_seq_t		seq_no,		/*!< in: Node sequence num */
-	ulint			level,		/*!< in: index page level */
-	ulint			child_no,	/*!< in: child page no */
-	btr_pcur_t*		cursor,		/*!< in: position cursor */
-	double			mbr_inc)	/*!< in: MBR needs to be
-						enlarged */
+void rtr_non_leaf_stack_push(rtr_node_path_t *path, /*!< in/out: search path */
+                             page_no_t pageno,      /*!< in: pageno to insert */
+                             node_seq_t seq_no,  /*!< in: Node sequence num */
+                             ulint level,        /*!< in: index page level */
+                             page_no_t child_no, /*!< in: child page no */
+                             btr_pcur_t *cursor, /*!< in: position cursor */
+                             double mbr_inc)     /*!< in: MBR needs to be
+                                                 enlarged */
 {
-	node_visit_t	insert_val;
+  node_visit_t insert_val;
 
-	insert_val.page_no = pageno;
-	insert_val.seq_no = seq_no;
-	insert_val.level = level;
-	insert_val.child_no = child_no;
-	insert_val.cursor = cursor;
-	insert_val.mbr_inc = mbr_inc;
+  insert_val.page_no = pageno;
+  insert_val.seq_no = seq_no;
+  insert_val.level = level;
+  insert_val.child_no = child_no;
+  insert_val.cursor = cursor;
+  insert_val.mbr_inc = mbr_inc;
 
-	path->push_back(insert_val);
+  path->push_back(insert_val);
 
 #ifdef RTR_SEARCH_DIAGNOSTIC
-	fprintf(stderr, "INNODB_RTR: Push page %d, level %d, seq %d"
-			" to search stack \n",
-		static_cast<int>(pageno), static_cast<int>(level),
-		static_cast<int>(seq_no));
+  fprintf(stderr,
+          "INNODB_RTR: Push page %d, level %d, seq %d"
+          " to search stack \n",
+          static_cast<int>(pageno), static_cast<int>(level),
+          static_cast<int>(seq_no));
 #endif /* RTR_SEARCH_DIAGNOSTIC */
 }
 
-/*****************************************************************//**
-Allocates a new Split Sequence Number.
-@return new SSN id */
+/** Allocates a new Split Sequence Number.
+ @return new SSN id */
 UNIV_INLINE
-node_seq_t
-rtr_get_new_ssn_id(
-/*===============*/
-	dict_index_t*	index)	/*!< in/out: the index struct */
+node_seq_t rtr_get_new_ssn_id(
+    dict_index_t *index) /*!< in/out: the index struct */
 {
-	node_seq_t	ssn;
+  node_seq_t ssn;
 
-	mutex_enter(&(index->rtr_ssn.mutex));
-	ssn = ++index->rtr_ssn.seq_no;
-	mutex_exit(&(index->rtr_ssn.mutex));
+  mutex_enter(&(index->rtr_ssn.mutex));
+  ssn = ++index->rtr_ssn.seq_no;
+  mutex_exit(&(index->rtr_ssn.mutex));
 
-	return(ssn);
+  return (ssn);
 }
-/*****************************************************************//**
-Get the current Split Sequence Number.
-@return current SSN id */
+/** Get the current Split Sequence Number.
+ @return current SSN id */
 UNIV_INLINE
-node_seq_t
-rtr_get_current_ssn_id(
-/*===================*/
-	dict_index_t*	index)	/*!< in: index struct */
+node_seq_t rtr_get_current_ssn_id(dict_index_t *index) /*!< in: index struct */
 {
-	node_seq_t	ssn;
+  node_seq_t ssn;
 
-	mutex_enter(&(index->rtr_ssn.mutex));
-	ssn = index->rtr_ssn.seq_no;
-	mutex_exit(&(index->rtr_ssn.mutex));
+  mutex_enter(&(index->rtr_ssn.mutex));
+  ssn = index->rtr_ssn.seq_no;
+  mutex_exit(&(index->rtr_ssn.mutex));
 
-	return(ssn);
+  return (ssn);
 }
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void
-rtr_write_mbr(
-/*==========*/
-	byte*			data,	/*!< out: data */
-	const rtr_mbr_t*	mbr)	/*!< in: data */
+void rtr_write_mbr(byte *data,           /*!< out: data */
+                   const rtr_mbr_t *mbr) /*!< in: data */
 {
-	const double* my_mbr = reinterpret_cast<const double*>(mbr);
+  const double *my_mbr = reinterpret_cast<const double *>(mbr);
 
-	for (int i = 0; i < SPDIMS * 2; i++) {
-		mach_double_write(data + i * sizeof(double), my_mbr[i]);
-	}
+  for (int i = 0; i < SPDIMS * 2; i++) {
+    mach_double_write(data + i * sizeof(double), my_mbr[i]);
+  }
 }
 
-/*********************************************************************//**
-Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void
-rtr_read_mbr(
-/*==========*/
-	const byte*	data,	/*!< in: data */
-	rtr_mbr_t*	mbr)	/*!< out: MBR */
+void rtr_read_mbr(const byte *data, /*!< in: data */
+                  rtr_mbr_t *mbr)   /*!< out: MBR */
 {
-	for (int i = 0; i < SPDIMS * 2; i++) {
-		(reinterpret_cast<double*>(mbr))[i] = mach_double_read(
-							data
-							+ i * sizeof(double));
-	}
+  for (int i = 0; i < SPDIMS * 2; i++) {
+    (reinterpret_cast<double *>(mbr))[i] =
+        mach_double_read(data + i * sizeof(double));
+  }
 }
 
-/*********************************************************//**
-Returns the R-Tree node stored in the parent search path
-@return pointer to R-Tree cursor component in the parent path,
-NULL if parent path is empty or index is larger than num of items contained */
+/** Returns the R-Tree node stored in the parent search path
+ @return pointer to R-Tree cursor component in the parent path,
+ NULL if parent path is empty or index is larger than num of items contained */
 UNIV_INLINE
-node_visit_t*
-rtr_get_parent_node(
-/*================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert)	/*!< in: whether it is insert */
+node_visit_t *rtr_get_parent_node(
+    btr_cur_t *btr_cur, /*!< in: persistent cursor */
+    ulint level,        /*!< in: index level of buffer page */
+    ulint is_insert)    /*!< in: whether it is insert */
 {
-	ulint			num;
-	ulint			tree_height = btr_cur->tree_height;
-	node_visit_t*		found_node = NULL;
+  ulint num;
+  ulint tree_height = btr_cur->tree_height;
+  node_visit_t *found_node = NULL;
 
-	if (level >= tree_height) {
-		return(NULL);
-	}
+  if (level >= tree_height) {
+    return (NULL);
+  }
 
-	mutex_enter(&btr_cur->rtr_info->rtr_path_mutex);
+  mutex_enter(&btr_cur->rtr_info->rtr_path_mutex);
 
-	num = btr_cur->rtr_info->parent_path->size();
+  num = btr_cur->rtr_info->parent_path->size();
 
-	if (!num) {
-		mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
-		return(NULL);
-	}
+  if (!num) {
+    mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
+    return (NULL);
+  }
 
-	if (is_insert) {
-		ulint	idx = tree_height - level - 1;
-		ut_ad(idx < num);
+  if (is_insert) {
+    ulint idx = tree_height - level - 1;
+    ut_ad(idx < num);
 
-		found_node = &(*btr_cur->rtr_info->parent_path)[idx];
-	} else {
-		node_visit_t*	node;
+    found_node = &(*btr_cur->rtr_info->parent_path)[idx];
+  } else {
+    node_visit_t *node;
 
-		while (num > 0) {
-			node = &(*btr_cur->rtr_info->parent_path)[num - 1];
+    while (num > 0) {
+      node = &(*btr_cur->rtr_info->parent_path)[num - 1];
 
-			if (node->level == level) {
-				found_node = node;
-				break;
-			}
-			num--;
-		}
-	}
+      if (node->level == level) {
+        found_node = node;
+        break;
+      }
+      num--;
+    }
+  }
 
-	mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
+  mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
 
-	return(found_node);
+  return (found_node);
 }
 
-/*********************************************************//**
-Returns the R-Tree cursor stored in the parent search path
-@return pointer to R-Tree cursor component */
+/** Returns the R-Tree cursor stored in the parent search path
+ @return pointer to R-Tree cursor component */
 UNIV_INLINE
-btr_pcur_t*
-rtr_get_parent_cursor(
-/*==================*/
-	btr_cur_t*	btr_cur,	/*!< in: persistent cursor */
-	ulint		level,		/*!< in: index level of buffer page */
-	ulint		is_insert)	/*!< in: whether insert operation */
+btr_pcur_t *rtr_get_parent_cursor(
+    btr_cur_t *btr_cur, /*!< in: persistent cursor */
+    ulint level,        /*!< in: index level of buffer page */
+    ulint is_insert)    /*!< in: whether insert operation */
 {
-	node_visit_t*   found_node = rtr_get_parent_node(
-					btr_cur, level, is_insert);
+  node_visit_t *found_node = rtr_get_parent_node(btr_cur, level, is_insert);
 
-	return((found_node) ? found_node->cursor : NULL);
+  return ((found_node) ? found_node->cursor : NULL);
 }
 
-/********************************************************************//**
-Reinitialize a R-Tree search info in btr_cur_t */
+/** Reinitialize a R-Tree search info in btr_cur_t */
 UNIV_INLINE
-void
-rtr_info_reinit_in_cursor(
-/************************/
-	btr_cur_t*	cursor,		/*!< in/out: tree cursor */
-	dict_index_t*	index,		/*!< in: index struct */
-	bool		need_prdt)	/*!< in: Whether predicate lock is
-					needed */
+void rtr_info_reinit_in_cursor(
+    /************************/
+    btr_cur_t *cursor,   /*!< in/out: tree cursor */
+    dict_index_t *index, /*!< in: index struct */
+    bool need_prdt)      /*!< in: Whether predicate lock is
+                         needed */
 {
-	rtr_clean_rtr_info(cursor->rtr_info, false);
-	rtr_init_rtr_info(cursor->rtr_info, need_prdt, cursor, index, true);
+  rtr_clean_rtr_info(cursor->rtr_info, false);
+  rtr_init_rtr_info(cursor->rtr_info, need_prdt, cursor, index, true);
 }

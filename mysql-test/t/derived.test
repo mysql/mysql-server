@@ -87,7 +87,7 @@ drop table t1;
 #
 # test->used_keys test for derived tables
 #
-create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL) charset utf8mb4;
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
 insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
 insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
@@ -131,8 +131,13 @@ create table t1 (a int);
 insert into t1 values (1),(2),(3);
 -- error 1288
 update (select * from t1) as t1 set a = 5;
+-- error 1288
+update (select * from t1) as t1, t1 as t2 set t1.a = 5;
 -- error 1064
 delete from (select * from t1);
+-- error 1064
+delete from (select * from t1) as t1, t1 as t2;
+
 -- error 1064
 insert into  (select * from t1) values (5);
 drop table t1;
@@ -414,14 +419,14 @@ DROP VIEW viewC;
 CREATE TABLE `cc` (
   `i1` varchar(1) DEFAULT NULL,
   `i2` varchar(1) DEFAULT NULL
-);
+) charset utf8mb4;
 
 INSERT INTO `cc` VALUES ('m','m');
 INSERT INTO `cc` VALUES ('c','c');
 
 CREATE TABLE `C` (
   `o1` varchar(1) DEFAULT NULL
-);
+) charset utf8mb4;
 
 INSERT INTO `C` VALUES ('m');
  
@@ -516,11 +521,11 @@ INSERT INTO t2 VALUES(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
 SELECT * FROM (SELECT * FROM t1) tt;
 --echo  explain for multitable derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 --echo  explain for derived with where
 FLUSH STATUS;
-EXPLAIN EXTENDED 
+EXPLAIN 
   SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
@@ -528,7 +533,7 @@ SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
 SHOW STATUS LIKE 'Handler_read%';
 
 --echo join of derived
-EXPLAIN EXTENDED 
+EXPLAIN 
   SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
   (SELECT * FROM t1 WHERE f1 IN (1,2)) aa ON tt.f1=aa.f1;
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt JOIN
@@ -540,21 +545,21 @@ CREATE VIEW v2 AS SELECT * FROM t1 JOIN t2 ON f1=f2;
 CREATE VIEW v3 AS SELECT * FROM t1 WHERE f1 IN (2,3);
 CREATE VIEW v4 AS SELECT * FROM t2 WHERE f2 IN (2,3);
 --echo  explain for simple views
-EXPLAIN EXTENDED SELECT * FROM v1;
+EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain for multitable views
-EXPLAIN EXTENDED SELECT * FROM v2;
+EXPLAIN SELECT * FROM v2;
 SELECT * FROM v2;
 --echo  explain for views with where
-EXPLAIN EXTENDED SELECT * FROM v3 WHERE f11 IN (1,3);
+EXPLAIN SELECT * FROM v3 WHERE f11 IN (1,3);
 SELECT * FROM v3 WHERE f11 IN (1,3);
 --echo explain for joined views
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM v3 JOIN v4 ON f1=f2;
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 
 FLUSH STATUS;
-EXPLAIN EXTENDED SELECT * FROM v4 WHERE f2 IN (1,3);
+EXPLAIN SELECT * FROM v4 WHERE f2 IN (1,3);
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM v4 WHERE f2 IN (1,3);
@@ -565,11 +570,11 @@ SHOW STATUS LIKE 'Handler_read%';
 
 --echo for materialized derived tables
 --echo  explain for simple derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
 SELECT * FROM (SELECT * FROM t1 HAVING f1=f1) tt;
 --echo  explain showing created indexes and late materialization
 FLUSH STATUS;
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
@@ -581,52 +586,60 @@ DROP VIEW v1,v2,v3;
 CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY f1;
 CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY f2;
 CREATE VIEW v3 AS SELECT t1.f1,t1.f11 FROM t1 JOIN t1 AS t11 HAVING t1.f1<100;
+--echo ensure that view definitions are cached in the data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE VIEW v1;
+SHOW CREATE VIEW v2;
+SHOW CREATE VIEW v3;
+--enable_query_log
+--enable_result_log
 --echo  explain for simple derived
-EXPLAIN EXTENDED SELECT * FROM v1;
+EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain showing created indexes and late materialization for views
 FLUSH STATUS;
-EXPLAIN EXTENDED SELECT * FROM t1 JOIN v2 ON f1=f2;
+EXPLAIN SELECT * FROM t1 JOIN v2 ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM t1 JOIN v2 ON f1=f2;
 SHOW STATUS LIKE 'Handler_read%';
 
-EXPLAIN EXTENDED
+EXPLAIN
   SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 FLUSH STATUS;
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 SHOW STATUS LIKE 'Handler_read%';
 --echo  explain showing late materialization for views
-EXPLAIN EXTENDED SELECT * FROM v1 JOIN v4 ON f1=f2;
+EXPLAIN SELECT * FROM v1 JOIN v4 ON f1=f2;
 SELECT * FROM v1 JOIN v4 ON f1=f2;
 
 --echo merged derived in merged derived
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 
 --echo materialized derived in merged derived
-EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 
 --echo merged derived in materialized derived
-EXPLAIN  extended SELECT * FROM (SELECT * FROM 
+EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 
 --echo materialized derived in materialized derived
-EXPLAIN EXTENDED  SELECT * FROM (SELECT * FROM 
+EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 
 --echo mat in merged derived join mat in merged derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) x
 JOIN 
  (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
@@ -642,7 +655,7 @@ SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 
 --echo merged in merged derived join merged in merged derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 ) tt WHERE f1 > 2 ) x
 JOIN 
@@ -660,7 +673,7 @@ JOIN
 
 --echo materialized in materialized derived join 
 --echo   materialized in materialized derived
-EXPLAIN EXTENDED  SELECT * FROM 
+EXPLAIN  SELECT * FROM 
  (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) x
 JOIN 
@@ -677,27 +690,27 @@ JOIN
  ON x.f1 = z.f1;
 
 --echo merged view in materialized derived
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 
 --echo materialized view in merged derived
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 
 --echo merged view in a merged view in a merged derived
 CREATE VIEW v6 AS SELECT * FROM v4 WHERE f2 < 7;
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v6) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM v6) tt;
 SELECT * FROM (SELECT * FROM v6) tt;
 
 --echo materialized view in a merged view in a materialized derived
 CREATE VIEW v7 AS SELECT * FROM v1;
-EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
+EXPLAIN SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 
 --echo JOIN of above two
-EXPLAIN EXTENDED SELECT * FROM v6 JOIN v7 ON f2=f1;
+EXPLAIN SELECT * FROM v6 JOIN v7 ON f2=f1;
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 
 --echo test two keys
@@ -706,7 +719,7 @@ INSERT INTO t1 VALUES(6,6),(8,8);
 INSERT INTO t3 VALUES(1,1),(2,2),(3,3),(5,5);
 let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
   JOIN t3 ON tt.f22=t3.f3;
-eval EXPLAIN EXTENDED $query;
+eval EXPLAIN $query;
 eval $query;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -914,6 +927,9 @@ DROP TABLE t1,t2;
 --echo #
 create table t1(f1 char(255) charset utf8);
 insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+# We only need the temp SE to overflow here, so use 'memory' for this purpose.
+set @save_internal_tmp_mem_storage_engine= @@internal_tmp_mem_storage_engine;
+set session internal_tmp_mem_storage_engine='memory';
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 1;
 SET @optimizer_switch_saved= @@optimizer_switch;
@@ -925,6 +941,7 @@ select count(*) from t1 join (
   select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
 show status like 'Handler_write';
 set @@max_heap_table_size= @save_heap_size;
+set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;
 SET @@optimizer_switch= @optimizer_switch_saved;
 
 drop table t1;
@@ -1015,15 +1032,15 @@ DROP TABLE t1, t2;
 SET @save_switch= @@optimizer_switch;
 SET @@optimizer_switch="materialization=off,derived_merge=off";
 
-CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20)) charset utf8mb4;
 
 INSERT INTO t1 VALUES(7, 'seven'), (13, 'thirteen');
 
-CREATE TABLE t2 (pk INTEGER PRIMARY KEY, vc1 VARCHAR(20), vc2 VARCHAR(20));
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, vc1 VARCHAR(20), vc2 VARCHAR(20)) charset utf8mb4;
 
 INSERT INTO t2 VALUES(7, 'seven', 's'), (14, 'fourteen', 'f');
 
-CREATE TABLE t3 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY, vc VARCHAR(20)) charset utf8mb4;
 
 INSERT INTO t3 VALUES(5, 'f'), (6, 's'), (7, 's');
 
@@ -1122,7 +1139,7 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (
   col_varchar varchar(10) DEFAULT NULL,
   col_int INT DEFAULT NULL
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES ('d',9);
 
@@ -1162,7 +1179,7 @@ CREATE TABLE t1 (
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES
  (8,'22:55:23','x','x'),
@@ -1193,7 +1210,7 @@ CREATE TABLE t2 (
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES
  (4,'22:34:09','v','v'),
@@ -1224,7 +1241,7 @@ CREATE TABLE t3 (
   col_varchar_nokey VARCHAR(1) DEFAULT NULL,
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset latin1;
 
 INSERT INTO t3 VALUES (8,'04:07:22','g','g');
 
@@ -1300,7 +1317,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1),
   col_varchar_nokey varchar(1),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=MyISAM;
+) charset utf8mb4 ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES ('r','r');
 
@@ -1308,7 +1325,7 @@ CREATE TABLE t2 (
   col_varchar_key varchar(1),
   col_varchar_nokey varchar(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
  (NULL,NULL),
@@ -1320,7 +1337,7 @@ CREATE TABLE t3 (
   col_varchar_nokey varchar(1),
   KEY col_int_key (col_int_key),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES
  (9,'f','f'),
@@ -1368,7 +1385,9 @@ CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
 CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
+FLUSH STATUS;
 SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+SHOW STATUS LIKE 'Created_tmp_tables';
 EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS a NATURAL JOIN t1;
 SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1,t2;
@@ -1744,7 +1763,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES
 (1,4,'j'), (2,6,'v'), (3,3,'c'), (4,5,'m'), (5,3,'d'), (6,246,'d'), (7,2,'y'), (8,9,'t'),
@@ -1760,7 +1779,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key),
   KEY col_date_key (col_date_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (1,1,7,'1900-01-01','k');
 
@@ -1769,7 +1788,7 @@ CREATE TABLE t3 (
   col_date_nokey date NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES (10,'1900-01-01','b');
 
@@ -1801,7 +1820,7 @@ CREATE TABLE t1 (
   col_varchar_key varchar(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key(col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES
  (10,1,'v'), (11,7,'s'), (12,4,'l'), (13,7,'y'), (14,0,'c'), (15,2,'i');
@@ -1812,7 +1831,7 @@ CREATE TABLE t2 (
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (1,'k','k');
 
@@ -1820,7 +1839,7 @@ CREATE TABLE t3 (
   pk int NOT NULL,
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES
  (1,'j'), (2,'v'), (3,'c'), (4,'m'), (5,'d');
@@ -1868,7 +1887,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (pk),
   KEY col_int_key(col_int_key),
   KEY col_varchar_key(col_varchar_key, col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES
 (1,4,0,'0001-01-01','j','j'), (2,6,8,'2004-09-18','v','v'),
@@ -1888,7 +1907,7 @@ CREATE TABLE t3 (
   col_varchar_key varchar(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t3 VALUES
 (10,1,'v'), (11,7,'s'), (12,4,'l'), (13,7,'y'), (14,0,'c'),
@@ -1903,7 +1922,7 @@ CREATE TABLE t4 (
   col_varchar_nokey varchar(1) NOT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t4 VALUES (10,8,7,'b');
 
@@ -2109,20 +2128,20 @@ CREATE TABLE t1 (
   KEY col_int_key (col_int_key),
   KEY col_date_key (col_date_key),
   KEY col_varchar_key (col_varchar_key, col_int_key)
-);
+) charset utf8mb4;
 
 CREATE TABLE t2 (
   pk int NOT NULL,
   col_varchar_key varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 
 CREATE TABLE t3 (
   pk int NOT NULL,
   col_varchar_key varchar(1) DEFAULT NULL,
   col_varchar_nokey varchar(1) DEFAULT NULL,
   PRIMARY KEY (pk)
-);
+) charset utf8mb4;
 
 let $query=
 SELECT STRAIGHT_JOIN alias1.col_date_key AS field1
@@ -2181,7 +2200,7 @@ CREATE TABLE t1
   col_varchar_nokey VARCHAR(1),
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key(col_varchar_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t1 (pk) VALUES
  (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
@@ -2191,7 +2210,7 @@ CREATE TABLE t2
  (pk INTEGER PRIMARY KEY,
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key(col_varchar_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t2 (pk) VALUES
  (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
@@ -2201,7 +2220,7 @@ CREATE TABLE t3
  (pk INTEGER PRIMARY KEY,
   col_varchar_key VARCHAR(1),
   KEY col_varchar_key(col_varchar_key)
-) engine=innodb;
+) charset utf8mb4 engine=innodb;
 
 INSERT INTO t3 (pk) VALUES
  (1), (2);
@@ -2454,7 +2473,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES
 ('f','ff'),('t','tt'),('c','cc'),('c','cc'),('r','rr'),('k','kk');
 
-CREATE TABLE empty (dummy INTEGER);
+CREATE TABLE `empty` (dummy INTEGER);
 
 CREATE VIEW vr AS
 SELECT t2.c2n AS v_field
@@ -2516,7 +2535,7 @@ FROM vr AS alias1
 SELECT alias1.dt_field AS field1
 FROM (SELECT t2.c2n AS dt_field
       FROM t1 RIGHT JOIN
-             (empty RIGHT JOIN t2
+             (`empty` RIGHT JOIN t2
               ON TRUE)
            ON t2.c2k = t1.c1k
      ) AS alias1
@@ -2526,7 +2545,7 @@ FROM (SELECT t2.c2n AS dt_field
 SELECT alias1.dt_field AS field1
 FROM (SELECT t2.c2n AS dt_field
       FROM t1 RIGHT JOIN
-             (t2 LEFT JOIN empty
+             (t2 LEFT JOIN `empty`
               ON TRUE)
            ON t2.c2k = t1.c1k
      ) AS alias1
@@ -2534,7 +2553,7 @@ FROM (SELECT t2.c2n AS dt_field
      ON alias2.c2n = alias1.dt_field;
 
 DROP VIEW vl, vr;
-DROP TABLE t1, t2, empty;
+DROP TABLE t1, t2, `empty`;
 
 --echo # Bug#22239474: Unexpected error 1093 on nested subquery for update
 
@@ -2580,7 +2599,7 @@ CREATE TABLE t1 (
   t1_inv_date char(3) NOT NULL,
   UNIQUE KEY rowid (t1_rowid),
   KEY invdate (t1_co, t1_inv_date)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES (505975,'D','s:1'),(505981,'D','s:1'),(505869,'D','s:3');
 
@@ -2589,12 +2608,12 @@ CREATE TABLE t2 (
   t2_end_date char(3) NOT NULL,
   UNIQUE KEY rowid (t2_rowid),
   KEY end_date (t2_end_date)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES (9,'_:L'), (10,'_<2'), (11,'_<N');
 
 let $query=
-SELECT t1_inv_date
+t1_inv_date
 FROM t1 LEFT JOIN
      (SELECT curr.t2_end_date As end_date,
              (SELECT prev.t2_end_date
@@ -2607,8 +2626,12 @@ FROM t1 LEFT JOIN
      ON periods.prev_end_date < t1_inv_date AND
         periods.end_date >= t1_inv_date;
 
-eval explain $query;
-eval $query;
+eval explain SELECT $query;
+eval SELECT $query;
+
+# A merge hint overrides the heuristic to not merge.
+eval explain SELECT /*+ MERGE(periods) */ $query;
+eval SELECT /*+ MERGE(periods) */ $query;
 
 DROP TABLE t1, t2;
 
@@ -2690,6 +2713,15 @@ WHERE id = 3;
 
 DROP TABLE users;
 
+--echo # Bug#22783011 assertion failed: base_select != removed_select &&
+--echo #              aggr_select != removed_select
+
+CREATE TABLE t(a INTEGER) engine=innodb;
+INSERT INTO t VALUES(1);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
+DROP TABLE t;
+
 --echo # Bug#23074801: Delete from joined tables with where using derived table
 --echo #               fails with error 1093
 
@@ -2732,6 +2764,31 @@ HAVING g_t3.g_f3 = (select varchar1
 
 DROP TABLE t1, t2;
 
+--echo # Bug#24364448: Assert m_opr_handle != null in
+--echo #               ha_innobase_inmem::keys_to_use_for_scanning
+
+CREATE TABLE K (col_int int(11), col_varchar varchar(255)) charset latin1;
+INSERT INTO K VALUES (NULL,'m'), (NULL,'z');
+
+CREATE TABLE H (col_varchar varchar(255)) charset latin1;
+INSERT INTO H VALUES ('m'), ('z');
+
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET @@optimizer_switch="derived_merge=off";
+
+FLUSH STATUS;
+
+SELECT t1.col_int
+FROM (SELECT * FROM K) t1 JOIN (SELECT * FROM H) t2 USING(col_varchar)
+WHERE t1.col_int IS NULL
+ORDER BY t1.col_int;
+
+SHOW STATUS LIKE 'Created_tmp%';
+
+SET @@optimizer_switch=@optimizer_switch_saved;
+
+DROP TABLE K, H;
+
 --echo #
 --echo # Bug #25343335: DERIVED TABLE SELECT LIST'S REFERENCE TO ALIAS CAUSES
 --echo #                INCORRECT BEHAVIOR
@@ -2769,6 +2826,19 @@ EXECUTE yy;
 EXECUTE yy;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25907510 CRASH IN HA_MYISAM::IDX_COND_PUSH WITH INTERNAL_TMP_DISK_STORAGE_ENGINE=MYISAM
+--echo #
+
+#set sql_mode="";
+set global internal_tmp_disk_storage_engine=myisam;
+create table t (a bit(1),b int) engine=innodb;
+create table s (a int) engine=innodb;
+select 1 from t natural right outer join
+ (select a,@q from s limit 2) w where b;
+drop table t,s;
+set global internal_tmp_disk_storage_engine=default;
 
 --echo #
 --echo # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
@@ -2899,3 +2969,13 @@ eval $query1;
 SET optimizer_switch = default;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#26798989: Sig 11 in find_table_in_global_list
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+UPDATE t1
+SET a=5
+WHERE a IN (SELECT a FROM t2
+            ORDER BY (SELECT a FROM (SELECT SUM(a) FROM t1) AS dt));
+DROP TABLE t1, t2;

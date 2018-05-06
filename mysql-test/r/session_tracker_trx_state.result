@@ -8,15 +8,12 @@
 SET autocommit=1;
 # if we track CHARACTERISTICS, we must also track the tx_* sysvars!
 SELECT @@session.session_track_system_variables INTO @old_track_list;
-SET @track_list= CONCAT(@old_track_list,
-",transaction_read_only,transaction_isolation ");
+SET @track_list= CONCAT(@old_track_list, ",transaction_isolation,
+                                           transaction_read_only");
 SET SESSION session_track_system_variables=@track_list;
 SELECT @@session.session_track_state_change INTO @old_track_enable;
 SET SESSION session_track_state_change=TRUE;
 SELECT @@session.session_track_transaction_info INTO @old_track_tx;
-SET SESSION query_cache_type = 0;
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 ########################################################################
 #
@@ -466,12 +463,14 @@ COMMIT;
 -- ________
 
 
-SET SESSION tx_read_only=0;
+SET SESSION transaction_read_only=0;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
+-- transaction_read_only
+-- OFF
+
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
-Warnings:
-Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 # one-shot (different from session default)
 SET TRANSACTION READ ONLY;
 -- Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS
@@ -543,7 +542,7 @@ SET TRANSACTION READ ONLY;
 -- SET TRANSACTION ISOLATION LEVEL READ COMMITTED; SET TRANSACTION READ ONLY;
 
 # setting the session default:
-# - we receive "changed variable" for @@session.tx_read_only
+# - we receive "changed variable" for @@session.transaction_read_only
 # - "read-only" one-shot is cleared, disappears from chistics tracker
 # - "isolation" one-shot remains set, and remains in chistics tracker
 SET SESSION TRANSACTION READ ONLY;
@@ -1504,106 +1503,6 @@ SET session_track_transaction_info="STATE";
 
 DROP TABLE t1;
 DROP TABLE t2;
-########################################################################
-#
-# query cache
-#
-SELECT @@global.query_cache_size INTO @old_qc_size;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-SET GLOBAL  query_cache_size = 999424;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-SET SESSION query_cache_type = 1;
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-SELECT @@global.query_cache_size;
-@@global.query_cache_size
-999424
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
-SELECT @@session.query_cache_type;
-@@session.query_cache_type
-ON
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-CREATE TABLE t1 (f1 INT) ENGINE="MyISAM";
-INSERT INTO t1 VALUES (1), (2), (3);
-# show we can't add queries to the cache while tracking:
-BEGIN;
--- Tracker : SESSION_TRACK_TRANSACTION_STATE
--- T_______
-
-SELECT     f1 FROM t1 WHERE f1 > 1;
-f1
-2
-3
--- Tracker : SESSION_TRACK_TRANSACTION_STATE
--- Tr____S_
-
-SELECT f1 FROM t1 WHERE f1 > 1;
-f1
-2
-3
-COMMIT;
--- Tracker : SESSION_TRACK_TRANSACTION_STATE
--- ________
-
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-SET SESSION session_track_transaction_info="OFF";
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-SELECT f1 FROM t1 WHERE f1 > 1;
-f1
-2
-3
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-SELECT f1 FROM t1 WHERE f1 > 1;
-f1
-2
-3
-SHOW STATUS LIKE 'Qcache_hits';
-Variable_name	Value
-Qcache_hits	1
-SET SESSION session_track_transaction_info="STATE";
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
--- Tracker : SESSION_TRACK_TRANSACTION_STATE
--- ________
-
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-SELECT f1 FROM t1 WHERE f1 > 1;
-f1
-2
-3
-SHOW STATUS LIKE 'Qcache_hits';
-Variable_name	Value
-Qcache_hits	1
-RESET QUERY CACHE;
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-FLUSH STATUS;
-DROP TABLE t1;
-SET SESSION query_cache_type = 0;
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
-SET GLOBAL  query_cache_size = @old_qc_size;
-Warnings:
-Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 ########################################################################
 #
 # XA

@@ -1,0 +1,96 @@
+-->macro_varg Crud_row_list %CMD%
+-->callmacro Crud_set_Row_list_%CMD%	%VAR_ARGS%
+-->endmacro
+
+
+-->macro Crud_set_Row_list_
+-->endmacro
+
+
+-->macro_varg Crud_set_Row_list_Octet %LITERAL%
+-->varlet %PAYLOAD% %PAYLOAD%   field{
+-->varlet %PAYLOAD% %PAYLOAD%     type: LITERAL
+-->varlet %PAYLOAD% %PAYLOAD%     literal {
+-->varlet %PAYLOAD% %PAYLOAD%       type: V_OCTETS
+-->varlet %PAYLOAD% %PAYLOAD%       v_octets{
+-->varlet %PAYLOAD% %PAYLOAD%         value: %LITERAL%
+-->varlet %PAYLOAD% %PAYLOAD%         content_type:2
+-->varlet %PAYLOAD% %PAYLOAD%       }
+-->varlet %PAYLOAD% %PAYLOAD%     }
+-->varlet %PAYLOAD% %PAYLOAD%   }
+
+-->callmacro Crud_row_list	%VAR_ARGS%
+-->endmacro
+
+-->macro_varg Crud_set_Row_list_Null
+-->varlet %PAYLOAD% %PAYLOAD%   field{
+-->varlet %PAYLOAD% %PAYLOAD%     type: LITERAL
+-->varlet %PAYLOAD% %PAYLOAD%     literal {
+-->varlet %PAYLOAD% %PAYLOAD%       type: V_NULL
+-->varlet %PAYLOAD% %PAYLOAD%     }
+-->varlet %PAYLOAD% %PAYLOAD%   }
+
+-->callmacro Crud_row_list	%VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Row_list	%CMD%
+-->varlet %PAYLOAD% %PAYLOAD%   row {
+-->callmacro Crud_row_list	%VAR_ARGS%
+-->varlet %PAYLOAD% %PAYLOAD%   }
+-->endmacro
+
+
+-->macro_varg Crud_set_Row_octet	%OCTET%
+-->varlet %PAYLOAD% %PAYLOAD%   row {
+-->callmacro Crud_set_Row_list_Octet %OCTET%
+-->varlet %PAYLOAD% %PAYLOAD%   }
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+-->macro_varg Crud_set_Row_null	%OCTET%
+-->varlet %PAYLOAD% %PAYLOAD%   row {
+-->callmacro Crud_set_Row_list_Null
+-->varlet %PAYLOAD% %PAYLOAD%   }
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_insert
+-->varlet %PAYLOAD% 
+-->callmacro Crud %VAR_ARGS%
+Mysqlx.Crud.Insert {
+  %PAYLOAD%
+}
+-->endmacro
+
+
+-->macro Insert_raw  %MODEL%  %TABLE%  %PAYLOAD%
+Mysqlx.Crud.Insert {
+  data_model: %MODEL%
+  collection { name: '%TABLE%' schema: 'xtest'}
+  %PAYLOAD%
+}
+-->endmacro
+
+-->macro Insert  %MODEL%  %TABLE%  %ROWS%  %UPSERT%  %ERROR%
+-->callmacro Insert_raw	%MODEL%	%TABLE%	%ROWS% upsert:%UPSERT%
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->macro Insert_one  %MODEL%  %TABLE%  %ROW%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW%}}	false	%ERROR%
+-->endmacro
+
+-->macro Insert_two  %MODEL%  %TABLE%  %ROW1%  %ROW2%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW1%}} row{field{%ROW2%}}	false	%ERROR%
+-->endmacro
+
+-->macro Upsert_one  %MODEL%  %TABLE%  %ROW%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW%}}	true	%ERROR%
+-->endmacro
+
+-->macro Upsert_two  %MODEL%  %TABLE%  %ROW1%  %ROW2%  %ERROR%
+-->callmacro Insert %MODEL%	%TABLE%	row{field{%ROW1%}} row{field{%ROW2%}}	true	%ERROR%
+-->endmacro

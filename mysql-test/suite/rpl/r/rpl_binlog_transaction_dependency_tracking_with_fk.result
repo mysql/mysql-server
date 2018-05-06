@@ -1,0 +1,412 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 1. Test referential action RESTRICT with WRITESET. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE RESTRICT);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE RESTRICT);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 2. Test referential action RESTRICT with WRITESET_SESSION. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE RESTRICT);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE RESTRICT);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 3. Test referential action NO ACTION with WRITESET. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE NO ACTION);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE NO ACTION);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 4. Test referential action NO ACTION with WRITESET_SESSION. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE NO ACTION);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE NO ACTION);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 5. Test referential action CASCADE with WRITESET. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE CASCADE);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE CASCADE);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+DELETE FROM parent2 WHERE a=1;
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 6. Test referential action CASCADE with WRITESET_SESSION. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE CASCADE);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE CASCADE);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+DELETE FROM parent2 WHERE a=1;
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 7. Test referential action SET NULL with WRITESET. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE SET NULL);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE SET NULL);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+DELETE FROM parent2 WHERE a=1;
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 8. Test referential action SET NULL with WRITESET_SESSION. ########
+SELECT @@local.transaction_write_set_extraction,
+@@global.transaction_write_set_extraction,
+@@binlog_transaction_dependency_tracking;
+@@local.transaction_write_set_extraction	@@global.transaction_write_set_extraction	@@binlog_transaction_dependency_tracking
+XXHASH64	XXHASH64	WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE SET NULL);
+CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE SET NULL);
+INSERT INTO parent1 VALUES (1, 1), (2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+INSERT INTO child2 VALUES (1, 1);
+UPDATE child1 SET a = 2;
+UPDATE child2 SET a = 2;
+DELETE FROM child1;
+DELETE FROM child2;
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+INSERT INTO parent1 VALUES (3, 3);
+INSERT INTO t1 VALUES (2);
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+COMMIT;
+COMMIT;
+INSERT INTO t1 VALUES (5);
+UPDATE parent1 SET a=5 WHERE a=1;
+DELETE FROM parent2 WHERE a=1;
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+# Clean up
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+include/rpl_end.inc

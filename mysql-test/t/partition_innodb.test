@@ -1,12 +1,85 @@
---source include/not_embedded.inc
---source include/have_partition.inc
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo #BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+--echo #              CORRUPTS FRM
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 ENGINE= ARCHIVE;
+
+--echo #After the patch, the ENGINE is correctly displayed as InnoDB
+SHOW CREATE TABLE t1;
+
+--echo #Cleanup.
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
+--echo # (bad/confusing error message)
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+--echo # The errors returned are  different.
+--echo #
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+ b VARCHAR(200),
+ c TEXT)
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+
+--error ER_TABLE_CANT_HANDLE_FT
+CREATE FULLTEXT INDEX msg ON t1 (b, c);
+DROP TABLE t1;
+
+--error ER_TABLE_CANT_HANDLE_FT
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+ b VARCHAR(200),
+ c TEXT,
+ FULLTEXT (b, c))
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+
+--echo #
+--echo # BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
+--echo # After WL#8971, the test case was rewritten to use InnoDB.
+--echo #
+CREATE TABLE t1 (
+  i INT
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (i)
+(PARTITION p3 VALUES LESS THAN (3),
+ PARTITION p5 VALUES LESS THAN (5),
+ PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Same test without partitioning
+CREATE TABLE t1 (
+  i INT
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
@@ -202,15 +275,15 @@ INSERT INTO t1 VALUES (100);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert INTO t1 VALUES (110);
 ANALYZE TABLE t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 90;
+EXPLAIN SELECT * FROM t1 WHERE a >= 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 89;
+EXPLAIN SELECT * FROM t1 WHERE a >= 89;
+EXPLAIN SELECT * FROM t1 WHERE a > 89;
+EXPLAIN SELECT * FROM t1 WHERE a = 100;
+EXPLAIN SELECT * FROM t1 WHERE a >= 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 100;
 DROP TABLE t1;
 
 --echo #
@@ -258,23 +331,7 @@ drop table t1;
 #
 # BUG#47776, Failed to update for MEMORY engine, crash for InnoDB and success for MyISAM
 #
-create table t1 (a varchar(5))
-engine=memory
-partition by range columns(a)
-( partition p0 values less than ('m'),
-  partition p1 values less than ('za'));
-insert into t1 values  ('j');
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-
-create table t1 (a varchar(5))
-engine=myisam
-partition by range columns(a)
-( partition p0 values less than ('m'),
-  partition p1 values less than ('za'));
-insert into t1 values  ('j');
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
+# Removed test cases for MyISAM and Memory when removing the Partition engine.
 
 create table t1 (a varchar(5))
 engine=innodb
@@ -315,7 +372,7 @@ PARTITION BY RANGE(id) (
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
                       (9,9), (10,10), (11,11);
 
-SET @old_tx_isolation := @@session.tx_isolation;
+SET @old_transaction_isolation := @@session.transaction_isolation;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 SET autocommit = 0;
@@ -338,7 +395,7 @@ UPDATE t1 SET data = data*2 WHERE data = 2;
 #--replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
 #SHOW ENGINE InnoDB STATUS;
 
-SET @@session.tx_isolation = @old_tx_isolation;
+SET @@session.transaction_isolation = @old_transaction_isolation;
 
 DROP TABLE t1;
 
@@ -403,10 +460,11 @@ DROP TABLE t1;
 # Bug #14673: Wrong InnoDB default row format
 #
 create table t1 (a int) engine=innodb partition by hash(a) ;
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status like 't1';
 drop table t1;
 
@@ -416,10 +474,11 @@ drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
@@ -433,10 +492,11 @@ drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 12 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
@@ -478,7 +538,7 @@ engine = innodb
 partition by range (year(a))
 (partition p0 values less than (2006),
  partition p1 values less than (2007));
-explain partitions select * from t1
+explain select * from t1
 where a between '2006-01-01' and '2007-06-01';
 drop table t1;
 
@@ -574,6 +634,7 @@ DROP TABLE t1;
 create table t1 (int_column int, char_column char(5))
   PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
   (PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+--error ER_CHECK_NOT_IMPLEMENTED
 alter table t1
 ENGINE = MyISAM
 PARTITION BY RANGE (int_column)
@@ -637,7 +698,7 @@ COMMIT;
 DROP TABLE t1;
 
 #
-# Bug #55146    Assertion `m_part_spec.start_part == m_part_spec.end_part' in index_read_idx_map
+# Bug #55146    Assertion 'm_part_spec.start_part == m_part_spec.end_part' in index_read_idx_map
 #
 
 CREATE TABLE t1 (i1 int NOT NULL primary key, f1 int) ENGINE = InnoDB
@@ -976,6 +1037,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
 
+ANALYZE TABLE t1;
+
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 
@@ -983,9 +1046,11 @@ INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 
 ANALYZE TABLE t1;
 
+# Remove workaround of "OR FALSE" from the end of WHERE clause after fix
+# of Bug#26389402 for I_S views definitions.
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
-AND TABLE_NAME='t1';
+AND TABLE_NAME='t1' OR FALSE;
 
 DROP TABLE t1;
 
@@ -1063,6 +1128,10 @@ DROP TABLE t1;
 
 
 #Create one partition in general tablespace and other in different path
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
@@ -1183,7 +1252,7 @@ SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
 DROP TABLE t1,t2;
 
 --echo
---echo Bug #26034430	ASSERTION `PART_REC_BUF_PTR' FAILED.
+--echo Bug #26034430    ASSERTION `PART_REC_BUF_PTR' FAILED.
 --echo
 --echo
 
@@ -1191,7 +1260,9 @@ CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(a,
 
 SELECT * FROM t1 WHERE (a = 1 and b = 1 and c = 'b') OR (a > 2) ORDER BY a DESC;
 
-CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg
+TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE
+COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
 
 SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
 
@@ -1245,32 +1316,3 @@ partition_id=1;
 
 --connection default
 drop table test12;
-
---echo
---echo
---echo Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
---echo			MYSQL.INNODB_TABLE_STATS.
---echo
-
-CREATE DATABASE test_jfg;
-
-CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
-CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
-ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
-InnoDB);
-
---replace_result #p# #P#
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-
-RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
-RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
-
---replace_result #p# #P#
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-
-DROP DATABASE test_jfg;

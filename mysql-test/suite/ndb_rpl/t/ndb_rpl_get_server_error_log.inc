@@ -5,7 +5,7 @@
 use test;
 drop table if exists server_error_log;
 create table server_error_log(
-        row int auto_increment primary key,
+        `row` int auto_increment primary key,
         line varchar(1024) default null)
 engine=myisam;
 

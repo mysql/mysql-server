@@ -1,7 +1,5 @@
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set default_storage_engine = InnoDB;
 set autocommit=1;
 drop table if exists t1;
@@ -14,6 +12,7 @@ drop procedure if exists dummy;
 create table t1 (a int);
 create table t2 (a int unique);
 create table t3 (a int);
+create trigger trg before insert on t1 for each row set @a:=1;
 set sql_mode=default;
 insert into t1 (a) values (1), (2);
 insert into t3 (a) values (1), (2);
@@ -152,7 +151,7 @@ rollback;
 select * from t2;
 a
 insert into t2 (a) values (1015);
-show columns in mysql.proc where (f2(15) = 15);
+show columns in information_schema.routines where (f2(15) = 15);
 ERROR 23000: Duplicate entry '15' for key 'a'
 select * from t2;
 a
@@ -335,8 +334,6 @@ drop function if exists f1;
 drop procedure if exists p_verify_status_increment;
 set @binlog_format=@@global.binlog_format;
 set sql_mode=no_engine_substitution;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int unique);
 create table t2 (a int) engine=myisam;
 set sql_mode=default;
@@ -357,7 +354,7 @@ declare c_res int;
 # and amounts for over 90% of test CPU time
 declare c cursor for
 select variable_value
-from information_schema.session_status
+from performance_schema.session_status
 where variable_name='Handler_commit' or variable_name='Handler_prepare'
      order by variable_name;
 if @binlog_format = 'ROW' then
@@ -385,6 +382,7 @@ else
 select '' as 'SUCCESS';
 end if;
 end|
+# Warm-up data-dictionary cache.
 # Reset Handler_commit and Handler_prepare counters
 flush status;
 #
@@ -392,7 +390,7 @@ flush status;
 #
 select * from t1;
 a
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -570,7 +568,7 @@ begin
 insert t2 set a=2;
 return 2;
 end|
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(6, 4, 2, 0);
 SUCCESS
 
 # 16. A function changes non-trans-table.
@@ -582,11 +580,12 @@ SUCCESS
 select f1();
 f1()
 2
-call p_verify_status_increment(1, 0, 1, 0);
+# Extra commit comes from load of f1 into data-dictionary cache,
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 SUCCESS
 
 # 17. Read-only statement, a function changes non-trans-table.
@@ -630,10 +629,8 @@ SUCCESS
 #
 drop table t2;
 set sql_mode=no_engine_substitution;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t2 (a int);
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(X, 0, 0, 0);
 SUCCESS
 
 set sql_mode=default;
@@ -678,7 +675,7 @@ SUCCESS
 #
 alter table t2 add column b int default 5;
 # A commit is done internally by ALTER. 
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 SUCCESS
 
 commit;
@@ -692,9 +689,9 @@ SUCCESS
 # 24. DDL: TRUNCATE TEMPORARY TABLE
 
 truncate table t2;
-call p_verify_status_increment(4, 0, 4, 0);
-ERROR
-Expected commit increment: 4 actual: 2
+call p_verify_status_increment(6, 0, 4, 0);
+SUCCESS
+
 commit;
 # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -796,11 +793,12 @@ SUCCESS
 # 28. Read-write statement: DO
 #
 create table t2 (a int);
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(<commit_count>, 4, 6, 0);
 SUCCESS
 
+# One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(4, 2, 3, 2);
 SUCCESS
 
 commit;
@@ -839,27 +837,27 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 create table t3 select a from t2;
-call p_verify_status_increment(2, 0, 4, 4);
+call p_verify_status_increment(<commit_count>, 4, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(X, 4, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(20, 4, 3, 0);
 SUCCESS
 
 rename table t4 to t3;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(23, 4, 5, 0);
 SUCCESS
 
 truncate table t3;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(X, 4, 4, 0);
 SUCCESS
 
 create view v1 as select * from t2;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 SUCCESS
 
 check table t1;
@@ -878,7 +876,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 test.t3	check	status	OK
-call p_verify_status_increment(6, 0, 6, 0);
+# Extra transactions to load t3 into data-dictionary and table caches
+call p_verify_status_increment(12, 0, 6, 0);
 SUCCESS
 
 commit;
@@ -886,7 +885,8 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(0, 0, 0, 0);
+# One extra transaction to load v1 into data-dictionary cache.
+call p_verify_status_increment(X, 4, 3, 0);
 SUCCESS
 
 #

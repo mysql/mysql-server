@@ -10,13 +10,11 @@
 #                                                                                 #
 ###################################################################################
 
---source include/not_embedded.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 --source include/master-slave.inc
 --connection master
 
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo #
 --echo # WL#6409: CREATE/ALTER USER
 --echo #
@@ -24,7 +22,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo # CREATE USER
 --echo
 CREATE USER user1;
-query_vertical SELECT host,user,plugin,authentication_string
+query_vertical SELECT host,user,plugin
 FROM mysql.user WHERE user = 'user1';
 
 --echo
@@ -36,29 +34,25 @@ CREATE USER user3@%;
 CREATE USER user3@localhost BY 'auth_string' WITH 'mysql_native_password';
 
 CREATE USER "user2"@'%';
-query_vertical SELECT host,user,plugin,authentication_string
+query_vertical SELECT host,user,plugin
 FROM mysql.user WHERE user='user2';
 
 --echo
 CREATE USER u1@localhost;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u1';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u1';
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u2';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u2';
 
 --echo
 --error ER_PARSE_ERROR
 CREATE USER user5@localhost IDENTIFIED  AS 'auth_string';
 
 CREATE USER u3@localhost IDENTIFIED WITH 'mysql_native_password';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u3';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u3';
 
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u4';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u4';
 
 # Testing connection
 --connect(con1, localhost, u4,'auth_string')
@@ -68,17 +62,14 @@ disconnect con1;
 
 --echo
 CREATE USER user4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user4';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='user4';
 --echo
 CREATE USER user6@localhost IDENTIFIED WITH 'mysql_native_password';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user6';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='user6';
 --echo
 CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
                             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user7';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='user7';
 --echo
 # Testing connection
 --connect(con1, localhost, user7, 'auth_string#%y')
@@ -88,8 +79,7 @@ disconnect con1;
 
 CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
                             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user8';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='user8';
 
 # Testing connection
 --connect(con1, localhost, user8,'auth_string')
@@ -99,65 +89,54 @@ disconnect con1;
 
 # Tesing with mysql_native_password plugin.
 CREATE USER tu1@localhost IDENTIFIED WITH 'mysql_native_password';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,password_expired,
+query_vertical SELECT user,plugin,password_expired,
 password_expired  FROM mysql.user WHERE USER='tu1';
 
 CREATE USER tu2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_@13*';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,
+query_vertical SELECT user,plugin,
 password_expired FROM mysql.user WHERE USER='tu2';
 
 --echo
-CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' AS '%auth_O0s-tring';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,password_expired
+CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' BY '%auth_O0s-tring';
+query_vertical SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='tu3';
 
 --echo
 
 CREATE USER u5@localhost REQUIRE SSL;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type
+query_vertical SELECT user,plugin,ssl_type
 FROM mysql.user WHERE USER='u5';
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type
+query_vertical SELECT user,plugin,ssl_type
 FROM mysql.user WHERE USER='u6';
 
 CREATE USER tu4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'djgsj743$' REQUIRE SSL;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu4';
+query_vertical SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu4';
 
-CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' AS 'dwh@#ghd$!' REQUIRE X509;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu5';
+CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd$!' REQUIRE X509;
+query_vertical SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu5';
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER 'cipher';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u7';
 
 CREATE USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
 
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#y'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
 
 # Testing connection
@@ -166,69 +145,56 @@ SELECT USER();
 connection default;
 disconnect con1;
 
-CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' AS '#hGrt0O6'
+CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' BY '#hGrt0O6'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='tu6';
 
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,max_questions
+query_vertical SELECT user,plugin,max_questions
 FROM mysql.user WHERE USER='u11';
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,max_questions
+query_vertical SELECT user,plugin,max_questions
 FROM mysql.user WHERE USER='u12';
 
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,max_connections
+query_vertical SELECT user,plugin,max_connections
 FROM mysql.user WHERE USER='u13';
 
 CREATE USER u14@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,max_user_connections
+query_vertical SELECT user,plugin,max_user_connections
 FROM mysql.user WHERE USER='u14';
 
 CREATE USER u15@localhost,
             u16@localhost IDENTIFIED BY 'auth_string',
             u17@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u15';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u16';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u17';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u15';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u16';
+query_vertical SELECT user,plugin FROM mysql.user WHERE USER='u17';
 CREATE USER u18@localhost,
             u19@localhost IDENTIFIED BY 'auth_string',
             u20@localhost IDENTIFIED WITH 'mysql_native_password',
             u21@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string',
             u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK;
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u18';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u19';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u20';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u22';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u23';
 
 DROP USER tu1@localhost,tu2@localhost,tu3@localhost,tu4@localhost,tu5@localhost,
@@ -242,30 +208,30 @@ DROP USER tu1@localhost,tu2@localhost,tu3@localhost,tu4@localhost,tu5@localhost,
 --echo # ALTER USER
 
 CREATE USER u1@localhost;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime
 FROM mysql.user WHERE USER='u1';
 
 --echo # Its a no op
 ALTER USER u1@localhost;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime
 FROM mysql.user WHERE USER='u1';
 
 CREATE USER u2@localhost IDENTIFIED BY 'password_string';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 ALTER USER u2@localhost IDENTIFIED BY 'new_auth_string';
 # Look for auth_string and password last changed field
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 # Testing connection
 --connect(con1, localhost, u2, new_auth_string)
@@ -274,18 +240,18 @@ connection default;
 disconnect con1;
 --echo
 CREATE USER u3@localhost IDENTIFIED WITH 'mysql_native_password' ACCOUNT LOCK;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 
 ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password'
                         AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                         PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 # Look for plugin,auth_string and password expired field
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 
 # Testing connection
@@ -295,9 +261,9 @@ connection default;
 disconnect con1;
 
 ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 
 ALTER USER u3@localhost
@@ -305,36 +271,36 @@ ALTER USER u3@localhost
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
            PASSWORD EXPIRE NEVER;
 
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             ACCOUNT LOCK PASSWORD EXPIRE DEFAULT;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u4';
 ALTER USER u4@localhost IDENTIFIED WITH 'mysql_native_password'
            BY 'auth_string' ACCOUNT UNLOCK;
 # Look for plugin,auth_string field
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u4';
 
 CREATE USER u5@localhost REQUIRE SSL;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u5';
 
 ALTER USER u5@localhost IDENTIFIED WITH 'mysql_native_password';
 # Look for plugin,auth_string, password expired field
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u5';
 
 # Testing connection
@@ -345,28 +311,28 @@ connection default;
 disconnect con1;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509 ACCOUNT UNLOCK ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 80 DAY;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u6';
 ALTER USER u6@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string' REQUIRE SSL ACCOUNT UNLOCK;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u6';
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             BY 'auth_string' REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u7';
 ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' ACCOUNT UNLOCK;
 # Look for plugin,auth_string, password expired, SSL type field
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u7';
 
 # Testing connection
@@ -377,16 +343,16 @@ disconnect con1;
 
 CREATE USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA";
 # Look for plugin,auth_string, password expired, SSL fields
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 # Testing connection
 --connect(con1, localhost, u8,'auth_string',,,,SSL)
@@ -396,49 +362,49 @@ disconnect con1;
 
 CREATE USER tu1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 ALTER USER tu1@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA";
 # Look for plugin,auth_string, password expired, SSL fields
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 ALTER USER u9@localhost REQUIRE ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 
 ALTER USER u9@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string77hg'
                         REQUIRE ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 
-CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
+CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u10';
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE SSL;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u10';
 
 # Testing connection
@@ -448,62 +414,62 @@ connection default;
 disconnect con1;
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,max_questions FROM mysql.user WHERE USER='u11';
 ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 6;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,max_questions FROM mysql.user WHERE USER='u11';
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'
                           WITH MAX_QUERIES_PER_HOUR 2;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,max_questions FROM mysql.user WHERE USER='u12';
 ALTER USER u12@localhost IDENTIFIED WITH 'mysql_native_password'
                          WITH MAX_QUERIES_PER_HOUR 8;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,max_questions FROM mysql.user WHERE USER='u12';
 
 ALTER USER u12@localhost IDENTIFIED WITH 'mysql_native_password'
                          WITH MAX_QUERIES_PER_HOUR 1000;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,max_questions FROM mysql.user WHERE USER='u12';
 
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
                           WITH MAX_CONNECTIONS_PER_HOUR 2;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u13';
 ALTER USER u13@localhost PASSWORD EXPIRE;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u13';
 
 CREATE USER u14@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2;
---replace_column 7 # 10 #
+--replace_column 9 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u14';
 ALTER USER u14@localhost WITH MAX_USER_CONNECTIONS 12
                          PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_column 7 # 10 #
+--replace_column 9 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u14';
 
 CREATE USER tu2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 ;
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,max_questions,
+plugin,password_expired,max_user_connections,max_questions,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu2';
 ALTER USER tu2@localhost WITH MAX_USER_CONNECTIONS 12 MAX_QUERIES_PER_HOUR 543
                          PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,max_questions,
+plugin,password_expired,max_user_connections,max_questions,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu2';
 
 # Testing connection
@@ -515,38 +481,38 @@ disconnect con1;
 CREATE USER u15@localhost,
             u16@localhost IDENTIFIED WITH 'mysql_native_password',
             u17@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u15';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u16';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u17';
 ALTER USER u15@localhost IDENTIFIED WITH 'mysql_native_password',
            u16@localhost,
            u17@localhost IDENTIFIED BY 'new_auth_string'
            PASSWORD EXPIRE DEFAULT;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u15';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u16';
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u17';
 
@@ -555,37 +521,37 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'mysql_native_password',
             u21@localhost IDENTIFIED WITH 'mysql_native_password' BY '!Y_TOdh6)',
             u22@localhost IDENTIFIED WITH 'mysql_native_password',
-            u23@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_&string'
+            u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u18';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u19';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u20';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u21';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u22';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u23';
 
@@ -595,34 +561,34 @@ ALTER USER u18@localhost, u19@localhost,
            REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
            PASSWORD EXPIRE NEVER;
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u18';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u19';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u20';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u21';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u22';
---replace_column 7 # 11 #
+--replace_column 10 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u23';
 
@@ -660,9 +626,11 @@ disconnect con1;
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 # Password set to current user
+--disable_ps_protocol
 --error ER_PARSE_ERROR
 ALTER USER IDENTIFIED BY 'npwd';
 ALTER USER USER() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 disconnect con1;
 
 --connect(con1, localhost, u1, abc)
@@ -699,9 +667,9 @@ ALTER USER USER() IDENTIFIED BY 'def' PASSWORD EXPIRE;
 --error ER_PARSE_ERROR
 ALTER USER ;
 ALTER USER u2@localhost IDENTIFIED BY 'auth_string' PASSWORD EXPIRE INTERVAL 45 DAY;
---replace_column 7 # 9 #
+--replace_column 8 #
 query_vertical SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 connection default;
 disconnect con1;
@@ -713,6 +681,7 @@ CREATE USER u1@localhost;
 SHOW CREATE USER u1@localhost;
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 --echo # DDL output for SHOW CREATE USER u2@localhost and recreating user
 DROP USER u2@localhost;
@@ -732,13 +701,13 @@ CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
-CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user1@localhost;
 
 --echo
 
-CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
+CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 --replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user2@localhost;
 --echo
@@ -746,6 +715,7 @@ CREATE USER u5@localhost REQUIRE SSL;
 SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -771,6 +741,7 @@ CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u11@localhost;
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -803,8 +774,7 @@ CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password'
             WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
                  MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
 
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_user_connections,
 max_questions,max_updates,max_connections FROM mysql.user
 WHERE USER='user1';
@@ -821,25 +791,18 @@ REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 --echo
 
-GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
+GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost;
+ALTER USER user2@localhost IDENTIFIED BY 'admin'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
       ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
       WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
            MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
 
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+query_vertical SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_user_connections,
 max_questions,max_updates,max_connections FROM mysql.user WHERE USER='user2';
 
 CREATE USER user3@localhost IDENTIFIED BY 'auth_string';
-
-GRANT SELECT ON mysql.* TO user3@localhost
-      IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-      REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
-      ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
-      WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
-           MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
 
 --echo # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost;
@@ -848,12 +811,10 @@ DROP USER user1@localhost,user2@localhost,user3@localhost;
 --echo # SET PASSWORD Tests
 --echo
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
-CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string1';
+CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
 
-SELECT PASSWORD('plaintext_pwd');
-
-SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
-SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
+SET PASSWORD FOR user1@localhost='auth_xyz@';
+SET PASSWORD FOR user2@localhost='gd636@gj';
 
 --echo
 CREATE USER user4@localhost;
@@ -869,37 +830,31 @@ GRANT SELECT ON *.* TO user3@localhost;
 --connect(con1, localhost, user3, auth_abc)
 SELECT USER();
 SET PASSWORD='auth_xyz';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+query_vertical SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user3';
 connection default;
 disconnect con1;
 
 --echo
 SET PASSWORD FOR user4@localhost='auth_xyz';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+query_vertical SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user4';
 --echo
 SET PASSWORD FOR user5@localhost='auth_dhsga5';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+query_vertical SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user5';
 
 --echo
 CREATE USER user6@localhost IDENTIFIED BY 'auth_string';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,password_expired
+query_vertical SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='user6';
 
 ALTER USER user6@localhost IDENTIFIED WITH 'mysql_native_password';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string,password_expired
+query_vertical SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='user6';
 
 SET PASSWORD FOR user6@localhost='plaintext_password';
---replace_column 3 #
-query_vertical SELECT user,plugin,authentication_string
+query_vertical SELECT user,plugin
 FROM mysql.user WHERE USER='user6';
 
 # Testing connection
@@ -912,39 +867,12 @@ disconnect con1;
 --echo # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost,
           user4@localhost,user5@localhost,user6@localhost;
---echo
---echo # Testing log_builtin_as_identified_by_password variable scope GLOBAL Dynamic
-
-# log_builtin_as_identified_by_password variable change dynamically
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET GLOBAL log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET GLOBAL log_builtin_as_identified_by_password = OFF;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET SESSION log_builtin_as_identified_by_password = ON;
-SHOW  VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET @@log_builtin_as_identified_by_password = OFF;
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET @@global.log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET @@session.log_builtin_as_identified_by_password = ON;
---echo # GLOBAL variable value
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-SET GLOBAL log_builtin_as_identified_by_password=OFF;
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
+--let $mask_user_password_events=1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events=0
 --source include/rpl_end.inc
 
 --echo

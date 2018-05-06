@@ -1,0 +1,81 @@
+#
+# BUG#27165446 PARALLEL REPLICATION OF CREATE/ALTER/DROP DATABASE DEADLOCK,
+# EARLY MDL RELEASE
+#
+# The test verifies ALTER TABLE and ALTER DATABASE should not be executed in
+# parallel on slave.
+# Last_committed is always equal to the sequence_number of previous statement.
+#
+
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+# Setup to run ALTER TABLE and ALTER DATABASE in parallel.
+CREATE DATABASE d1 CHARACTER SET UTF8MB4;
+CREATE TABLE d1.t1 (a INT NOT NULL, b VARCHAR(10));
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save_slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
+SET @saved_slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
+SET @saved_debug= @@GLOBAL.debug;
+
+SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL slave_parallel_workers = 4;
+SET GLOBAL slave_preserve_commit_order= ON;
+## Sleep so any other statement running parallely executes first.
+set GLOBAL debug="+d,delay_alter_table_by_one_second";
+
+# Run ALTER TABLE and ALTER DATABASE in parallel.
+--connection master
+INSERT INTO d1.t1 VALUES(1, "");
+--send ALTER TABLE d1.t1 ADD PRIMARY KEY (a)
+
+--connection master1
+--send ALTER DATABASE d1 DEFAULT CHARACTER SET = 'latin1'
+
+--connection master
+--reap
+
+--connection master1
+--reap
+
+--connection slave
+FLUSH TABLES;
+--source include/start_slave.inc
+
+# Verify ALTER TABLE and ALTER DATABASE do not run in parallel.
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--let $binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $logical_timestamps=3 4
+--source include/assert_logical_timestamps.inc
+--source include/stop_slave.inc
+
+# Assert ALTER TABLE and ALTER DATABASE runs successfully.
+--let $assert_text= 'ALTER DATABASE runs successfully.'
+--let $assert_cond= [SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = "d1" AND DEFAULT_CHARACTER_SET_NAME = "latin1"] = 1
+--source include/assert.inc
+
+--let $assert_text= 'ALTER TABLE runs successfully.'
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = "d1" AND TABLE_NAME = "t1" AND COLUMN_KEY = "PRI"] = 1
+--source include/assert.inc
+
+# Cleanup
+--connection master
+DROP TABLE d1.t1;
+DROP DATABASE d1;
+
+--connection slave
+SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
+SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@GLOBAL.slave_preserve_commit_order= @saved_slave_preserve_commit_order;
+SET @@GLOBAL.debug= @saved_debug;
+
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

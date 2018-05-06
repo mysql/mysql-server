@@ -8,7 +8,10 @@
 #                                                             #
 ###############################################################
 
--- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 
 # Sanity check that the procedure completes two iterations with full debug,
 # raw output, and Information Schema table outputs without generating
@@ -19,17 +22,7 @@ SET @sys.debug                        = 'ON',
     @sys.diagnostics.allow_i_s_tables = 'ON',
     @sys.diagnostics.include_raw      = 'ON';
 
-# First use @@global.show_compatibility_56 = ON
-SET @tmp_show_compatibility_56   = @@global.show_compatibility_56,
-    GLOBAL show_compatibility_56 = ON;
 CALL sys.diagnostics(4, 2, 'full');
-
-# Then use @@global.show_compatibility_56 = OFF
-SET GLOBAL show_compatibility_56 = OFF;
-CALL sys.diagnostics(4, 2, 'full');
-
-SET GLOBAL show_compatibility_56 = @tmp_show_compatibility_56,
-    @tmp_show_compatibility_56   = NULL;
 
 SET @sys.debug                        = 'OFF',
     @sys.diagnostics.allow_i_s_tables = 'OFF',

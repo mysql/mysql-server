@@ -1,35 +1,14 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
+#
 
 
-main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
-main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
-main.explain_for_connection_rqg_json @linux # Bug#20697533 2015-03-13 anitha Fails several times each day on linux platforms
-main.explain_for_connection_rqg_trad @linux # Bug#20697533 2015-03-20 erlend Fails several times each day on linux platforms
-
-innodb.log_file @windows                 # Bug#19363615 2014-08-22 erlend innodb.log_file fails sporadically on PB2
 innodb.log_file_name                     # Bug#19442959 2014-08-14 marko calling exit() trips ut_ad(!m_freed)
 innodb.innodb_page_size_func @windows    # Bug#19527616 2015-03-13 anitha Test fails almost daily on windows
 
-
-rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
-rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
-rpl.rpl_parallel                         # Bug#17506885 2013-09-30 agopi Fails for all runs with MTS
-rpl.rpl_get_master_version_and_clock     # Bug#18949165 2014-07-22 agopi Failes very frequently on PB2
-rpl.rpl_perfschema_applier_status        # Bug#2008336 2014-11-27 agopi Failure started on Nov 16th after fix for BUG#20001250
 
-perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails several times each day in PB2 
+
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
-rpl.rpl_gtid_stress_failover             # Bug#16409537 2014-09-18 Shiv Fails often on weekly and daily trunk branches
 
-interactive_utilities.mysql_secure_installation     #Bug19077239 2014-09-18 Sneha Fails often on daily trunk branches
-interactive_utilities.mysql_secure_installation_ssl     #Bug19077239 2014-09-18 Sneha Fails often on daily trunk branches
-
-binlog.binlog_xa_prepared_disconnect     # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
-main.xa_prepared_binlog_off              # Bug#19502202 2015-12-02 erlend experimental while waiting for a fix
-
-# Bug #20402364 	NDB : NDB_ADDNODE_WITHBINLOG FAILS DUE TO EVENT API STALL
-# FC : SUMA bug related to CREATE NODEGROUP/DROP NODEGROUP/CREATE NODEGROUP
-ndb.ndb_addnode_withbinlog
-
+main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise

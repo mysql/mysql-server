@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 eval CREATE TABLE `t` (
 `a` VARCHAR(10000),   `b` VARCHAR(3000),
@@ -6,7 +5,7 @@ eval CREATE TABLE `t` (
 `d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
 `e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
 `h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ROW_FORMAT=$row_format  ENGINE=InnoDB;
+PRIMARY KEY (`h`) ) ROW_FORMAT=$row_format  ENGINE=InnoDB charset latin1;
 
 SHOW CREATE TABLE t;
 

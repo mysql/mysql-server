@@ -9870,6 +9870,8 @@ ERROR HY000: Unknown locale: 'c'
 # Testing WL#4583 Case conversion in Asian character sets 
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_connection=eucjpms_japanese_ci;
 CREATE TABLE t1 (b VARCHAR(2));
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
@@ -9895,7 +9897,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `code` varchar(6) CHARACTER SET eucjpms NOT NULL DEFAULT '',
   `a` varchar(1) CHARACTER SET eucjpms NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
 Warnings:
 Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1
@@ -9962,6 +9965,7 @@ Warning	1366	Incorrect string value: '\x80\' for column 'a' at row 61
 Warning	1366	Incorrect string value: '\x80]' for column 'a' at row 62
 Warning	1366	Incorrect string value: '\x80^' for column 'a' at row 63
 Warning	1366	Incorrect string value: '\x80_' for column 'a' at row 64
+SET @@session.max_error_count = default;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 56959
@@ -10417,12 +10421,18 @@ WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
 HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 code	a
 8FAABC	Ģ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM t1
 WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
 HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 code	a
 8FA9C3	ð
 8FABB9	ǵ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # WL#3090 Japanese Character Set adjustments
 # Test sjis->Unicode conversion
@@ -25508,12 +25518,16 @@ FEFB	EE8EA8
 FEFC	EE8EA9
 FEFD	EE8EAA
 FEFE	EE8EAB
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 #
 # WL#3090 Japanese Character Set adjustments
 # Test Unicode->sjis conversion
 #
 CREATE TABLE t1 (a CHAR(1)) CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
 INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
 CREATE TEMPORARY TABLE head   AS SELECT concat(b1.a, b2.a) AS head   FROM t1 b1, t1 b2;
@@ -25535,10 +25549,11 @@ WHERE (head BETWEEN 'E0' AND 'EF')
 AND (middle BETWEEN '80' AND 'BF')
 AND (tail BETWEEN '80' AND 'BF')
 AND NOT (head='E0' AND middle BETWEEN '80' AND '9F')
+AND NOT (head='ED' AND middle BETWEEN 'A0' AND 'BF')
 ORDER BY head, middle, tail;
 SELECT count(*) FROM t1;
 count(*)
-65536
+63488
 SELECT HEX(a), HEX(CONVERT(a using sjis)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
 HEX(a)	b
 00	00
@@ -32695,36 +32710,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 41424320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-eucjpms_japanese_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-41
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-414243
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-4142
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-414243
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-4142432020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020434241
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-BEBDBCDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDFBCBDBE
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 eucjpms_japanese_ci
@@ -33062,36 +33047,6 @@ hex(weight_string('abc', 5, 4, 0xC0))
 select hex(weight_string('abc',25, 4, 0xC0));
 hex(weight_string('abc',25, 4, 0xC0))
 61626320202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-eucjpms_bin
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-61
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-616263
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-6162
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-616263
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-6162632020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020636261
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-9E9D9CDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDF9C9D9E
 select collation(cast(0xA1A1 as char));
 collation(cast(0xA1A1 as char))
 eucjpms_bin

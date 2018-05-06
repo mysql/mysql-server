@@ -1,7 +1,7 @@
 select * from performance_schema.metadata_locks;
 select * from performance_schema.metadata_locks
 where object_name='foo';
-OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
 insert into performance_schema.metadata_locks
 set object_name='FOO', owner_thread_id=1;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'metadata_locks'

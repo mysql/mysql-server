@@ -1,0 +1,95 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression('Duplicate entry .* for key');
+CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+CALL mtr.add_suppression('The slave coordinator and worker threads are stopped');
+CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# Start and stop slave
+#
+include/stop_slave.inc [FOR CHANNEL '']
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/check_slave_is_running.inc [FOR CHANNEL 'ch1']
+include/check_slave_no_error.inc [FOR CHANNEL 'ch1']
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/start_slave.inc [FOR CHANNEL '']
+include/check_slave_is_running.inc [FOR CHANNEL '']
+include/check_slave_no_error.inc [FOR CHANNEL '']
+include/stop_slave_io.inc [FOR CHANNEL '']
+include/stop_slave_sql.inc [FOR CHANNEL '']
+include/start_slave_io.inc [FOR CHANNEL 'ch1']
+include/start_slave_sql.inc [FOR CHANNEL 'ch1']
+include/stop_slave_io.inc [FOR CHANNEL 'ch1']
+include/stop_slave_sql.inc [FOR CHANNEL 'ch1']
+include/start_slave_io.inc [FOR CHANNEL '']
+include/start_slave_sql.inc [FOR CHANNEL '']
+#
+# Sync slave
+#
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc [FOR CHANNEL '']
+include/sync_slave_sql_with_io.inc [FOR CHANNEL '']
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+include/stop_slave_io.inc [FOR CHANNEL '']
+include/start_slave.inc [FOR CHANNEL 'ch1']
+[connection master]
+INSERT INTO t1 VALUES (2);
+include/sync_slave_io_with_master.inc [FOR CHANNEL 'ch1']
+include/sync_slave_sql_with_io.inc [FOR CHANNEL 'ch1']
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch1']
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/start_slave.inc [FOR CHANNEL '']
+#
+# Show relaylog events
+#
+include/show_relaylog_events.inc [FOR CHANNEL '']
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000004	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000004	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000004	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB
+slave-relay-bin.000004	#	Query	#	#	BEGIN
+slave-relay-bin.000004	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1)
+slave-relay-bin.000004	#	Xid	#	#	COMMIT /* XID */
+slave-relay-bin.000004	#	Rotate	#	#	slave-relay-bin.000005;pos=POS
+include/show_relaylog_events.inc [FOR CHANNEL 'ch1']
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin-ch1.000003	#	Rotate	#	#	master-bin.000001;pos=POS
+slave-relay-bin-ch1.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+#
+# Wait for error and skip
+#
+INSERT INTO t1 VALUES (4);
+[connection master]
+INSERT INTO t1 VALUES (4);
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL '']
+include/start_slave_io.inc [FOR CHANNEL 'ch1']
+include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL '']
+START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
+include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'ch1']
+include/start_slave_io.inc [FOR CHANNEL '']
+include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL 'ch1']
+DELETE FROM t1 WHERE c1 = 4;
+include/start_slave_sql.inc [FOR CHANNEL '']
+include/include/rpl_skip_to_end_of_relay_log.inc [FOR CHANNEL 'ch1']
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+#
+# Cleanup
+#
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

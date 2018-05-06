@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 #
 # Only global
@@ -8,17 +6,17 @@
 select @@global.performance_schema_max_digest_length;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@session.max_digest_length;
+select @@session.performance_schema_max_digest_length;
 
 show global variables like 'performance_schema_max_digest_length';
 
 show session variables like 'performance_schema_max_digest_length';
 
 --disable_warnings
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
   where variable_name='performance_schema_max_digest_length';
 
-select * from information_schema.session_variables
+select * from performance_schema.session_variables
   where variable_name='performance_schema_max_digest_length';
 --enable_warnings
 

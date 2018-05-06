@@ -1,0 +1,204 @@
+--echo #
+--echo # Test for IBD2SDI tool
+--echo #
+
+# Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+# Memcached SDI APIs are enabled only for debug version
+source include/have_debug.inc;
+
+# bootstrap with multi-file ibdata system tablespace
+# Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+# We wiped out entire SDI created by Server. This is to avoid server
+# SDI interference with memcached inserted SDI. So server complains
+# on missing SDI
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* sdi_delete*");
+--enable_query_log
+
+# Create custom datadir path
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+let $start_page_size=`SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size'`;
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:20M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+# Run the bootstrap command
+--exec $NEW_CMD
+
+--remove_file $BOOTSTRAP_SQL
+
+# Start the DB server
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:20M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/restart_mysqld.inc
+
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+set global innodb_limit_optimistic_insert_debug = 2;
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+USE test;
+--let MEMCACHED_PORT=11292
+--let DUMP_FILE=$MYSQLTEST_VARDIR/log/ibd2sdi_out.txt
+--let IBD_FILE=$MYSQLD_DATADIR1/ibdata*
+--let IBD_PAGE_SIZE=`select @@innodb_page_size`
+
+--echo # ----------------------------------------------
+--echo # Case 1: Insert small SDI in uncompressed table
+--echo # ----------------------------------------------
+
+SET GLOBAL innodb_file_per_table=OFF;
+
+CREATE TABLE t1(c1 VARCHAR(32),
+	c2 TEXT,
+	primary key(c1))
+ENGINE = INNODB;
+
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t2(a INT) ENGINE = INNODB;
+SET GLOBAL innodb_file_per_table=OFF;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Insert into SDI tables via memcached
+let MEMCACHED_TABLE_MAPPING = desc_t1;
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
+--source ../include/create_ibd2sdi_data.inc
+
+# Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # check if ibdata* exist
+--file_exists $MYSQLD_DATADIR1/ibdata1
+--file_exists $MYSQLD_DATADIR1/ibdata2
+
+--echo # Section I: Test options
+--source ../include/ibd2sdi_common.inc
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR1/ibdata1  $MYSQLD_DATADIR1/ibdata1 2>&1
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--error 1
+--exec $IBD2SDI $MYSQLD_DATADIR1/ibdata1  $MYSQLD_DATADIR1/test/t2.ibd 2>&1
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+DROP TABLE t2;
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = default;
+--let SKIP_LARGE_DATA_FILE = > $MYSQLTEST_VARDIR/log/large_ibd2sdi.err
+--echo # ----------------------------------------------
+--echo # Case 2: Insert large SDI in uncompressed table
+--echo # ----------------------------------------------
+
+# Create table not required because SDI is common for all tables
+# in a tablespace
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
+# Insert into SDI tables via memcached
+--source ../include/create_ibd2sdi_data_large.inc
+
+# Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Section I: Test options
+--source ../include/ibd2sdi_common.inc
+
+--echo #
+--echo # Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
+--echo #
+
+--force-rmdir $MYSQL_TMP_DIR/datadir1/
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+# Run the bootstrap command
+--exec $BOOTSTRAP_CMD
+
+--remove_file $BOOTSTRAP_SQL
+
+# Start the DB server
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2"
+--source include/start_mysqld.inc
+
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
+
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+SET GLOBAL innodb_file_per_table=OFF;
+USE test;
+CREATE TABLE t1(c1 VARCHAR(32),
+	c2 TEXT,
+	primary key(c1))
+ENGINE = INNODB;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
+--source ../include/create_ibd2sdi_data_large.inc
+
+# Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Section I: Test options
+--source ../include/ibd2sdi_common.inc
+
+--remove_file $DUMP_FILE
+--remove_file $MYSQLTEST_VARDIR/log/large_ibd2sdi.err
+let $restart_parameters=;
+--source include/start_mysqld.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/

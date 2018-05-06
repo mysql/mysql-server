@@ -13,7 +13,6 @@
 # size 64K, because record length is same for 32k and 64k
 # *********************************************************
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
@@ -33,7 +32,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 # Note: we add the following parameters: "--innodb_log_file_size=5M
@@ -42,14 +41,14 @@ EOF
 # time to create redo log files.
 
 # Set the bootstrap parameter page size 32k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=32K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 32k
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 32k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--let $restart_parameters="restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
 
 USE test;
@@ -161,21 +160,20 @@ DROP DATABASE test;
 --source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameter page size 16k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=16K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=16K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 16k
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 16k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let $restart_parameters="restart: --innodb_page_size=16K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--let $restart_parameters="restart: --innodb_page_size=16K --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
 
 # page size 16K
@@ -190,13 +188,13 @@ SELECT @@innodb_strict_mode;
 
 # Check "Cannot add field col32 in table `test`.`tab1` because after adding it, the row size is 8192"
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = \\[ERROR\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab1\\` because after adding it, the row size is 8192;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN = \\[ERROR\\] .*MY-\\d+.* Cannot add field \\`col32\\` in table \\`test\\`.\\`tab1\\` because after adding it, the row size is 8192;
+--source include/search_pattern.inc
 
 # Check "Cannot add field col32 in table `test`.`tab2` because after adding it, the row size is 8192"
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = \\[ERROR\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab2\\` because after adding it, the row size is 8192;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN = \\[ERROR\\] .*MY-\\d+.* Cannot add field \\`col32\\` in table \\`test\\`.\\`tab2\\` because after adding it, the row size is 8192;
+--source include/search_pattern.inc
 
 USE test;
 
@@ -222,21 +220,20 @@ DROP DATABASE test;
 --source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 16K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
 
 # Set the bootstrap parameter page size 64k for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command with page size 64k
 --exec $NEW_CMD
 
 --echo # Start the DB server with page size 64k
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--let restart_parameters="restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1  --innodb_log_file_size=5M --innodb_log_files_in_group=2"
 --source include/start_mysqld.inc
 
 # page size 64K
@@ -259,8 +256,7 @@ SELECT count(*) FROM tab1;
 # Check record count 0
 SELECT count(*) FROM tab2;
 
-# Check table does not exist
---error ER_NO_SUCH_TABLE
+# Check record count 1
 SELECT count(*) FROM tab3;
 
 SET innodb_strict_mode=Default;
@@ -269,12 +265,10 @@ SET innodb_strict_mode=Default;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot add field.*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot add field.*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source include/cleanup_folder.inc
---rmdir $MYSQL_TMP_DIR/datadir1
+--force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/wl5757.sql

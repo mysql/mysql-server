@@ -1,0 +1,89 @@
+################################################################################
+# BUG#20776314 THE CERTIFIER BROADCAST THREAD IS PRONE TO CONCURRENCY PROBLEMS
+#
+# This test fixes the first issue with the bug :
+#
+# If the garbage collection is in progress, we should discard all the
+# incoming stable set message (certifier messages) as they will update the
+# stable_gtid_set which will cause a concurrency problem.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both the members ONLINE. Commit a transaction (T1) on M1, that will
+#    be certified and applied on both members. Wait for first round of garbage
+#    collection to finish.
+# 2. Stop GR on M2. Set DEBUG point to block garbage collection on M2. Start GR
+#    on M2.
+# 3. Commit a transaction (T2) on M1, that will be certified and applied on both
+#    members. Wait for second round of garbage collection to finish on M1. Wait
+#    for the third round of garbage collection to finish on M2.
+# 4. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--connection server1
+--echo ############################################################
+--echo # Commit a transaction (T1) on server 1, that will be
+--echo # certified and applied on both members.
+CREATE TABLE t1(i INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--connection server1
+--echo # Wait for the first round of garbage collection to finish on server 1.
+--let $wait_timeout= 65
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--connection server2
+--echo # Wait for the first round of garbage collection to finish on server 2.
+--let $wait_timeout= 65
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--echo # First round of garbage collection finished
+--let $first_garbage_collection_transactions_committed= `SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
+
+--connection server2
+--echo ############################################################
+--echo # Block garbage collection on server 2.
+--source include/stop_group_replication.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+# Setting the debug flag for the garbage collection blocking.
+SET @@GLOBAL.DEBUG= '+d,certifier_garbage_collection_block';
+--source include/start_group_replication.inc
+
+--connection server1
+--echo ############################################################
+--echo # Commit a transaction (T2) on server 1, that will be
+--echo # certified and applied on both members.
+INSERT INTO t1 VALUES(1);
+--source include/rpl_sync.inc
+
+--connection server1
+--echo # Wait for the second round of garbage collection to finish on server 1.
+--let $wait_timeout= 65
+--let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--connection server2
+--echo # Wait for the third round of garbage collection to finish on server 2.
+--echo # Round on which garbage collection will be unblocked.
+# wait_timeout = 60 +     60 +     30  = 150
+#              2nd GC   3rd GC   extra
+
+--let $wait_timeout= 150
+--let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+# Cleanup
+
+--connection server2
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--connection server1
+DROP TABLE t1;
+--source include/group_replication_end.inc

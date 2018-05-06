@@ -175,7 +175,7 @@ EXECUTING:[23][SELECT COUNT(*) FROM t1]
 			[meta][field] col name: COUNT(*)
 			[meta][field] org col name: 
 			[meta][field] length: 21
-			[meta][field] charsetnr: 63
+			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
 			[meta][field] type: LONGLONG (8)
@@ -205,7 +205,7 @@ EXECUTING:[23][SELECT COUNT(*) FROM t1]
 			[meta][field] col name: COUNT(*)
 			[meta][field] org col name: 
 			[meta][field] length: 21
-			[meta][field] charsetnr: 63
+			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
 			[meta][field] type: LONGLONG (8)
@@ -387,7 +387,7 @@ EXECUTING:[23][SELECT COUNT(*) FROM t1]
 			[meta][field] col name: COUNT(*)
 			[meta][field] org col name: 
 			[meta][field] length: 21
-			[meta][field] charsetnr: 63
+			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
 			[meta][field] type: LONGLONG (8)
@@ -417,7 +417,7 @@ EXECUTING:[23][SELECT COUNT(*) FROM t1]
 			[meta][field] col name: COUNT(*)
 			[meta][field] org col name: 
 			[meta][field] length: 21
-			[meta][field] charsetnr: 63
+			[meta][field] charsetnr: 8
 			[meta][field] flags: 129 (NOT_NULL BINARY )
 			[meta][field] decimals: 0
 			[meta][field] type: LONGLONG (8)

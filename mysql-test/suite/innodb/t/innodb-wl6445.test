@@ -1,10 +1,6 @@
---source include/have_innodb.inc
 
 # Don't test this under valgrind, memory leaks will occur due restart
 --source include/not_valgrind.inc
-
-# Embedded has issues with restarting
---source include/not_embedded.inc
 
 CREATE DATABASE WL6445;
 
@@ -13,23 +9,7 @@ INSERT INTO WL6445.t1 VALUES(0,0),(1,1),(2,2);
 
 SHOW CREATE TABLE WL6445.t1;
 
-# Write file to make mysql-test-run.pl wait for the server to stop
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Request clean shutdown
---send_shutdown
-
---echo # Wait for disconect
---source include/wait_until_disconnected.inc
-
---echo # Restart server.
---exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---echo # Restarted
+--source include/restart_innodb_read_only.inc
 
 ## DDL
 
@@ -54,50 +34,36 @@ DELETE FROM WL6445.t1;
 --error ER_DUP_FIELDNAME
 ALTER TABLE WL6445.t1 ADD COLUMN c2 INT;
 
---error ER_CANT_LOCK
+--error ER_READ_ONLY_MODE
 ALTER TABLE WL6445.t1 ADD UNIQUE INDEX(c1);
 
---error ER_CANT_LOCK
+--error ER_READ_ONLY_MODE
 ALTER TABLE WL6445.t1 DROP INDEX sec_idx;
 
-# FIXME: Should bne
-#--error ER_OPEN_AS_READONLY
 --replace_regex /wl6445/WL6445/i
---error ER_BAD_TABLE_ERROR
+--error ER_ENGINE_CANT_DROP_TABLE
 DROP TABLE WL6445.t1;
 
 --error ER_OPEN_AS_READONLY
 TRUNCATE TABLE WL6445.t1;
 
---replace_regex /'\..*t1'/'t1'/  /'\..*t2'/'t2'/
---error ER_ERROR_ON_RENAME
+--replace_regex /wl6444/WL6444/i
+--error ER_BAD_DB_ERROR
 RENAME TABLE WL6445.t1 TO WL6444.t2;
 
 --replace_regex /wl6445/WL6445/i
---error ER_BAD_TABLE_ERROR
+--error ER_ENGINE_CANT_DROP_TABLE
 DROP DATABASE WL6445;
 
 SHOW CREATE TABLE WL6445.t1;
 
-# Restart in RW mode so that we can drop the test data
-# Write file to make mysql-test-run.pl wait for the server to stop
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Request clean shutdown
---send_shutdown
-
---echo # Wait for disconect
---source include/wait_until_disconnected.inc
-
---echo # Restart server.
---exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---echo # Restarted
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 
 DROP TABLE WL6445.t1;
 
 DROP DATABASE WL6445;
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing");
+--enable_query_log

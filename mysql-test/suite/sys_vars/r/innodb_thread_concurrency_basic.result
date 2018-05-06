@@ -2,6 +2,7 @@ SET @global_start_value = @@global.innodb_thread_concurrency;
 SELECT @global_start_value;
 @global_start_value
 0
+SET @default_innodb_thread_sleep_delay = @@global.innodb_thread_sleep_delay;
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_thread_concurrency = 0;
 SET @@global.innodb_thread_concurrency = DEFAULT;
@@ -30,6 +31,8 @@ SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1
 SET @@global.innodb_thread_concurrency = 1000;
+Warnings:
+Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000
@@ -63,6 +66,7 @@ SELECT @@global.innodb_thread_concurrency;
 SET @@global.innodb_thread_concurrency = 1001;
 Warnings:
 Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
+Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000
@@ -73,7 +77,7 @@ SELECT @@global.innodb_thread_concurrency;
 1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_thread_concurrency =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_thread_concurrency';
 @@global.innodb_thread_concurrency =
 VARIABLE_VALUE
@@ -81,7 +85,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_thread_concurrency';
 VARIABLE_VALUE
 1000
@@ -109,3 +113,4 @@ SET @@global.innodb_thread_concurrency = @global_start_value;
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 0
+SET @@global.innodb_thread_sleep_delay = @default_innodb_thread_sleep_delay;

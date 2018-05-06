@@ -33,7 +33,7 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='User proxy privileges'
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
@@ -49,15 +49,6 @@ ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
-## test no_auto_create_user sql mode with plugin users
-SET @@sql_mode=no_auto_create_user;
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
-ERROR 42000: Can't find any matching row in the user table
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET @@sql_mode=default;
-DROP USER grant_user;
 ## test utf-8 user name
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 GRANT PROXY ON plug_dest TO `Ÿ`;
@@ -65,34 +56,7 @@ select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 Ÿ@localhost	plug_dest@%
 DROP USER `Ÿ`;
-## test GRANT ... IDENTIFIED WITH/BY ...
 CREATE DATABASE test_grant_db;
-# create new user via GRANT WITH
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT PROXY ON plug_dest TO new_grant_user;
-select USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-new_grant_user@localhost	plug_dest@%
-USE test_grant_db;
-CREATE TABLE t1 (a INT);
-DROP TABLE t1;
-REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
-# try re-create existing user via GRANT IDENTIFIED BY
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
-IDENTIFIED BY 'unused_password';
-# make sure password doesn't take precendence
-ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
-#make sure plugin auth still available
-select USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-new_grant_user@localhost	plug_dest@%
-USE test_grant_db;
-CREATE TABLE t1 (a INT);
-DROP TABLE t1;
-DROP USER new_grant_user;
 REVOKE SELECT on test_grant_db.* FROM joro 
 INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
@@ -124,7 +88,7 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
 ERROR 28000: Access denied for user 'grant_plug'@'localhost' (using password: YES)
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROXY ON grant_plug_dest TO grant_plug' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',PROXY ON grant_plug_dest TO grant_plug' at line 1
 this should fail : can't combine PROXY
 GRANT ALL SELECT,PROXY ON grant_plug_dest TO grant_plug;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT,PROXY ON grant_plug_dest TO grant_plug' at line 1
@@ -160,10 +124,8 @@ should work : root has PROXY to all users
 GRANT PROXY ON ''@'' TO grant_plug;
 REVOKE PROXY ON ''@'' FROM grant_plug;
 should work : root has PROXY to all users
-GRANT PROXY ON ''@'' TO proxy_admin IDENTIFIED BY 'test' 
-WITH GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER proxy_admin IDENTIFIED BY 'test';
+GRANT PROXY ON ''@'' TO proxy_admin WITH GRANT OPTION;
 need USAGE : PROXY doesn't contain it.
 GRANT USAGE on *.* TO proxy_admin;
 in proxy_admin_con;
@@ -172,18 +134,20 @@ GRANT PROXY ON future_user TO grant_plug;
 in default connection
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `grant_plug`@`%`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
 GRANT PROXY ON 'future_user'@'%' TO 'grant_plug'@'%'
 REVOKE PROXY ON future_user FROM grant_plug;
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `grant_plug`@`%`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `grant_plug`@`%`
 ## testing drop user
 CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
 SHOW GRANTS FOR test_drop@localhost;
 Grants for test_drop@localhost
-GRANT USAGE ON *.* TO 'test_drop'@'localhost'
+GRANT USAGE ON *.* TO `test_drop`@`localhost`
 GRANT PROXY ON 'future_user'@'%' TO 'test_drop'@'localhost'
 DROP USER test_drop@localhost;
 SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
@@ -250,25 +214,21 @@ SELECT @@LOCAL.external_user;
 plug_dest
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %') AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
-GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS '<secret>'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
-CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-GRANT PROXY ON ''@'' TO 'proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'proxy_admin'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -278,20 +238,10 @@ SET GLOBAL general_log= @old_general_log;
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 #
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER power_user;
 GRANT ALL PRIVILEGES ON *.* TO power_user;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT USAGE ON anonymous_db.* TO ''@''
-  IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER ''@'' IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
+GRANT USAGE ON anonymous_db.* TO ''@'';
 GRANT PROXY ON power_user TO ''@'';
 CREATE DATABASE confidential_db;
 SELECT user(),current_user(),@@proxy_user;
@@ -311,79 +261,6 @@ GRANT PROXY ON standard_user TO ''@'';
 DROP USER ''@'';
 DROP USER standard_user;
 DROP DATABASE shared;
-#
-# Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
-#
-CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
-DROP TABLE mysql.proxies_priv;
-# Must come back with mysql.proxies_priv absent.
-# restart
-SELECT * FROM mysql.proxies_priv;
-ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
-CREATE USER u1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
-REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
-CREATE USER u2@localhost;
-GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
-# access denied because of no privileges to root
-GRANT PROXY ON u2@localhost TO u1@localhost;
-ERROR 28000: Access denied for user 'root'@'localhost'
-# access denied because of no privileges to root
-REVOKE PROXY ON u2@localhost FROM u1@localhost;
-ERROR 28000: Access denied for user 'root'@'localhost'
-# go try graning proxy on itself, so that it will need the table
-GRANT PROXY ON u2@localhost TO u1@localhost;
-ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
-REVOKE PROXY ON u2@localhost FROM u1@localhost;
-ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
-# test if REVOKE works without the proxies_priv table
-REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
-# test if DROP USER work without the proxies_priv table
-DROP USER u1@localhost,u2@localhost;
-# test if FLUSH PRIVILEGES works without the proxies_priv table
-FLUSH PRIVILEGES;
-mysql.columns_priv                                 OK
-mysql.db                                           OK
-mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
-mysql.plugin                                       OK
-mysql.proc                                         OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
-SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
-Host	localhost
-User	root
-Proxied_host	
-Proxied_user	
-With_grant	1
-FLUSH PRIVILEGES;
 #
 # Bug#58139 : default-auth option not recognized in MySQL standard
 #             command line clients
@@ -480,11 +357,13 @@ ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -492,11 +371,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -658,11 +537,13 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='User proxy privileges'
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 user_name_len_22_01234@localhost	user_name_len_22_0dest@%
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER очень_очень_очень_длинный_юзер__ IDENTIFIED WITH 'test_plugin_server' AS 'очень_очень_очень_длинный_дест__';
 CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
@@ -688,7 +569,7 @@ proxies_priv	CREATE TABLE `proxies_priv` (
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
   KEY `Grantor` (`Grantor`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User proxy privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='User proxy privileges'
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost	очень_очень_очень_длинный_дест__@%
@@ -732,6 +613,8 @@ user_name_len_32_012345678901234@localhost
 DROP USER user_name_len_32_012345678901234@localhost;
 # Testing 32 utf users with different authentication plugins
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 SELECT CURRENT_USER();
 CURRENT_USER()

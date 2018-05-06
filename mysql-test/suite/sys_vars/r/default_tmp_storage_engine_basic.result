@@ -70,14 +70,14 @@ SET @@session.default_tmp_storage_engine = RECORD;
 ERROR 42000: Unknown storage engine 'RECORD'
 '#------------------FN_DYNVARS_005_05-----------------------#'
 SELECT @@global.default_tmp_storage_engine =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='default_tmp_storage_engine';
 @@global.default_tmp_storage_engine =
 VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@session.default_tmp_storage_engine =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='default_tmp_storage_engine';
 @@session.default_tmp_storage_engine =
 VARIABLE_VALUE
@@ -115,12 +115,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET default_tmp_storage_engine = InnoDB;
 CREATE TABLE t1 (a INT);
@@ -129,12 +129,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET default_storage_engine = MEMORY;
 CREATE TABLE t1 (a INT);
@@ -143,12 +143,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET default_tmp_storage_engine = DEFAULT;
 SET default_storage_engine = DEFAULT;
@@ -158,12 +158,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET @@global.default_tmp_storage_engine = @start_global_value;
 SELECT @@global.default_tmp_storage_engine;

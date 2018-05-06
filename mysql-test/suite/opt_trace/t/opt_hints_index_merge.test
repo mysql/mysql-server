@@ -1,0 +1,37 @@
+--source include/have_optimizer_trace.inc
+
+CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1),
+PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 1, 'a', 'h', 'i', ''), (2, 3, 'a', 'h', 'i', ''), (3, 2, 'b', '', 'j', ''), (4, 2, 'b', '', 'j', '');
+INSERT INTO t1 VALUES (5, 1, 'a', 'h', 'i', ''), (6, 3, 'a', 'h', 'i', ''), (7, 2, 'b', '', 'j', ''), (8, 2, 'b', '', 'j', '');
+INSERT INTO t1 SELECT f1 + 8, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 16, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 VALUES (33, 3, 'c', 'g', '', ''), (34, 4, 'c', 'g', '', ''), (35, 5, 'd', 'f', '', ''), (36, 6, 'd', 'f', '', '');
+INSERT INTO t1 SELECT f1 + 36, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 72, f2, f3, f4, f5, f6 FROM t1;
+INSERT INTO t1 SELECT f1 + 144, f2, f3, f4, f5, f6 FROM t1;
+ANALYZE TABLE t1;
+
+SET optimizer_trace_max_mem_size=1048576; # 1MB
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
+
+SET optimizer_switch='index_merge_union=off,index_merge=off';
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SET optimizer_switch='index_merge=on,index_merge_intersection=on';
+EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b';
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SET optimizer_switch='index_merge_union=off,index_merge=off';
+# sort_union(f2,f4)
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 300 AND 310 OR f4 = 'b');
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+# union(f2,f3)
+EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 1 AND 10 OR f4 = 'b');
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SET optimizer_switch=default;
+
+DROP TABLE t1;

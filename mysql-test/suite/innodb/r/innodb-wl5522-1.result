@@ -516,7 +516,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 ;
 CREATE INDEX prefix_idx ON t1(
 col_1 (50),col_2 (50),col_3 (50),
@@ -560,7 +560,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 ;
 CREATE INDEX prefix_idx ON t1(
 col_1 (50),col_2 (50),col_3 (50),
@@ -601,7 +601,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 ;
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
@@ -653,7 +653,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 ;
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
@@ -734,6 +734,8 @@ NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	15000
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	16000
 ALTER TABLE t1 ADD INDEX idx1 (col_1);
 ALTER TABLE t1 ADD INDEX idx6 (col_1(255));
+Warnings:
+Warning	1831	Duplicate index 'idx6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX idx10 (col_10(255));
 SELECT
 col_1 = REPEAT("col1_00001",10),
@@ -775,6 +777,8 @@ col18 int not null primary key,
 col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # table for trigger action
 CREATE TABLE trigger_table (i int) ENGINE = InnoDB;
 CREATE  TRIGGER tri AFTER INSERT ON  t1
@@ -831,6 +835,8 @@ col18 int not null primary key,
 col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 CREATE UNIQUE INDEX idx2 ON t1(col12);

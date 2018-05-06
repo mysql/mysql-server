@@ -1,0 +1,58 @@
+--echo #
+--echo # Removing partitioning would not change the table level tablespace
+--echo #
+
+CREATE TABLE t1 (col1 INT)
+ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED TABLESPACE innodb_system;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 REMOVE PARTITIONING;
+DROP TABLE t1;
+
+
+--echo # Check if non-strict mode can work when there is implicit row format change
+
+CREATE TABLE t1 (a INT, b INT, key(a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 PARTITION BY RANGE (a % 7) (PARTITION p1 VALUES LESS THAN(1), PARTITION p2 VALUES LESS THAN (2), PARTITION p3 VALUES LESS THAN (5), PARTITION p4 VALUES LESS THAN(MAXVALUE));
+
+SHOW CREATE TABLE t1;
+
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+
+ALTER TABLE t1 REORGANIZE PARTITION p1, p2 INTO (PARTITION p1 VALUES LESS THAN(2));
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+
+
+--echo #
+--echo # This checks after ALTER TABLE ... COPY which changes the row format,
+--echo # it should still work
+--echo #
+
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+
+CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c(99))) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
+
+SET GLOBAL innodb_file_per_table = 0;
+SET SESSION innodb_strict_mode = 0;
+
+ALTER TABLE t1 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
+
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+

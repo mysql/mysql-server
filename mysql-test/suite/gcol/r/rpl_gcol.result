@@ -10,7 +10,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,default);
 insert into t1 values (2,default);
 select * from t1;
@@ -57,9 +57,9 @@ SHOW CREATE TABLE gtable;
 Table	Create Table
 gtable	CREATE TABLE `gtable` (
   `doc` json DEFAULT NULL,
-  `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.name'))) VIRTUAL,
+  `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL,
   UNIQUE KEY `name_index` (`gtext`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Connection:slave - Row with value 3 is expected on slave.
 SELECT * FROM gtable ORDER BY gtext;
 doc	gtext
@@ -67,10 +67,6 @@ NULL	NULL
 {"id": 2, "name": "Omar Argentina"}	Omar Argentina
 {"id": 1, "name": "Omar Bras"}	Omar Bras
 include/diff_tables.inc [master:gtable, slave:gtable]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
 DROP VIEW  IF EXISTS v1,v2;

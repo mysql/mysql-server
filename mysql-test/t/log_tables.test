@@ -1,6 +1,4 @@
-
-# this test needs multithreaded mysqltest
--- source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 #
 # Basic log tables test
 #
@@ -468,7 +466,7 @@ repair table slow_log;
 # check that no warning occurs on "create like" for the log tables
 create table general_log_new like general_log;
 create table slow_log_new like slow_log;
-show tables like "%log%";
+show tables where Tables_in_mysql like '%log%' and Tables_in_mysql != 'ndb_binlog_index';
 drop table slow_log_new, general_log_new;
 use test;
 

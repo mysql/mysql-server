@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 
 #-----------------------------------------------------------------------------
@@ -11,7 +10,7 @@ call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # We let our server restart attempts write to the file $server_log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
@@ -22,13 +21,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --error 0, 1
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
@@ -80,15 +73,9 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
---exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0 --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -96,11 +83,11 @@ EOF
 
 --echo # Search for : Skipping generation of SSL certificates as --auto_generate_certs is set to OFF.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as --auto_generate_certs is set to OFF;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 --echo # Search for : Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF.
 let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Ensure that certificate files are not there after server is started
@@ -127,8 +114,7 @@ let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_aut
 
 --echo # Ensure that sha connection is not possible in absence of certificates and keys
 connect (test_root_2,localhost,root,,,,,);
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 --error 1
 --exec $MYSQL -uwl7699_sha256 -pabcd -e "show status like 'Ssl_cipher'"
 drop user wl7699_sha256;
@@ -146,15 +132,9 @@ disconnect test_root_2;
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -162,7 +142,7 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Search for SSL certificate and key files in Data directory.
@@ -183,7 +163,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # Ensure that server is ssl enabled
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
@@ -197,23 +177,17 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --shutdown_server 
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
---exec echo "restart: --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 --echo # Restart completed.
 
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Search for RSA key files in Data directory.
@@ -246,15 +220,9 @@ let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
 --send_shutdown
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1 --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -265,9 +233,9 @@ EOF
 
 --echo # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files are present in data directory;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Skipping generation of RSA key pair as key files are present in data directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
+let SEARCH_PATTERN= Skipping generation of RSA key pair;
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # 5.2 : System variables
@@ -280,12 +248,11 @@ show variables like 'sha256%';
 
 --echo # 5.3 : SHA256_password user
 connection test_root_4;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -309,13 +276,7 @@ disconnect test_root_4;
 --send_shutdown
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
@@ -326,7 +287,7 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
---exec echo "restart:--auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -334,11 +295,11 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # 6.2 : System variables
@@ -351,18 +312,17 @@ show variables like 'sha256%';
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
 --echo # 6.4 : SHA256_password user
 connection test_root_6;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -387,13 +347,7 @@ disconnect test_root_6;
 --send_shutdown
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
@@ -404,15 +358,15 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
---exec echo "restart: --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 --echo # Restart completed.
 
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --error 1
@@ -446,8 +400,7 @@ show variables like 'sha256%';
 
 --echo # 7.4 : SHA256_password user
 connection test_root_7;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should not be able to connect to server using generated SSL certificates.
@@ -478,15 +431,9 @@ disconnect test_root_7;
 --send_shutdown
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --ssl-cipher=DHE-RSA-AES256-SHA" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -494,7 +441,7 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 # Using SSL Certificates

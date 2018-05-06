@@ -6,17 +6,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 show global variables like 'ndb_slave_conflict_role';
 Variable_name	Value
 ndb_slave_conflict_role	NONE
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_SQL_Running = 'Yes'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 stop slave sql_thread;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_SQL_Running = 'No'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Show set-to-same state is ok
 set global ndb_slave_conflict_role = NONE;
 Now transition through all status, including set-to-self
@@ -69,11 +61,7 @@ set global ndb_slave_conflict_role = "NONE";
 Now test transitions not possible due to 
 Slave SQL thread running
 start slave sql_thread;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_SQL_Running = 'Yes'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 From NONE
 set global ndb_slave_conflict_role = "NONE";
 set global ndb_slave_conflict_role = "PRIMARY";

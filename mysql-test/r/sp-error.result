@@ -1,6 +1,4 @@
 drop table if exists t1, t2;
-SELECT * FROM mysql.proc INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/proc.txt';
-delete from mysql.proc;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
@@ -295,14 +293,6 @@ lock table t1 read|
 call p()|
 unlock tables|
 drop procedure p|
-lock tables t1 read, mysql.proc write|
-ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-lock tables mysql.proc write, mysql.user write|
-ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-lock tables t1 read, mysql.proc read|
-unlock tables|
-lock tables mysql.proc write|
-unlock tables|
 drop function if exists f1|
 create function f1(i int) returns int
 begin
@@ -505,16 +495,6 @@ ERROR 0A000: LOCK is not allowed in stored procedures
 create procedure bug6600()
 unlock table t1|
 ERROR 0A000: UNLOCK is not allowed in stored procedures
-drop procedure if exists bug9566|
-create procedure bug9566()
-begin
-select * from t1;
-end|
-lock table t1 read|
-alter procedure bug9566 comment 'Some comment'|
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-unlock tables|
-drop procedure bug9566|
 drop procedure if exists bug7299|
 create procedure bug7299()
 begin
@@ -638,9 +618,6 @@ flush tables;
 return 5;
 end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function bug8409() returns int begin reset query cache;
-return 1; end|
-ERROR 0A000: RESET is not allowed in stored function or trigger
 create function bug8409() returns int begin reset master;
 return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
@@ -665,9 +642,6 @@ ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin flush status;
 return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function bug8409() returns int begin flush des_key_file;
-return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin flush user_resources;
 return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
@@ -681,7 +655,7 @@ begin
 end|
 show procedure status like 'bug17015%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug17015_0123456789012345678901234567890123456789012345678901234	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	bug17015_0123456789012345678901234567890123456789012345678901234	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 drop procedure if exists bug10969|
 create procedure bug10969()
@@ -1093,9 +1067,9 @@ create procedure mysqltest2.p1() select version();
 create procedure p2() select version();
 ERROR 3D000: No database selected
 use mysqltest2;
-show procedure status;
+show procedure status like 'p1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database mysqltest2;
 use test;
 DROP FUNCTION IF EXISTS bug13012|
@@ -1171,9 +1145,9 @@ create procedure ` bug15658`() select 1;
 call ` bug15658`();
 1
 1
-show procedure status;
+show procedure status like '%bug15658';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure ` bug15658`;
 drop function if exists bug14270;
 drop table if exists t1;
@@ -1228,9 +1202,6 @@ CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
 ERROR HY000: View's SELECT contains a 'INTO' clause
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
 ERROR HY000: View's SELECT contains a 'INTO' clause
-CREATE PROCEDURE bug20953()
-CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
-ERROR HY000: View's SELECT contains a 'PROCEDURE' clause
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 FROM (SELECT 1) AS d1;
 DROP PROCEDURE bug20953;
 CREATE PROCEDURE bug20953(i INT) CREATE VIEW v AS SELECT i;
@@ -1453,19 +1424,6 @@ end
 until true end repeat retry;
 end//
 ERROR 42000: LEAVE with no matching label: retry
-drop procedure if exists proc_28360;
-drop function if exists func_28360;
-CREATE PROCEDURE proc_28360()
-BEGIN
-ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-END//
-ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
-CREATE FUNCTION func_28360() RETURNS int
-BEGIN
-ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-RETURN 0;
-END//
-ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
 DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1()
 BEGIN
@@ -1487,13 +1445,13 @@ CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
 SELECT inexistent(), 1 + ,;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',' at line 1
 SELECT inexistent();
 ERROR 3D000: No database selected
 SELECT .inexistent();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()' at line 1
-SELECT ..inexistent();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
+SELECT ..inexistent();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '..inexistent()' at line 1
 USE test;
 create function f1() returns int
 begin
@@ -1663,7 +1621,6 @@ end|
 call p1(1);
 set @@max_sp_recursion_depth = @old_recursion_depth;
 drop procedure p1;
-LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2);
 SELECT MAX (a) FROM t1 WHERE b = 999999;
@@ -1730,8 +1687,6 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 SELECT CAST('10 ' as unsigned integer);
@@ -1902,8 +1857,6 @@ DROP PROCEDURE p1;
 # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1, 2);
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
@@ -1959,8 +1912,6 @@ SET sql_mode = @sql_mode_saved;
 # Bug#55850: Trigger warnings not cleared.
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP PROCEDURE IF EXISTS p1;
@@ -2581,8 +2532,6 @@ DROP PROCEDURE p13;
 # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(msg VARCHAR(255));
@@ -2800,8 +2749,6 @@ SET sql_mode = default;
 # are declared.
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 CREATE PROCEDURE p1()
@@ -2910,3 +2857,44 @@ drop function test.f111111111122222222223333333333444444444455555555556666666666
 ERROR 42000: Identifier name 'f111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaa' is too long
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 ERROR 42000: Incorrect database name 'mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999a'
+#
+# WL#7897 -- Use DD API for Stored Routines.
+# Test cases to verify error scenarios.
+#
+# Case 1. Test case to verify length of stored routine name length.
+#         STORED PROCEDURE -- name with maximum length
+my_column
+1
+#         STORED PROCEDURE -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+#         STORED FUNCTION -- name with maximum length
+my_column
+1
+#         STORED FUNCTION -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+# Case 2: Test case to validate stored routine name.
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+# Case 3: Test case to verify routine's parameter length.
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+# Case 4: Test case to validate routine's parameter name.
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+# Case 5: Test case to verify comment string length.
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+# Case 6: Test case to validate comment string.
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+# Cleanup

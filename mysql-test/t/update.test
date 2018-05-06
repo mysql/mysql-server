@@ -1,7 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# Skipping it for binlog_format=STATEMENT due to Unsafe statements:
+# unsafe auto-increment column, LIMIT clause.
+--source include/not_binlog_format_statement.inc
 
 #
 # test of updating of keys
@@ -524,12 +523,15 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 FLUSH STATUS; # FLUSH is autocommit, so we put it outside of transaction
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+# There is one handler_update less when the binary log is enabled.
+SET @binlog_handler_update= IF(@@global.log_bin AND @@global.binlog_format != 'STATEMENT', 1, 0);
+--let $handler_update_statement= SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE'
+--eval $handler_update_statement
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 
 --echo Same test with a different UPDATE.
@@ -538,12 +540,12 @@ ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
+--eval $handler_update_statement
 ROLLBACK;
 DROP TABLE t1, t2;
 
@@ -564,6 +566,8 @@ INSERT INTO t1 SELECT NULL, 0 FROM t1;
 INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+ANALYZE TABLE t1,t2;
 
 let $query=
 UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
@@ -623,10 +627,13 @@ KEY key1 (a,b,c)
 
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+analyze table t1;
 
 # Updating part of index, should still use the index for the order by (no
 # filesort)
+analyze table t1;
 let $query=UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -634,6 +641,7 @@ SELECT * FROM t1;
 # Updating field not included in index, should use index for order by (no file
 # sort) 
 let $query=UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -642,14 +650,18 @@ SELECT * FROM t1;
 # Updating field included in index, should use index for order by (no file
 #sort).
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
+analyze table t1;
 let $query=UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by as range on
 # "a" is not constant
-let $query=UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+analyze table t1;
+let $query=UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -664,18 +676,21 @@ ANALYZE TABLE t1;
 # Updating part of index, should still use the index for the order by (no file
 # sort)
 let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by
 let $query=UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
 
 # Must use file sort since the index can not be used for order by
 let $query=UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -693,6 +708,7 @@ ANALYZE TABLE t1;
 # Updating part of index, should still use the index for the order by (no file
 # sort)
 let $query=UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
+--replace_column 10 #
 eval explain $query;
 eval $query;
 SELECT * FROM t1;
@@ -700,6 +716,15 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo # End of test for Bug#18698556
+
+--echo #
+--echo # Bug#21944866: REFACTORING: REMOVE KILL_BAD_DATA
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b DATE);
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE t1 SET b= NULL WHERE a < '00:38:47.008761';
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#21032418: PERFORMANCE REGRESSION IN 5.6: UPDATE DOES NOT USE INDEX

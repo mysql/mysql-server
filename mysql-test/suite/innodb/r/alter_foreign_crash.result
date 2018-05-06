@@ -2,7 +2,7 @@
 # Bug #20476395 DICT_LOAD_FOREIGNS() FAILED IN
 # COMMIT_INPLACE_ALTER_TABLE
 #
-call mtr.add_suppression("InnoDB: Failed to load table");
+call mtr.add_suppression("Failed to load table");
 create database bug;
 use bug;
 create table parent(a serial) engine=innodb;
@@ -16,9 +16,9 @@ SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
 # Kill and restart
 show tables;
 Tables_in_bug
+child
 parent
 alter table parent row_format=dynamic;
-Warnings:
-Warning	1088	InnoDB: Could not add foreign key constraints.
+drop table child;
 drop table parent;
 drop database bug;

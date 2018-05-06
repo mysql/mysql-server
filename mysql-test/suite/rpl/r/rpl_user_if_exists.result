@@ -8,18 +8,19 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [On Master]
 # No users exist:
-call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS');
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
 ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
@@ -40,8 +41,8 @@ COUNT(*)
 2
 CREATE USER IF NOT EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3163	User 'wl8540'@'nohost1' already exists.
-Note	3163	User 'wl8540'@'nohost2' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost1' already exists.
+Note	3163	Authorization ID 'wl8540'@'nohost2' already exists.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 2
@@ -58,14 +59,14 @@ COUNT(*)
 CREATE USER wl8540@nohost1;
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
 ALTER USER IF EXISTS wl8540@nohost1, wl8540@nohost2 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'wl8540'@'nohost1' does not exist.
-Note	3162	User 'wl8540'@'nohost2' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost1' does not exist.
+Note	3162	Authorization ID 'wl8540'@'nohost2' does not exist.
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
 COUNT(*)
 0
@@ -87,20 +88,19 @@ IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y';
 ALTER USER IF EXISTS slave_user2@localhost
 IDENTIFIED WITH 'sha256_password' WITH MAX_CONNECTIONS_PER_HOUR 2;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 DROP USER IF EXISTS slave_user2@localhost;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2,
 slave_user1@localhost,slave_user2@localhost;
 Warnings:
-Note	3162	User 'slave_user2'@'localhost' does not exist.
+Note	3162	Authorization ID 'slave_user2'@'localhost' does not exist.
 FLUSH PRIVILEGES;
 include/sync_slave_sql_with_master.inc
-# Search warnings in the server log
-WL11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
-[connection master]
+WL#11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
 # All users exist on master, some on slave
+[connection master]
 CREATE USER u1,u2;
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
@@ -108,11 +108,11 @@ set @@session.sql_log_bin=1;
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3163	User 'u1'@'%' already exists.
-Note	3163	User 'u2'@'%' already exists.
-Note	3163	User 'u3'@'%' already exists.
-Note	3163	User 'u4'@'%' already exists.
-DROP USER u1, u2, u3, u4;
+Note	3163	Authorization ID 'u1'@'%' already exists.
+Note	3163	Authorization ID 'u2'@'%' already exists.
+Note	3163	Authorization ID 'u3'@'%' already exists.
+Note	3163	Authorization ID 'u4'@'%' already exists.
+DROP USER IF EXISTS u1, u2, u3, u4;
 CREATE USER u1,u2;
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
@@ -127,11 +127,11 @@ set @@session.sql_log_bin=1;
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3163	User 'u1'@'%' already exists.
-Note	3163	User 'u2'@'%' already exists.
-Note	3163	User 'u3'@'%' already exists.
-Note	3163	User 'u4'@'%' already exists.
-DROP USER u1, u2, u3, u4;
+Note	3163	Authorization ID 'u1'@'%' already exists.
+Note	3163	Authorization ID 'u2'@'%' already exists.
+Note	3163	Authorization ID 'u3'@'%' already exists.
+Note	3163	Authorization ID 'u4'@'%' already exists.
+DROP USER IF EXISTS u1, u2, u3, u4;
 set @@session.sql_log_bin=0;
 CREATE USER u1,u2,u3,u4;
 set @@session.sql_log_bin=1;
@@ -147,12 +147,12 @@ CREATE USER u1,u2;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3163	User 'u3'@'%' already exists.
-Note	3163	User 'u4'@'%' already exists.
+Note	3163	Authorization ID 'u3'@'%' already exists.
+Note	3163	Authorization ID 'u4'@'%' already exists.
 set @@session.sql_log_bin=0;
 DROP USER u1,u2;
 set @@session.sql_log_bin=1;
@@ -161,8 +161,8 @@ DROP USER u3,u4;
 [connection master]
 DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 # Some users exist on master, all on slave
 include/sync_slave_sql_with_master.inc
 CREATE USER u1,u2;
@@ -170,19 +170,19 @@ CREATE USER u1,u2;
 CREATE USER u3,u4;
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3163	User 'u3'@'%' already exists.
-Note	3163	User 'u4'@'%' already exists.
+Note	3163	Authorization ID 'u3'@'%' already exists.
+Note	3163	Authorization ID 'u4'@'%' already exists.
 set sql_log_bin=0;
 DROP USER u1,u2;
 set sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 include/sync_slave_sql_with_master.inc
 # Some users exist on master, none on slave
 [connection master]
@@ -191,30 +191,30 @@ CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3163	User 'u3'@'%' already exists.
-Note	3163	User 'u4'@'%' already exists.
-DROP USER u1, u2, u3, u4;
+Note	3163	Authorization ID 'u3'@'%' already exists.
+Note	3163	Authorization ID 'u4'@'%' already exists.
+DROP USER IF EXISTS u1, u2, u3, u4;
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
 set @@session.sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
 # No users exist on master, some on slave
 include/sync_slave_sql_with_master.inc
 CREATE USER u3,u4;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
-Note	3162	User 'u3'@'%' does not exist.
-Note	3162	User 'u4'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u3'@'%' does not exist.
+Note	3162	Authorization ID 'u4'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 DROP USER u1, u2;
 set @@session.sql_log_bin=0;
@@ -222,30 +222,30 @@ DROP USER u3,u4;
 set @@session.sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
-Note	3162	User 'u3'@'%' does not exist.
-Note	3162	User 'u4'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u3'@'%' does not exist.
+Note	3162	Authorization ID 'u4'@'%' does not exist.
 # No users exist on master, all on slave
 include/sync_slave_sql_with_master.inc
 CREATE USER u1,u2,u3,u4;
 [connection master]
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
-Note	3162	User 'u3'@'%' does not exist.
-Note	3162	User 'u4'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u3'@'%' does not exist.
+Note	3162	Authorization ID 'u4'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 set @@session.sql_log_bin=0;
-DROP USER u1, u2, u3, u4;
+DROP USER IF EXISTS u1, u2, u3, u4;
 set @@session.sql_log_bin=1;
 DROP USER IF EXISTS u1, u2, u3, u4;
 Warnings:
-Note	3162	User 'u1'@'%' does not exist.
-Note	3162	User 'u2'@'%' does not exist.
-Note	3162	User 'u3'@'%' does not exist.
-Note	3162	User 'u4'@'%' does not exist.
+Note	3162	Authorization ID 'u1'@'%' does not exist.
+Note	3162	Authorization ID 'u2'@'%' does not exist.
+Note	3162	Authorization ID 'u3'@'%' does not exist.
+Note	3162	Authorization ID 'u4'@'%' does not exist.
 CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
 ERROR HY000: Incorrect DAY value: '66666'
 ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
@@ -254,25 +254,50 @@ CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
 ERROR 42000: Only integers allowed as number here near '66666888888888888888 DAY' at line 1
 ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
 ERROR 42000: Only integers allowed as number here near '66666888888888888888 DAY' at line 1
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'xyz';
+ERROR HY000: Plugin 'xyz' is not loaded
+ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
+ERROR HY000: Plugin 'xyz' is not loaded
 include/assert.inc [assert that the above Event has not been added to binlog]
 include/assert.inc [assert that the GTID has not been generated]
-CREATE USER u3 IDENTIFIED WITH 'mysql_native_password';
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED WITH 'sha256_password',u3 IDENTIFIED WITH 'sha256_password';
+CREATE USER u3;
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
 ERROR HY000: Plugin 'shsh' is not loaded
-include/sync_slave_sql_with_master.inc
-include/assert.inc [assert that u3's auth_plugin has not changed]
-[connection master]
-DROP USER u2;
+include/assert.inc [assert that the above Event has not been added to binlog]
 CREATE USER u1;
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED WITH 'sha256_password';
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
 ERROR HY000: Plugin 'shsh' is not loaded
-include/sync_slave_sql_with_master.inc
-include/assert.inc [assert that u3's auth_plugin has not changed]
-[connection master]
-ALTER USER IF EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'xyz',u3 IDENTIFIED WITH 'sha256_password';
-ERROR HY000: Plugin 'shsh' is not loaded
-include/sync_slave_sql_with_master.inc
-include/assert.inc [assert that u3's auth_plugin has been changed by alter]
-[connection master]
-DROP USER u1,u2,u3;
+include/assert.inc [assert that the above Event has not been added to binlog]
+DROP USER u3;
+# Errors scenarios related to password_history
+SET @old_password_history= @@GLOBAL.password_history;
+SET GLOBAL password_history=1;
+CREATE USER default_def@localhost IDENTIFIED BY 'haha';
+ALTER USER IF EXISTS default_def@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY 'xyz',u2 IDENTIFIED BY 'pqr';
+ERROR HY000: Cannot use these credentials for 'default_def@localhost' because they contradict the password history policy
+include/assert.inc [assert that the above Event has not been added to binlog]
+DROP USER default_def@localhost;
+CREATE USER to_be_renamed@localhost IDENTIFIED BY 'haha' PASSWORD HISTORY 1;
+RENAME USER to_be_renamed@localhost TO now_renamed@localhost;
+ALTER USER IF EXISTS now_renamed@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY 'mno',u2 IDENTIFIED BY 'pqr';
+ERROR HY000: Cannot use these credentials for 'now_renamed@localhost' because they contradict the password history policy
+include/assert.inc [assert that the above Event has not been added to binlog]
+DROP USER now_renamed@localhost;
+DROP USER u1;
+CREATE USER no_pwd_history@localhost IDENTIFIED BY 'haha';
+RENAME TABLE mysql.password_history TO mysql.password_history_backup;
+# Create will fail: eventual write operation to history
+CREATE USER IF NOT EXISTS u1, no_pwd_history_err@localhost IDENTIFIED BY 'haha'
+  PASSWORD HISTORY 0 PASSWORD REUSE INTERVAL 0 DAY;
+ERROR 42S02: Table 'mysql.password_history' doesn't exist
+# Shall fail as ALTER USER IDENTIFIED BY can write to history
+ALTER USER IF EXISTS u1, no_pwd_history@localhost IDENTIFIED BY 'hihi';
+ERROR 42S02: Table 'mysql.password_history' doesn't exist
+# Shall fail as DROP USER can write to history
+DROP USER IF EXISTS u1,no_pwd_history@localhost;
+ERROR 42S02: Table 'mysql.password_history' doesn't exist
+include/assert.inc [assert that the above Event has not been added to binlog]
+RENAME TABLE mysql.password_history_backup TO mysql.password_history;
+SET @@GLOBAL.password_history= @old_password_history;
+DROP USER no_pwd_history@localhost;
 include/rpl_end.inc

@@ -1,21 +1,4 @@
 #!/usr/bin/perl -w
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
-# reserved.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; version 2 of
-# the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-# 02110-1301  USA
 # This module contains functions which will support the testing of mysqld options givven on command line
 # or in the configuration file (my.cnf).
 # Creator: Horst Hunger
@@ -30,8 +13,6 @@ our @EXPORT= qw(init_bootstrap fini_bootstrap check_bootstrap_log
 	        commandline_bootstrap);
 
 our $mysqld_bootstrap_cmd= "$ENV{'MYSQLD_BOOTSTRAP_CMD'} --basedir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap --datadir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/data/ --tmpdir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/ --log-error=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB";
-
-our $mysqld_bootstrap= "$ENV{'MYSQLD'} --defaults-file=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/my.cnf --bootstrap --core-file --datadir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/data/ --tmpdir=$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/";
 
 #
 # Creates the directories needed by bootstrap cmd.
@@ -60,7 +41,7 @@ rmtree("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap");
 sub create_var_stmt ($) {
 my $test_var= shift;
 my @wrlines; 
-# Input file for bootstrap cmd (mysql_install_db) containing a SELECT var otherwise it is failing.
+# Input file for bootstrap cmd containing a SELECT var otherwise it is failing.
 # It can also be used for test purposes.
 my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql";
 if ($test_var) {
@@ -172,19 +153,6 @@ $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap.out")
 create_my_cnf ();
 create_var_stmt ($test_option);
 my $ret_code= qx($mysqld_bootstrap_cmd $test_option $additional_options< $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql 2>&1);
-}
-
-#
-# Inserts a startup option into my.cnf and exec bootstrap with SELECT variable.
-#
-sub my_cnf_bootstrap ($$) {
-my $test_option= shift;
-my $additional_options= shift;
-my $nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log");
-$nb_rm_files= unlink("$ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap.out");
-insert_option_my_cnf ($test_option);
-create_var_stmt ($test_option);
-my $ret_code= qx($mysqld_bootstrap $additional_options < $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/tmp/bootstrap_in.sql > $ENV{'MYSQLTEST_VARDIR'}/tmp/bootstrap/log/bootstrap.log 2>&1);
 }
 
 1;

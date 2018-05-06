@@ -1,12 +1,7 @@
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
-SELECT @@global.innodb_locks_unsafe_for_binlog;
-@@global.innodb_locks_unsafe_for_binlog
-0
 # keep_locks == 1
 CREATE USER mysqltest@localhost;
 drop table if exists t1;
@@ -43,10 +38,10 @@ update t1 set eta=1+get_lock("hello",10)*0 where tipo=11;
 ** Start new transaction for thread 1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set eta=2 where tipo=22;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ** Release user level name lock from thread 1. This will cause the ULL
@@ -183,10 +178,10 @@ update t1 set eta=1+get_lock("hello",10)*0 where tipo=1;
 ** Start transaction on thread 1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=1 where tipo=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ** Release ULL. This will release the next waiting ULL on thread 2.
@@ -241,7 +236,7 @@ eta	tipo	c
 80	22	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
 90	11	kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
 commit;
-** After a commit the table should be merged with the previous 
+** After a commit the table should be merged with the previous
 ** commit.
 ** This select should show both updates:
 select * from t1;
@@ -365,7 +360,7 @@ eta	tipo	c
 40	2	fffffffffffffffffffffffffffffffffffffffffff
 60	2	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 ** connection thread1
-** Begin a new transaction on thread 1 
+** Begin a new transaction on thread 1
 begin;
 ** Update the same range which is marked for update on thread 2; this
 ** will hang because of row locks.
@@ -474,8 +469,8 @@ begin;
 ** Updating single row using a table scan. This will time out
 ** because of ongoing transaction on thread 1 holding lock on
 ** all primary keys in the scan.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=11 where tipo=22;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ** After the time out the transaction is aborted; no rows should
@@ -732,10 +727,10 @@ delete from t1 where tipo=2;
 ** connection thread1
 begin;
 ** Update on t1 will cause a table scan which will be blocked because
-** the previously initiated table scan applied exclusive key locks on 
+** the previously initiated table scan applied exclusive key locks on
 ** all primary keys.
-** Not so if innodb_locks_unsafe_for_binlog is set. The locks that
-** do not match the WHERE condition are released.
+** Not so if isolation level is READ COMMITTED or READ UNCOMMITTED.
+** The locks that do not match the WHERE condition are released.
 update t1 set tipo=1 where tipo=22;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t1;

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -38,18 +45,11 @@ import java.util.Arrays;
  * <p>
  * The simple case is one index => one field => one column. 
  * <p>
- * For ClusterJ and JPA, indexes can also support multiple columns, with each column 
+ * For ClusterJ, indexes can also support multiple columns, with each column 
  * mapped to one field. This pattern is used for compound primary keys. In this case,
  * there is one instance of IndexHandlerImpl for each index, and the columnNames
  * and fields have the same cardinality.
  * This is one index => multiple (one field => one column)
- * <p>
- * For JPA, indexes can also support one field mapped to multiple columns, which is
- * the pattern used for compound foreign keys to represent relationships.
- * In this case, there is a single instance of IndexHandlerImpl for each index. The 
- * columnNames lists the columns covered by the index, and there is one field. The
- * field manages an instance of the object id class for the relationship.
- * This is one index => one field => multiple columns.
  * <p>
  *
  */

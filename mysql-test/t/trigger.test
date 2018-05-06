@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
@@ -372,7 +367,7 @@ drop table t1;
 # we should perform row-by-row deletion instead of using optimized
 # delete_all_rows() method.
 #
-create table t1 (i int) engine=myisam;
+create table t1 (i int);
 insert into t1 values (1), (2);
 create trigger trg1 before delete on t1 for each row set @del_before:= @del_before + old.i;
 create trigger trg2 after delete on t1 for each row set @del_after:= @del_after + old.i;
@@ -548,7 +543,7 @@ select * from t1;
 # Also drops all triggers
 drop table t1, t2;
 
-create table t1 (i int, bt int, k int, key(k)) engine=myisam;
+create table t1 (i int, bt int, k int, key(k));
 create table t2 (i int);
 insert into t1 values (1, 1, 1), (2, 2, 2);
 insert into t2 values (1), (2), (3);
@@ -657,8 +652,6 @@ drop table t1;
 # of functions and triggers.
 create table t1 (id int);
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create trigger t1_ai after insert on t1 for each row reset query cache;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row reset master;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row reset slave;
@@ -671,8 +664,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush status;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create trigger t1_ai after insert on t1 for each row flush des_key_file;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush user_resources;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -683,11 +674,6 @@ drop procedure if exists p1;
 
 create trigger t1_ai after insert on t1 for each row call p1();
 create procedure p1() flush tables;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-insert into t1 values (0);
-
-drop procedure p1;
-create procedure p1() reset query cache;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 insert into t1 values (0);
 
@@ -728,11 +714,6 @@ insert into t1 values (0);
 
 drop procedure p1;
 create procedure p1() flush status;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-insert into t1 values (0);
-
-drop procedure p1;
-create procedure p1() flush des_key_file;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 insert into t1 values (0);
 
@@ -796,7 +777,7 @@ end|
 
 create trigger tr1 before insert on t1 for each row 
 begin 
-  call bug11587();
+  call bug11587(new.c2);
   set new.c2= '2004-04-02';
 end|
 delimiter ;|
@@ -830,6 +811,7 @@ drop trigger t1_ai;
 drop trigger t2_ai;
 create trigger t1_bu before update on t1
   for each row insert into t1 values (2);
+insert into t1 values (1);
 --error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 update t1 set f1= 10;
 select * from t1;
@@ -1112,38 +1094,6 @@ drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
 use test;
-# And now let us check that the properly handle rename if there is some
-# error during it (that we rollback such renames completely).
-create table t1 (id int);
-create trigger t1_bi before insert on t1 for each row set @a:=new.id;
-create trigger t1_ai after insert on t1 for each row set @b:=new.id;
-insert into t1 values (101);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-# Trick which makes update of second .TRN file impossible
-let $MYSQLD_DATADIR= `select @@datadir`;
-write_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-dummy
-EOF
-chmod 0000 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Normalize the datadir path; the embedded server doesn't chdir to datadir
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error 1
-rename table t1 to t2;
-# 't1' should be still there and triggers should work correctly
-insert into t1 values (102);
-select @a, @b;
-select trigger_schema, trigger_name, event_object_schema,
-       event_object_table, action_statement from information_schema.triggers
-       where event_object_schema = 'test';
-chmod 0600 $MYSQLD_DATADIR/test/t1_ai.TRN~;
-remove_file $MYSQLD_DATADIR/test/t1_ai.TRN~;
-# Let us check that updates to .TRN files were rolled back too
-drop trigger t1_bi;
-drop trigger t1_ai;
-drop table t1;
 
 # Test for bug #16829 "Firing trigger with RETURN crashes the server"
 # RETURN is not supposed to be used anywhere except functions, so error
@@ -1746,9 +1696,10 @@ disconnect addconroot2;
 disconnect addconwithoutdb;
 #
 # Bug #26162: Trigger DML ignores low_priority_updates setting
+#"LOW_PRIORITY_UPDATES" used by the test is not supported by Innodb
 #
-CREATE TABLE t1 (id INTEGER);
-CREATE TABLE t2 (id INTEGER);
+CREATE TABLE t1 (id INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (id INTEGER) ENGINE=MyISAM;
 
 INSERT INTO t2 VALUES (1),(2);
 
@@ -2403,8 +2354,8 @@ DROP TABLE t1, t2;
 #
 # Bug #48525: trigger changes "Column 'id' cannot be null" behaviour
 #
-CREATE TABLE t1 (id INT NOT NULL);
-CREATE TABLE t2 (id INT NOT NULL);
+CREATE TABLE t1 (id INT NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t2 (id INT NOT NULL) ENGINE=MyISAM;
 INSERT t1 VALUES (1),(2),(3);
 UPDATE IGNORE t1 SET id=NULL;
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
@@ -2415,6 +2366,12 @@ DROP TABLE t1,t2;
 
 --echo #
 --echo # Bug#50755: Crash if stored routine def contains version comments
+--echo #
+--echo # With WL#9494, the SHOW TRIGGERS no more parses
+--echo # the underlaying trigger, and hence it would not
+--echo # report parse error. This means that the code
+--echo # causing this issue is removed now with WL#9494.
+--echo # This test case is kept for reference.
 --echo #
 
 --disable_warnings
@@ -2430,16 +2387,11 @@ CREATE TABLE t1 (b INT);
 CREATE TABLE t2 (a INT);
 
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
---echo # Used to crash
+--replace_column 6 #
 SHOW TRIGGERS IN db1;
 --error ER_PARSE_ERROR
 INSERT INTO t2 VALUES (1);
 SELECT * FROM t1;
-
---echo # Work around Bug#45235
-let $MYSQLD_DATADIR = `select @@datadir`;
---remove_file $MYSQLD_DATADIR/db1/t2.TRG
---remove_file $MYSQLD_DATADIR/db1/trg1.TRN
 
 DROP DATABASE db1;
 USE test;
@@ -2906,13 +2858,1089 @@ DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 
 --echo #
+--echo # Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+RENAME TABLE t1 TO t1Renamed;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
+
+--echo End of 5.7 tests.
+
+--echo #
+--echo # Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
+--echo #
+
+--error ER_BAD_DB_ERROR
+SHOW CREATE TRIGGER non_existence_db.some_trigger;
+
+--error ER_BAD_DB_ERROR
+CREATE TRIGGER non_existent_db.trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--error ER_BAD_DB_ERROR
+DROP TRIGGER non_existent_db.trg1;
+
+--echo #
+--echo # Bug#24449174 - DROPPING A PARTITION DROPS THE TRIGGER ON 8.0.0
+--echo #
+
+CREATE TABLE t1 (val INT NOT NULL) ENGINE=InnoDB
+PARTITION BY LIST(val) (
+  PARTITION p1 VALUES IN (1,2,3),
+  PARTITION p2 VALUES IN (4,5)
+);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER t1_bi;
+
+ALTER TABLE t1 DROP PARTITION p1;
+
+--replace_column 7 #
+SHOW CREATE TRIGGER t1_bi;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
+--echo #
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1a BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1e BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a2 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c2 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d2 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f2 AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a0 BEFORE INSERT ON t1 FOR EACH ROW PRECEDES trg1a BEGIN END;
+CREATE TRIGGER trg1a3 BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS trg1a2 BEGIN END;
+CREATE TRIGGER trg1b0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES trg1b BEGIN END;
+CREATE TRIGGER trg1b3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS trg1b2 BEGIN END;
+CREATE TRIGGER trg1c0 BEFORE UPDATE ON t1 FOR EACH ROW PRECEDES trg1c BEGIN END;
+CREATE TRIGGER trg1c3 BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS trg1c2 BEGIN END;
+SELECT TRIGGER_NAME FROM information_schema.triggers WHERE TRIGGER_NAME LIKE 'trg1%' ORDER BY TRIGGER_NAME;
+--replace_column 6 # 7 #
+SHOW TRIGGERS;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25581925: 'MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)' AT
+--echo #               DD::CACHE::DICTIONARY_CLIENT:
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE SCHEMA s1;
+CREATE VIEW s1.v1 AS SELECT * FROM t1;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+LOCK TABLE s1.v1 WRITE;
+# This used to cause an assert.
+DROP TRIGGER trg1;
+UNLOCK TABLES;
+DROP VIEW s1.v1;
+DROP TABLE t1;
+DROP SCHEMA s1;
+
+###########################################################################
+#
+# Tests for WL#2818:
+#   - Check that triggers are executed under the authorization of the definer.
+#   - Check DEFINER clause of CREATE TRIGGER statement;
+#     - Check that SUPER privilege required to create a trigger with different
+#       definer.
+#     - Check that if the user specified as DEFINER does not exist, a warning
+#       is emitted.
+#     - Check that the definer of a trigger does not exist, the trigger will
+#       not be activated.
+#   - Check that SHOW TRIGGERS statement provides "Definer" column.
+#   - Check that if trigger contains NEW/OLD variables, the definer must have
+#     SELECT privilege on the subject table (aka BUG#15166/BUG#15196).
+#
+#  Let's also check that user name part of definer can contain '@' symbol (to
+#  check that triggers are not affected by BUG#13310 "incorrect user parsing
+#  by SP").
+#
+###########################################################################
+
+#
+# Prepare environment.
+#
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT INSERT, DROP ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+#
+# Check that the user must have TRIGGER privilege to create a trigger.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--disconnect wl2818_definer_con
+
+#
+# Check that the user must have TRIGGER privilege to drop a trigger.
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+REVOKE TRIGGER ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DROP TRIGGER trg1;
+
+--disconnect wl2818_definer_con
+
+#
+# Check that the definer must have TRIGGER privilege to activate a trigger.
+#
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(0);
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+INSERT INTO t1 VALUES(0);
+
+# Cleanup for further tests.
+DROP TRIGGER trg1;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+--disconnect wl2818_definer_con
+
+--connection default
+--echo
+--echo ---> connection: default
+
+REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
+
+#
+# Check that triggers are executed under the authorization of the definer:
+#   - create two tables under "definer";
+#   - grant all privileges on the test db to "definer";
+#   - grant all privileges on the first table to "invoker";
+#   - grant only select privilege on the second table to "invoker";
+#   - create a trigger, which inserts a row into the second table after
+#     inserting into the first table.
+#   - insert a row into the first table under "invoker". A row also should be
+#     inserted into the second table.
+#
+
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(CURRENT_USER());
+
+--connection default
+--echo
+--echo ---> connection: default
+
+# Setup definer's privileges.
+
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+# Setup invoker's privileges.
+
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1
+  TO 'mysqltest_inv'@localhost;
+
+GRANT SELECT ON mysqltest_db1.t2
+  TO 'mysqltest_inv'@localhost;
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+INSERT INTO t1 VALUES(1);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--connect (wl2818_invoker_con,localhost,mysqltest_inv,,mysqltest_db1)
+--connection wl2818_invoker_con
+--echo
+--echo ---> connection: wl2818_invoker_con
+
+use mysqltest_db1;
+
+INSERT INTO t1 VALUES(2);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#
+# Check that if definer lost some privilege required to execute (activate) a
+# trigger, the trigger will not be activated:
+#  - create a trigger on insert into the first table, which will insert a row
+#    into the second table;
+#  - revoke INSERT privilege on the second table from the definer;
+#  - insert a row into the first table;
+#  - check that an error has been risen;
+#  - check that no row has been inserted into the second table;
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE INSERT ON mysqltest_db1.t2 FROM mysqltest_dfn@localhost;
+
+--connection wl2818_invoker_con
+--echo
+--echo ---> connection: wl2818_invoker_con
+
+use mysqltest_db1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES(3);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+#
+# Check DEFINER clause of CREATE TRIGGER statement.
+#
+#   - Check that SUPER privilege required to create a trigger with different
+#     definer:
+#     - try to create a trigger with DEFINER="definer@localhost" under
+#       "invoker";
+#     - analyze error code;
+#   - Check that if the user specified as DEFINER does not exist, a warning is
+#     emitted:
+#     - create a trigger with DEFINER="non_existent_user@localhost" from
+#       "definer";
+#     - check that a warning emitted;
+#   - Check that the definer of a trigger does not exist, the trigger will not
+#     be activated:
+#     - activate just created trigger;
+#     - check error code;
+#
+
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+use mysqltest_db1;
+
+DROP TRIGGER trg1;
+
+# Check that SUPER is required to specify different DEFINER.
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+
+--disconnect wl2818_definer_con
+--connect (wl2818_definer_con,localhost,mysqltest_dfn,,mysqltest_db1)
+--connection wl2818_definer_con
+--echo
+--echo ---> connection: wl2818_definer_con
+
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+# Create with non-existent user.
+
+CREATE DEFINER='mysqltest_nonexs'@'localhost'
+  TRIGGER trg2 AFTER INSERT ON t1
+  FOR EACH ROW
+    SET @new_sum = 0;
+
+# Check that trg2 will not be activated.
+
+--error ER_NO_SUCH_USER
+INSERT INTO t1 VALUES(6);
+
+#
+# Check that SHOW TRIGGERS statement provides "Definer" column.
+#
+
+--replace_column 6 #
+SHOW TRIGGERS;
+
+DROP TRIGGER trg1;
+DROP TRIGGER trg2;
+
+#
+# Cleanup
+#
+
+--connection default
+--echo
+--echo ---> connection: default
+
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+
+DROP DATABASE mysqltest_db1;
+
+
+###########################################################################
+#
+# BUG#15166: Wrong update [was: select/update] permissions required to execute
+# triggers.
+#
+# BUG#15196: Wrong select permission required to execute triggers.
+#
+###########################################################################
+
+#
+# Prepare environment.
+#
+
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+
+use mysqltest_db1;
+
+# Tables for tesing table-level privileges:
+CREATE TABLE t1(col CHAR(20)); # table for "read-value" trigger
+CREATE TABLE t2(col CHAR(20)); # table for "write-value" trigger
+
+# Tables for tesing column-level privileges:
+CREATE TABLE t3(col CHAR(20)); # table for "read-value" trigger
+CREATE TABLE t4(col CHAR(20)); # table for "write-value" trigger
+
+CREATE USER mysqltest_u1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+GRANT TRIGGER ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+SET @mysqltest_var = NULL;
+
+--connect (bug15166_u1_con,localhost,mysqltest_u1,,mysqltest_db1)
+
+# parsing (CREATE TRIGGER) time:
+#   - check that nor SELECT either UPDATE is required to execute triggger w/o
+#     NEW/OLD variables.
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+CREATE TRIGGER t1_trg_after_delete AFTER DELETE ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = 'Hello, world!';
+
+# parsing (CREATE TRIGGER) time:
+#   - check that UPDATE is not enough to read the value;
+#   - check that UPDATE is required to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+# - table-level privileges
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t1_trg_err_1 BEFORE INSERT ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+DROP TRIGGER t1_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t1_trg_err_2 BEFORE DELETE ON t1
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+DROP TRIGGER t1_trg_err_2;
+
+CREATE TRIGGER t2_trg_before_insert BEFORE INSERT ON t2
+  FOR EACH ROW
+    SET NEW.col = 't2_trg_before_insert';
+
+# - column-level privileges
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t3_trg_err_1 BEFORE INSERT ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+DROP TRIGGER t3_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t3_trg_err_2 BEFORE DELETE ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+DROP TRIGGER t3_trg_err_2;
+
+CREATE TRIGGER t4_trg_before_insert BEFORE INSERT ON t4
+  FOR EACH ROW
+    SET NEW.col = 't4_trg_before_insert';
+
+# parsing (CREATE TRIGGER) time:
+#   - check that SELECT is required to read the value;
+#   - check that SELECT is not enough to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+--connection bug15166_u1_con
+--echo
+--echo ---> connection: bug15166_u1_con
+
+use mysqltest_db1;
+
+# - table-level privileges
+
+CREATE TRIGGER t1_trg_after_insert AFTER INSERT ON t1
+ FOR EACH ROW
+  SET @mysqltest_var = NEW.col;
+
+CREATE TRIGGER t1_trg_after_update AFTER UPDATE ON t1
+ FOR EACH ROW
+  SET @mysqltest_var = OLD.col;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t2_trg_err_1 BEFORE UPDATE ON t2
+ FOR EACH ROW
+  SET NEW.col = 't2_trg_err_1';
+DROP TRIGGER t2_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t2_trg_err_2 BEFORE UPDATE ON t2
+ FOR EACH ROW
+  SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t2_trg_err_2;
+
+# - column-level privileges
+
+CREATE TRIGGER t3_trg_after_insert AFTER INSERT ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = NEW.col;
+
+CREATE TRIGGER t3_trg_after_update AFTER UPDATE ON t3
+  FOR EACH ROW
+    SET @mysqltest_var = OLD.col;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t4_trg_err_1 BEFORE UPDATE ON t4
+ FOR EACH ROW
+  SET NEW.col = 't4_trg_err_1';
+DROP TRIGGER t4_trg_err_1;
+
+# TODO: check privileges at CREATE TRIGGER time.
+# --error ER_COLUMNACCESS_DENIED_ERROR
+CREATE TRIGGER t4_trg_err_2 BEFORE UPDATE ON t4
+ FOR EACH ROW
+  SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t4_trg_err_2;
+
+# execution time:
+#   - check that UPDATE is not enough to read the value;
+#   - check that UPDATE is required to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE SELECT ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE SELECT(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE SELECT(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+# - table-level privileges
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES('line1');
+
+SELECT * FROM t1;
+SELECT @mysqltest_var;
+
+INSERT INTO t2 VALUES('line2');
+
+SELECT * FROM t2;
+
+# - column-level privileges
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t3 VALUES('t3_line1');
+
+SELECT * FROM t3;
+SELECT @mysqltest_var;
+
+INSERT INTO t4 VALUES('t4_line2');
+
+SELECT * FROM t4;
+
+# execution time:
+#   - check that SELECT is required to read the value;
+#   - check that SELECT is not enough to modify the value;
+
+--connection default
+--echo
+--echo ---> connection: default
+
+use mysqltest_db1;
+
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+# - table-level privileges
+
+INSERT INTO t1 VALUES('line3');
+
+SELECT * FROM t1;
+SELECT @mysqltest_var;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES('line4');
+
+SELECT * FROM t2;
+
+# - column-level privileges
+
+INSERT INTO t3 VALUES('t3_line2');
+
+SELECT * FROM t3;
+SELECT @mysqltest_var;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t4 VALUES('t4_line2');
+
+SELECT * FROM t4;
+
+# execution time:
+#   - check that nor SELECT either UPDATE is required to execute triggger w/o
+#     NEW/OLD variables.
+
+DELETE FROM t1;
+
+SELECT @mysqltest_var;
+
+#
+# Cleanup.
+#
+
+DROP USER mysqltest_u1@localhost;
+
+DROP DATABASE mysqltest_db1;
+
+
+#
+# Test for bug #14635 Accept NEW.x as INOUT parameters to stored
+# procedures from within triggers
+#
+# We require UPDATE privilege when NEW.x passed as OUT parameter, and
+# SELECT and UPDATE when NEW.x passed as INOUT parameter.
+#
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+
+CREATE TABLE t1 (i1 INT);
+CREATE TABLE t2 (i1 INT);
+
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+
+GRANT EXECUTE, CREATE ROUTINE, TRIGGER ON *.* TO mysqltest_dfn@localhost;
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
+
+connect (definer,localhost,mysqltest_dfn,,mysqltest_db1);
+connect (invoker,localhost,mysqltest_inv,,mysqltest_db1);
+
+connection definer;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 3;
+CREATE PROCEDURE p2(INOUT i INT) DETERMINISTIC NO SQL SET i = i * 5;
+
+# Check that having no privilege won't work.
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (7);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (11);
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having only SELECT privilege is not enough.
+connection default;
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (13);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (17);
+
+connection default;
+REVOKE SELECT ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having only UPDATE privilege is enough for OUT parameter,
+# but not for INOUT parameter.
+connection default;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (19);
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t2 VALUES (23);
+
+connection default;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+# Check that having SELECT and UPDATE privileges is enough.
+connection default;
+GRANT SELECT, UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+  CALL p2(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (29);
+INSERT INTO t2 VALUES (31);
+
+connection default;
+REVOKE SELECT, UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+
+connection default;
+DROP PROCEDURE p2;
+DROP PROCEDURE p1;
+
+# Check that late procedure redefining won't open a security hole.
+connection default;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+connection definer;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 37;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  CALL p1(NEW.i1);
+
+connection invoker;
+INSERT INTO t1 VALUES (41);
+
+connection definer;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(IN i INT) DETERMINISTIC NO SQL SET @v1 = i + 43;
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (47);
+
+connection definer;
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(INOUT i INT) DETERMINISTIC NO SQL SET i = i + 51;
+
+connection invoker;
+--error ER_COLUMNACCESS_DENIED_ERROR
+INSERT INTO t1 VALUES (53);
+
+connection default;
+DROP PROCEDURE p1;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+
+connection definer;
+DROP TRIGGER t1_bi;
+
+# Cleanup.
+disconnect definer;
+disconnect invoker;
+connection default;
+DROP USER mysqltest_inv@localhost;
+DROP USER mysqltest_dfn@localhost;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP DATABASE mysqltest_db1;
+USE test;
+
+--echo End of 5.0 tests.
+
+#
+# Bug#23713 LOCK TABLES + CREATE TRIGGER + FLUSH TABLES WITH READ LOCK = deadlock
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock";
+--source include/wait_condition.inc
+create trigger t1_bi before insert on t1 for each row begin end;
+unlock tables;
+connection flush;
+--echo connection: flush
+--reap
+unlock tables;
+connection default;
+select * from t1;
+drop table t1;
+disconnect flush;
+
+#
+# Bug#45412 SHOW CREATE TRIGGER does not require privileges to disclose trigger data
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a char(30)) ENGINE=MEMORY;
+CREATE TRIGGER db1.trg AFTER INSERT ON db1.t1 FOR EACH ROW
+ INSERT INTO db1.t1 VALUES('Some very sensitive data goes here');
+
+CREATE USER 'no_rights'@'localhost';
+REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,no_rights,,);
+SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
+ WHERE trigger_schema = 'db1';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SHOW CREATE TRIGGER db1.trg;
+
+connection default;
+disconnect con1;
+DROP USER 'no_rights'@'localhost';
+DROP DATABASE db1;
+
+#
+# Bug#55421 Protocol::end_statement(): Assertion `0' on multi-table UPDATE IGNORE
+# To reproduce a crash we need to provoke a trigger execution with
+# the following conditions:
+#   - active SELECT statement during trigger execution
+#    (i.e. LEX::current_select != NULL);
+#   - IGNORE option (i.e. LEX::current_select->no_error == TRUE);
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+
+CREATE USER mysqltest_u1@localhost;
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--connect(con1,localhost,mysqltest_u1,,mysqltest_db1)
+
+CREATE TABLE t1 (
+  a1 int,
+  a2 int
+);
+INSERT INTO t1 VALUES (1, 20);
+
+CREATE TRIGGER mysqltest_db1.upd_t1
+BEFORE UPDATE ON t1 FOR EACH ROW SET new.a2 = 200;
+
+CREATE TABLE t2 (
+  a1 int
+);
+
+INSERT INTO t2 VALUES (2);
+
+--connection default
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE IGNORE t1, t2 SET t1.a1 = 2, t2.a1 = 3 WHERE t1.a1 = 1 AND t2.a1 = 2;
+# Cleanup
+
+DROP DATABASE mysqltest_db1;
+DROP USER mysqltest_u1@localhost;
+
+--disconnect con1
+--connection default
+USE test;
+
+--echo End of 5.1 tests.
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+use test;
+
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+
+--echo # Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect (con_user_22,localhost,user_name_len_22_01234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+--echo # Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+connect (con_user_32,localhost,user_name_len_32_012345678901234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+connection default;
+
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+  TRIGGER test1.t1_ai AFTER INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+
+GRANT INSERT ON test1.t1 TO user_name_len_22_01234@localhost;
+
+--echo # Now user_name_len_22_01234 should be able to "SELECT" COUNT(*) FROM
+--echo # test1.t1 by using the trigger
+
+connection con_user_22;
+set @a:=0;
+INSERT INTO test1.t1 VALUES (1,'haha');
+SELECT @a;
+
+connection default;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+  TRIGGER test1.t1_bi BEFORE INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+
+#Cleanup
+DROP DATABASE test1;
+
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+
+--echo #
 --echo # Bug#25209512:  CURRENT_TIMESTAMP PRODUCES ZEROS IN TRIGGER
 --echo #
 
 --echo
 --echo # Case 1: With BEFORE INSERT triggers
 --echo # Scenario 1.1: Normal INSERT
-SET TIMESTAMP= UNIX_TIMESTAMP("2017-05-15 07:07:07");
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-03-30 07:07:07");
 CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
 
 CREATE TRIGGER trigger_for_normal_insert BEFORE INSERT ON t1 FOR EACH ROW
@@ -3093,6 +4121,7 @@ DELIMITER ;$$
 SELECT * FROM t1;
 SELECT * FROM t2;
 
+--echo # Without patch, the after update trigger is not invoked.
 INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
 fld2= 50;
 
@@ -3102,6 +4131,13 @@ SELECT * FROM t2;
 --echo # Without patch, the after update trigger is not invoked.
 INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
 fld2= 50;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Test added for coverage.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
 
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -3139,8 +4175,12 @@ fld2= 50;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
 --echo # Cleanup
 DROP TRIGGER update_before_update;
 DROP TABLE t1, t2;
-
---echo End of 5.7 tests.

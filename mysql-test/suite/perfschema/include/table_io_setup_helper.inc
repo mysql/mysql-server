@@ -5,8 +5,6 @@
 #
 # The general table io test template is as follows
 #
-# --source include/not_embedded.inc
-# --source include/have_perfschema.inc
 # --source ../include/table_io_setup_helper.inc
 # ... more setup scripts as needed ...
 # update performance_schema.setup_consumers set enabled='YES';

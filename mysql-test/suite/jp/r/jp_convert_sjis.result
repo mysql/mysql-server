@@ -41,6 +41,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚P`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -133,6 +135,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚Q`;
 êgêhêiêjêkêlêmênêoêpêqêrêsêtêuêvêwêxêyêz	êgêhêiêjêkêlêmênêoêpêqêrêsêtêuêvêwêxêyêz
 ê{ê|ê}ê~ê€êê‚êƒê„ê…ê†ê‡êˆê‰êŠê‹êŒêêê	ê{ê|ê}ê~ê€êê‚êƒê„ê…ê†ê‡êˆê‰êŠê‹êŒêêê
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE	êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚Q`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 @@ABCDEFGHIJKLMNOPQR	@@ABCDEFGHIJKLMNOPQR
@@ -272,6 +276,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚Q`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚R`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚R`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
@@ -290,6 +296,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚S`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -382,6 +390,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚T`;
 êgêhêiêjêkêlêmênêoêpêqêrêsêtêuêvêwêxêyêz	êgêhêiêjêkêlêmênêoêpêqêrêsêtêuêvêwêxêyêz
 ê{ê|ê}ê~ê€êê‚êƒê„ê…ê†ê‡êˆê‰êŠê‹êŒêêê	ê{ê|ê}ê~ê€êê‚êƒê„ê…ê†ê‡êˆê‰êŠê‹êŒêêê
 êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE	êê‘ê’ê“ê”ê•ê–ê—ê˜ê™êšê›êœêêEEEEE
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚T`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 @@ABCDEFGHIJKLMNOPQR	@@ABCDEFGHIJKLMNOPQR
@@ -521,6 +531,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚T`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚U`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚U`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
@@ -539,6 +551,8 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 °±²³´µ¶·¸¹º»¼½¾¿	°±²³´µ¶·¸¹º»¼½¾¿
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚V`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -631,6 +645,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚W`;
 EEEEEEEEEEEEEEEEEEEE	EEEEEEEEEEEEEEEEEEEE
 EEEEEEEEEEEEEEEEEEEE	EEEEEEEEEEEEEEEEEEEE
 EEEEEEEEEEEEEEEEEEEE	EEEEEEEEEEEEEEEEEEEE
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚W`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 @@ABCDEFGHIJKLMNOPQR	@@ABCDEFGHIJKLMNOPQR
@@ -770,6 +786,8 @@ SELECT `‚b‚P`, CONVERT(`‚b‚P` using ujis) FROM `‚s‚W`;
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using utf8) FROM `‚s‚X`;
 ‚b‚P	CONVERT(`‚b‚P` using utf8)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `‚b‚P`, CONVERT(`‚b‚P` using ucs2) FROM `‚s‚X`;
 ‚b‚P	CONVERT(`‚b‚P` using ucs2)
 ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\	ƒ\\•\—\\‰\\\“\”\–\˜\‘\’\™\š\›\œ\\\

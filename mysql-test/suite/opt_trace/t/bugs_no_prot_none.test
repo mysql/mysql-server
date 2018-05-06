@@ -20,11 +20,10 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 }
 --enable_query_log
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
-            + $VIEW_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--let $support_native_partitioning= 0
 
 --source suite/opt_trace/include/bugs.inc
 
@@ -40,7 +39,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk), 
   KEY i1 (i1),
   KEY vc (vc)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 
 INSERT INTO t1 VALUES (1, -1281753088,'p','r');
 INSERT INTO t1 VALUES (4, NULL,'a','i');

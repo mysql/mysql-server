@@ -11,34 +11,20 @@ values ('localhost', 'user3', '%', 'YES', 'YES');
 insert into performance_schema.setup_actors
 values ('hostb', '%', '%', 'YES', 'YES');
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 hostb	%	%	YES	YES
 hosta	user1	%	YES	YES
 %	user2	%	YES	YES
 localhost	user3	%	YES	YES
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user user1@localhost, user2@localhost,
+user3@localhost, user4@localhost,
+user5@localhost;
 grant ALL on *.* to user1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on *.* to user2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on *.* to user3@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on *.* to user4@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.* to user5@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 flush privileges;
 # Switch to (con1, localhost, user1, , )
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
@@ -103,7 +89,7 @@ thread/sql/one_connection	FOREGROUND	NO	user4	localhost
 insert into performance_schema.setup_actors
 values ('localhost', '%', '%', 'YES', 'YES');
 select * from performance_schema.setup_actors
-order by USER, HOST, ROLE;
+order by USER, HOST, `ROLE`;
 HOST	USER	ROLE	ENABLED	HISTORY
 hostb	%	%	YES	YES
 localhost	%	%	YES	YES

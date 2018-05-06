@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ########################################################################
@@ -112,12 +111,12 @@ SELECT @@global.innodb_adaptive_flushing_lwm;
 
 --disable_warnings
 SELECT @@global.innodb_adaptive_flushing_lwm =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
 --enable_warnings
 SELECT @@global.innodb_adaptive_flushing_lwm;
 --disable_warnings
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
  WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
 --enable_warnings
 

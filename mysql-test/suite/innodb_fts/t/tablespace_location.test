@@ -8,9 +8,6 @@
 # Create a table with FTS columns and make sure the auxilliary
 # table are created in the same tablespace.
 
---source include/have_innodb.inc
-# Embedded mode doesn't support restarting
---source include/not_embedded.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
@@ -127,7 +124,7 @@ TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 --source suite/innodb/include/show_i_s_tables.inc
 
 --echo # list files in REMOTE_DIR
---let $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/
+--let $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/
 --replace_regex $regexp
 --list_files $REMOTE_DIR/test *
 

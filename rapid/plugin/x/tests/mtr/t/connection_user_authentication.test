@@ -1,3 +1,0 @@
---source include/not_windows.inc
-
---source ../include/connection_user_authentication.inc

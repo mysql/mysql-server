@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(347),(33101),(123),(45),(6);
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.

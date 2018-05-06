@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Can only be set from the command line.
 # show the global and session values;
@@ -10,8 +9,8 @@ select @@session.innodb_read_only;
 show global variables like 'innodb_read_only';
 show session variables like 'innodb_read_only';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_read_only';
-select * from information_schema.session_variables where variable_name='innodb_read_only';
+select * from performance_schema.global_variables where variable_name='innodb_read_only';
+select * from performance_schema.session_variables where variable_name='innodb_read_only';
 --enable_warnings
 
 # Show that it's read-only

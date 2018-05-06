@@ -1,0 +1,160 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+-->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
+-->recvresult
+
+## It tests the limits of protobuf, we do not need any data in the collection
+
+#
+# Number of protobuf object should be calculated from following equation
+#   NUMBER_OF_OBJECTS = 2 * NUMBER_OF_OBJECTS_TO_NEST
+#
+-->macro Send_crud_find_with_repeated_nested_objects	%OBJECTS_TO_NEST%
+-->varlet %NESTED_OBJECTS%
+
+-->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
+-->varinc %OBJECTS_TO_REPEAT% -3
+
+-->repeat %OBJECTS_TO_REPEAT%	%ITERATION%
+-->varlet %OBJECT_NUMBER% %ITERATION%
+-->varinc %OBJECT_NUMBER% 4
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: LITERAL literal { type: V_SINT v_signed_int: %OBJECT_NUMBER% } }
+-->endrepeat
+
+-->repeat %OBJECTS_TO_REPEAT%
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } }
+-->endrepeat
+
+-->quiet
+Mysqlx.Crud.Find {
+  collection {
+    name: "coll"
+    schema: "test"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "ARR0"
+          }
+        }
+      }
+      param {
+        type: ARRAY
+        array {
+          value {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+          %NESTED_OBJECTS%
+        }
+      }
+    }
+  }
+}
+-->noquiet
+-->endmacro
+
+## Current recursion limit is set to 100
+## each repeated message in bellow macro contains two messages
+## (it increases the current depth by 2)
+-->newsession test_different_messages1	x_root
+-->echo Try to send number of objects less then X Protocol limit, 50 (2 * 25)
+-->callmacro Send_crud_find_with_repeated_nested_objects	25
+-->recvresult
+
+-->echo Try to send number of objects equal to the X Protocol limit, 100 (2 * 50)
+-->callmacro Send_crud_find_with_repeated_nested_objects	50
+-->recvresult
+
+-->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
+-->callmacro Send_crud_find_with_repeated_nested_objects	51
+-->expecterror ER_X_BAD_MESSAGE
+-->recvresult
+#
+# After error 5000, connection is disconnected by the X Plugin, abort the client connection
+# it is in invalid state
+-->closesession abort
+
+EOF
+
+
+--write_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
+-->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
+-->recvresult
+
+## It tests the limits of protobuf, we do not need any data in the collection
+
+#
+# Number of protobuf object should be calculated from following equation
+#   NUMBER_OF_OBJECTS = 2 * NUMBER_OF_OBJECTS_TO_NEST
+#
+
+-->macro Send_capabilities_set_with_repeated_nested_objects	%OBJECTS_TO_NEST%
+-->varlet %NESTED_OBJECTS%
+-->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
+-->varinc %OBJECTS_TO_REPEAT% -3
+
+-->repeat %OBJECTS_TO_REPEAT%	%ITERATION%
+-->varlet %OBJECT_NUMBER% %ITERATION%
+-->varinc %OBJECT_NUMBER% 4
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: SCALAR scalar { type: V_SINT v_signed_int: %OBJECT_NUMBER% } }
+-->endrepeat
+
+-->repeat %OBJECTS_TO_REPEAT%
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } }
+-->endrepeat
+
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: ARRAY
+        array {
+          %NESTED_OBJECTS%
+        }
+      }
+    }
+  }
+}
+-->noquiet
+-->endmacro
+
+## Current recursion limit is set to 100
+## each repeated message in bellow macro contains two messages
+
+-->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
+-->callmacro Send_capabilities_set_with_repeated_nested_objects	51
+-->expecterror ER_X_BAD_MESSAGE
+-->recvresult
+#
+# After error 5000, connection is disconnected by the X Plugin, abort the client connection
+# it is in invalid state
+-->closesession abort
+
+EOF
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
+
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl 2>&1
+
+## Cleanup
+DROP TABLE IF EXISTS coll;
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+--remove_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
+--source include/xplugin_drop_user.inc

@@ -1,0 +1,41 @@
+include/rpl_init.inc [topology=1->2, 3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+call mtr.add_suppression("Invalid replication timestamps: original commit timestamp is more recent*");
+call mtr.add_suppression("The replication timestamps have returned to normal values.");
+[connection server_1]
+# Adding debug point 'rpl_invalid_gtid_timestamp' to @@GLOBAL.debug
+UPDATE t1 SET a=2;
+DELETE FROM t1 WHERE a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+UPDATE t2 SET a=2;
+DELETE FROM t2 WHERE a=2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_1]
+# Removing debug point 'rpl_invalid_gtid_timestamp' from @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+INSERT INTO t2 VALUES (1);
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+include/assert_grep.inc [Invalid replication timestamps warning is present in log]
+include/assert_grep.inc [Normalized replication timestamps warning is present in log]
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

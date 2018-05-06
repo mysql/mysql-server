@@ -1,2 +1,0 @@
---plugin_dir=$MYSQLXPLUGIN_DIR
---thread_stack=400000

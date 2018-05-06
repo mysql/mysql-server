@@ -1,0 +1,23 @@
+# ==== Purpose ====
+#
+# Verify that 'CREATE TABLE' event was not logged while killing a
+# CREATE...SELECT right before writting 'create table' event into
+# binlog statement cache, right after writting 'create table' event
+# into binlog statement cache or after writting rows event into
+# binlog transaction cache when binlog_format='row' and gtid_mode=off.
+#
+# ==== Implementation ====
+#
+# 1. Execute a 'CREATE...SELECT', stop at several given sync points.
+# 2. Kill the 'CREATE...SELECT' query from other connection.
+# 3. Verify that 'CREATE TABLE' event was not logged.
+#
+# ==== References ====
+#
+# Bug#20742519  KILL `CREATE TABLE ..SELECT` MAY LEAD TO REPLICATION BROKEN
+
+--let $engine= InnoDB
+--source extra/binlog_tests/binlog_row_kill_create_select.test
+
+--let $engine= MyISAM
+--source extra/binlog_tests/binlog_row_kill_create_select.test

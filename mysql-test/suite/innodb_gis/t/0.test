@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 SET default_storage_engine=innodb;
 --source include/gis_generic.inc
 --source include/gis_keys.inc
@@ -7,12 +6,12 @@ SET default_storage_engine=innodb;
 # Bug #15680 (SPATIAL key in innodb)
 #
 #--error ER_TABLE_CANT_HANDLE_SPKEYS
-create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+create table t1 (g geometry not null SRID 0, spatial gk(g)) engine=innodb;
 
 DROP TABLE t1;
 
 # Test read uncommitted
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 connect (a,localhost,root,,);
 connection a;
@@ -37,6 +36,4 @@ disconnect a;
 
 connection default;
 drop table t1;
-
-
 

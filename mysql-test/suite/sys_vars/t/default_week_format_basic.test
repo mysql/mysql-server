@@ -126,11 +126,11 @@ SELECT @@session.default_week_format;
 
 --disable_warnings
 SELECT @@global.default_week_format = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='default_week_format';
 
 SELECT @@session.default_week_format = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='default_week_format';
 --enable_warnings
 

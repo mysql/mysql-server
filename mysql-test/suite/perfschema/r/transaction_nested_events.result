@@ -13,6 +13,17 @@ DROP DATABASE IF EXISTS db;
 CREATE DATABASE db;
 CREATE TABLE db.t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE db.nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
+CREATE PROCEDURE db.tp_update() UPDATE t1 SET s1 = s1 + 1;
+CREATE PROCEDURE db.tp_start() START TRANSACTION;
+CREATE PROCEDURE db.tp_rollback() ROLLBACK;
+CREATE PROCEDURE db.tp_commit() COMMIT;
+CREATE FUNCTION db.fn_add(x INT, y INT) RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y");
+RETURN x+y;
+END |
+
+## Warm-up data-dictionary cache.
 
 ## Setup connection 1
 USE db;
@@ -136,7 +147,6 @@ DELETE FROM db.t1;
 #
 # STEP 3.1 - STORED PROCEDURE STARTED WITHIN TRANSACTION
 #
-CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1;
 
 START TRANSACTION;
 INSERT INTO t1 VALUES (310, "INSERT 310");
@@ -151,41 +161,39 @@ COMMIT;
 EVENTS_TRANSACTIONS_CURRENT
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	          3	         10	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
+thread_id	          2	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	          3	         10	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
+thread_id	          2	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
 
 EVENTS_STATEMENTS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
-thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
-thread_id	          2	          3	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
-thread_id	          4	          4	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (310, "INSERT 310")
-thread_id	          5	          5	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (311, "INSERT 311")
-thread_id	          6	          6	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (312, "INSERT 312")
-thread_id	          7	          7	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (313, "INSERT 313")
-thread_id	          8	          9	statement/sql/call_procedure  	NULL        	                  3	TRANSACTION       	    0	CALL tp_update()
-thread_id	          9	          9	statement/sp/stmt             	tp_update   	                  8	STATEMENT         	    1	UPDATE t1 SET s1 = s1 + 1
-thread_id	         10	         10	statement/sql/commit          	NULL        	                  3	TRANSACTION       	    0	COMMIT
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          3	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (310, "INSERT 310")
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (311, "INSERT 311")
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (312, "INSERT 312")
+thread_id	          6	          6	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (313, "INSERT 313")
+thread_id	          7	          8	statement/sql/call_procedure  	NULL        	                  2	TRANSACTION       	    0	CALL tp_update()
+thread_id	          8	          8	statement/sp/stmt             	tp_update   	                  7	STATEMENT         	    1	UPDATE t1 SET s1 = s1 + 1
+thread_id	          9	          9	statement/sql/commit          	NULL        	                  2	TRANSACTION       	    0	COMMIT
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
-thread_id	          2	          3	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
-thread_id	          3	         10	transaction              	                  2	STATEMENT         	<transaction started>
-thread_id	          4	          4	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (310, "INSERT 310")
-thread_id	          5	          5	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (311, "INSERT 311")
-thread_id	          6	          6	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (312, "INSERT 312")
-thread_id	          7	          7	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (313, "INSERT 313")
-thread_id	          8	          9	statement/sql/call_proced	                  3	TRANSACTION       	CALL tp_update()
-thread_id	          9	          9	statement/sp/stmt        	                  8	STATEMENT         	UPDATE t1 SET s1 = s1 + 1
-thread_id	         10	         10	statement/sql/commit     	                  3	TRANSACTION       	COMMIT
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	          9	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          3	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (310, "INSERT 310")
+thread_id	          4	          4	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (311, "INSERT 311")
+thread_id	          5	          5	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (312, "INSERT 312")
+thread_id	          6	          6	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (313, "INSERT 313")
+thread_id	          7	          8	statement/sql/call_proced	                  2	TRANSACTION       	CALL tp_update()
+thread_id	          8	          8	statement/sp/stmt        	                  7	STATEMENT         	UPDATE t1 SET s1 = s1 + 1
+thread_id	          9	          9	statement/sql/commit     	                  2	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -195,7 +203,6 @@ DELETE FROM db.t1;
 #
 # STEP 3.2 - TRANSACTION STARTED WITHIN STORED PROCEDURE
 #
-CREATE PROCEDURE tp_start() START TRANSACTION;
 
 CALL tp_start();
 INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321");
@@ -215,39 +222,37 @@ COMMIT;
 EVENTS_TRANSACTIONS_CURRENT
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
+thread_id	          3	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
+thread_id	          3	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
 
 EVENTS_STATEMENTS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
-thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_start() START TRANSACTION
-thread_id	          2	          4	statement/sql/call_procedure  	NULL        	               NULL	NULL              	    0	CALL tp_start()
-thread_id	          3	          4	statement/sp/stmt             	tp_start    	                  2	STATEMENT         	    1	START TRANSACTION
-thread_id	          5	          5	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
-thread_id	          6	          6	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
-thread_id	          7	          7	statement/sql/update          	NULL        	                  4	TRANSACTION       	    0	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
-thread_id	          8	          8	statement/sql/select          	NULL        	                  4	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
-thread_id	          9	          9	statement/sql/commit          	NULL        	                  4	TRANSACTION       	    0	COMMIT
+thread_id	          1	          3	statement/sql/call_procedure  	NULL        	               NULL	NULL              	    0	CALL tp_start()
+thread_id	          2	          3	statement/sp/stmt             	tp_start    	                  1	STATEMENT         	    1	START TRANSACTION
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
+thread_id	          6	          6	statement/sql/update          	NULL        	                  3	TRANSACTION       	    0	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
+thread_id	          7	          7	statement/sql/select          	NULL        	                  3	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	          8	          8	statement/sql/commit          	NULL        	                  3	TRANSACTION       	    0	COMMIT
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_start() START TRANSACTION
-thread_id	          2	          4	statement/sql/call_proced	               NULL	NULL              	CALL tp_start()
-thread_id	          3	          4	statement/sp/stmt        	                  2	STATEMENT         	START TRANSACTION
-thread_id	          4	          9	transaction              	                  3	STATEMENT         	<transaction started>
-thread_id	          5	          5	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
-thread_id	          6	          6	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
-thread_id	          7	          7	statement/sql/update     	                  4	TRANSACTION       	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
-thread_id	          8	          8	statement/sql/select     	                  4	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
-thread_id	          9	          9	statement/sql/commit     	                  4	TRANSACTION       	COMMIT
+thread_id	          1	          3	statement/sql/call_proced	               NULL	NULL              	CALL tp_start()
+thread_id	          2	          3	statement/sp/stmt        	                  1	STATEMENT         	START TRANSACTION
+thread_id	          3	          8	transaction              	                  2	STATEMENT         	<transaction started>
+thread_id	          4	          4	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
+thread_id	          5	          5	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
+thread_id	          6	          6	statement/sql/update     	                  3	TRANSACTION       	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
+thread_id	          7	          7	statement/sql/select     	                  3	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
+thread_id	          8	          8	statement/sql/commit     	                  3	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -257,8 +262,6 @@ DELETE FROM db.t1;
 #
 # STEP 3.3 - TRANSACTION ENDED WITHIN STORED PROCEDURE
 #
-CREATE PROCEDURE tp_rollback() ROLLBACK;
-CREATE PROCEDURE tp_commit() COMMIT;
 
 ## COMMIT within stored procedure
 START TRANSACTION;
@@ -287,57 +290,53 @@ s1	s2
 EVENTS_TRANSACTIONS_CURRENT
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	         18	         18	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 17	STATEMENT         
+thread_id	         16	         16	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 15	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
-thread_id	         11	         11	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 10	STATEMENT         
-thread_id	         13	         16	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	                 12	STATEMENT         
-thread_id	         18	         18	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 17	STATEMENT         
+thread_id	          2	          7	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
+thread_id	          9	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  8	STATEMENT         
+thread_id	         11	         14	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	                 10	STATEMENT         
+thread_id	         16	         16	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 15	STATEMENT         
 
 EVENTS_STATEMENTS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
-thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_rollback() ROLLBACK
-thread_id	          2	          2	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_commit() COMMIT
-thread_id	          3	          4	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
-thread_id	          5	          5	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
-thread_id	          6	          6	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
-thread_id	          7	          7	statement/sql/delete          	NULL        	                  4	TRANSACTION       	    0	DELETE FROM t1 WHERE s1 > 331
-thread_id	          8	          9	statement/sql/call_procedure  	NULL        	                  4	TRANSACTION       	    0	CALL tp_commit()
-thread_id	          9	          9	statement/sp/stmt             	tp_commit   	                  8	STATEMENT         	    1	COMMIT
-thread_id	         10	         11	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
-thread_id	         12	         13	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
-thread_id	         14	         14	statement/sql/update          	NULL        	                 13	TRANSACTION       	    0	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
-thread_id	         15	         16	statement/sql/call_procedure  	NULL        	                 13	TRANSACTION       	    0	CALL tp_rollback()
-thread_id	         16	         16	statement/sp/stmt             	tp_rollback 	                 15	STATEMENT         	    1	ROLLBACK
-thread_id	         17	         18	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          3	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
+thread_id	          5	          5	statement/sql/delete          	NULL        	                  2	TRANSACTION       	    0	DELETE FROM t1 WHERE s1 > 331
+thread_id	          6	          7	statement/sql/call_procedure  	NULL        	                  2	TRANSACTION       	    0	CALL tp_commit()
+thread_id	          7	          7	statement/sp/stmt             	tp_commit   	                  6	STATEMENT         	    1	COMMIT
+thread_id	          8	          9	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	         10	         11	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	         12	         12	statement/sql/update          	NULL        	                 11	TRANSACTION       	    0	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
+thread_id	         13	         14	statement/sql/call_procedure  	NULL        	                 11	TRANSACTION       	    0	CALL tp_rollback()
+thread_id	         14	         14	statement/sp/stmt             	tp_rollback 	                 13	STATEMENT         	    1	ROLLBACK
+thread_id	         15	         16	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_rollback() ROLLBACK
-thread_id	          2	          2	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_commit() COMMIT
-thread_id	          3	          4	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
-thread_id	          4	          9	transaction              	                  3	STATEMENT         	<transaction started>
-thread_id	          5	          5	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
-thread_id	          6	          6	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
-thread_id	          7	          7	statement/sql/delete     	                  4	TRANSACTION       	DELETE FROM t1 WHERE s1 > 331
-thread_id	          8	          9	statement/sql/call_proced	                  4	TRANSACTION       	CALL tp_commit()
-thread_id	          9	          9	statement/sp/stmt        	                  8	STATEMENT         	COMMIT
-thread_id	         10	         11	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
-thread_id	         11	         11	transaction              	                 10	STATEMENT         	<transaction started>
-thread_id	         12	         13	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
-thread_id	         13	         16	transaction              	                 12	STATEMENT         	<transaction started>
-thread_id	         14	         14	statement/sql/update     	                 13	TRANSACTION       	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
-thread_id	         15	         16	statement/sql/call_proced	                 13	TRANSACTION       	CALL tp_rollback()
-thread_id	         16	         16	statement/sp/stmt        	                 15	STATEMENT         	ROLLBACK
-thread_id	         17	         18	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
-thread_id	         18	         18	transaction              	                 17	STATEMENT         	<transaction started>
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	          7	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          3	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
+thread_id	          4	          4	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
+thread_id	          5	          5	statement/sql/delete     	                  2	TRANSACTION       	DELETE FROM t1 WHERE s1 > 331
+thread_id	          6	          7	statement/sql/call_proced	                  2	TRANSACTION       	CALL tp_commit()
+thread_id	          7	          7	statement/sp/stmt        	                  6	STATEMENT         	COMMIT
+thread_id	          8	          9	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	          9	          9	transaction              	                  8	STATEMENT         	<transaction started>
+thread_id	         10	         11	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	         11	         14	transaction              	                 10	STATEMENT         	<transaction started>
+thread_id	         12	         12	statement/sql/update     	                 11	TRANSACTION       	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
+thread_id	         13	         14	statement/sql/call_proced	                 11	TRANSACTION       	CALL tp_rollback()
+thread_id	         14	         14	statement/sp/stmt        	                 13	STATEMENT         	ROLLBACK
+thread_id	         15	         16	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	         16	         16	transaction              	                 15	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -351,11 +350,6 @@ DELETE FROM db.t1;
 #
 # STEP 4.1 - FUNCTION WITHIN A TRANSACTION
 #
-CREATE FUNCTION fn_add(x INT, y INT) RETURNS INT
-BEGIN
-INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y");
-RETURN x+y;
-END |
 
 ## Clear history
 CALL test.clear_history();
@@ -543,6 +537,8 @@ SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR";
 END IF;
 END;|
 
+## Warm-up data-dictionary cache.
+
 ## Clear history
 CALL test.clear_history();
 
@@ -590,13 +586,13 @@ DROP TRIGGER trigger_before_update;
 EVENTS_TRANSACTIONS_CURRENT
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 20	STATEMENT         
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                 20	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
 THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
 thread_id	          2	         19	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
-thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 20	STATEMENT         
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                 20	STATEMENT         
 
 EVENTS_STATEMENTS_HISTORY_LONG
 

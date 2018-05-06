@@ -12,11 +12,9 @@
 # This test makes sense only in REPEATABLE-READ mode as
 # in SERIALIZABLE mode all statements that read data take
 # shared lock on them to enforce its semantics.
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # Prepare playground by creating tables, views,
 # routines and triggers used in tests.
 drop table if exists t0, t1, t2, t3, t4, t5;
@@ -213,13 +211,12 @@ Success: 'show keys from t1' doesn't take row locks on 't1'.
 #
 # 2.1 CALL with a subquery.
 # 
-# A strong lock is not necessary as this statement is not
-# written to the binary log as a whole (it is written
-# statement-by-statement) and thanks to MVCC we can always get
-# versions of rows prior to the update that has locked them.
-# But in practice InnoDB does locking reads for all statements
-# other than SELECT (unless it is a READ-COMITTED mode or
-# innodb_locks_unsafe_for_binlog is ON).
+# A strong lock is not necessary as this statement is not written to
+# the binary log as a whole (it is written statement-by-statement) and
+# thanks to MVCC we can always get versions of rows prior to the update
+# that has locked them. But in practice InnoDB does locking reads for
+# all statements other than SELECT (unless the transaction isolation
+# level is READ COMMITTED or READ UNCOMMITTED)
 Success: 'call p1((select i + 5 from t1 where i = 1))' takes shared row locks on 't1'.
 #
 # 2.2 CREATE TABLE with a subquery.

@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/have_perfschema.inc
---source include/not_embedded.inc
 
 USE test;
 CREATE TABLE t1(id INT);

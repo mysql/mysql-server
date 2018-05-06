@@ -16,7 +16,6 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/master-slave.inc
 
 --connection master
@@ -46,7 +45,7 @@ XA PREPARE '1-stmt';
 
 connect (master_conn2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --let $conn_id=`SELECT connection_id()`
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '1-row';
 INSERT INTO d2.t VALUES (1);
 XA END '1-row';
@@ -88,7 +87,7 @@ XA PREPARE '3-stmt';
 
 connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --connection master2
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '3-row';
 INSERT INTO d2.t VALUES (4);
 XA END '3-row';
@@ -165,6 +164,7 @@ while($i > 0)
 
 --connection master
 --echo *** '3-stmt','3-row' xa-transactions must be in the list ***
+--sorted_result
 XA RECOVER;
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';

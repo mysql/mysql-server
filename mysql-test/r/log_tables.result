@@ -131,14 +131,22 @@ TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set names binary
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select _koi8r'����' as test
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 truncate table mysql.general_log;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table bug16905 (s char(15) character set utf8 default 'пусто');
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into bug16905 values ('новое');
 select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set names utf8
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	SHOW WARNINGS
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	create table bug16905 (s char(15) character set utf8 default 'пусто')
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	SHOW WARNINGS
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	insert into bug16905 values ('новое')
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 drop table bug16905;
@@ -222,7 +230,9 @@ set global slow_query_log='ON';
 select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set names utf8
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	SHOW WARNINGS
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	create table bug16905 (s char(15) character set utf8 default 'пусто')
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	SHOW WARNINGS
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	insert into bug16905 values ('новое')
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	drop table bug16905
@@ -254,7 +264,7 @@ set default_storage_engine= MEMORY;
 alter table mysql.slow_log engine=NonExistentEngine;
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
 alter table mysql.slow_log engine=memory;
-ERROR HY000: This storage engine cannot be used for log tables"
+ERROR HY000: This storage engine cannot be used for log tables
 set default_storage_engine= @save_storage_engine;
 drop table mysql.slow_log;
 drop table mysql.general_log;
@@ -272,6 +282,8 @@ ON UPDATE CURRENT_TIMESTAMP(6),
 `command_type` varchar(64) NOT NULL,
 `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `slow_log` (
 `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
 ON UPDATE CURRENT_TIMESTAMP(6),
@@ -287,6 +299,8 @@ ON UPDATE CURRENT_TIMESTAMP(6),
 `sql_text` mediumblob NOT NULL,
 `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set global general_log='ON';
 set global slow_query_log='ON';
 use test;
@@ -362,11 +376,10 @@ Table	Op	Msg_type	Msg_text
 mysql.slow_log	repair	status	OK
 create table general_log_new like general_log;
 create table slow_log_new like slow_log;
-show tables like "%log%";
-Tables_in_mysql (%log%)
+show tables where Tables_in_mysql like '%log%' and Tables_in_mysql != 'ndb_binlog_index';
+Tables_in_mysql
 general_log
 general_log_new
-ndb_binlog_index
 slave_relay_log_info
 slow_log
 slow_log_new
@@ -452,8 +465,6 @@ FLUSH TABLE mysql.slow_log;
 show warnings;
 Level	Code	Message
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS `db_17876.slow_log_data`;
 DROP TABLE IF EXISTS `db_17876.general_log_data`;
 DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;

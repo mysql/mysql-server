@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 #InnoDB doesn't support compressed tables on 32k,64k page sizes
 --source include/have_innodb_max_16k.inc
 

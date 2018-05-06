@@ -8,34 +8,34 @@
 #------------------------------------------------------------------------------
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
-
+--source include/big_test.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
 #suppress warning
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+-- disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: Operating system error number");
+call mtr.add_suppression("Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
-call mtr.add_suppression("InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
+call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
 call mtr.add_suppression("Could not find a valid tablespace file");
-call mtr.add_suppression("InnoDB: Ignoring tablespace");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
-call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
+call mtr.add_suppression("Ignoring tablespace");
+call mtr.add_suppression("Failed to find tablespace for table");
+call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Cannot create keyring directory");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
-
-
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table");
+-- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -66,7 +66,7 @@ CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON , 
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)    
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
@@ -75,7 +75,7 @@ CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -199,14 +199,34 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 --connection default
 --disable_result_log
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
-INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
-INSERT INTO tde_db.t_non_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_non_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 --enable_result_log
 SELECT 1;
 
 
 --echo # Case2: insert/update/delete on encrypt in parallel during kill
+DROP TABLE tde_db.t_encrypt;
+DROP TABLE tde_db.t_non_encrypt;
+CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                       c3 CHAR(255) Default 'No text',
+                       c4 JSON ,
+                       c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+                       c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+                       c7 POINT NOT NULL SRID 0,
+                       spatial INDEX idx2 (c7)
+                       ) ENCRYPTION="Y"  ENGINE = InnoDB;
+
+CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                       c3 CHAR(255) Default 'No text',
+                       c4 JSON ,
+                       c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+                       c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+                       c7 POINT NOT NULL SRID 0,
+                       spatial INDEX idx2 (c7)
+                       )  ENGINE = InnoDB;
+
 --echo # In connection con1 - Running insert on encrypt table
 connect (con1,localhost,root,,);
 send call tde_db.populate_t_encrypt();
@@ -239,63 +259,39 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 --connection default
 --disable_result_log
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
-INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
-INSERT INTO tde_db.t_non_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_non_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 --enable_result_log
 SELECT 1;
 
---echo # Case3: select on encrypt in parallel during kill
---echo # In connection con1 - Running select on encrypt table
-connect (con1,localhost,root,,);
-send call tde_db.read_t_encrypt();
---echo # In connection con2 - Running select on encrypt table
-connect (con2,localhost,root,,);
-send call tde_db.read_t_encrypt();
---echo # In connection con3 - Running select on encrypt table
-connect (con3,localhost,root,,);
-send call tde_db.read_t_encrypt();
+--echo # Case3: select,create and insert on encrypt in parallel during kill
+DROP TABLE tde_db.t_encrypt;
+DROP TABLE tde_db.t_non_encrypt;
+CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                       c3 CHAR(255) Default 'No text',
+                       c4 JSON ,
+                       c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+                       c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+                       c7 POINT NOT NULL SRID 0,
+                       spatial INDEX idx2 (c7)
+                       ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
+CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                       c3 CHAR(255) Default 'No text',
+                       c4 JSON ,
+                       c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
+                       c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
+                       c7 POINT NOT NULL SRID 0,
+                       spatial INDEX idx2 (c7)
+                       )  ENGINE = InnoDB;
 
---connection default
---echo # kill and restart the server
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---sleep 3
---let $_server_id= `SELECT @@server_id`
---let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
---exec echo "$restart_parameters" > $_expect_file_name
---shutdown_server 0
---source include/wait_until_disconnected.inc
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
-
---disconnect con1
---disconnect con2
---disconnect con3
---connection default
---disable_result_log
-SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
-INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
-SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
-INSERT INTO tde_db.t_non_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
---enable_result_log
-SELECT 1;
-
-
-
-
---echo # Case3: select and insert on encrypt in parallel during kill
 --echo # In connection con1 - Running insert on encrypt table
 connect (con1,localhost,root,,);
 send call tde_db.populate_t_encrypt();
 --echo # In connection con2 - Running select on encrypt table
 connect (con2,localhost,root,,);
 send call tde_db.read_t_encrypt();
---echo # In connection con3 - Running select on encrypt table
-connect (con3,localhost,root,,);
-send call tde_db.create_t_encrypt("Y",1);
 
 
 --connection default
@@ -316,13 +312,12 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 
 --disconnect con1
 --disconnect con2
---disconnect con3
 --connection default
 --disable_result_log
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
-INSERT INTO tde_db.t_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;
-INSERT INTO tde_db.t_non_encrypt(c3,c4,c7) VALUES(CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
+INSERT INTO tde_db.t_non_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 --enable_result_log
 SELECT 1;
 
@@ -356,7 +351,7 @@ SELECT 1;
 #--enable_result_log
 #SELECT 1;
 
-#DROP DATABASE tde_db;
+DROP DATABASE tde_db;
 
 # Cleanup
 --echo # restart server without keyring

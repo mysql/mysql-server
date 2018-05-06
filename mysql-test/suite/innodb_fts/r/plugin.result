@@ -128,9 +128,9 @@ INSERT INTO articles (title, body) VALUES
 SELECT COUNT(*) FROM articles;
 COUNT(*)
 0
-SELECT * FROM articles WHERE
+SELECT title, body FROM articles WHERE
 MATCH(title, body) AGAINST('mysql');
-id	title	body
+title	body
 INSERT INTO articles (title, body) VALUES
 ('MySQL Tutorial','DBMS stands for MySQL DataBase ...'),
 ('How To Use MySQL Well','After you went through a ...'),
@@ -138,11 +138,11 @@ INSERT INTO articles (title, body) VALUES
 ('1001 MySQL Tricks','How to use full-text search engine'),
 ('Go MySQL Tricks','How to use full text search engine');
 # Kill and restart
-SELECT * FROM articles WHERE
+SELECT title, body FROM articles WHERE
 MATCH(title, body) AGAINST('Tricks');
-id	title	body
-4	1001 MySQL Tricks	How to use full-text search engine
-5	Go MySQL Tricks	How to use full text search engine
+title	body
+1001 MySQL Tricks	How to use full-text search engine
+Go MySQL Tricks	How to use full text search engine
 SELECT COUNT(*) FROM articles;
 COUNT(*)
 5

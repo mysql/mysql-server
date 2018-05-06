@@ -12,16 +12,16 @@ alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key(
 create table t2 (a int primary key) engine=memory;
 insert into t2 select a from t1;
 the left join below should result in scanning t2 and do pk lookups in t1
-explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 1	SIMPLE	t1	p0	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select if(isnull(`test`.`t1`.`a`),`test`.`t2`.`a`,NULL) AS `missed`,count(0) AS `rows` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 group by if(isnull(`test`.`t1`.`a`),`test`.`t2`.`a`,NULL)
+Note	1003	/* select#1 */ select if(isnull(`test`.`t1`.`a`),`test`.`t2`.`a`,NULL) AS `missed`,count(0) AS `row_count` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where 1 group by if(isnull(`test`.`t1`.`a`),`test`.`t2`.`a`,NULL)
 the result rows with missed equal to NULL should count all rows (160000)
 the other rows are the failed lookups and there should not be any such
-select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
-missed	rows
+select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+missed	row_count
 NULL	160000
 verify that it is not possible to reinsert all rows in t1 to itself
 affected rows should be zero
@@ -92,4 +92,136 @@ affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
 Warnings:
 set @@max_error_count = @save_max_error_count;
-drop table t1, t2;
+
+set ndb_use_transactions=0;
+insert into t2 select 160000+a from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+  partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+select max(used_pages) into @data_memory_pages
+from ndbinfo.memoryusage where memory_type = 'Data memory';
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+create table t1 (a int primary key)
+engine=ndbcluster
+comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+drop table t2;

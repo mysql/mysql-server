@@ -46,21 +46,20 @@
 # HELPER include/event_aggregate_setup.inc
 # ========================================
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
 --disable_query_log
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost,
+            user5@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 grant ALL on *.* to user5@localhost;
-set sql_mode= @orig_sql_mode;
 
 flush privileges;
 
@@ -100,7 +99,7 @@ begin
     where host is not null
     order by host;
 
-  select variable_name, variable_value from information_schema.global_status
+  select variable_name, variable_value from performance_schema.global_status
     where variable_name in ('PERFORMANCE_SCHEMA_ACCOUNTS_LOST',
                             'PERFORMANCE_SCHEMA_USERS_LOST',
                             'PERFORMANCE_SCHEMA_HOSTS_LOST');

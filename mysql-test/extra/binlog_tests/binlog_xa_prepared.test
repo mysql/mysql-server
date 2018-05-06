@@ -15,7 +15,6 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
---source include/have_perfschema.inc
 --source include/gtid_utils.inc
 
 # Total number of connection each performing one insert into table
@@ -129,7 +128,7 @@ if (`SELECT @@global.gtid_mode = 'OFF' or @@global.log_bin = 0`)
 if (`SELECT @@global.log_bin = 1`)
 {
   --let $MYSQLD_DATADIR=`SELECT @@datadir`
-  --exec $MYSQL_BINLOG -R --to-last-log master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
+  --exec $MYSQL_BINLOG -R --to-last-log binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql
   RESET MASTER;
 
   --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqlbinlog.sql

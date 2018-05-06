@@ -1,0 +1,148 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n Bug_WritePartialIgnoreError T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordCICharPKUpdate T1
+max-time: 180
+
+cmd: test_event
+args: -n Bug18703871 T1
+max-time: 180
+
+cmd: testIndex
+args: -n Bug12315582 T1
+max-time: 180
+
+cmd: testScan
+args: -n Bug13394788 T1
+max-time: 180
+
+cmd: testBlobs
+args: -bug 62321 -skip p
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommit630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n NextScanWhenNoMore T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n MassiveRollback4 T1 T6 D1 D2
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug17882305 T1
+max-time: 180
+
+cmd: testScan
+args: -n CloseWithoutStop T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug56829 T1
+max-time: 180
+
+cmd: test_event
+args: -n Multi
+max-time: 180
+
+cmd: testDict
+args: -n Bug21755 T1
+max-time: 180
+
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops
+max-time: 180
+
+cmd: testDict
+args: -n DropWithTakeover T1
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+max-time: 360
+
+cmd: testIndex
+args: -n CreateLoadDrop T1
+max-time: 360
+
+cmd: testFK
+args: -n CreateDrop T1
+max-time: 360
+
+cmd: testIndex
+args: -n Bug21384
+max-time: 360
+
+cmd: testScan
+args: -n Bug54945 --skip-ndb-optimized-node-selection T1
+max-time: 360
+
+cmd: testNdbApi
+args: -n UnlockBasic T1
+max-time: 540
+
+cmd: testBasic
+args: -n PkUpdate
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug25364 T1
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug43888 T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D2
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug16895311 T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n SR_DD_3b D1
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n to I3
+max-time: 1800
+
+cmd: testSystemRestart
+args: -n SR4 T6
+max-time: 3600
+
+cmd: testIndex
+args: -n DeferredMixedLoadError --skip-ndb-optimized-node-selection T1 T6 T13
+max-time: 3780
+

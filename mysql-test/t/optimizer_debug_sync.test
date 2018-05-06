@@ -2,9 +2,6 @@
 # the debug-sync facility.
 
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
---source include/have_materialization.inc
---source include/not_embedded.inc
 
 --echo
 --echo BUG#11763382 Assertion 'inited==INDEX' on SELECT MAX(...)
@@ -79,12 +76,13 @@ connection default;
 SET debug_sync = "now WAIT_FOR parked";
 --echo # Set locally to shadow the global variable.
 SET debug = '';
+CALL mtr.add_suppression(".*Out of memory *");
 SET GLOBAL debug = '+d,simulate_out_of_memory';
 
 SET debug_sync = "now SIGNAL go";
 
 connection con1;
---error ER_OUT_OF_RESOURCES
+--error ER_OUT_OF_RESOURCES, 5
 reap;
 SET GLOBAL debug = '';
 

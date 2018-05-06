@@ -21,7 +21,7 @@ count(*)
 1
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
@@ -29,14 +29,14 @@ SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
 {checked_valid}
-call mtr.add_suppression("InnoDB: Error parsing");
+call mtr.add_suppression("Error parsing");
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 # Re-write some valid pages to the dump file, make sure the space
 # should be valid but all the page no should be out of bound of the file
 # restart
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW

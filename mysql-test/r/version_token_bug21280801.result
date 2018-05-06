@@ -22,7 +22,7 @@ VALUES ('TABLE', 'mtr', '%', 'NO', 'NO');
 DO version_tokens_set('vt1=11;vt2=22;vt3=33;vt4=44;vt5=55');
 SELECT version_tokens_show();
 version_tokens_show()
-vt1=11;vt2=22;vt5=55;vt4=44;vt3=33;
+vt1=11;vt2=22;vt3=33;vt4=44;vt5=55;
 DO version_tokens_lock_exclusive('vt3', 'vt5', 'vt1', 0);
 # Must return 3 rows
 SELECT OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS

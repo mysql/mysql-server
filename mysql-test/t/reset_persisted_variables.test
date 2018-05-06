@@ -1,0 +1,98 @@
+--echo #
+--echo # WL#9763: Support option to RESET PERSIST
+--echo #
+
+--source include/have_debug_sync.inc
+
+--echo # Syntax check for RESET PERSIST
+RESET PERSIST;
+--error ER_VAR_DOES_NOT_EXIST
+RESET PERSIST max_connections;
+RESET PERSIST IF EXISTS max_connections;
+--error ER_PARSE_ERROR
+RESET PERSIST IF EXISTS;
+--error ER_PARSE_ERROR
+RESET PERSIST IF EXISTS max_connections, long_query_time;
+--error ER_PARSE_ERROR
+RESET PERSIST max_connections, long_query_time;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo # check contents of persistent config file
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST long_query_time= 8.3452;
+select * from performance_schema.persisted_variables ORDER BY 1;
+RESET PERSIST;
+--echo # config file should be empty
+select * from performance_schema.persisted_variables ORDER BY 1;
+
+--echo # add few more to config file and reset
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST long_query_time= 7.8102;
+select * from performance_schema.persisted_variables ORDER BY 1;
+RESET PERSIST max_heap_table_size;
+RESET PERSIST sort_buffer_size;
+select * from performance_schema.persisted_variables ORDER BY 1;
+
+RESET PERSIST IF EXISTS slave_net_timeout;
+select * from performance_schema.persisted_variables ORDER BY 1;
+
+SET PERSIST join_buffer_size= 262144;
+select * from performance_schema.persisted_variables ORDER BY 1;
+RESET PERSIST;
+select * from performance_schema.persisted_variables ORDER BY 1;
+
+--echo # check for errors and warnings
+# should report warning
+RESET PERSIST IF EXISTS sort_buffer_size;
+# should report error
+--error ER_VAR_DOES_NOT_EXIST
+RESET PERSIST sort_buffer_size;
+
+# set all variables to default
+SET GLOBAL long_query_time= DEFAULT,
+           max_connections= DEFAULT, max_heap_table_size= DEFAULT,
+           slave_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
+           join_buffer_size= DEFAULT;
+#cleanup
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug #27264789: CONCURRENT EXECUTION OF SET/RESET PERSIST CALL CRASHES SERVER
+--echo #
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection conn1;
+# Acquiring LOCK_persist_variables
+SET DEBUG_SYNC='in_set_persist_variables SIGNAL set WAIT_FOR go';
+--send SET PERSIST max_connections= 38;
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR set';
+--send RESET PERSIST IF EXISTS max_connections;
+
+connection default;
+# reset persist operation will wait until set persist operation is complete.
+SET DEBUG_SYNC='now SIGNAL go';
+
+connection conn1;
+--reap
+
+connection conn2;
+--reap
+
+connection default;
+# return 0
+SELECT count(*) FROM performance_schema.persisted_variables
+  WHERE variable_name = 'max_connections';
+SET DEBUG_SYNC='RESET';
+disconnect conn1;
+disconnect conn2;
+
+#cleanup
+SET GLOBAL max_connections=DEFAULT;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+

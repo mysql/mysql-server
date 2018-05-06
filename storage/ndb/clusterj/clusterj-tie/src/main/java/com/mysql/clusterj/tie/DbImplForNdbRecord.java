@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -33,7 +40,12 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
+import com.mysql.ndbjtie.ndbapi.NdbInterpretedCode;
+import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.IndexBound;
+import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
@@ -53,11 +65,8 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
 
-    /** A "big enough" size for error information */
-    private int errorBufferSize = 300;
-
     /** The ndb error detail buffer */
-    private ByteBuffer errorBuffer = ByteBuffer.allocateDirect(errorBufferSize);
+    private ByteBuffer errorBuffer;
 
     /** The NdbDictionary for this Ndb */
     private Dictionary ndbDictionary;
@@ -71,13 +80,14 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     public DbImplForNdbRecord(ClusterConnectionImpl clusterConnection, Ndb ndb) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
+        this.errorBuffer = this.clusterConnection.byteBufferPoolForDBImplError.borrowBuffer();
         int returnCode = ndb.init(1);
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
         handleError(ndbDictionary, ndb);
     }
 
-    protected void assertOpen(String where) {
+    public void assertNotClosed(String where) {
         if (closing || ndb == null) {
             throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
         }
@@ -88,6 +98,7 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     }
 
     public void close() {
+        this.clusterConnection.byteBufferPoolForDBImplError.returnBuffer(this.errorBuffer);
         Ndb.delete(ndb);
         clusterConnection.close(this);
     }
@@ -144,4 +155,32 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
+    /** Initialize ndbjtie infrastructure for query objects created via jtie wrapper create methods.
+     * Creating them here avoids race conditions later with multiple threads trying to create
+     * them simultaneously. The initialization only needs to be done once.
+     */
+    protected void initializeQueryObjects() {
+        synchronized(ClusterConnectionImpl.class) {
+            if (ClusterConnectionImpl.queryObjectsInitialized) {
+                return;
+            }
+            IndexBound indexBound = IndexBound.create();
+            if (indexBound != null) IndexBound.delete(indexBound);
+            ScanOptions scanOptions = ScanOptions.create();
+            if (scanOptions != null) ScanOptions.delete(scanOptions);
+            NdbDictionary.Table table = NdbDictionary.Table.create("dummy");
+            if (table != null) {
+                NdbInterpretedCode ndbInterpretedCode = NdbInterpretedCode.create(table, null, 0);
+                if (ndbInterpretedCode != null) {
+                    NdbScanFilter ndbScanFilter = NdbScanFilter.create(ndbInterpretedCode);
+                    if (ndbScanFilter != null) {
+                        NdbScanFilter.delete(ndbScanFilter);
+                    }
+                    NdbInterpretedCode.delete(ndbInterpretedCode);
+                }
+                NdbDictionary.Table.delete(table);
+            }
+            ClusterConnectionImpl.queryObjectsInitialized = true;
+        }
+    }
 }

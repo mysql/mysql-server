@@ -5,10 +5,6 @@
 # Most of these tests are pointless unless the plugin accepts insert
 # statements as pattern, which it currently does not.
 call mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # In rule 1, we get a warning during parsing of the replacement.
 # In rule 2, we get a warning during parsing of the pattern.

@@ -1,0 +1,154 @@
+# Requires binlog_format=statement format since query involving
+# get_lock() is logged in row format if binlog_format=mixed or row.
+-- source include/have_binlog_format_statement.inc
+-- source include/master-slave.inc
+-- source include/have_myisam.inc
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+--let $engine_type= myisam
+
+# Store the time of password_last_changed column from mysql.user table
+# to restore it back later.
+let $date_to_restore_root=`SELECT password_last_changed from mysql.user where host='localhost' and user='root'`;
+let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where host='localhost' and user='mysql.sys'`;
+
+# Load some data into t1
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval load data local infile '$MYSQL_TEST_DIR/std_data/words.dat' into table t1;
+select * from t1 limit 10;
+
+#
+# Test slave with wrong password
+#
+--source include/sync_slave_sql_with_master.inc
+stop slave;
+connection master;
+set password for root@"localhost" = 'foo';
+connection slave;
+start slave;
+connection master;
+#
+# Give slave time to do at last one failed connect retry
+# This one must be short so that the slave will not stop retrying
+real_sleep 2;
+set password for root@"localhost" = '';
+# Give slave time to connect (will retry every second)
+sleep 2;
+
+create table t3(n int);
+insert into t3 values(1),(2);
+--source include/sync_slave_sql_with_master.inc
+select * from t3;
+select sum(length(word)) from t1;
+connection master;
+drop table t1,t3;
+--source include/sync_slave_sql_with_master.inc
+
+# Test if the slave SQL thread can be more than 16K behind the slave
+# I/O thread (> IO_SIZE)
+
+connection master;
+# we'll use table-level locking to delay slave SQL thread
+eval create table t1 (n int) engine=$engine_type;
+--source include/sync_slave_sql_with_master.inc
+connection master;
+reset master;
+connection slave;
+stop slave;
+reset slave;
+
+connection master;
+let $1=100;
+# Generate 16K of relay log
+--let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1);
+ dec $1;
+}
+enable_query_log;
+
+--let $assert_text= We should have generated greater than 16 KB relay log
+--let $assert_cond= [SHOW MASTER STATUS, Position, 1] - $pos > 16384
+--source include/assert.inc
+
+# Try to cause a large relay log lag on the slave by locking t1
+connection slave;
+lock tables t1 read;
+start slave;
+connection master;
+--source include/sync_slave_io_with_master.inc
+unlock tables;
+
+#test handling of aborted connection in the middle of update
+
+connection master;
+create table t2(id int);
+insert into t2 values(connection_id());
+
+connection master1;
+# Avoid generating result
+create temporary table t3(n int);
+--disable_warnings
+insert into t3 select get_lock('crash_lock%20C', 1) from t2;
+--enable_warnings
+
+connection master;
+send update t1 set n = n + if(n > 50, 1, get_lock('crash_lock%20C', 100));
+connection master1;
+let $wait_condition=
+  select count(*) > 0 from information_schema.processlist
+  where state = "User lock" and info like "update t1%";
+--source include/wait_condition.inc
+select (@id := id) - id from t2;
+kill @id;
+drop table t2;
+drop temporary table if exists t3;
+connection master;
+# The get_lock function causes warning for unsafe statement.
+--disable_warnings
+--error 1317,2013
+reap;
+--enable_warnings
+connection slave;
+# The SQL slave thread should now have stopped because the query was killed on
+# the master (so it has a non-zero error code in the binlog).
+# The slave should report ER_ERROR_ON_MASTER and the error message should 
+# contain the actual error code received from master 1053 = ER_SERVER_SHUTDOWN
+--let $slave_sql_errno= convert_error(ER_ERROR_ON_MASTER)
+###--source include/wait_for_slave_sql_error_and_skip.inc
+--source include/wait_for_slave_sql_error.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+source include/start_slave.inc;
+
+select count(*) from t1;
+connection master1;
+drop table t1;
+create table t1 (n int);
+insert into t1 values(3456);
+create user 'blafasel2'@'10.10.10.%' identified by 'blafasel2';
+select select_priv,user from mysql.user where user = _binary'blafasel2';
+update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
+select select_priv,user from mysql.user where user = _binary'blafasel2';
+--source include/sync_slave_sql_with_master.inc
+select n from t1;
+select select_priv,user from mysql.user where user = _binary'blafasel2';
+connection master1;
+drop table t1;
+delete from mysql.user where user="blafasel2";
+
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_root' WHERE user='root'
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_sys' WHERE user='mysql.sys'
+--echo # mysql.user table restored to original values.
+
+--source include/sync_slave_sql_with_master.inc
+
+# End of 4.1 tests
+--source include/rpl_end.inc

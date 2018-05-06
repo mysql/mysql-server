@@ -16,22 +16,22 @@
 # Gather port + serverid
 
 select @primary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
 select @primary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $PRIMARY_SERVER_PORT= query_get_value('select @primary_server_port as v', v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Gather port + serverid
 select @secondary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
 select @secondary_server_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
 
@@ -152,14 +152,14 @@ insert into test.t1 values (1,1,repeat('B', 2000));
 --echo -- Generate a large batch of inserts with early + late conflicts
 delimiter %;
 
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
   set @x = 0;
   START TRANSACTION;
     repeat
       insert into test.t1 values (@x, @x, repeat('B', 2000));
       set @x = @x + 1;
-    until @x = rows
+    until @x = `rows`
     end repeat;
   COMMIT;
   START TRANSACTION;
@@ -217,7 +217,7 @@ delete from test.t1 where a=1;
 --echo -- Delete row on Secondary Cluster, followed by Insert in later 'batch'
 delimiter %;
 
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
   set @x = 2;
   START TRANSACTION;
@@ -225,7 +225,7 @@ begin
     repeat
       insert into test.t1 values (@x, @x, repeat('B', 2000));
       set @x = @x + 1;
-    until @x = (rows + 2)
+    until @x = (`rows` + 2)
     end repeat;
   COMMIT;
   START TRANSACTION;
@@ -298,11 +298,11 @@ eval insert into mysql.ndb_replication values
 call mtr.add_suppression("NDB Slave: .* Too many extra Gci bits at .*");
 --enable_query_log
 
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table test.t3 (a int primary key) engine=ndb;
 show warnings;
 
---error 1296 
+--error ER_CONFLICT_FN_PARSE_ERROR
 create table test.t4 (a int primary key) engine=ndb;
 show warnings;
 

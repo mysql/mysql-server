@@ -12,11 +12,8 @@
 #                                                                    #
 ######################################################################
 
-# Not supported in embedded
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
--- source include/have_innodb.inc
 # *nix specific command to remove write permission
 # wanted to use perl to save original permission of file and restore back after
 # chnage but could not find way to do.(with perl we could run test on windows too)
@@ -47,7 +44,7 @@ CREATE DATABASE testdb_wl6445;
 
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
@@ -57,8 +54,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -69,7 +65,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -107,7 +103,7 @@ DROP DATABASE testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
@@ -117,7 +113,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
 # check dml/ddl after removing write permission
-CREATE TABLE t2 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t2 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
@@ -126,8 +122,7 @@ SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -141,7 +136,7 @@ INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',2
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --ERROR ER_TABLE_EXISTS_ERROR
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
---ERROR ER_INNODB_READ_ONLY
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t3 ( i int , j blob) ENGINE = Innodb;
 --ERROR ER_CANT_LOCK
 UPDATE t1 SET i = i+1;
@@ -168,7 +163,7 @@ UNLOCK TABLES;
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
-# $error_log has to be processed by include/search_pattern_in_file.inc which
+# $error_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $error_log;
@@ -184,8 +179,8 @@ let SEARCH_FILE= $error_log;
 --exec $MYSQLD_CMD --core-file --loose-console > $error_log 2>&1
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN=InnoDB: The innodb_system data file 'ibdata1' must be writable;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= The innodb_system data file 'ibdata1' must be writable;
+--source include/search_pattern.inc
 
 
 #------------------------------------------------------------------------------

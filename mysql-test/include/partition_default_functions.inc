@@ -3,38 +3,63 @@
 # Needs $get_handler_status_counts defined
 # normally as:
 # let $get_handler_status_counts=
-# SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+# SELECT * FROM performance_schema.session_status
 # WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 #
+# Needs
+# - connection monitor
+# - connection default
+
 # And a table t3 where a is a DATETIME/DATE/TIME/TIMESTAMP column
 # and b is a char/varchar() column.
 
-if ($null_as_now)
-{
 FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
-INSERT INTO t3 (a) VALUES (NULL);
+INSERT INTO t3 (a) VALUES (NOW());
+
+connection monitor;
 --source include/get_handler_status_counts.inc
-}
+connection default;
+
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 2 writes
 FLUSH STATUS;
 SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 if ($default_update)
 {
 --echo # No pruning due to DEFAULT function on partitioning column
@@ -49,14 +74,22 @@ if (!$default_update)
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # No pruning due to updating partitioning field.
 --echo # 1 read_key + 1 delete + 2 write (1 failed + 1 ok)
 --echo # 1 delete + 1 write due to moved to different partition
 FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 if ($default_update)
 {
 --echo # No pruning due to DEFAULT function on partitioning column
@@ -72,10 +105,18 @@ if (!$default_update)
 }
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 read_key + 1 update + 1 failed write
 
 --echo #
@@ -85,11 +126,19 @@ DELETE FROM t3 WHERE a = 0;
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
+
+connection monitor;
 --source include/get_handler_status_counts.inc
+connection default;
+
 --echo # 1 read_key + 1 update + 1 failed write
 --sorted_result
 SELECT * FROM t3;

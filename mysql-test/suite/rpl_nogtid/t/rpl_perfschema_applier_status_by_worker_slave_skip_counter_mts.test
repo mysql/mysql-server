@@ -1,0 +1,26 @@
+#
+# ==== Purpose ====
+#
+# This test asserts that the slave's tables show the appropriate information
+# when transactions are skipped using slave_skip_counter and mts is enabled.
+#
+# ==== Implementation ====
+#
+# Set the slave_skip_counter to skip two transactions.
+# Run the transactions on the master and sync the slave with the master.
+# Check that the slave's ps tables show the appropriate information.
+#
+# ==== References ====
+#
+# WL#7374 Performance schema tables to monitor replication lags and queue
+
+# the test is binlog-format agnostic
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--let $is_mts= 1
+
+--source extra/rpl_tests/rpl_check_ps_applier_status_by_worker_slave_skip_counter.inc
+
+--source include/rpl_end.inc

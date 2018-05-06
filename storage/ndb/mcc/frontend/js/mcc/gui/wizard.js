@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -68,6 +75,7 @@ dojo.require("dijit.Dialog");
 dojo.require("mcc.util");
 dojo.require("mcc.storage");
 dojo.require("mcc.configuration");
+dojo.require("mcc.userconfig");
 dojo.require("mcc.gui");
 
 /**************************** External interface  *****************************/
@@ -157,6 +165,22 @@ var configWizardPages = {
                             </td></tr>\
                         </table>\
                     </div>\
+                    <div id='installDetailsHeader'>\
+                    </div>\
+                    <div id='installDetails'>\
+                        <table border='0' width='100%'>\
+                        <tr><td style='width:30%;'><label for='sd_installCluster'>Install MySQL Cluster</label>\
+                            <span class='helpIcon' id='sd_installCluster_qm'>[?]\
+                            </span></td>\
+                            <td width='70%'><div id='sd_installCluster'></div>\
+                            </td></tr>\
+                        <tr><td style='width:30%;'><label for='sd_openfw'>Open FW ports</label>\
+                            <span class='helpIcon' id='sd_openfw_qm'>[?]\
+                            </span></td>\
+                            <td width='70%'><div id='sd_openfw'></div>\
+                            </td></tr>\
+                        </table>\
+                    </div>\
                 </div>\
             </div>",
         enter: function() {
@@ -176,7 +200,9 @@ var configWizardPages = {
                             var errMsg = hosts[i].getValue("errMsg");
                             if (errMsg) {
                                 if (!errMsgSummary) {
-                                    errMsgSummary = "There were errors when connecting to remote hosts:\n\n";
+                                    errMsgSummary = "There were errors when connecting to remote host(s)\n";
+                                    errMsgSummary += "using Cluster-wide credentials. Probably host(s) have\n";
+                                    errMsgSummary += "their own credentials which you can set on next page (Edit host(s)):\n\n"
                                 }
                                 errMsgSummary += "Host '" + hosts[i].getValue("name") + "': " + errMsg + "\n"
                             }
@@ -230,6 +256,8 @@ var configWizardPages = {
                         <div id='addHostsButton'></div>\
                         <div id='removeHostsButton'></div>\
                         <div id='editHostsButton'></div>\
+                        <div id='refreshHostsButton'></div>\
+                        <div id='toggleHostInfoButton'></div>\
                     </span>\
                 </div>\
             </div>",                   
@@ -575,6 +603,11 @@ var configWizardPages = {
                 <div data-dojo-type='dijit.layout.ContentPane'\
                         data-dojo-props='region:\"bottom\", splitter:false'>\
                     <div data-dojo-type='dijit.form.Button'\
+                        data-dojo-props='iconClass: \"installIcon\"'\
+                        onClick='mcc.configuration.installCluster()'\
+                        id='configWizardInstallCluster'>Install cluster\
+                    </div>\
+                    <div data-dojo-type='dijit.form.Button'\
                         data-dojo-props='iconClass: \"deployIcon\"'\
                         onClick='mcc.configuration.deployCluster()'\
                         id='configWizardDeployCluster'>Deploy cluster\
@@ -582,7 +615,7 @@ var configWizardPages = {
                     <div data-dojo-type='dijit.form.Button'\
                         data-dojo-props='iconClass: \"startIcon\"'\
                         onClick='mcc.configuration.startCluster()'\
-                        id='configWizardStartCluster'>Deploy and start cluster\
+                        id='configWizardStartCluster'>Start cluster\
                     </div>\
                     <div data-dojo-type='dijit.form.Button'\
                         data-dojo-props='iconClass: \"stopIcon\"'\
@@ -594,8 +627,12 @@ var configWizardPages = {
         enter: function () {
             mcc.util.dbg("Enter configWizardDeployConfig");
             mcc.configuration.setupContext().then(function () {
+                dijit.byId("configWizardInstallCluster").setDisabled(true);
                 mcc.gui.deploymentTreeSetup();
                 mcc.gui.startStatusPoll(true);
+                var clRunning = mcc.configuration.clServStatus();
+                dijit.byId("configWizardStopCluster").setDisabled(!mcc.configuration.determineClusterRunning(clRunning));
+                dijit.byId("configWizardStartCluster").setDisabled(mcc.configuration.determineClusterRunning(clRunning));
             });
         },
         exit: function () {
@@ -611,8 +648,19 @@ var configWizardPages = {
 function nextPage() {
     var current = dojo.indexOf(configWizardPageIds, 
             dijit.byId("content-main-tab-container").selectedChildWidget.id);
+    if (current != "configWizardDefineCluster") {
+        //Ignore changes to Cluster lvl.
+        var cs = mcc.storage.clusterStorage();
+        var hs = mcc.storage.hostStorage();
+        var ps = mcc.storage.processStorage();
+        var pts= mcc.storage.processTypeStorage();
+        var toWrite = cs.store()._getNewFileContentString() + ', ' + hs.store()._getNewFileContentString() + ', {}, ' + ps.store()._getNewFileContentString() + ', ' + pts.store()._getNewFileContentString();
+        mcc.util.dbg("Executing cfg save.");
+        var res = mcc.userconfig.writeConfigFile(toWrite,mcc.userconfig.getConfigFile());
+    };
     dijit.byId("content-main-tab-container").selectChild(
             dijit.byId(configWizardPageIds[current + 1]));
+    
 }
 
 // Show previous page
@@ -722,7 +770,7 @@ function helpMenuSetup() {
                     title: "About MySQL Cluster Configuration Tool",
                     content: "\
                             <div><img src='img/content-title.png'></div>\
-                            <p>Version: mysql-5.6-cluster-7.3</p>\
+                            <p>Version: mysql-5.7-cluster-7.6</p>\
                             <button id='termsButton' \
                                     data-dojo-type='dijit.form.Button'\
                                     type='button'>\
@@ -755,7 +803,7 @@ function helpMenuSetup() {
 function configWizardMenuSetup() {
 
     var menu = new dijit.DropDownMenu({style: "display: none;"});
-    var menuItemClear= new dijit.MenuItem({
+    /*var menuItemClear= new dijit.MenuItem({
         id: "configWizardMenuClear",
         label: "Clear configuration and restart",
         iconClass:"dijitIconDelete",
@@ -772,11 +820,12 @@ function configWizardMenuSetup() {
             });
         }
     });
-    menu.addChild(menuItemClear);
+    menu.addChild(menuItemClear);*/
 
     var menuItemAutoSave= new dijit.CheckedMenuItem({
         label: "Automatically save configuration as cookies",
         checked: (mcc.util.getCookie("autoSave") == "on"),
+        disabled: true,
         onChange: function(val) {
             if (val) {
                 mcc.util.setCookie("autoSave", "on");

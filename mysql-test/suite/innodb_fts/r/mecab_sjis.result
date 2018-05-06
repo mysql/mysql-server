@@ -6,6 +6,8 @@ SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
 mecab_charset	sjis
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
 page_title varchar(255) CHARACTER SET sjis NOT NULL DEFAULT '',
@@ -51,10 +53,10 @@ SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET sjis NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET sjis COLLATE sjis_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	ﾚﾓﾅ
@@ -157,10 +159,10 @@ SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET cp932 NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET cp932 COLLATE cp932_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	ⅰﾚﾓﾅ

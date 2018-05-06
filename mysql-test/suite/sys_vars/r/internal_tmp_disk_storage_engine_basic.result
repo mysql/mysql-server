@@ -26,7 +26,7 @@ SET @@global.internal_tmp_disk_storage_engine = FILE;
 ERROR 42000: Variable 'internal_tmp_disk_storage_engine' can't be set to the value of 'FILE'
 '#------------------FN_DYNVARS_005_04-----------------------#'
 SELECT @@global.internal_tmp_disk_storage_engine =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='internal_tmp_disk_storage_engine';
 @@global.internal_tmp_disk_storage_engine =
 VARIABLE_VALUE

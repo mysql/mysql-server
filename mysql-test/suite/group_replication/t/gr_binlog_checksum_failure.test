@@ -1,0 +1,53 @@
+################################################################################
+#
+# When a server starts with option binlog_checksum!= NONE the server will
+# fail recovery as GROUP REPLICATION only support binlog_checksum= NONE.
+#
+# This tests verifies that the server change its state for ERROR when failing
+# the recovery due to checksum format no supported.
+#
+# Test:
+# 0) Configure group replication and skip server start.
+# 1) Activate debug point that trigger the failure of binlog checksum.
+# 2) Start group replication and check that member is on ERROR state.
+# 3) Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--connection server1
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error at event handling! Got error: 1");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Replication event checksum verification failed while reading from network.");
+call mtr.add_suppression("Unable to ensure the execution of group transactions received during recovery.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo # 1) Activate debug point that trigger the failure of binlog
+--echo #    checksum.
+--echo ############################################################
+
+set @@global.debug='+d,gr_simulate_checksum_test_failure';
+
+--echo
+--echo # 2) Start group replication and check that member is on
+--echo # ERROR state.
+--echo ############################################################
+
+--let $group_replication_start_member_state=ERROR
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 3) Clean up.
+--echo ############################################################
+
+set @@global.debug='-d,gr_simulate_checksum_test_failure';
+--source include/group_replication_end.inc

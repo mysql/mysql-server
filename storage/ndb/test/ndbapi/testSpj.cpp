@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,6 +28,7 @@
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/DbspjErr.hpp>
 #include <Bitmask.hpp>
 #include <random.h>
 #include <HugoQueryBuilder.hpp>
@@ -32,7 +40,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17521
+  FI_END = 17531
 };
 
 int
@@ -125,12 +133,14 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17043,
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
       17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
       17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
+      17122,
+      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
       7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
       17510,        // random failure when allocating section memory
       17520, 17521  // failure (+random) from ::checkTableError()
@@ -168,6 +178,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
+  restarter.insertErrorInAllNodes(0);
   g_info << endl;
   return NDBT_OK;
 }
@@ -221,6 +232,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17043,
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
       17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
@@ -229,6 +241,8 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
       17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17122,
+      17130, 17131, // sendSignal(DIH_SCAN_GET_NODES_REQ) -> import() failed
       17510,        // random failure when allocating section memory
       17520, 17521  // failure (+random) from TableRecord::checkTableError()
   }; 
@@ -263,7 +277,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
-
+  restarter.insertErrorInAllNodes(0);
   g_info << endl;
   return NDBT_OK;
 }
@@ -276,7 +290,11 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   int inject_err = ctx->getProperty("ErrorCode");
+  int accept_error = ctx->getProperty("AcceptError");
   Uint32 stepNo = step->getStepNo();
+
+  // Either handle error myself, or let Hugo retry
+  Uint32 maxRetries = (accept_error != 0) ? 1 : 100;
 
   int i = 0;
   HugoQueryBuilder qb1(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
@@ -285,8 +303,8 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q1 = qb1.createQuery();
   const NdbQueryDef * q2 = qb2.createQuery();
-  HugoQueries hugoTrans1(* q1);
-  HugoQueries hugoTrans2(* q2);
+  HugoQueries hugoTrans1(* q1, maxRetries);
+  HugoQueries hugoTrans2(* q2, maxRetries);
   NdbRestarter restarter;
 
   if (inject_err)
@@ -297,26 +315,76 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
   }
+  int ret =  NDBT_OK;
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
     g_info << i << ": ";
     if (hugoTrans1.runScanQuery(GETNDB(step)))
     {
-      g_info << endl;
-      return NDBT_FAILED;
+      const NdbError err = hugoTrans1.getNdbError();
+      if (err.code != accept_error)
+      {
+        ret = NDBT_FAILED;
+        break;
+      }
     }
     if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
     {
-      g_info << endl;
-      return NDBT_FAILED;
+      const NdbError err = hugoTrans2.getNdbError();
+      if (err.code != accept_error)
+      {
+        ret = NDBT_FAILED;
+        break;
+      }
     }
     i++;
     addMask(ctx, (1 << stepNo), "Running");
   }
   g_info << endl;
-  restarter.insertErrorInAllNodes(0);
+  if (inject_err)
+  {
+    restarter.insertErrorInAllNodes(0);
+  }
+  return ret;
+}
+
+int
+runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int joinlevel = ctx->getProperty("JoinLevel", 3);
+  int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
+  int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  Uint32 stepNo = step->getStepNo();
+  int i = 0;
+
+  HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
+  qb2.setJoinLevel(joinlevel);
+  const NdbQueryDef * q2 = qb2.createQuery();
+  HugoQueries hugoTrans2(* q2, 1); //maxRetry==1 -> Don't retry temp errors
+  NdbRestarter restarter;
+
+  while ((i<loops || until_stopped) && !ctx->isTestStopped())
+  {
+    g_info << i << ": ";
+    if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
+    {
+      const NdbError err = hugoTrans2.getNdbError();
+
+      // Test pass as long as we don't get errors 'promoted' to nodeFailures
+      if (err.code == DbspjErr::NodeFailure)  //NodeFailure == 20016
+      {
+        g_info << endl;
+        return NDBT_FAILED;
+      }
+    }
+    i++;
+    addMask(ctx, (1 << stepNo), "Running");
+  }
+  g_info << endl;
   return NDBT_OK;
 }
+
 
 int
 runRestarter(NDBT_Context* ctx, NDBT_Step* step)
@@ -325,6 +393,7 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
   int loops = ctx->getNumLoops();
   int waitprogress = ctx->getProperty("WaitProgress", (unsigned)0);
   int randnode = ctx->getProperty("RandNode", (unsigned)0);
+  int inject_err = ctx->getProperty("RestartWithErrorCode");
   NdbRestarter restarter;
   int i = 0;
   int lastId = 0;
@@ -404,6 +473,15 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
       }
     }
 
+    if (inject_err)
+    {
+      ndbout << "RestartWithErrorCode: (" << inject_err << ")" << endl;
+      if (restarter.insertErrorInNode(nodeId, inject_err) != 0){
+        g_info << "Could not insert error in node " << nodeId <<endl;
+        return NDBT_FAILED;
+      }
+    }
+
     if (restarter.startNodes(&nodeId, 1))
     {
       g_err << "Failed to start node" << endl;
@@ -442,6 +520,14 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
     ok2:
         g_err << "Progress made!! " << endl;
         ctx->setProperty("Running", (Uint32)0);
+      }
+    }
+
+    if (inject_err)
+    {
+      if (restarter.insertErrorInNode(nodeId, 0) != 0){
+        g_info << "Could not clear error in node " << nodeId <<endl;
+        return NDBT_FAILED;
       }
     }
 
@@ -723,7 +809,7 @@ NegativeTest::runKeyTest() const
       builder->destroy();
       return NDBT_FAILED;
     }
-    if (builder->prepare() != NULL)
+    if (builder->prepare(m_ndb) != NULL)
     {
       g_err << "prepare() on failed query gave non-NULL result.";
       builder->destroy();
@@ -739,7 +825,7 @@ NegativeTest::runKeyTest() const
       {builder->paramValue(), builder->paramValue(), NULL};
 
     require(builder->readTuple(m_nt1Tab, keyOperands) != NULL);
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -777,7 +863,7 @@ NegativeTest::runGraphTest() const
   // Try preparing empty NdbQueryBuilder
   {
     NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    if (builder->prepare() != NULL ||
+    if (builder->prepare(m_ndb) != NULL ||
         builder->getNdbError().code != QRY_HAS_ZERO_OPERATIONS)
     {
       g_err << "prepare() on empty query gave non-NULL result.";
@@ -1016,7 +1102,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt2OrdIdx, m_nt2Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1075,7 +1161,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1110,7 +1196,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1144,7 +1230,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1196,7 +1282,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1224,7 +1310,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1256,7 +1342,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1293,7 +1379,7 @@ NegativeTest::runValueTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1330,7 +1416,7 @@ NegativeTest::runFeatureDisabledTest() const
   
   int result = NDBT_OK;
 
-  if (ndb_join_pushdown(ndbGetOwnVersion()))
+  if (ndbd_join_pushdown(ndbGetOwnVersion()))
   {
     if (parentOperation == NULL)
     {
@@ -1419,10 +1505,34 @@ TESTCASE("MixedJoin", ""){
   STEPS(runJoin, 6);
   FINALIZER(runClearTable);
 }
+TESTCASE("MixedJoin17131", "Simulate CONTINUEB for DIGETNODESREQ"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 17131);
+  STEPS(runJoin, 6);
+  FINALIZER(runClearTable);
+}
 TESTCASE("MixedJoinDiskWait", "Simulate disk wait during pushed joins"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 4035);
   STEPS(runJoin, 4);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MultiFrag_OOM",
+         "'Out of LongMessageBuffer' during 'import' of MultiFrag list")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8116);
+  TC_PROPERTY("AcceptError", 218);
+  STEP(runJoin);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MultiFrag_OOM_rand",
+         "Random 'Out of LongMessageBuffer' during 'import' of MultiFrag list")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8117);
+  TC_PROPERTY("AcceptError", 218);
+  STEP(runJoin);
   FINALIZER(runClearTable);
 }
 TESTCASE("NF_Join", ""){
@@ -1435,7 +1545,28 @@ TESTCASE("NF_Join", ""){
   STEP(runRestarter);
   FINALIZER(runClearTable);
 }
-
+TESTCASE("bug#23049170",
+         "Test abort() when partially connected after a node restart. "
+         "Should not see misreported 'NodeFailure' error (20016) due to bug#23049170")
+{
+  TC_PROPERTY("UntilStopped", 1);
+  TC_PROPERTY("WaitProgress", 20);
+  TC_PROPERTY("RestartWithErrorCode", 17530); //OJA, note -> restarter set it
+  INITIALIZER(runLoadTable);
+  STEPS(runAbortedJoin, 6);
+  STEP(runRestarter);
+  FINALIZER(runClearTable);
+}
+TESTCASE("bug#23048816",
+         "Test handling of out of section memory during signal receive. "
+         "Should REF/abort query, not crash SPJ node")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 17531);
+  TC_PROPERTY("AcceptError", 20006);
+  STEP(runJoin);
+  FINALIZER(runClearTable);
+}
 TESTCASE("LookupJoinError", ""){
   INITIALIZER(runLoadTable);
   STEP(runLookupJoinError);

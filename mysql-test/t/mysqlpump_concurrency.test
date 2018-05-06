@@ -1,6 +1,6 @@
 # Created: 2015-05-15  Lalit Choudhary
 
--- source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities

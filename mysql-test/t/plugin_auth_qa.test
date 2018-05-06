@@ -1,7 +1,6 @@
 # The numbers represent test cases of the test plan.
 
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 
 CREATE DATABASE test_user_db;
 
@@ -11,7 +10,8 @@ CREATE DATABASE test_user_db;
 CREATE USER plug IDENTIFIED WITH test_plugin_server;
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server BY '123';
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
 --source include/plugin_auth_check_non_default_users.inc
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
@@ -19,7 +19,8 @@ DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' BY '123';
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
 --source include/plugin_auth_check_non_default_users.inc
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
@@ -27,79 +28,47 @@ DROP USER plug;
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
---error 1133
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS '';
 # with '', AS part empty without ''
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS ;
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS;
 # without '', AS part without ''
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS plug_dest;
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS plug_dest;
 --echo ========== test 1.1 syntax errors ========================================
 # without auth_name
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH AS plug_dest;
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH AS plug_dest;
 # without auth_name and AS part
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH;
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH;
 # without auth_name but AS part
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED AS '';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED AS '';
 # with 2 auth_name parts
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' IDENTIFIED WITH 'test_plugin_server';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug 
-                 IDENTIFIED WITH 'test_plugin_server' IDENTIFIED WITH 'test_plugin_server';
 # with 2 AS parts
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' AS 'plug_dest';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug AS '' AS 'plug_dest';
 # with 2 complete WITH parts
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' 
-                 IDENTIFIED WITH test_plugin_server   AS 'plug_dest';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS ''
                  IDENTIFIED WITH test_plugin_server   AS 'plug_dest';
 # with BY and WITH part
 --error ER_PARSE_ERROR
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd' 
                       IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'; 
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd'
-                      IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 # with WITH part and BY part
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
-       USER plug_dest IDENTIFIED by 'plug_dest_pwd';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
        USER plug_dest IDENTIFIED by 'plug_dest_pwd';
 # with WITH part and BY part
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
        plug_dest IDENTIFIED by 'plug_dest_pwd';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-       plug_dest IDENTIFIED by 'plug_dest_pwd';
 # with WITH part and BY part
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
-       IDENTIFIED by 'plug_dest_pwd';
---error ER_PARSE_ERROR
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
        IDENTIFIED by 'plug_dest_pwd';
 
 --echo ========== test 1.1  combinations ==========================
@@ -117,70 +86,27 @@ DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
-#  GRANT...WITH/CREATE...BY
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug, plug_dest;
 # 
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug_dest;
-# CREATE...WITH/GRANT...BY
+# CREATE...WITH
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 --source include/plugin_auth_check_non_default_users.inc
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug, plug_dest;
-# 
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug_dest;
-# 
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---echo GRANT IDENTIFIED WITH for existing users is now allowed
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---echo GRANT IDENTIFIED WITH for existing users is now allowed
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
-DROP USER plug;
-#
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---error ER_CANNOT_USER
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---error ER_CANNOT_USER
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
 DROP USER plug;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 --source include/plugin_auth_check_non_default_users.inc
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug;
-#
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---error ER_CANNOT_USER
-CREATE USER plug IDENTIFIED BY 'plug_dest_passwd';
 DROP USER plug;
 #
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER plug,plug_dest;
-#
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest 
-                        IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug,plug_dest;
-# 
 
 --echo ========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
 
@@ -217,7 +143,7 @@ DROP USER 'plüg_dest';
 SET NAMES utf8;
 # 
 --error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg';
@@ -259,38 +185,6 @@ DROP USER 'hh''s_plug_dest';
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
 
---echo ========== test 1.1.3.1 ====================================
-
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-CREATE USER plug_dest; 
-DROP USER plug_dest;
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-set sql_mode= @orig_sql_mode;
---source include/plugin_auth_check_non_default_users.inc
-DROP USER grant_user,plug_dest;
-#
-set @save_sql_mode= @@sql_mode;
-SET @@sql_mode=no_auto_create_user;
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-CREATE USER plug_dest; 
-DROP USER plug_dest;
---error ER_PASSWORD_NO_MATCH
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-DROP USER grant_user;
-#
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---source include/plugin_auth_check_non_default_users.inc
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_user_passwd';
---source include/plugin_auth_check_non_default_users.inc
-DROP USER grant_user,plug_dest;
-#
 DROP DATABASE test_user_db;
 --exit
 

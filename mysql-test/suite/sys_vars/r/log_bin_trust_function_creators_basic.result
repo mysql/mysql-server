@@ -51,7 +51,7 @@ ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the valu
 SET @@global.log_bin_trust_function_creators = "OFFF";
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OFFF'
 SET @@global.log_bin_trust_function_creators = OF;
-ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@global.log_bin_trust_function_creators = TTRUE;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'TTRUE'
 SET @@global.log_bin_trust_function_creators = FELSE;
@@ -66,12 +66,12 @@ SET @@global.log_bin_trust_function_creators = test;
 ERROR 42000: Variable 'log_bin_trust_function_creators' can't be set to the value of 'test'
 '#------------------FN_DYNVARS_063_06-----------------------#'
 SELECT IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 IF(@@global.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT IF(@@session.log_bin_trust_function_creators, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='log_bin_trust_function_creators';
 ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable
 '#---------------------FN_DYNVARS_063_07----------------------#'

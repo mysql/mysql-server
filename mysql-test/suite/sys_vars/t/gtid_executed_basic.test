@@ -1,160 +1,25 @@
-#
-### Description
-#
-# This test confirms that both @@GLOBAL.GTID_EXECUTIED and
-# @@SESSION.GTID_EXECUTED variables are present in the
-# performance_schema and information_schema correspondent tables
-# and that the appropriated deprecation warnings concerning
-# @@SESSION.GTID_EXECUTED are printed.
-#
-#
-### Related Bug
-#
-# Bug#21354712: Bug#21354712 SHOW VARIABLES RETURN WARNING ABOUT
-#               @@SESSION.GTID_EXECUTED BEING DEPRECATED
-
-
-
---source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 RESET MASTER;
 SET @start_global_value = @@global.gtid_executed;
 SELECT @start_global_value;
 
-SET @start_show_compatibility_56= @@GLOBAL.SHOW_COMPATIBILITY_56;
-SELECT @start_show_compatibility_56;
-
 #
-# exists as global and does not throw any deprecation warnings
+# exists as global and session
 #
-SELECT @@GLOBAL.GTID_EXECUTED;
-
-SET @@GLOBAL.SHOW_COMPATIBILITY_56= OFF;
-
---disable_result_log
-SELECT * FROM performance_schema.global_variables;
---enable_result_log
-SHOW WARNINGS;
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-
---disable_result_log
-SHOW GLOBAL VARIABLES;
---enable_result_log
-SHOW WARNINGS;
---echo SELECT * FROM information_schema.global_variables;
-SHOW GLOBAL VARIABLES LIKE 'gtid_executed';
-SHOW GLOBAL VARIABLES LIKE 'gtid_%';
-
-SET @@GLOBAL.SHOW_COMPATIBILITY_56= ON;
-
---disable_result_log
-SHOW GLOBAL VARIABLES;
---enable_result_log
-SHOW WARNINGS;
---disable_result_log
-SELECT * FROM information_schema.global_variables;
---enable_result_log
-SHOW WARNINGS;
-SHOW GLOBAL VARIABLES LIKE 'gtid_executed';
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-SHOW GLOBAL VARIABLES LIKE 'gtid_%';
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-
-
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'xyz';
-
-SHOW GLOBAL VARIABLES LIKE 'xyz';
-
-SET GLOBAL SHOW_COMPATIBILITY_56= ON;
-
-SHOW GLOBAL VARIABLES LIKE 'xyz';
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'xyz';
-
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-
-#
-# exists as session and throws the appropriate warnings
-#
-
---echo #
---echo # gtid_executed deprecation warnings are issued
---echo #
-
-SELECT @@SESSION.GTID_EXECUTED;
-
-SELECT @@SESSION.GTID_EXECUTED, @@SESSION.GTID_EXECUTED;
-
-SET @my_gtid_executed= @@SESSION.GTID_EXECUTED;
-
---echo #
---echo # gtid_executed deprecation warnings are NOT issued
---echo #
-
-SET GLOBAL SHOW_COMPATIBILITY_56= ON;
---disable_result_log
-SHOW VARIABLES;
---enable_result_log
-SHOW WARNINGS;
---disable_result_log
-SHOW SESSION VARIABLES;
---enable_result_log
-SHOW WARNINGS;
---disable_result_log
-SELECT * FROM information_schema.session_variables;
---enable_result_log
-SHOW WARNINGS;
-SHOW VARIABLES LIKE 'gtid_executed';
-SHOW SESSION VARIABLES LIKE 'gtid_executed';
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-SHOW VARIABLES LIKE 'gtid_%';
-SHOW SESSION VARIABLES LIKE 'gtid_%';
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-
-SHOW VARIABLES LIKE 'xyz';
-SHOW SESSION VARIABLES LIKE 'xyz';
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'xyz';
-
---echo #
---echo # @@session.gtid_executed is not present in P_S table and no deprecation
---echo # warnings ar issued
---echo #
-
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-
---disable_result_log
-SELECT * FROM performance_schema.session_variables;
---enable_result_log
-SHOW WARNINGS;
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-
---disable_result_log
-SHOW VARIABLES;
---enable_result_log
-SHOW WARNINGS;
---disable_result_log
-SHOW SESSION VARIABLES;
---enable_result_log
-SHOW WARNINGS;
-SHOW VARIABLES LIKE 'gtid_executed';
-SHOW SESSION VARIABLES LIKE 'gtid_executed';
-SHOW VARIABLES LIKE 'gtid_%';
-SHOW SESSION VARIABLES LIKE 'gtid_%';
-
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'xyz';
-
-SHOW VARIABLES LIKE 'xyz';
-SHOW SESSION VARIABLES LIKE 'xyz';
-
-SET GLOBAL SHOW_COMPATIBILITY_56= @start_show_compatibility_56;
+select @@global.gtid_executed;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.gtid_executed;
+show global variables like 'gtid_executed';
+show session variables like 'gtid_executed';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='gtid_executed';
+select * from performance_schema.session_variables where variable_name='gtid_executed';
+--enable_warnings
 
 #
 # It is not writable.
 #
+select @@global.gtid_executed;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@global.gtid_executed = '';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR

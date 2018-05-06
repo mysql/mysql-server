@@ -28,7 +28,7 @@ fld6 char(4) DEFAULT '' NOT NULL,
 UNIQUE fld1 (fld1),
 KEY fld3 (fld3),
 PRIMARY KEY (auto)
-);
+) charset utf8mb4;
 select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
@@ -132,7 +132,7 @@ select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
 explain select t2.fld3 from t2 where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
@@ -147,12 +147,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3,not_used);
@@ -165,7 +165,7 @@ honeysuckle
 honoring
 explain select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	fld3	fld3	30	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	fld3	fld3	120	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where ((`test`.`t2`.`fld3` >= 'honeysuckle') and (`test`.`t2`.`fld3` <= 'honoring')) order by `test`.`t2`.`fld3`
 select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
@@ -566,7 +566,7 @@ attainments
 fanatic
 measures
 rightfulness
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -579,7 +579,7 @@ bedlam	1
 bedpost	1
 boasted	1
 SET BIG_TABLES=1;
-select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
+select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 fld3	count(*)
 affixed	1
 and	1
@@ -592,7 +592,7 @@ bedlam	1
 bedpost	1
 boasted	1
 SET BIG_TABLES=0;
-select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
+select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr asc,fld3 asc limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
 chancellor	aaaaaaaaaa	1
 Chippewa	aaaaaaaa	1
@@ -1321,32 +1321,32 @@ UNIQUE KEY companyname(companyname)
 ) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
-00	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
+50	company 11
+00	Unknown
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
-00	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
+50	company 11
+00	Unknown
 select * from t1,t1 t12;
 Period	Varor_period	Period	Varor_period
 9410	9412	9410	9412
@@ -1544,16 +1544,16 @@ count(*)
 select companynr,count(*),sum(fld1) from t2 group by companynr;
 companynr	count(*)	sum(fld1)
 00	82	10355753
-29	95	14473298
-34	70	17788966
-36	215	22786296
 37	588	83602098
-40	37	6618386
-41	52	12816335
+36	215	22786296
 50	11	1595438
-53	4	793210
 58	23	2254293
+29	95	14473298
+40	37	6618386
+53	4	793210
 65	10	2284055
+41	52	12816335
+34	70	17788966
 68	12	3097288
 select companynr,count(*) from t2 group by companynr order by companynr desc limit 5;
 companynr	count(*)
@@ -1565,18 +1565,19 @@ companynr	count(*)
 select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
+explain select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	9.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
-select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
+select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr asc limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
+t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1588,7 +1589,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
-select /*! SQL_SMALL_RESULT */ companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr,t2nr limit 10;
+select /*! SQL_SMALL_RESULT */
+companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
+t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1643,16 +1646,16 @@ companynr	count(distinct fld1)
 select companynr,count(*) from t2 group by companynr;
 companynr	count(*)
 00	82
-29	95
-34	70
-36	215
 37	588
-40	37
-41	52
+36	215
 50	11
-53	4
 58	23
+29	95
+40	37
+53	4
 65	10
+41	52
+34	70
 68	12
 select companynr,count(distinct concat(fld1,repeat(65,1000))) from t2 group by companynr;
 companynr	count(distinct concat(fld1,repeat(65,1000)))
@@ -1739,18 +1742,18 @@ fld3	count(*)
 spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
-0	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
-50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
+50	company 11
+0	Unknown
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
 29	company 1	95
@@ -1898,19 +1901,19 @@ select t3.companynr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.co
 companynr	fld3	sum(price)
 512	boat	786542
 512	capably	786542
-512	cupboard	786542
 512	decliner	786542
-512	descendants	786542
 512	dopers	786542
 512	erases	786542
-512	Micronesia	786542
+512	cupboard	786542
 512	Miles	786542
 512	skies	786542
+512	Micronesia	786542
+512	descendants	786542
 select t2.companynr,count(*),min(fld3),max(fld3),sum(price),avg(price) from t2,t3 where t3.companynr >= 30 and t3.companynr <= 58 and t3.t2nr = t2.fld1 and 1+1=2 group by t2.companynr;
 companynr	count(*)	min(fld3)	max(fld3)	sum(price)	avg(price)
 00	1	Omaha	Omaha	5987435	5987435.0000
-36	1	dubbed	dubbed	28357832	28357832.0000
 37	83	Abraham	Wotan	1908978016	22999735.1325
+36	1	dubbed	dubbed	28357832	28357832.0000
 50	2	scribbled	tapestry	68012775	34006387.5000
 select t3.companynr+0,t3.t2nr,fld3,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 37 group by 1,t3.t2nr,fld3,fld3,fld3,fld3,fld3 order by fld1;
 t3.companynr+0	t2nr	fld3	sum(price)
@@ -2028,26 +2031,26 @@ companynr	fld1
 select companynr,count(*) as count,sum(fld1) as sum from t2 group by companynr having count > 40 and sum/count >= 120000;
 companynr	count	sum
 00	82	10355753
-29	95	14473298
-34	70	17788966
 37	588	83602098
+29	95	14473298
 41	52	12816335
+34	70	17788966
 select companynr from t2 group by companynr having count(*) > 40 and sum(fld1)/count(*) >= 120000 ;
 companynr
 00
-29
-34
 37
+29
 41
+34
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by companyname having t2.companynr >= 40;
 companynr	companyname	count(*)
-68	company 10	12
-50	company 11	11
 40	company 5	37
 41	company 6	52
 53	company 7	4
 58	company 8	23
 65	company 9	10
+68	company 10	12
+50	company 11	11
 select count(*) from t2;
 count(*)
 1199
@@ -2138,27 +2141,30 @@ show tables from test like "t?";
 Tables_in_test (t?)
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(11)	NULL	NO	PRI	NULL	auto_increment	#	
-fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
-companynr	tinyint(2) unsigned zerofill	NULL	NO		00		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+auto	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		select,insert,update,references	
+companynr	tinyint(2) unsigned zerofill	NULL	NO		00		select,insert,update,references	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			select,insert,update,references	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 show full columns from t2 from test like 'f%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		select,insert,update,references	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			select,insert,update,references	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE		
-t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE		
-t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE			YES
+t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE			YES
+t2	1	fld3	1	fld3	A	1199	NULL	NULL		BTREE			YES
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
@@ -2412,14 +2418,14 @@ create table t2(s varchar(10) not null primary key);
 create table t3(s varchar(10) not null primary key);
 insert into t1 values ('one\t'), ('two\t');
 insert into t2 values ('one\r'), ('two\t');
-insert into t3 values ('one '), ('two\t');
+insert into t3 values ('one\b'), ('two\t');
 select * from t1 where s = 'one';
 s
 select * from t2 where s = 'one';
 s
 select * from t3 where s = 'one';
 s
-one 
+one
 select * from t1,t2 where t1.s = t2.s;
 s	s
 two		two	
@@ -2484,7 +2490,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
 DROP TABLE t1, t2;
-CREATE TABLE t1 ( city char(30) );
+CREATE TABLE t1 ( city char(30) ) charset utf8mb4;
 INSERT INTO t1 VALUES ('London');
 INSERT INTO t1 VALUES ('Paris');
 SELECT * FROM t1 WHERE city='London';
@@ -2737,10 +2743,14 @@ drop table t1,t2;
 create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
 create table t11 like t1;
 insert into t1 values(1,""),(2,"");
+analyze table t1, t11;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t11	analyze	status	Table is already up to date
 show table status like 't1%';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Dynamic	2	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
-t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+t1	MyISAM	10	Dynamic	2	20	X	X	X	X	X	X	X	X	X	NULL		
+t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	X	NULL		
 select 123 as a from t1 where f1 is null;
 a
 drop table t1,t11;
@@ -2751,11 +2761,11 @@ INSERT INTO t2 VALUES ( 1,10,1), (1,10,2), (1,11,1), (1,11,2), (1,2,1), (1,2,2),
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d
+1	10		2
+1	11		2
 1	2	1	1
 1	2	2	1
 1	2	3	1
-1	10		2
-1	11		2
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t1.a, t1.b, c;
 a	b	c	d
@@ -2766,11 +2776,11 @@ a	b	c	d
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2 LEFT JOIN
 t1 ON t2.a = t1.a AND t2.b = t1.b GROUP BY t2.a, t2.b, c;
 a	b	c	d
+1	10		2
+1	11		2
 1	2	1	1
 1	2	2	1
 1	2	3	1
-1	10		2
-1	11		2
 SELECT t2.a, t2.b, IF(t1.b IS NULL,'',e) AS c, COUNT(*) AS d FROM t2,t1
 WHERE t2.a = t1.a AND t2.b = t1.b GROUP BY a, b, c;
 a	b	c	d
@@ -2827,36 +2837,30 @@ INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
 CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
 INSERT INTO t2 VALUES (1,NULL), (2,10);
 ALTER TABLE t1 ENABLE KEYS;
-EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select straight_join sql_no_cache count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
-SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
 1	NULL	2	1
 1	NULL	4	10
 2	10	4	10
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select straight_join sql_no_cache count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
-SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
 1	NULL	2	1
 1	NULL	4	10
 2	10	4	10
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
 CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
@@ -3134,12 +3138,10 @@ SELECT IFNULL(NULL, NULL);
 IFNULL(NULL, NULL)
 NULL
 SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
 Variable_name	Value
 sql_mode	
-CREATE TABLE BUG_12595(a varchar(100));
+CREATE TABLE BUG_12595(a varchar(100)) charset latin1;
 INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
 a
@@ -3155,6 +3157,7 @@ hakan%
 hakank
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%' ESCAPE '';
 a
+hakan%
 SELECT * FROM BUG_12595 WHERE a LIKE 'ha\%an' ESCAPE 0x5c;
 a
 ha%an
@@ -3191,8 +3194,6 @@ ha%an
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\n%' ESCAPE '\n';
 ERROR HY000: Incorrect arguments to ESCAPE
 SET @@SQL_MODE=@OLD_SQL_MODE12595;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE BUG_12595;
 create table t1 (a char(1));
 create table t2 (a char(1));
@@ -3341,8 +3342,12 @@ drop view v1, v2, v3;
 create table t1 (id int(11) not null default '0');
 insert into t1 values (123),(191),(192);
 create table t2 (id char(16) character set utf8 not null);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values ('58013'),('58014'),('58015'),('58016');
 create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 select count(*)
 from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;
@@ -3555,8 +3560,6 @@ Warnings:
 Note	1003	/* select#1 */ select '20' AS `sku`,'10' AS `sppr`,'bbb' AS `name`,`test`.`t1`.`sku` AS `sku`,`test`.`t1`.`pr` AS `pr` from `test`.`t2` join `test`.`t1` where (((`test`.`t1`.`sku` = 20) or (`test`.`t1`.`sku` = '10')))
 DROP TABLE t1,t2;
 SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -3699,8 +3702,8 @@ select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8
 from t1 where c9=1 order by c2, c2;
 match (`c1`) against ('z')	c2	c3	c4	c5	c6	c7	c8
 drop table t1;
-CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
-CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
+CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16)) charset utf8mb4;
+CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
 ('d','dddd'), ('i','iii'), ('a','aa'), ('b','bb'), ('g','gg'), 
 ('e','eee'), ('c','cccc'), ('h','hhh'), ('j','jjj'), ('f','fff');
@@ -3713,36 +3716,36 @@ EXPLAIN SELECT t2.*
 FROM t1 JOIN t2 ON t2.fk=t1.pk
 WHERE t2.fk < 'c' AND t2.pk=t1.fk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	12	NULL	3	100.00	Using index condition; Using where; Using MRR
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	42	NULL	3	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	66	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`fk` AS `fk` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`fk` = `test`.`t1`.`pk`) and (`test`.`t2`.`pk` = `test`.`t1`.`fk`) and (`test`.`t1`.`pk` < 'c'))
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	12	NULL	2	100.00	Using index condition; Using where; Using MRR
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	42	NULL	2	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	66	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`fk` AS `fk` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`fk` = `test`.`t1`.`pk`) and (`test`.`t2`.`pk` = `test`.`t1`.`fk`) and (`test`.`t1`.`pk` between 'a' and 'b'))
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	12	NULL	2	100.00	Using index condition; Using where; Using MRR
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	42	NULL	2	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	66	test.t1.fk	1	5.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`fk` AS `fk` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`fk` = `test`.`t1`.`pk`) and (`test`.`t2`.`pk` = `test`.`t1`.`fk`) and (`test`.`t1`.`pk` in ('a','b')))
 DROP TABLE t1,t2;
-CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
+CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a)) charset utf8mb4;
 CREATE TABLE t2 (a int, b varchar(20) NOT NULL,
-PRIMARY KEY (a), UNIQUE KEY (b));
+PRIMARY KEY (a), UNIQUE KEY (b)) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
 INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
 EXPLAIN SELECT t1.a FROM t1 LEFT JOIN t2 ON t2.b=t1.b WHERE t1.a=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	const	b	b	22	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	const	b	b	82	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select '3' AS `a` from `test`.`t1` left join `test`.`t2` on(multiple equal('c', 'c')) where 1
 DROP TABLE t1,t2;
@@ -3961,7 +3964,7 @@ a
 9223372036854775808
 9223372036854775808
 drop table t1;
-create table t1 select
+create table t1 charset utf8mb4 select
 if(1, 9223372036854775808, 1) i,
 case when 1 then 9223372036854775808 else 1 end c,
 coalesce(9223372036854775808, 1) co;
@@ -3971,7 +3974,7 @@ t1	CREATE TABLE `t1` (
   `i` decimal(19,0) NOT NULL DEFAULT '0',
   `c` decimal(19,0) NOT NULL DEFAULT '0',
   `co` decimal(19,0) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
 if(1, cast(1111111111111111111 as unsigned), 1) i,
@@ -3979,8 +3982,8 @@ case when 1 then cast(1111111111111111111 as unsigned) else 1 end c,
 coalesce(cast(1111111111111111111 as unsigned), 1) co;
 i	c	co
 1111111111111111111	1111111111111111111	1111111111111111111
-CREATE TABLE t1 (name varchar(255));
-CREATE TABLE t2 (name varchar(255), n int, KEY (name(3)));
+CREATE TABLE t1 (name varchar(255)) charset latin1;
+CREATE TABLE t2 (name varchar(255), n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
@@ -4052,17 +4055,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
-CREATE TABLE t1 (name text);
-CREATE TABLE t2 (name text, n int, KEY (name(3)));
+CREATE TABLE t1 (name text) charset latin1;
+CREATE TABLE t2 (name text, n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
@@ -4134,19 +4137,19 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
-ccc	NULL	NULL
+aa	aa	2
+aa  	aa	2
 bb	bb	1
 bb	bb 	6
-cc 	cc   	3
 cc 	cc	5
 cc 	cc 	7
-aa  	aa	2
-aa	aa	2
+cc 	cc   	3
+ccc	NULL	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 access_id int NOT NULL default '0',
 name varchar(20) default NULL,
-rank int NOT NULL default '0',
+`rank` int NOT NULL default '0',
 KEY idx (access_id)
 );
 CREATE TABLE t2 (
@@ -4204,8 +4207,8 @@ c2 varchar(1000) DEFAULT NULL,
 c3 bigint(20) DEFAULT NULL,
 c4 bigint(20) DEFAULT NULL,
 PRIMARY KEY (c1)
-);
-EXPLAIN EXTENDED 
+) charset utf8mb4;
+EXPLAIN
 SELECT  join_2.c1  
 FROM 
 t1 AS join_0, 
@@ -4250,11 +4253,9 @@ join_0.c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
 DROP TABLE t1;
 SELECT 1 AS ` `;
@@ -4295,8 +4296,8 @@ str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007/10/01 00:00:00 GMT'
-Warning	1292	Truncated incorrect datetime value: '2007/10/20 00:00:00 GMT'
+Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT'
+Warning	1292	Truncated incorrect date value: '2007/10/20 00:00:00 GMT'
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
 str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
 1
@@ -4443,12 +4444,12 @@ select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
 0
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2000-00-00'
+Warning	1292	Truncated incorrect date value: '2000-00-00'
 select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
 0
@@ -4558,7 +4559,7 @@ Handler_read_last	0
 Handler_read_next	10
 Handler_read_prev	0
 Handler_read_rnd	10
-Handler_read_rnd_next	7
+Handler_read_rnd_next	6
 DROP TABLE t1, t2;
 CREATE TABLE t1 (f1 bigint(20) NOT NULL default '0',
 f2 int(11) NOT NULL default '0',
@@ -4566,15 +4567,15 @@ f3 bigint(20) NOT NULL default '0',
 f4 varchar(255) NOT NULL default '',
 PRIMARY KEY (f1),
 KEY key1 (f4),
-KEY key2 (f2));
+KEY key2 (f2)) charset latin1;
 CREATE TABLE t2 (f1 int(11) NOT NULL default '0',
 f2 enum('A1','A2','A3') NOT NULL default 'A1',
 f3 int(11) NOT NULL default '0',
 PRIMARY KEY (f1),
-KEY key1 (f3));
+KEY key1 (f3)) charset latin1;
 CREATE TABLE t3 (f1 bigint(20) NOT NULL default '0',
 f2 datetime NOT NULL default '1980-01-01 00:00:00',
-PRIMARY KEY (f1));
+PRIMARY KEY (f1)) charset latin1;
 insert into t1 values (1, 1, 1, 'abc');
 insert into t1 values (2, 1, 2, 'def');
 insert into t1 values (3, 1, 2, 'def');
@@ -4595,24 +4596,22 @@ f3	f4	count
 drop table t1, t2, t3;
 CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
-EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
+EXPLAIN SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	3	25.00	Using index condition; Using where; Using MRR
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
-EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
+EXPLAIN SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	3	25.00	Using index condition; Using where; Using MRR
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;
 #
 # Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
 # forcing a spatial index
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
@@ -4658,8 +4657,6 @@ DROP TABLE t1;
 #   memory
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT NOT NULL, b YEAR);
 INSERT INTO t1 VALUES ();
 Warnings:
@@ -4680,11 +4677,10 @@ INSERT INTO t1 VALUES('2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 a
 2001-01-01 00:00:00
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATE NOT NULL);
@@ -4692,11 +4688,10 @@ INSERT INTO t1 VALUES('2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 a
 2001-01-01
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
@@ -4704,11 +4699,10 @@ INSERT INTO t1 VALUES('2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 a
 2001-01-01 00:00:00
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
@@ -4716,31 +4710,28 @@ INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 a	b
 2001-01-01 00:00:00	2001-01-01
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
-CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL);
+CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL) charset utf8mb4;
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 a	b
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
 2001-01-01 00:00:00	2001-01-01
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
+EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
@@ -4751,7 +4742,7 @@ JOIN t1 z ON y.a=z.a
 WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
 a	a	a
 2001-01-01 00:00:00	2001-01-01 00:00:00	2001-01-01 00:00:00
-EXPLAIN EXTENDED SELECT x.a, y.a, z.a FROM t1 x 
+EXPLAIN SELECT x.a, y.a, z.a FROM t1 x
 JOIN t1 y ON x.a=y.a 
 JOIN t1 z ON y.a=z.a 
 WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
@@ -4760,7 +4751,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	z	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
 DROP TABLE t1;
 #
@@ -4770,8 +4760,6 @@ DROP TABLE t1;
 SET @old_sort_buffer_size= @@session.sort_buffer_size;
 SET @@sort_buffer_size= 40000;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a CHAR(0) NOT NULL);
 INSERT INTO t1 VALUES (0), (0), (0);
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
@@ -4888,34 +4876,30 @@ Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
 DROP TABLE A,C;
 CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
+EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 1
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
+EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
+EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
+EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
 DROP TABLE t1;
 #
@@ -5007,46 +4991,41 @@ INSERT INTO t2 VALUES (2);
 SELECT * FROM t1 WHERE a = 1 + 1;
 a
 2
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = 1 + 1;
+EXPLAIN SELECT * FROM t1 WHERE a = 1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((1 + 1)))
 SELECT * FROM t1 HAVING a = 1 + 1;
 a
 2
-EXPLAIN EXTENDED SELECT * FROM t1 HAVING a = 1 + 1;
+EXPLAIN SELECT * FROM t1 HAVING a = 1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` having (`test`.`t1`.`a` = <cache>((1 + 1)))
 SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
 a	b
 4	2
-EXPLAIN EXTENDED SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
+EXPLAIN SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
 SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 b	a
 2	3
-EXPLAIN EXTENDED SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
+EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
+EXPLAIN SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(unix_timestamp('2009-03-10 00:00:00')))
 CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
 BEGIN
@@ -5060,11 +5039,10 @@ a
 SELECT @cnt;
 @cnt
 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = f1();
+EXPLAIN SELECT * FROM t1 WHERE a = f1();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(`f1`()))
 DROP TABLE t1, t2;
 DROP FUNCTION f1;
@@ -5122,7 +5100,7 @@ DROP TABLE t1;
 # Bug #54459: Assertion failed: param.sort_length, 
 # file .\filesort.cc, line 149 (part II)
 #
-CREATE TABLE t1(a ENUM('') NOT NULL);
+CREATE TABLE t1(a ENUM('') NOT NULL) charset latin1;
 INSERT INTO t1 VALUES (), (), ();
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5266,7 +5244,7 @@ UNION ALL
 SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)")))))
 AS foo
 ;
-ERROR HY000: Incorrect arguments to avg(distinct 
+ERROR HY000: Incorrect arguments to avg
 CREATE table t1(a text);
 INSERT INTO t1 VALUES (''), ('');
 SELECT avg(distinct(t1.a)) FROM t1, t1 t2
@@ -5284,7 +5262,7 @@ INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
 CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
 SHOW CREATE VIEW view_t1;
 View	Create View	character_set_client	collation_connection
-view_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_t1` AS select format(`t1`.`f1`,1,'sk_SK') AS `f1` from `t1`	latin1	latin1_swedish_ci
+view_t1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_t1` AS select format(`t1`.`f1`,1,'sk_SK') AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM view_t1;
 f1
 11,7

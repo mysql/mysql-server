@@ -1,9 +1,9 @@
 
+# Skipping the test when binlog format is mix/statement due to Bug#22173401
+--source include/have_binlog_format_row.inc
+
 # Test of the READ_ONLY global variable:
 # check that it blocks updates unless they are only on temporary tables.
-
-# should work with embedded server after mysqltest is fixed
---source include/not_embedded.inc
 
 set @start_read_only= @@global.read_only;
 
@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS t1,t2,t3;
 # so we use a non-SUPER one:
 
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user test@localhost;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
 --echo connect (con1,localhost,test,,test);
@@ -277,6 +277,7 @@ delete from mysql.tables_priv where User like 'mysqltest_%';
 delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 
+create user `mysqltest_u1`@`%`;
 grant all on mysqltest_db2.* to `mysqltest_u1`@`%`;
 create database mysqltest_db1;
 grant all on mysqltest_db1.* to `mysqltest_u1`@`%`;

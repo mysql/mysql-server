@@ -4,7 +4,6 @@
 # that depends on InnoDB
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop view if exists v1;
@@ -92,7 +91,7 @@ drop table t1;
 #
 # Bug #13293 Wrongly used index results in endless loop.
 #
-create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) charset utf8mb4 engine=innodb
 stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
@@ -124,14 +123,15 @@ drop table t1;
 --echo # FILE /BUILDDIR/BUILD/BUILD/MYSQ
 --echo #
 
-CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b)) ENGINE=InnoDB;
+CREATE TABLE t1 (a CHAR(1), b CHAR(1), PRIMARY KEY (a,b))
+charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 DROP TABLE t1;
 
 CREATE TABLE t1 (a CHAR(1) NOT NULL, b CHAR(1) NOT NULL, UNIQUE KEY (a,b))
-ENGINE=InnoDB;
+charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('a', 'b'), ('c', 'd');
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
@@ -156,7 +156,7 @@ CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   i2 INTEGER NOT NULL,
   UNIQUE KEY k1 (c1,i2)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t1 SELECT 'A',i1,i1 FROM t0;
 INSERT INTO t1 SELECT 'B',i1,i1 FROM t0;
@@ -170,7 +170,7 @@ CREATE TABLE t2 (
   i1 INTEGER NOT NULL,
   i2 INTEGER NOT NULL,
   UNIQUE KEY k2 (c1,i1,i2)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 SELECT 'A',i1,i1 FROM t0;
 INSERT INTO t2 SELECT 'B',i1,i1 FROM t0;
@@ -267,7 +267,7 @@ CREATE TABLE t1 (
   pk_col INT AUTO_INCREMENT PRIMARY KEY,
   a1 CHAR(64),
   KEY a1_idx (a1)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 INSERT INTO t1 (a1) VALUES ('a'),('a'),('a'),('a'), ('a');
 
 CREATE TABLE t2 (
@@ -278,14 +278,14 @@ CREATE TABLE t2 (
   PRIMARY KEY(pk_col1, pk_col2),
   KEY a1_idx (a1),
   KEY a1_a2_idx (a1, a2)
-) ENGINE=INNODB;
+) charset utf8mb4 ENGINE=INNODB;
 INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
                                                  (1,3,'a','c'),(1,4,'a','c'),
                                                  (2,1,'a','d');
 ANALYZE TABLE t1;
 ANALYZE TABLE t2;
 
-#Doesn't use loose index scan irrespective of index extensions.
+#Does not use loose index scan irrespective of index extensions.
 let query1=
 SELECT DISTINCT a1
 FROM t1

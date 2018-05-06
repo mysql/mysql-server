@@ -1,0 +1,260 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("Error writing relay log configuration");
+call mtr.add_suppression("Table 't_2' already exists");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("Cannot open datafile for read-onl");
+call mtr.add_suppression("The error means the system cannot");
+[connection master]
+CREATE DATABASE master_db;
+USE master_db;
+CREATE TABLE IF NOT EXISTS t_checks (id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,  ddl_query TEXT,  pre_binlog_check TEXT, post_binlog_check TEXT);;
+USE test;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+CREATE TABLE t_2 (a int auto_increment primary key);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, ALGORITHM=COPY, COMMENT 'Col b copy-added';
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= INPLACE, COMMENT 'Index on b inplace-added';
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+ALTER TABLE t_2 RENAME t_3;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+RENAME TABLE t_3 TO t_2 /* Name restored */;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+INSERT INTO t_2 SET a=1,b=1;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+TRUNCATE TABLE t_2;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd';
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+DROP TABLESPACE ts_0;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+CREATE DATABASE db_0 DEFAULT COLLATE latin1_general_ci;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+DROP DATABASE db_0;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+DROP TABLE t_2;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Rotate	#	#	master-bin.000002;pos=POS
+include/gtid_step_assert.inc [count=1, only_count=0]
+[connection slave]
+include/start_slave_io.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+[connection master]
+include/sync_slave_io_with_master.inc
+[connection slave]
+include/stop_slave_io.inc
+CREATE TABLE t_2 (a int);
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1050]
+DROP TABLE t_2;
+[connection master]
+Loop: 1 out of 13; current query: 'CREATE TABLE t_2 (a int auto_increment primary key)'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_2'';
+[connection slave]
+*** Query: 'CREATE TABLE t_2 (a int auto_increment primary key)'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 2 out of 13; current query: 'ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, ALGORITHM=COPY, COMMENT 'Col b copy-added''; pre-binlog check: ''; pre-commit check: 'select TABLE_COMMENT LIKE 'Col b copy-added' FROM information_schema.tables where table_name = 't_2'';
+[connection slave]
+*** Query: 'ALTER TABLE t_2 ADD COLUMN b INT NOT NULL, ALGORITHM=COPY, COMMENT 'Col b copy-added''. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 3 out of 13; current query: 'ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= INPLACE, COMMENT 'Index on b inplace-added''; pre-binlog check: ''; pre-commit check: 'select TABLE_COMMENT LIKE 'Index on b inplace-added' FROM information_schema.tables where table_name = 't_2'';
+[connection slave]
+*** Query: 'ALTER TABLE t_2 ADD INDEX idx(b), ALGORITHM= INPLACE, COMMENT 'Index on b inplace-added''. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 4 out of 13; current query: 'ALTER TABLE t_2 RENAME t_3'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_3'';
+[connection slave]
+*** Query: 'ALTER TABLE t_2 RENAME t_3'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 5 out of 13; current query: 'RENAME TABLE t_3 TO t_2 /* Name restored */'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = 't_2'';
+[connection slave]
+*** Query: 'RENAME TABLE t_3 TO t_2 /* Name restored */'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 6 out of 13; current query: 'INSERT INTO t_2 SET a=1,b=1'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM t_2';
+[connection slave]
+*** Query: 'INSERT INTO t_2 SET a=1,b=1'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 7 out of 13; current query: 'TRUNCATE TABLE t_2'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM t_2';
+[connection slave]
+*** Query: 'TRUNCATE TABLE t_2'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 8 out of 13; current query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
+[connection slave]
+*** Query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 9 out of 13; current query: 'DROP TABLESPACE ts_0'; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
+[connection slave]
+*** Query: 'DROP TABLESPACE ts_0'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 10 out of 13; current query: 'CREATE DATABASE db_0 DEFAULT COLLATE latin1_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0'';
+[connection slave]
+*** Query: 'CREATE DATABASE db_0 DEFAULT COLLATE latin1_general_ci'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 11 out of 13; current query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0' and default_collation_name = 'utf8_general_ci'';
+[connection slave]
+*** Query: 'ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 12 out of 13; current query: 'DROP DATABASE db_0'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'db_0'';
+[connection slave]
+*** Query: 'DROP DATABASE db_0'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection master]
+Loop: 13 out of 13; current query: 'DROP TABLE t_2'; pre-binlog check: ''; pre-commit check: 'SELECT count(*) = 0 FROM information_schema.tables WHERE table_name = 't_2'';
+[connection slave]
+*** Query: 'DROP TABLE t_2'. Crash right after the query has been binary-logged before committed in the engine. ***
+SET @@GLOBAL.debug="+d,crash_commit_after_log";
+include/gtid_step_reset.inc
+START SLAVE SQL_THREAD;
+include/rpl_start_server.inc [server_number=2]
+[connection slave]
+include/gtid_step_assert.inc [count=1, only_count=1]
+[connection slave]
+include/start_slave.inc
+[connection master]
+DROP DATABASE master_db;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

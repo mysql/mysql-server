@@ -30,24 +30,24 @@ Session 2 : srv_session_info_get_thd and srv_session_info_get_session_id
 ============================================================================================
 Thread handler id IS equal to session id returned by srv_session_info_get_session_id(Session_2)
 
-SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  3
+SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  8
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/sql/one_connection  FOREGROUND  3  root  localhost  test  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  3  [NULL]  YES  YES  Plugin  
+thread/sql/one_connection  FOREGROUND  8  root  localhost  test  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  8  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
-SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  4
+SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  9
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/sql/one_connection  FOREGROUND  4  root  localhost  test  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  4  [NULL]  YES  YES  Plugin  
+thread/sql/one_connection  FOREGROUND  9  root  localhost  test  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  9  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -69,7 +69,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 /*Session_1*/ USE information_schema
@@ -89,7 +89,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -112,7 +112,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -134,7 +134,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -201,88 +201,88 @@ warn count    : 0
 Session 1 : srv_session_info_set_connection_type
 ============================================================================================
 Session 1's view
-SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  3 /*session_1_id*/
+SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  8 /*session_1_id*/
 CONNECTION_TYPE  CONNECTION_TYPE IS NULL  
 Plugin  0  
 
 num_cols      : 2
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting NO_VIO_TYPE on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  3 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  8 /*session_1_id*/
 CONNECTION_TYPE  
 Plugin  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_TCPIP on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  3 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  8 /*session_1_id*/
 CONNECTION_TYPE  
 TCP/IP  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_NAMEDPIPE on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  3 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  8 /*session_1_id*/
 CONNECTION_TYPE  
 Named Pipe  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
 Session 2 : srv_session_info_set_connection_type
 ============================================================================================
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  4 /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  9 /*session_2_id*/
 CONNECTION_TYPE  
 Plugin  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_SSL on session_2
 Setting VIO_TYPE_TCPIP on session_1
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  4 /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  9 /*session_2_id*/
 CONNECTION_TYPE  
 SSL/TLS  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  4  /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  9  /*session_2_id*/
 CONNECTION_TYPE  
 Shared Memory  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -290,8 +290,8 @@ BEFORE kill of Session 1
 ============================================================================================
 SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
 ID  USER  HOST  DB  COMMAND  INFO  
-3  root  localhost:100  test  Query  PLUGIN: SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
-4  root  localhost:200  test  Sleep  PLUGIN  
+8  root  localhost:100  test  Query  PLUGIN: SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
+9  root  localhost:200  test  Sleep  PLUGIN  
 
 num_cols      : 6
 nb rows       : 2
@@ -304,7 +304,7 @@ srv_session_info_killed(Session_1) : 0
 srv_session_info_killed(Session_2) : 0
 ============================================================================================
 Killing Session 1
-KILL CONNECTION 3 /*session_1_id*/
+KILL CONNECTION 8 /*session_1_id*/
 affected rows : 0
 server status : 2
 warn count    : 0
@@ -336,15 +336,15 @@ SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 ============================================================================================
 Perform KILL QUERY and suicide (KILL CONNECTION) on Session 2
 ============================================================================================
-KILL QUERY 4 /*session_2_id*/
+KILL QUERY 9 /*session_2_id*/
 srv_session_info_killed(Session 2) : 0
-KILL CONNECTION 4  /*session_2_id*/
+KILL CONNECTION 9  /*session_2_id*/
 srv_session_info_killed(Session 2) : 1
 ============================================================================================
 Get/Set session info with killed session(Session 2)
 ============================================================================================
 srv_session_info_get_thd             : 1
-srv_session_info_get_session_id      : 4
+srv_session_info_get_session_id      : 9
 srv_session_info_set_client_port     : 0
 srv_session_info_get_client_port     : 11111
 srv_session_info_get_current_db      : test
@@ -355,8 +355,8 @@ Session 2 got killed but not closed, thus it will appear in the processlist as K
 ============================================================================================
 /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
 ID  USER  HOST  DB  COMMAND  INFO  
-4  root  localhost:11111  test  Killed  PLUGIN  
-5  root  localhost  [NULL]  Query  PLUGIN: /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
+9  root  localhost:11111  test  Killed  PLUGIN  
+10  root  localhost  [NULL]  Query  PLUGIN: /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
 
 num_cols      : 6
 nb rows       : 2
@@ -381,24 +381,24 @@ Session 2 : srv_session_info_get_thd and srv_session_info_get_session_id
 ============================================================================================
 Thread handler id IS equal to session id returned by srv_session_info_get_session_id(Session_2)
 
-SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6
+SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  11
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/test_service_sql/session_info  FOREGROUND  6  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  6  [NULL]  YES  YES  Plugin  
+thread/test_service_sql/session_info  FOREGROUND  11  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  11  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
-SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  7
+SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  12
 name  type  processlist_id  processlist_user  processlist_host  processlist_db  processlist_command  processlist_state  processlist_info  role  instrumented  history  connection_type  
-thread/test_service_sql/session_info  FOREGROUND  7  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,role,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  7  [NULL]  YES  YES  Plugin  
+thread/test_service_sql/session_info  FOREGROUND  12  root  localhost  [NULL]  Query  Sending data  SELECT name,type,processlist_id,processlist_user,processlist_host,processlist_db,processlist_command,processlist_state,processlist_info,`role`,instrumented,history,connection_type FROM performance_schema.threads WHERE processlist_id =  12  [NULL]  YES  YES  Plugin  
 
 num_cols      : 13
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -420,7 +420,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 /*Session_1*/ USE information_schema
@@ -440,7 +440,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -463,7 +463,7 @@ slave_worker_info
 num_cols      : 1
 nb rows       : 3
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
@@ -485,7 +485,7 @@ t1
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -552,88 +552,88 @@ warn count    : 0
 Session 1 : srv_session_info_set_connection_type
 ============================================================================================
 Session 1's view
-SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  6 /*session_1_id*/
+SELECT CONNECTION_TYPE, CONNECTION_TYPE IS NULL FROM performance_schema.threads WHERE PROCESSLIST_ID =  11 /*session_1_id*/
 CONNECTION_TYPE  CONNECTION_TYPE IS NULL  
 Plugin  0  
 
 num_cols      : 2
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting NO_VIO_TYPE on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  6 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  11 /*session_1_id*/
 CONNECTION_TYPE  
 Plugin  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_TCPIP on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  6 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  11 /*session_1_id*/
 CONNECTION_TYPE  
 TCP/IP  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_NAMEDPIPE on session_1
 Session 1's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  6 /*session_1_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  11 /*session_1_id*/
 CONNECTION_TYPE  
 Named Pipe  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
 Session 2 : srv_session_info_set_connection_type
 ============================================================================================
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  7 /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  12 /*session_2_id*/
 CONNECTION_TYPE  
 Plugin  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Setting VIO_TYPE_SSL on session_2
 Setting VIO_TYPE_TCPIP on session_1
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  7 /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  12 /*session_2_id*/
 CONNECTION_TYPE  
 SSL/TLS  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 Session 2's view
-SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  7  /*session_2_id*/
+SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE PROCESSLIST_ID =  12  /*session_2_id*/
 CONNECTION_TYPE  
 Shared Memory  
 
 num_cols      : 1
 nb rows       : 1
 affected rows : 0
-server status : 34
+server status : 2
 warn count    : 0
 
 ============================================================================================
@@ -641,8 +641,8 @@ BEFORE kill of Session 1
 ============================================================================================
 SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
 ID  USER  HOST  DB  COMMAND  INFO  
-6  root  localhost:100  test  Query  PLUGIN: SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
-7  root  localhost:200  test  Sleep  PLUGIN  
+11  root  localhost:100  test  Query  PLUGIN: SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
+12  root  localhost:200  test  Sleep  PLUGIN  
 
 num_cols      : 6
 nb rows       : 2
@@ -655,7 +655,7 @@ srv_session_info_killed(Session_1) : 0
 srv_session_info_killed(Session_2) : 0
 ============================================================================================
 Killing Session 1
-KILL CONNECTION 6 /*session_1_id*/
+KILL CONNECTION 11 /*session_1_id*/
 affected rows : 0
 server status : 2
 warn count    : 0
@@ -687,15 +687,15 @@ SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 ============================================================================================
 Perform KILL QUERY and suicide (KILL CONNECTION) on Session 2
 ============================================================================================
-KILL QUERY 7 /*session_2_id*/
+KILL QUERY 12 /*session_2_id*/
 srv_session_info_killed(Session 2) : 0
-KILL CONNECTION 7  /*session_2_id*/
+KILL CONNECTION 12  /*session_2_id*/
 srv_session_info_killed(Session 2) : 1
 ============================================================================================
 Get/Set session info with killed session(Session 2)
 ============================================================================================
 srv_session_info_get_thd             : 1
-srv_session_info_get_session_id      : 7
+srv_session_info_get_session_id      : 12
 srv_session_info_set_client_port     : 0
 srv_session_info_get_client_port     : 11111
 srv_session_info_get_current_db      : test
@@ -706,8 +706,8 @@ Session 2 got killed but not closed, thus it will appear in the processlist as K
 ============================================================================================
 /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id
 ID  USER  HOST  DB  COMMAND  INFO  
-7  root  localhost:11111  test  Killed  PLUGIN  
-8  root  localhost  [NULL]  Query  PLUGIN: /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
+12  root  localhost:11111  test  Killed  PLUGIN  
+13  root  localhost  [NULL]  Query  PLUGIN: /*Session 3*/SELECT ID, USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' ORDER BY id  
 
 num_cols      : 6
 nb rows       : 2

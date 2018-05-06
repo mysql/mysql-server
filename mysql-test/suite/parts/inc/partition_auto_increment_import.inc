@@ -3,6 +3,8 @@
 --echo # test auto increment with export import
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
 
+SET SESSION information_schema_stats_expiry=0;
+
 eval CREATE TABLE t1 (
   col_1_int int AUTO_INCREMENT,
   col_2_varchar VARCHAR (20),

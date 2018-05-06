@@ -3,7 +3,6 @@
 #
 
 --source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 
 let $check_stats = SELECT table_name, n_rows FROM mysql.innodb_table_stats WHERE table_name LIKE 'ar_%' ORDER BY table_name;
 

@@ -1,44 +1,12 @@
---source include/have_perfschema.inc
---source include/not_embedded.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = ON
---echo ================================================================================
-set global show_compatibility_56 = on;
-
 select 1;
 SHOW STATUS LIKE 'Last_query_partial_plans';
 select 2;
 SHOW STATUS LIKE 'Last_query_cost';
 
-
---echo
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = OFF
---echo ================================================================================
-set global show_compatibility_56 = off;
-
-select 1;
-SHOW STATUS LIKE 'Last_query_partial_plans';
-select 2;
-SHOW STATUS LIKE 'Last_query_cost';
-
-
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = ON
---echo ================================================================================
 flush status;
-set global show_compatibility_56 = on;
-SHOW STATUS LIKE 'Created_tmp_tables';
-
---echo
---echo ================================================================================
---echo SHOW_COMPATIBILITY_56 = OFF
---echo ================================================================================
-set global show_compatibility_56 = off;
 
 SHOW STATUS LIKE 'Created_tmp_tables';
 
@@ -74,10 +42,4 @@ SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 UNLOCK TABLES;
 
 DROP TABLE test.t1;
-
---echo
---echo ================================================================================
---echo CLEAN UP
---echo ================================================================================
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
 

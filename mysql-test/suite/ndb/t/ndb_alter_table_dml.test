@@ -1,13 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Testing' alter table partition by key' with concurrent dml.
 # 
 
---source include/not_embedded.inc
 --source include/have_multi_ndb.inc
 
 connect (j1,localhost,root,,test);
@@ -22,8 +16,10 @@ call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible meml
 
 use test;
 
-create table parent(a int primary key, b int, key(b)) engine=ndb;
-create table child(a int primary key, b int) engine=ndb;
+create table parent(a int primary key, b int, key(b)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table child(a int primary key, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into parent values (1,1), (2,2), (3,3), (4,4);
 insert into parent select a+4, b+4 from parent;

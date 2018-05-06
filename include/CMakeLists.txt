@@ -1,82 +1,55 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(HEADERS_GEN_CONFIGURE 
-${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
-${CMAKE_CURRENT_BINARY_DIR}/my_config.h
-${CMAKE_CURRENT_BINARY_DIR}/mysqld_ername.h
-${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
-${CMAKE_CURRENT_BINARY_DIR}/sql_state.h
-)
-SET(HEADERS_ABI 
-  mysql.h 
-  mysql_com.h
-  my_command.h
-  mysql_time.h 
-  my_list.h
-  my_alloc.h
-  typelib.h 
-  mysql/plugin.h
-  mysql/plugin_audit.h
-  mysql/plugin_ftparser.h
-  mysql/plugin_validate_password.h
-  mysql/plugin_keyring.h
-  mysql/plugin_group_replication.h
-)
-
-SET(HEADERS 
-  ${HEADERS_ABI} 
-  my_dbug.h 
-  m_string.h
-  my_sys.h 
-  my_xml.h
-  mysql_embed.h
-  my_thread.h
-  my_thread_local.h
-  decimal.h
+# These are the headers required to #include <mysql.h>, which we ship
+# to the client as part of our API.
+#
+# FIXME: mysqld_error.h, which is also part of our API, should be included
+# from mysql.h, but this needs more build system tweaking, since it's
+# automatically generated.
+SET(HEADERS
   errmsg.h
-  my_global.h
-  my_getopt.h
-  sslopt-longopts.h
-  my_dir.h 
-  sslopt-vars.h
-  sslopt-case.h
-  sql_common.h
-  keycache.h
-  m_ctype.h
-  my_compiler.h
-  mysql_com_server.h
-  my_byteorder.h
-  byte_order_generic.h
-  byte_order_generic_x86.h
-  little_endian.h
-  big_endian.h
-  thr_cond.h
-  thr_mutex.h
-  thr_rwlock.h
-  ${HEADERS_GEN_CONFIGURE}
-)
-
-INSTALL(FILES
+  my_command.h
+  my_list.h
+  mysql.h
+  mysql_com.h
+  mysql_time.h
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
   ../libbinlogevents/export/binary_log_types.h
-  DESTINATION ${INSTALL_INCLUDEDIR}
-  COMPONENT Development)
-INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
-INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development 
- PATTERN "*.h"
- PATTERN "psi_abi*" EXCLUDE
+)
+SET(HEADERS_MYSQL_DIR
+  mysql/client_plugin.h
+  mysql/plugin_auth_common.h
+  mysql/udf_registration_types.h
 )
 
+INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
+INSTALL(FILES ${HEADERS_MYSQL_DIR} DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development)
 
+# openssl/applink.c must be built into applications linking with libmysql.dll
+IF (WIN32 AND OPENSSL_APPLINK_C)
+  INSTALL(FILES ${OPENSSL_APPLINK_C}
+    DESTINATION ${INSTALL_INCLUDEDIR}/openssl
+    COMPONENT Development
+    )
+ENDIF()

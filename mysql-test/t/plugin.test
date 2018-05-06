@@ -1,6 +1,16 @@
-#
---source include/not_windows_embedded.inc
+# The test contains a storage engine limited to statement-based logging, since,
+# 'example' plugin doesn't support binlog_format=ROW. Thus, test now sets
+# binlog_format=STATEMENT when log-bin is enabled and binlog_format=ROW.
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET @saved_binlog_format= @@SESSION.binlog_format;
+  SET SESSION binlog_format= STATEMENT;
+  --enable_query_log
+}
+
 --source include/have_example_plugin.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 
 # Save the initial number of concurrent sessions
@@ -21,9 +31,9 @@ UNINSTALL PLUGIN example;
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 --echo # Example engine does not support indexes
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
 
 
@@ -48,14 +58,26 @@ DELETE FROM t1 WHERE a = 0;
 --error ER_ILLEGAL_HA
 HANDLER t1 OPEN;
 
+--echo # Try to delete table when plugin is not loaded.
+--echo # Remove table from TDC to allow plugin unload.
+FLUSH TABLE t1;
+UNINSTALL PLUGIN example;
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+DROP TABLE t1;
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
 DROP TABLE t1;
 
 # a couple of tests for variables
 set global example_ulong_var=500;
 set global example_enum_var= e1;
 --disable_warnings
-select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+select * from performance_schema.global_status where variable_name like 'example%' order by variable_name;
 --enable_warnings
+--replace_regex /^Last creation.*t1'$/Last creation 't1'/
 show variables like 'example%';
 
 UNINSTALL PLUGIN example;
@@ -184,7 +206,7 @@ END
 
 CREATE PROCEDURE p_show_vars()
 BEGIN
-  SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
+  SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
 delimiter ;|
@@ -299,5 +321,89 @@ disconnect con2;
 --error ER_PLUGIN_DELETE_BUILTIN
 UNINSTALL PLUGIN innodb;
 
+--echo #
+--echo # Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+--echo #                THAT SET MEMALLOC FLAG
+--echo #
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t10'$/Last creation 't10'/
+SELECT @@SESSION.example_last_create_thdvar;
+
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+--replace_regex /^Last creation.*t20'$/Last creation 't20'/
+SELECT @@SESSION.example_last_create_thdvar;
+
+DROP TABLE t10, t20;
+
+UNINSTALL PLUGIN example;
+
+--echo #
+--echo # BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-UTF8.CC:9437
+--echo #
+SET GLOBAL DEBUG='+d,set_uninstall_sync_point';
+connect(con1, localhost, root,,);
+
+connection default;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+SET DEBUG_SYNC='before_store_plugin_name SIGNAL uninstall_plugin WAIT_FOR plugin_uninstalled';
+--send SELECT * FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='example';
+
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
+UNINSTALL PLUGIN example;
+SET DEBUG_SYNC='now SIGNAL plugin_uninstalled';
+
+connection default;
+--reap
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='-d,set_uninstall_sync_point';
+disconnect con1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#51770: UNINSTALL PLUGIN requires no privileges
+--echo #
+
+CREATE USER bug51770@localhost;
+GRANT INSERT ON mysql.plugin TO bug51770@localhost;
+connect(con1,localhost,bug51770,,);
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+--error ER_TABLEACCESS_DENIED_ERROR
+UNINSTALL PLUGIN example;
+connection default;
+GRANT DELETE ON mysql.plugin TO bug51770@localhost;
+connection con1;
+UNINSTALL PLUGIN example;
+disconnect con1;
+connection default;
+DROP USER bug51770@localhost;
+
+#
+# BUG#58246: INSTALL PLUGIN not secure & crashable
+#
+# The bug consisted of not recognizing / on Windows, so checking / on
+# all platforms should cover this case.
+
+let $path = `select CONCAT_WS('/', '..', '$EXAMPLE_PLUGIN')`;
+--replace_regex /\.dll/.so/
+--error ER_UDF_NO_PATHS
+eval INSTALL PLUGIN example SONAME '$path';
+
+if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
+{
+  --disable_query_log
+  SET SESSION binlog_format= @saved_binlog_format;
+  --enable_query_log
+}

@@ -6,7 +6,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` year(4) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (y YEAR(-4) NOT NULL);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-4) NOT NULL)' at line 1
@@ -44,7 +44,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `y` year(4) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Check various ALTER TABLE operations on YEAR(2) type
@@ -57,7 +57,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Try to convert YEAR(4) column to YEAR(2) with ALTER TABLE
 ALTER TABLE t1 MODIFY COLUMN y YEAR(2) NOT NULL;
 ERROR HY000: Supports only YEAR or YEAR(4) column.
@@ -65,14 +65,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY COLUMN i YEAR(2) NOT NULL;
 ERROR HY000: Supports only YEAR or YEAR(4) column.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=latin1
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY COLUMN i INT NOT NULL;
 DROP TABLE t1;
 #

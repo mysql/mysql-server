@@ -1,0 +1,118 @@
+# Test that hows register/unregister of single and multiple UDFsi with different components.
+
+# Register 3 UDFs.
+INSTALL COMPONENT "file://component_udf_reg_only_3_func";
+
+# Try to register an already registered UDF (myfunc_int).
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT "file://component_udf_reg_int_func";
+
+# Check performance_schmea
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+
+# Verify, that UDFs are working.
+--error ER_CANT_INITIALIZE_UDF
+select myfunc_double();
+select myfunc_double(1);
+select myfunc_double(78654);
+
+select myfunc_int();
+select myfunc_int(5);
+select myfunc_int('MySQL V8.0');
+
+# Verify that myfunc_int is visible (once).
+SELECT udf_name,udf_usage_count FROM performance_schema.user_defined_functions
+  WHERE udf_name= 'myfunc_int'
+  ORDER BY udf_name;
+
+# Verify, that UDFs are working.
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+SELECT myfunc_int(a AS attr_name) FROM t1;
+drop table t1;
+
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+--error ER_CANT_INITIALIZE_UDF
+select avgcost(price) from t1;
+select avgcost(sum, price) from t1;
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+drop table t1;
+
+# Unregister all3 UDFs.
+--echo # remove the plugin
+INSTALL COMPONENT "file://component_udf_unreg_3_func";
+
+# Verify, that UDFs are not more working.
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_double(1);
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_int(5);
+
+# Register myfunc_int.
+INSTALL COMPONENT "file://component_udf_reg_int_func";
+
+# Check performance_schema is showing only 1 UDF.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+
+# Check components.
+SELECT * FROM mysql.func;
+SELECT component_urn FROM mysql.component;
+
+# Verfiy, that only the registered UDF works.
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_double(1);
+select myfunc_int(5);
+
+# Register myfunc_double.
+INSTALL COMPONENT "file://component_udf_reg_real_func";
+
+# Check performance_schema is showing 2 UDFs.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+
+# Check components.
+SELECT * FROM mysql.func;
+
+# Verfiy, that the registered UDFs work.
+select myfunc_double(1);
+select myfunc_int(5);
+
+# Unregister myfunc_double.
+UNINSTALL COMPONENT "file://component_udf_reg_real_func";
+
+# Check performance_schema is showing only 1 UDF.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+# Check components.
+SELECT component_urn FROM mysql.component;
+
+# Unregister 3 UDFs with init.
+UNINSTALL COMPONENT "file://component_udf_reg_only_3_func";
+
+# Check performance_schema is showing only 3 UDFs.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+
+# Check compoinents.
+SELECT component_urn FROM mysql.component;
+
+# Unregister 3 UDFs (init).
+UNINSTALL COMPONENT "file://component_udf_unreg_3_func";
+
+# No UDF shown by performance_schema.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+# Check components.
+SELECT component_urn FROM mysql.component;
+
+# Unregister myfunc_int wich is already unregistered (error log).
+UNINSTALL COMPONENT "file://component_udf_reg_int_func";
+# check performance_schema and compoents, both empty.
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+SELECT component_urn FROM mysql.component;

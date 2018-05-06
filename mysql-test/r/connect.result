@@ -1,12 +1,14 @@
 drop table if exists t1,t2;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 columns_priv
+component
 db
+default_roles
 engine_cost
-event
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -14,11 +16,11 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
+password_history
 plugin
-proc
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -42,14 +44,16 @@ create user test@localhost identified by "gambling";
 grant ALL on *.* to test@localhost;
 create user test@127.0.0.1 identified by "gambling";
 grant ALL on *.* to test@127.0.0.1;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 columns_priv
+component
 db
+default_roles
 engine_cost
-event
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -57,11 +61,11 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
+password_history
 plugin
-proc
 procs_priv
 proxies_priv
+role_edges
 server_cost
 servers
 slave_master_info
@@ -89,8 +93,8 @@ connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
 connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-delete from mysql.user where user=_binary"test";
-flush privileges;
+drop user test@localhost;
+drop user test@127.0.0.1;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
@@ -106,9 +110,10 @@ drop table t1;
 CREATE USER mysqltest_u1@localhost;
 
 SET GLOBAL max_connections = 3;
-SET GLOBAL event_scheduler = ON;
-
-# -- Waiting for Event Scheduler to start...
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 
 # -- Disconnecting default connection...
 
@@ -154,11 +159,6 @@ root
 # -- Resetting variables...
 SET GLOBAL max_connections = 151;
 
-# -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-
-# -- Waiting for Event Scheduler to stop...
-
 # -- That's it. Closing connections...
 
 # -- Restoring default connection...
@@ -176,9 +176,6 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	1
-
-# -- Starting Event Scheduler...
-SET GLOBAL event_scheduler = ON;
 # -- Waiting for Event Scheduler to start...
 
 # -- Opening a new connection to check max_used_connections...
@@ -187,12 +184,12 @@ SET GLOBAL event_scheduler = ON;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	2
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 
 # -- Closing new connection...
-
-# -- Stopping Event Scheduler...
-SET GLOBAL event_scheduler = OFF;
-# -- Waiting for Event Scheduler to stop...
 
 # -- End of Bug#35074.
 
@@ -307,6 +304,14 @@ ALTER USER
 invalid_user@localhost,
 must_change@localhost PASSWORD EXPIRE;
 ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
+SELECT password_expired FROM mysql.user
+WHERE user='must_change' and host = 'localhost';
+password_expired
+N
+SELECT USER();
+USER()
+must_change@localhost
+ALTER USER must_change@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user
 WHERE user='must_change' and host = 'localhost';
 password_expired

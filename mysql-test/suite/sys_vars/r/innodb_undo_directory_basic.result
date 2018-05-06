@@ -10,7 +10,7 @@ COUNT(@@GLOBAL.innodb_undo_directory)
 1
 1 Expected
 SELECT @@GLOBAL.innodb_undo_directory = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_directory';
 @@GLOBAL.innodb_undo_directory = VARIABLE_VALUE
 1
@@ -20,7 +20,7 @@ COUNT(@@GLOBAL.innodb_undo_directory)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_undo_directory';
 COUNT(VARIABLE_VALUE)
 1

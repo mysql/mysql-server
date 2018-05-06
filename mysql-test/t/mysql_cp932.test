@@ -1,12 +1,4 @@
 
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
-
-#
-# Tests from mysql.test which require the cp932 character set
-#
--- source include/have_cp932.inc
-
 #
 # BUG#16217 - MySQL client misinterprets multi-byte char as escape `\' 
 #

@@ -16,7 +16,6 @@
 #                   Create this script based on older scripts and new code.
 # Last Change:
 # 2008-06-11 mleich Move t/is_views.test to this file and
-#                   create variants for embedded/non embedded server.
 #
 
 let $is_table = VIEWS;
@@ -64,7 +63,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 
 # Show that TABLE_CATALOG is always NULL.
 SELECT table_catalog, table_schema, table_name
-FROM information_schema.views WHERE table_catalog IS NOT NULL;
+FROM information_schema.views WHERE table_catalog IS NOT NULL order by table_name;
 
 
 --echo ################################################################################
@@ -274,9 +273,25 @@ SELECT * FROM information_schema.views;
 INSERT INTO information_schema.views(table_schema, table_name)
 VALUES ('db2', 'v2');
 
---error ER_DBACCESS_DENIED_ERROR
+# Note:
+# 1. We can get different error messages here.
+# 2. We do not want to unify the individual messages to the far to unspecific
+#    'Got one of the listed errors'.
+let $my_error_message =
+##### The previous statement must fail ######
+# Server type  | expected error name      | expected error message
+# --------------------------------------------------------------------------------------------------------------------
+# MySQL | ER_DBACCESS_DENIED_ERROR | ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+;
+--disable_abort_on_error
 UPDATE information_schema.views SET table_schema = 'test'
 WHERE table_name = 't1';
+if (!$mysql_errno)
+{
+   --echo $my_error_message
+   exit;
+}
+--enable_abort_on_error
 
 --error ER_DBACCESS_DENIED_ERROR
 DELETE FROM information_schema.views WHERE table_name = 't1';

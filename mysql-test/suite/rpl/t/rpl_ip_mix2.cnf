@@ -11,7 +11,7 @@ log-bin=                 master-bin
 
 skip-name-resolve
 bind-address=               0.0.0.0
-
+port-open-timeout=          10000
 
 [mysqld.2]
 # Run the slave.sh script before starting this process
@@ -24,7 +24,6 @@ bind-address=               0.0.0.0
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-log-slave-updates
 master-retry-count=         10
 
 # Values reported by slave when it connect to master
@@ -41,6 +40,7 @@ bind-address=               ::
 # on the server. The path need to have constant length otherwise
 # test results will vary, thus a relative path is used.
 slave-load-tmpdir=          ../../tmp
+port-open-timeout=          10000
 
 [ENV]
 MASTER_MYPORT=              @mysqld.1.port

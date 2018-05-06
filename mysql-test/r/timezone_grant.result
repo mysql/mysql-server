@@ -1,7 +1,4 @@
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop tables if exists t1, t2;
 drop view if exists v1;
 delete from mysql.user where user like 'mysqltest\_%';
@@ -11,13 +8,12 @@ delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 create table t1 (a int, b datetime);
 create table t2 (c int, d datetime);
+create user mysqltest_1@localhost;
 grant all privileges on test.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.* TO `mysqltest_1`@`localhost`
 set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC');
@@ -37,9 +33,9 @@ grant all privileges on test.t1 to mysqltest_1@localhost;
 grant all privileges on test.t2 to mysqltest_1@localhost;
 show grants for current_user();
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t2` TO 'mysqltest_1'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t1` TO `mysqltest_1`@`localhost`
+GRANT ALL PRIVILEGES ON `test`.`t2` TO `mysqltest_1`@`localhost`
 set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC');
@@ -69,9 +65,8 @@ flush privileges;
 drop table t1, t2;
 create table t1 (a int, b datetime);
 insert into t1 values (1, 20010101000000), (2, 20020101000000);
+create user mysqltest_1@localhost;
 grant all privileges on test.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1;
 select * from v1;
 a	lb
@@ -85,5 +80,3 @@ ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 'tim
 drop table t1;
 drop user mysqltest_1@localhost;
 set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

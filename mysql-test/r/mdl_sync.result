@@ -42,7 +42,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -134,7 +134,7 @@ unlock tables;
 #    We have to involve DEBUG_SYNC facility for this as usually
 #    such kind of locks are short-lived.
 #
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 # Sending:
 select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # 
@@ -145,7 +145,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -183,8 +183,8 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping SELECT ... FROM I_S.
-table_name	table_type	auto_increment	table_comment
-t1	BASE TABLE	NULL	
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	1	
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping RENAME TABLE.
@@ -192,7 +192,7 @@ t1	BASE TABLE	NULL
 rename table t2 to t1;
 # 
 # Switching to connection 'default'.
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 # Sending:
 select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # 
@@ -209,8 +209,8 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping SELECT ... FROM I_S.
-table_name	table_type	auto_increment	table_comment
-t1	BASE TABLE	NULL	
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	1	
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
@@ -218,7 +218,7 @@ t1	BASE TABLE	NULL
 alter table t1 drop column c2;
 # 
 # Switching to connection 'default'.
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'after_open_table_mdl_shared_to_fetch_stats SIGNAL locked WAIT_FOR finish';
 select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # 
 # Switching to connection 'mdl_con1'.
@@ -236,8 +236,8 @@ set debug_sync= 'now SIGNAL finish';
 # 
 # Switching to connection 'default'.
 # Reaping SELECT ... FROM I_S.
-table_name	table_type	auto_increment	table_comment
-t1	BASE TABLE	NULL	
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	1	
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping ALTER TABLE.
@@ -262,7 +262,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -364,7 +364,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 # Disable result log to make test robust against
 # effects of concurrent insert.
@@ -468,7 +468,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 # Disable result log to make test robust against
 # effects of concurrent insert.
@@ -573,7 +573,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -670,7 +670,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -791,7 +791,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -934,7 +934,7 @@ handler t1 open;
 handler t1 close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 # Check that SR lock is incompatible with SNRW lock.
 # Sending:
@@ -1108,7 +1108,7 @@ rename table t1 to t2;;
 # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 # Check that SH lock in incompatible with X lock.
 # Sending:
-select column_name from information_schema.columns where table_schema='test' and table_name='t1';;
+select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # 
 # Switching to connection 'mdl_con2'.
 # Check that the above SELECT ... FROM I_S ... statement is blocked
@@ -1122,8 +1122,8 @@ ERROR 42S01: Table 't2' already exists
 # 
 # Switching to connection 'mdl_con1'.
 # Reaping SELECT ... FROM I_S.
-column_name
-c1
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	1	
 # 
 # Switching to connection 'mdl_con2'.
 # Prepare for blocking RENAME TABLE.
@@ -1351,7 +1351,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -1422,7 +1422,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -1470,7 +1470,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -1539,7 +1539,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 select count(*) from t1;
 count(*)
@@ -1616,7 +1616,7 @@ handler t1 open t;
 handler t close;
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 # Check that SR is incompatible with pending SNRW
 # Sending:
@@ -1778,7 +1778,7 @@ rename table t1 to t2;;
 # Check that SH locks are compatible with pending X
 select column_name from information_schema.columns where
 table_schema='test' and table_name='t1';
-column_name
+COLUMN_NAME
 c1
 # Check that S is incompatible with pending X
 # Sending:
@@ -2991,6 +2991,7 @@ drop table t1;
 #
 create table t1(i int);
 create table t2(j int);
+# Warm-up data-dictionary and table definition caches
 #
 # First, let us check how we handle a simple scenario involving
 # waits in MDL and TDC.
@@ -3156,6 +3157,7 @@ drop tables if exists t1, t2;
 set debug_sync= 'RESET';
 create table t1(i int);
 create table t2(j int);
+# Warm-up data-dictionary and table definition caches
 # Switching to connection 'con2'.
 set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
 # The below FLUSH TABLES <list> WITH READ LOCK should acquire
@@ -3313,24 +3315,19 @@ create table t2 select * from t1;;
 # gets blocked and emits and error.
 show fields from t2;
 ERROR HY000: Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
-# Now test for I_S query which reads only .FRMs.
+# Now test for I_S query which does not acquire any MDL lock.
 #
-# Query below should only emit a warning.
+# Query below should not be blocked.
 select column_name from information_schema.columns
 where table_schema='test' and table_name='t2';
-column_name
-Warnings:
-Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+COLUMN_NAME
 # Finally, test for I_S query which does full-blown table open.
 #
 # Query below should not be blocked. Warning message should be
 # stored in the 'table_comment' column.
 select table_name, table_type, auto_increment, table_comment
 from information_schema.tables where table_schema='test' and table_name='t2';
-table_name	table_type	auto_increment	table_comment
-t2	BASE TABLE	NULL	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
-Warnings:
-Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
 # Switching to connection 'default'.
 unlock tables;
 # Switching to connection 'con46044_2'.
@@ -3340,7 +3337,7 @@ unlock tables;
 # Reaping CREATE TABLE ... SELECT ... .
 drop table t2;
 #
-# Let us also check that queries to I_S wait for conflicting metadata
+# Let us also check queries to I_S wait for conflicting metadata
 # locks to go away instead of skipping table with a warning in cases
 # when deadlock is not possible. This is a nice thing from compatibility
 # and ease of use points of view.
@@ -3373,40 +3370,38 @@ lock tables t1 write;
 create table t2 select * from t1;;
 # Switching to connection 'default'.
 # Waiting until CREATE TABLE ... SELECT ... is blocked.
-# Check that I_S query which reads only .FRMs gets blocked.
+# Check the I_S query which does not acquire any MDL locks is not blocked.
 # Sending:
-select column_name from information_schema.columns where table_schema='test' and table_name='t2';;
+select column_name from information_schema.columns where table_schema='test' and table_name='t2';
+COLUMN_NAME
 # Switching to connection 'con46044_2'.
-# Wait until SELECT COLUMN_NAME FROM I_S.COLUMNS  gets blocked.
 unlock tables;
 # Switching to connection 'con46044'.
 # Reaping CREATE TABLE ... SELECT ... .
 # Switching to connection 'default'.
-# Reaping SELECT COLUMN_NAME FROM I_S.COLUMNS
-column_name
-i
 drop table t2;
 # Switching to connection 'con46044_2'.
-lock tables t1 write;
+create table t3 like t1;
+lock tables t3 write;
 # Switching to connection 'con46044'.
 # Sending:
-create table t2 select * from t1;;
+rename table t1 to t2, t3 to t1, t2 to t3;;
 # Switching to connection 'default'.
-# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# Waiting until RENAME TABLE is blocked.
 # Finally, check that I_S query which does full-blown table open
 # also gets blocked.
 # Sending:
-select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t2';;
+select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # Switching to connection 'con46044_2'.
 # Wait until SELECT ... FROM I_S.TABLES gets blocked.
 unlock tables;
 # Switching to connection 'con46044'.
-# Reaping CREATE TABLE ... SELECT ... .
+# Reaping RENAME TABLE
 # Switching to connection 'default'.
 # Reaping SELECT ... FROM I_S.TABLES
-table_name	table_type	auto_increment	table_comment
-t2	BASE TABLE	NULL	
-drop table t2;
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	1	
+drop table t3;
 # Switching to connection 'default'.
 # Clean-up.
 drop table t1;
@@ -3470,11 +3465,11 @@ drop table t1;
 #
 # Test 1: CREATE PROCEDURE
 # Connection 1
-# Start CREATE PROCEDURE and open mysql.proc
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+# Start CREATE PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 CREATE PROCEDURE p1() SELECT 1;
 # Connection 2
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 # Check that FLUSH must wait to get the GRL
 # and let CREATE PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
@@ -3485,11 +3480,11 @@ UNLOCK TABLES;
 # Connection 1
 SET DEBUG_SYNC= 'RESET';
 # Test 2: DROP PROCEDURE
-# Start DROP PROCEDURE and open tables
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+# Start DROP PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 DROP PROCEDURE p1;
 # Connection 2
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 # Check that FLUSH must wait to get the GRL
 # and let DROP PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
@@ -3651,8 +3646,8 @@ TRUNCATE TABLE t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_truncate';
 # Connection: con2
-SET debug_sync='after_open_table_ignore_flush SIGNAL parked_show WAIT_FOR go_show';
-SHOW FIELDS FROM t1;
+SET debug_sync='after_acquiring_mdl_shared_to_fetch_stats SIGNAL parked_show WAIT_FOR go_show';
+select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_show';
 # Connection: con3
@@ -3668,28 +3663,14 @@ SET debug_sync= 'now SIGNAL go_show';
 UNLOCK TABLES;
 # Connection: con2 (SHOW FIELDS FROM t1)
 # Reaping...
-Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	NULL	
 # Connection: default
 SET debug_sync= 'now SIGNAL go_flush';
 # Connection: con3 (FLUSH TABLES t1)
 # Reaping...
 # Connection: default
 SET debug_sync= 'RESET';
-DROP TABLE t1;
-#
-# Bug#52856 concurrent show columns or show full columns causes a crash!!!
-#
-CREATE TABLE t1(a CHAR(255));
-SET DEBUG_SYNC= "get_schema_column SIGNAL waiting WAIT_FOR completed";
-SHOW FULL COLUMNS FROM t1;
-SET DEBUG_SYNC= "now WAIT_FOR waiting";
-SHOW FULL COLUMNS FROM t1;
-Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	char(255)	latin1_swedish_ci	YES		NULL		#	
-SET DEBUG_SYNC= "now SIGNAL completed";
-Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	char(255)	latin1_swedish_ci	YES		NULL		#	
 DROP TABLE t1;
 #
 # Tests for schema-scope locks
@@ -3711,6 +3692,8 @@ CREATE DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3733,12 +3716,18 @@ ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection con2
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
 # Sending:
@@ -3751,36 +3740,12 @@ DROP DATABASE db1;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection con2
 # Reaping: DROP DATABASE db1
 CREATE DATABASE db1;
 # Test 3:
-# Two ALTER..UPGRADE of the same database are mutually exclusive, but
-# two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
-#
-# Connection default
-SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
-# Sending:
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-# Connection con2
-SET DEBUG_SYNC= 'now WAIT_FOR locked';
-# Sending:
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-# Connection con3
-ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
-Warnings:
-Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
-SET DEBUG_SYNC= 'now SIGNAL blocked';
-# Connection default
-# Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
-Warnings:
-Warning	1681	'UPGRADE DATA DIRECTORY NAME' is deprecated and will be removed in a future release.
-# Connection con2
-# Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
-ERROR 42000: Unknown database '#mysql50#a-b-c'
-DROP DATABASE `a-b-c`;
-DROP DATABASE `a-b-c-d`;
-# Test 4:
 # DROP DATABASE blocks database DDL on the same database, but
 # not database DDL on different databases. Tests X vs X lock.
 #
@@ -3795,6 +3760,8 @@ DROP DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3817,8 +3784,8 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
-Got one of the listed errors
-# Test 5:
+ERROR 42Y07: Database 'db1' doesn't exist
+# Test 4:
 # Locked database name prevents CREATE of tables in that database.
 # Tests X vs IX lock.
 #
@@ -3838,7 +3805,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection con2
 # Reaping: CREATE TABLE db1.t1 (a INT)
 ERROR 42000: Unknown database 'db1'
-# Test 6:
+# Test 5:
 # Locked database name prevents RENAME of tables to/from that database.
 # Tests X vs IX lock.
 #
@@ -3858,7 +3825,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: RENAME TABLE db1.t1 TO test.t1
-Got one of the listed errors
+ERROR 42000: Unknown database 'db1'
 # Connection default
 CREATE DATABASE db1;
 CREATE TABLE test.t2 (a INT);
@@ -3875,9 +3842,9 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: RENAME TABLE test.t2 TO db1.t2
-Got one of the listed errors
+ERROR 42000: Unknown database 'db1'
 DROP TABLE test.t2;
-# Test 7:
+# Test 6:
 # Locked database name prevents DROP of tables in that database.
 # Tests X vs IX lock.
 #
@@ -3924,6 +3891,8 @@ ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
 UNLOCK TABLES;
 # Connection con2
 # Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 FLUSH TABLE WITH READ LOCK;
 # Connection con2
@@ -3993,7 +3962,7 @@ SELECT * FROM t2;
 c1
 # Block IS query just before calling lock_table_names() (before X on t1)
 SET DEBUG_SYNC='recover_ot_repair SIGNAL parked WAIT_FOR go';
-SELECT COUNT(*) > 1 FROM information_schema.key_column_usage;
+select table_name, table_type, auto_increment, table_comment from information_schema.tables where table_schema='test' and table_name='t1';;
 # Create a new conncection which will compete for MDL lock
 # Wait until default becomes blocked
 SET DEBUG_SYNC='now WAIT_FOR parked';
@@ -4009,8 +3978,8 @@ SET DEBUG_SYNC='now SIGNAL go';
 # Wait for IS query which will try repair t1 which requires X.
 # Previously that resulted in deadlock with con1 over t1,
 # but now t1 is skipped and a warning is issued
-COUNT(*) > 1
-1
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+t1	BASE TABLE	NULL	Table 't1' is marked as crashed and should be repaired
 Warnings:
 Warning	1194	Table 't1' is marked as crashed and should be repaired
 # Finish XA txn 'test2' to release SR on t2 so that con1
@@ -4058,3 +4027,29 @@ i
 # Wait for con1 (should not deadlock)
 i
 DROP TABLE t1;
+#
+# Bug#26770836 SLAVE HANGS - WAITING FOR TABLE METADATA LOCKS
+# Check that ALTER TABLE will not release MDL locks that were
+# acquired during view metadata update, until end of statement.
+#
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (g1 INT, g2 INT);
+CREATE VIEW v1 AS SELECT f2 FROM t1, t2;
+SET DEBUG_SYNC= 'after_updating_view_metadata SIGNAL
+                 after_view_update WAIT_FOR continue_alter';
+# Run ALTER TABLE until after the view metadata is updated.
+ALTER TABLE t1 DROP COLUMN f2;
+SET DEBUG_SYNC= 'now WAIT_FOR after_view_update';
+# Run REPAIR which tries to acquire MDL X on t2, and expect it to wait.
+REPAIR TABLE t2;;
+# The wait_condition makes sure that the lock on table t2 is
+# held by ALTER TABLE after updating view metadata. Wait condition
+# fails if run without the fix.
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+# cleanup
+DROP VIEW v1;
+DROP TABLE t1;
+DROP TABLE t2;

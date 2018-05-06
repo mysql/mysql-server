@@ -1,127 +1,91 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/dict0priv.ic
-Data dictionary system private include file
+/** @file include/dict0priv.ic
+ Data dictionary system private include file
 
-Created  Wed 13 Oct 2010 16:10:14 EST Sunny Bains
-***********************************************************************/
+ Created  Wed 13 Oct 2010 16:10:14 EST Sunny Bains
+ ***********************************************************************/
 
 #include "dict0dict.h"
 #include "dict0load.h"
 #include "dict0priv.h"
-#ifndef UNIV_HOTBACKUP
 
-/**********************************************************************//**
-Gets a table; loads it to the dictionary cache if necessary. A low-level
-function.
-@return table, NULL if not found */
+/** Gets a table; loads it to the dictionary cache if necessary. A low-level
+ function.
+ @return table, NULL if not found */
 UNIV_INLINE
-dict_table_t*
-dict_table_get_low(
-/*===============*/
-	const char*	table_name)	/*!< in: table name */
+dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
 {
-	dict_table_t*	table;
+  dict_table_t *table;
 
-	ut_ad(table_name);
-	ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(table_name);
+  ut_ad(mutex_own(&dict_sys->mutex));
 
-	table = dict_table_check_if_in_cache_low(table_name);
+  table = dict_table_check_if_in_cache_low(table_name);
 
-	if (table && table->corrupted) {
-		ib::error	error;
-		error << "Table " << table->name << "is corrupted";
-		if (srv_load_corrupted) {
-			error << ", but innodb_force_load_corrupted is set";
-		} else {
-			return(NULL);
-		}
-	}
+  if (table && table->is_corrupted()) {
+    ib::error error(ER_IB_MSG_1229);
+    error << "Table " << table->name << "is corrupted";
+    if (srv_load_corrupted) {
+      error << ", but innodb_force_load_corrupted is set";
+    } else {
+      return (NULL);
+    }
+  }
 
-	if (table == NULL) {
-		table = dict_load_table(table_name, true, DICT_ERR_IGNORE_NONE);
-	}
+  if (table == NULL) {
+    table = dict_load_table(table_name, true, DICT_ERR_IGNORE_NONE);
+  }
 
-	ut_ad(!table || table->cached);
+  ut_ad(!table || table->cached);
 
-	return(table);
+  return (table);
 }
 
-/**********************************************************************//**
-Returns a table object based on table id.
-@return table, NULL if does not exist */
+/** Checks if a table is in the dictionary cache.
+ @return table, NULL if not found */
 UNIV_INLINE
-dict_table_t*
-dict_table_open_on_id_low(
-/*======================*/
-	table_id_t		table_id,	/*!< in: table id */
-	dict_err_ignore_t	ignore_err)	/*!< in: errors to ignore
-						when loading the table */
+dict_table_t *dict_table_check_if_in_cache_low(
+    const char *table_name) /*!< in: table name */
 {
-	dict_table_t*	table;
-	ulint		fold;
+  dict_table_t *table;
+  ulint table_fold;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+  DBUG_ENTER("dict_table_check_if_in_cache_low");
+  DBUG_PRINT("dict_table_check_if_in_cache_low", ("table: '%s'", table_name));
 
-	/* Look for the table name in the hash table */
-	fold = ut_fold_ull(table_id);
+  ut_ad(table_name);
+  ut_ad(mutex_own(&dict_sys->mutex));
 
-	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-		    dict_table_t*, table, ut_ad(table->cached),
-		    table->id == table_id);
-	if (table == NULL) {
-		table = dict_load_table_on_id(table_id, ignore_err);
-	}
+  /* Look for the table name in the hash table */
+  table_fold = ut_fold_string(table_name);
 
-	ut_ad(!table || table->cached);
-
-	/* TODO: should get the type information from MySQL */
-
-	return(table);
+  HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold, dict_table_t *,
+              table, ut_ad(table->cached),
+              !strcmp(table->name.m_name, table_name));
+  DBUG_RETURN(table);
 }
-
-/**********************************************************************//**
-Checks if a table is in the dictionary cache.
-@return table, NULL if not found */
-UNIV_INLINE
-dict_table_t*
-dict_table_check_if_in_cache_low(
-/*=============================*/
-	const char*	table_name)	/*!< in: table name */
-{
-	dict_table_t*	table;
-	ulint		table_fold;
-
-	DBUG_ENTER("dict_table_check_if_in_cache_low");
-	DBUG_PRINT("dict_table_check_if_in_cache_low",
-		   ("table: '%s'", table_name));
-
-	ut_ad(table_name);
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	/* Look for the table name in the hash table */
-	table_fold = ut_fold_string(table_name);
-
-	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-		    dict_table_t*, table, ut_ad(table->cached),
-		    !strcmp(table->name.m_name, table_name));
-	DBUG_RETURN(table);
-}
-#endif /*! UNIV_HOTBACKUP */

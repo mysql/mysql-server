@@ -1,0 +1,248 @@
+# The motive of this test case is to test the
+# mts submode switch between master parallel to dbname and vice-versa
+
+-- source include/have_debug.inc
+-- source include/master-slave.inc
+-- source include/have_myisam.inc
+call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+-- sync_slave_with_master
+-- connection master
+-- let $saved_debug=`SELECT @@global.DEBUG`
+# Simulate grouping on the master
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+-- connection slave
+
+# Save  MTS submode
+-- let $saved_submode= `SELECT @@slave_parallel_type`
+
+# must error out since the slave is running
+-- error ER_SLAVE_SQL_THREAD_MUST_STOP
+SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
+
+-- source include/stop_slave.inc
+
+# Setup 4 connections to master
+-- connect(m1, localhost,root,,,$MASTER_MYPORT)
+-- connect(m2, localhost,root,,,$MASTER_MYPORT)
+-- connect(m3, localhost,root,,,$MASTER_MYPORT)
+-- connect(m4, localhost,root,,,$MASTER_MYPORT)
+
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+create database db1;
+create database db2;
+create database db3;
+create database db4;
+
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+-- echo #setup the databases and tables
+-- connection m1
+CREATE TABLE db1.t (a int) engine=innodb;
+CREATE TEMPORARY TABLE db1.t_temp (a int) engine=innodb;
+
+-- connection m2
+CREATE TABLE db2.t (a int) engine=myisam;
+CREATE TEMPORARY TABLE db2.t_temp (a int) engine=innodb;
+
+# CREATE-SELECT is logged as two consecutive groups with ROW format,
+# common commit parent can't be simulated.
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+-- connection m3
+-- disable_warnings ONCE
+CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
+CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
+
+-- connection m4
+SET @VAR=100;
+
+CREATE TABLE db4.t engine=myisam select @VAR as a;
+CREATE TEMPORARY TABLE db4.t_temp (a int) engine=innodb;
+
+SET GLOBAL DEBUG ='+d,set_commit_parent_100';
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+#this is just to make sure that the slave does not error out due to this
+#random value.
+TRUNCATE db3.t;
+
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+# NON TRANSACTIONAL
+-- connection m2
+ INSERT INTO db2.t values (1),(2),(3);
+-- connection m4
+ INSERT INTO db4.t values (1),(2),(3);
+
+# Start a new group.
+# Flush log creates a new binlog which means that we can check that:
+# 1. A fresh group is started since we will encounter a "real" ROTATE event
+# 2. Query on connection m2  have released its temp tables so that the
+#    corresponding query on m3 should not fail on slave.
+
+FLUSH LOGS;
+
+# temp tables operations
+-- connection m1
+INSERT INTO db1.t_temp values (1),(2),(3);
+
+-- connection m2
+INSERT INTO db2.t_temp values (1),(2),(3);
+
+-- connection m3
+INSERT INTO db3.t_temp values (1),(2),(3);
+
+-- connection m4
+INSERT INTO db4.t_temp values (1),(2),(3);
+
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+#TRANSACTIONAL
+-- connection m1
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db1.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+
+-- connection m3
+BEGIN;
+INSERT INTO db3.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
+COMMIT;
+
+-- connection master
+FLUSH LOGS; # New group of transactions will be logged.
+
+#BOTH TRANSACTIONAL AND NON TRANSACTIONAL
+-- connection m2
+BEGIN;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db3.t SET db3.t.a= 2 WHERE db3.t.a > 2;
+COMMIT;
+
+-- connection m4
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
+# temp tables operations DELETE
+-- connection m1
+DROP TABLE db1.t_temp;
+
+-- connection m2
+DROP TABLE db2.t_temp;
+
+-- connection m3
+DROP TABLE db3.t_temp;
+
+-- connection m4
+DROP TABLE db4.t_temp;
+
+
+-- disconnect m1
+-- disconnect m2
+-- disconnect m3
+-- disconnect m4
+
+-- connection slave
+
+# DEFAULT  ========> DATABASE
+SET GLOBAL slave_parallel_type='DATABASE';
+-- source include/start_slave.inc
+-- connection master
+-- source include/sync_slave_sql_with_master.inc
+-- let diff_tables= master:db1.t,slave:db1.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db2.t, slave:db2.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db3.t, slave:db3.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db4.t, slave:db4.t
+-- source include/diff_tables.inc
+-- source include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+# DATABASE ==========> LOGICAL_CLOCK
+SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+-- source include/start_slave.inc
+-- connection master
+-- source include/sync_slave_sql_with_master.inc
+-- let diff_tables= master:db1.t, slave:db1.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db2.t, slave:db2.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db3.t, slave:db3.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db4.t, slave:db4.t
+-- source include/diff_tables.inc
+-- source include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+# LOGICAL_CLOCK ==========> DATABASE
+SET GLOBAL slave_parallel_type='DATABASE';
+-- source include/start_slave.inc
+-- connection master
+-- source include/sync_slave_sql_with_master.inc
+-- let diff_tables= master:db1.t, slave:db1.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db2.t, slave:db2.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db3.t, slave:db3.t
+-- source include/diff_tables.inc
+-- let diff_tables= master:db4.t, slave:db4.t
+-- source include/diff_tables.inc
+
+-- source include/stop_slave.inc
+SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+-- source include/start_slave.inc
+
+#clean up
+-- connection master
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+-- sync_slave_with_master
+
+-- connection slave
+
+# temporary fix until BUG#16580366 is fixed.
+# wait till we have dropped all temp tables.  
+-- let $status_var_comparsion= =    
+-- let $status_var= slave_open_temp_tables
+-- let $status_var_value= 0
+-- source include/wait_for_status_var.inc
+
+-- source include/stop_slave.inc
+
+-- disable_query_log
+-- disable_result_log
+-- eval SET GLOBAL slave_parallel_type= '$saved_submode'
+-- source include/start_slave.inc
+
+-- connection master
+-- eval SET GLOBAL DEBUG='$saved_debug'
+-- enable_query_log
+-- enable_result_log
+
+-- source include/rpl_end.inc
+

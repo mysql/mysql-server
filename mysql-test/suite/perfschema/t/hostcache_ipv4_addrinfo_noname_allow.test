@@ -6,9 +6,7 @@
 # - getaddrinfo() fails with AGAIN
 # - reported in COUNT_ADDRINFO_TRANSIENT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # [Warning] Host name 'santa.claus.ipv4.example.com' could not be resolved:
 # Name or service not known
@@ -18,11 +16,9 @@ call mtr.add_suppression("santa.claus.ipv4.example.com");
 --source ../include/wait_for_pfs_thread_count.inc
 --source ../include/hostcache_set_state.inc
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user 'root'@'santa.claus.ipv4.example.com', 'root'@'192.0.2.4';
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
 grant select on test.* to 'root'@'192.0.2.4';
-set sql_mode= @orig_sql_mode;
 
 connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
 select "Con1 is alive";

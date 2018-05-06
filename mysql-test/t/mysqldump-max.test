@@ -1,6 +1,4 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
---source include/have_innodb.inc
+
 --source include/have_archive.inc
 
 --disable_warnings

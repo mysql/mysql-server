@@ -1,0 +1,395 @@
+--source include/no_valgrind_without_big.inc
+
+####################################################################
+# TC to test temp-table DML optimization changes for correctness   #
+# Sceanrio covered in single testcase :                            #
+# - Tables with row format(redundant,dynamic,compact)              #
+# - Table with primary,composite,prefix,secondary index            #
+# - Insert/delete/update with transactioons                        #
+# - Transaction with commit,rollback,savepoint statements          #
+# - Concurrency by execution of two clients creating tables with   #
+#    same names                                                    #
+# - Inserting data using                                           #
+#   - Insert into .. , Load data infile..,insert ignore            #
+#   - Insert into .. on duplicate update                           #
+# - Check basic delete and update [ignore]                         #
+# - Check constraints like duplicate key,default value             #
+# - Alter add column , add primary key                             #
+# - with prepare and execute statement                             #
+####################################################################
+
+# run for page size >= 8k
+--disable_warnings
+--source include/have_innodb_min_8k.inc
+--enable_warnings
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+# Create procedure to perform
+# 1. Create temp table with row types , index , sufficent data types
+# 2. Perform DML with transaction
+delimiter |;
+create procedure populate_tables()
+   begin
+   declare n int default 20;
+   declare inner_loop int default 100;
+
+   create temporary table t1(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   primary key (c1),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+   engine=innodb row_format=redundant charset latin1;
+
+   create temporary table t2(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   primary key (c1),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+   engine=innodb row_format=compact charset latin1;
+
+   create temporary table t4(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   primary key (c1),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+   engine=innodb row_format=dynamic charset latin1;
+
+   create temporary table t5(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   primary key (c1),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+   engine=innodb charset latin1;
+
+   create temporary table t6 ( a int ) engine = innodb;
+   insert into t6 values (50),(100),(150),(190);
+
+   while (n > 0) do
+     start transaction;
+     insert into t1 values(n,n,repeat(concat(' tc3_',n),30),
+     repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
+     repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
+     now(),(100.55+n));
+     insert into t2 values(n,n,repeat(concat(' tc3_',n),30),
+     repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
+     repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
+     now(),(100.55+n));
+     insert into t4 values(n,n,repeat(concat(' tc3_',n),30),
+     repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
+     repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
+     now(),(100.55+n));
+     insert into t5 values(n,n,repeat(concat(' tc3_',n),30),
+     repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
+     repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
+     now(),(100.55+n));
+
+     if (n > 10) then
+        commit;
+     else
+        delete from t1 where c1 > 10 ;
+        delete from t2 where c1 > 10 ;
+        delete from t4 where c1 > 10 ;
+        delete from t5 where c1 > 10 ;
+
+        rollback;
+        start transaction;
+        update t1 set c1 = c1 + 1000 where c1 > 10;
+        update t2 set c1 = c1 + 1000 where c1 > 10;
+        update t4 set c1 = c1 + 1000 where c1 > 10;
+        update t5 set c1 = c1 + 1000 where c1 > 10;
+        rollback;
+     end if;
+
+     start transaction;
+     insert into t1 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t2 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t4 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t5 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+
+        delete from t1 where c1 between 100 and 110;
+        delete from t2 where c1 between 100 and 110;
+        delete from t4 where c1 between 100 and 110;
+        delete from t5 where c1 between 100 and 110;
+
+        update t1 set c1 = c1+1 where c1>110;
+        update t2 set c1 = c1+1 where c1>110;
+        update t4 set c1 = c1+1 where c1>110;
+        update t5 set c1 = c1+1 where c1>110;
+
+        savepoint a;
+
+     insert into t1 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t2 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t4 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t5 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     savepoint b;
+
+     insert into t1 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t2 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t4 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     insert into t5 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
+        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
+        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
+        now(),(100.55+n+inner_loop));
+     savepoint c;
+     rollback to b;
+     rollback to a;
+     commit;
+     commit;
+     rollback;
+     set n = n - 1;
+     end while;
+end|
+delimiter ;|
+
+# Create two client for concurrent execution
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--echo #---client 1 : dml operation ---"
+connection con1;
+-- disable_query_log
+# call procedure
+--send call populate_tables();
+-- enable_query_log
+
+--echo #---client 2 : dml operation ---"
+connection con2;
+-- disable_query_log
+# call procedure
+--send call populate_tables();
+-- enable_query_log
+
+# check data of client connection 1
+--echo # In connection 1
+connection con1;
+--reap
+# 20 rows expected
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t4;
+select count(*) from t5;
+select c1 from t1;
+select c1 from t2;
+select c1 from t4;
+select c1 from t5;
+# check data of client connection 2
+--echo # In connection 2
+connection con2;
+--reap
+# 20 rows expected
+select count(*) from t1;
+select count(*) from t2;
+select count(*) from t4;
+select count(*) from t5;
+select c1 from t1;
+select c1 from t2;
+select c1 from t4;
+select c1 from t5;
+
+--echo # In connection 1
+connection con1;
+
+set autocommit = 0;
+# Check duplicate key constraint + insert ignore
+--error ER_DUP_ENTRY
+insert into t1 values (20,1,'a','a','a','a','a',now(),100.55);
+insert ignore into t1 values (20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t2 values (20,1,'a','a','a','a','a',now(),100.55);
+insert ignore into t2 values (20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t4 values (20,1,'a','a','a','a','a',now(),100.55);
+insert ignore into t4 values (20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t5 values (20,1,'a','a','a','a','a',now(),100.55);
+insert ignore into t5 values (20,1,'a','a','a','a','a',now(),100.55);
+
+# check rollback due to duplicate value in second record of insert
+--error ER_DUP_ENTRY
+insert into t1 values (1,1,'a','a','a','a','a',now(),100.55),
+(20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t2 values (1,1,'a','a','a','a','a',now(),100.55),
+(20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t4 values (1,1,'a','a','a','a','a',now(),100.55),
+(20,1,'a','a','a','a','a',now(),100.55);
+--error ER_DUP_ENTRY
+insert into t5 values (1,1,'a','a','a','a','a',now(),100.55),
+(20,1,'a','a','a','a','a',now(),100.55);
+
+set autocommit = 1;
+
+select c1,c2 from t1 where c1 in (20,1);
+select c1,c2 from t2 where c1 in (20,1);
+select c1,c2 from t4 where c1 in (20,1);
+select c1,c2 from t5 where c1 in (20,1);
+
+#replace statement
+replace into t1 values (20,1,'a','a','a','a','a',now(),100.55);
+replace into t2 values (20,1,'a','a','a','a','a',now(),100.55);
+replace into t4 values (20,1,'a','a','a','a','a',now(),100.55);
+replace into t5 values (20,1,'a','a','a','a','a',now(),100.55);
+# verify row is replaced from (20,20) to (20,1)
+select c1,c2,c3,c4,c5,c6,c7,c9 from t1 where c1 = 20;
+select c1,c2,c3,c4,c5,c6,c7,c9 from t2 where c1 = 20;
+select c1,c2,c3,c4,c5,c6,c7,c9 from t4 where c1 = 20;
+select c1,c2,c3,c4,c5,c6,c7,c9 from t5 where c1 = 20;
+
+# Update ignore. statement is ignored as 20 value exists
+update ignore t1 set c1 = 20 where c1 = 140 ;
+update ignore t2 set c1 = 20 where c1 = 140 ;
+update ignore t4 set c1 = 20 where c1 = 140 ;
+update ignore t5 set c1 = 20 where c1 = 140 ;
+# see record 140 is present as last update ignored
+select count(*) from t1 where c1 = 140;
+select count(*) from t2 where c1 = 140;
+select count(*) from t4 where c1 = 140;
+select count(*) from t5 where c1 = 140;
+
+# Load data infile
+--echo "running select * into outfile <file> from t1 ;
+--disable_query_log
+eval select * into outfile "$MYSQLTEST_VARDIR/tmp/t1.outfile" from t1;
+--enable_query_log
+# Create table as select
+create temporary table temp_1 engine = innodb as select * from t1 where 1=2;
+select count(*) from temp_1;
+--echo "running load data infile <file> into temp_1 ;
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t1.outfile' into table temp_1;
+--enable_query_log
+select count(*) from temp_1;
+
+# Alter table to add column and primary key
+alter table temp_1 add column c10 int default 99 ,
+add column c11 varchar(100) default 'test';
+alter table temp_1 add primary key (c1);
+insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55);
+select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
+select count(*) from temp_1 where c10 = 99 and c11 like 'test';
+# insert on duplicate key update
+insert into temp_1 (c1,c2,c3,c4,c5,c6,c7,c8,c9) values (-1,-1,'a','a','a','a','a',now(),100.55)
+on duplicate  key update c1=-2,c2=-2;
+select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
+
+#cleanup
+drop table t1,t2,t4,t5,t6,temp_1;
+disconnect con1;
+
+connection con2;
+drop table t1 ,t2,t4,t5,t6;
+disconnect con2;
+
+connection default;
+drop procedure populate_tables;
+
+
+# case 2 - with prepare and execute
+let $prep_loop= 5;
+create temporary table prep_1(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+engine=innodb;
+PREPARE stm FROM "insert into prep_1 values(?,?,repeat(concat(' tc3_',?),30),repeat(concat(' tc4_',?),800),repeat(concat(' tc_',?),800),repeat(concat(' tc6_',?),245),repeat(concat(' tc7_',?),245),now(),(100.55+?))";
+set @var = 5;
+set @var_static = 5;
+while ($prep_loop>0)
+{
+   eval EXECUTE stm USING @var,@var,@var,@var,@var,@var,@var,@var;
+   eval EXECUTE stm USING @var_static,@var_static,@var_static,@var_static,@var_static,@var_static,@var_static,@var_static;
+   dec $prep_loop;
+   set @var = @var - 1;
+}
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+PREPARE stm_1 FROM "UPDATE prep_1 SET c1 = c1 + 1";
+EXECUTE stm_1;
+EXECUTE stm_1;
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+PREPARE stm_2 FROM "DELETE FROM prep_1 ORDER BY c1 LIMIT 1";
+EXECUTE stm_2;
+EXECUTE stm_2;
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+drop prepare stm;
+drop prepare stm_1;
+drop prepare stm_2;
+drop table prep_1;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.outfile

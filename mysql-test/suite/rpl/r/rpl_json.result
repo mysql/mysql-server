@@ -74,9 +74,9 @@ i	j
 25	"23:24:25.000000"
 26	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]
-30	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="
 # Copy JSON values
 CREATE TABLE t2 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t2 SELECT * FROM t1;
@@ -110,9 +110,9 @@ i	j	JSON_TYPE(j)
 25	"23:24:25.000000"	TIME
 26	"2015-01-15"	DATE
 27	"2015-01-15 23:24:25.000000"	DATETIME
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
-30	"base64:type16:yv66vg=="	BIT
+30	"base64:type15:yv66vg=="	BLOB
 # Convert JSON values to TEXT
 CREATE TABLE t3 (i INT PRIMARY KEY, txt TEXT);
 INSERT INTO t3 SELECT * FROM t1;
@@ -146,9 +146,9 @@ i	txt	JSON_TYPE(txt)
 25	"23:24:25.000000"	STRING
 26	"2015-01-15"	STRING
 27	"2015-01-15 23:24:25.000000"	STRING
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
-30	"base64:type16:yv66vg=="	STRING
+30	"base64:type15:yv66vg=="	STRING
 # Convert TEXT values back to JSON
 CREATE TABLE t4 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t4 SELECT * FROM t3;
@@ -182,9 +182,9 @@ i	j	JSON_TYPE(j)
 25	"23:24:25.000000"	STRING
 26	"2015-01-15"	STRING
 27	"2015-01-15 23:24:25.000000"	STRING
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
-30	"base64:type16:yv66vg=="	STRING
+30	"base64:type15:yv66vg=="	STRING
 #
 # WL#8249 JSON comparator
 #
@@ -216,7 +216,7 @@ id	j	x
 17	"null"	NULL
 18	[1, 2, 3]	NULL
 19	"[1, 2, 3]"	NULL
-20	[1, 2, 3]	NULL
+20	[1.0, 2.0, 3.0]	NULL
 21	[1, 2, 3.1]	NULL
 22	{}	NULL
 23	{"a": "b"}	NULL
@@ -261,7 +261,7 @@ UPDATE t5 SET x = 8 WHERE j = JSON_ARRAY(1, 2, 3);
 SELECT * FROM t5 WHERE x = 8 ORDER BY id;
 id	j	x
 18	[1, 2, 3]	8
-20	[1, 2, 3]	8
+20	[1.0, 2.0, 3.0]	8
 # Expect two rows to be updated (number 3.14)
 UPDATE t5 SET x = 9 WHERE j = 3.14;
 SELECT * FROM t5 WHERE x = 9 ORDER BY id;
@@ -283,7 +283,7 @@ SELECT * FROM t5 WHERE x = 12 ORDER BY id;
 id	j	x
 3	1	12
 18	[1, 2, 3]	12
-20	[1, 2, 3]	12
+20	[1.0, 2.0, 3.0]	12
 21	[1, 2, 3.1]	12
 # Expect a single row to be updated
 UPDATE t5 SET x = 13 WHERE JSON_EXTRACT(j, '$[0]') = '1';
@@ -336,9 +336,9 @@ i	j
 25	"23:24:25.000000"
 26	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]
-30	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="
 100	NULL
 101	{"a": 2}
 102	[1, 2]
@@ -367,9 +367,9 @@ i	j
 125	"23:24:25.000000"
 126	"2015-01-15"
 127	"2015-01-15 23:24:25.000000"
-128	{"type": "Point", "coordinates": [1, 1]}
+128	{"type": "Point", "coordinates": [1.0, 1.0]}
 129	[]
-130	"base64:type16:yv66vg=="
+130	"base64:type15:yv66vg=="
 201	NULL
 202	0
 203	1
@@ -389,7 +389,7 @@ i	j
 217	"null"
 218	[1, 2, 3]
 219	"[1, 2, 3]"
-220	[1, 2, 3]
+220	[1.0, 2.0, 3.0]
 221	[1, 2, 3.1]
 222	{}
 223	{"a": "b"}
@@ -413,7 +413,7 @@ i	j
 317	"null"
 318	[1, 2, 3]
 319	"[1, 2, 3]"
-320	[1, 2, 3]
+320	[1.0, 2.0, 3.0]
 321	[1, 2, 3.1]
 322	{}
 323	{"a": "b"}
@@ -453,9 +453,9 @@ i	j	j2
 25	"23:24:25.000000"	["TIME"]
 26	"2015-01-15"	["DATE"]
 27	"2015-01-15 23:24:25.000000"	["DATETIME"]
-28	{"type": "Point", "coordinates": [1, 1]}	["OBJECT"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["OBJECT"]
 29	[]	["ARRAY"]
-30	"base64:type16:yv66vg=="	["BIT"]
+30	"base64:type15:yv66vg=="	["BLOB"]
 UPDATE t1 SET j2 = CAST(JSON_VALID(j) AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -487,9 +487,9 @@ i	j	j2
 25	"23:24:25.000000"	true
 26	"2015-01-15"	true
 27	"2015-01-15 23:24:25.000000"	true
-28	{"type": "Point", "coordinates": [1, 1]}	true
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	true
 29	[]	true
-30	"base64:type16:yv66vg=="	true
+30	"base64:type15:yv66vg=="	true
 UPDATE t1 SET j2 = JSON_KEYS(j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -521,9 +521,9 @@ i	j	j2
 25	"23:24:25.000000"	NULL
 26	"2015-01-15"	NULL
 27	"2015-01-15 23:24:25.000000"	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	["type", "coordinates"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["type", "coordinates"]
 29	[]	NULL
-30	"base64:type16:yv66vg=="	NULL
+30	"base64:type15:yv66vg=="	NULL
 UPDATE t1 SET j2 = JSON_ARRAY(j,j,j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -555,9 +555,9 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "23:24:25.000000", "23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15", "2015-01-15", "2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [1, 1]}]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [1.0, 1.0]}]
 29	[]	[[], [], []]
-30	"base64:type16:yv66vg=="	["base64:type16:yv66vg==", "base64:type16:yv66vg==", "base64:type16:yv66vg=="]
+30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "base64:type15:yv66vg==", "base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = JSON_EXTRACT(j2, '$[1]');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -589,9 +589,9 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
-30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_REMOVE(j, '$[1]');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -623,9 +623,9 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
-30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_ARRAY_APPEND(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -657,9 +657,9 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
-30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_SET(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -691,9 +691,9 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "abc"]
 26	"2015-01-15"	["2015-01-15", "abc"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "abc"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, "abc"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, "abc"]
 29	[]	["abc"]
-30	"base64:type16:yv66vg=="	["base64:type16:yv66vg==", "abc"]
+30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "abc"]
 UPDATE t1 SET j2 = JSON_INSERT(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -725,9 +725,9 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "abc"]
 26	"2015-01-15"	["2015-01-15", "abc"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "abc"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, "abc"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, "abc"]
 29	[]	["abc"]
-30	"base64:type16:yv66vg=="	["base64:type16:yv66vg==", "abc"]
+30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "abc"]
 UPDATE t1 SET j2 = JSON_REPLACE(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -759,10 +759,44 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
-30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
-UPDATE t1 SET j2 = JSON_MERGE(j, j);
+30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
+UPDATE t1 SET j2 = JSON_MERGE_PATCH(j, '{"a": "patched", "c": null}');
+SELECT * FROM t1 ORDER BY i;
+i	j	j2
+0	NULL	NULL
+1	{"a": 2}	{"a": "patched"}
+2	[1, 2]	{"a": "patched"}
+3	{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}	{"a": "patched", "ab": "abc", "bc": ["x", "y"]}
+4	["here", ["I", "am"], "!!!"]	{"a": "patched"}
+5	"scalar string"	{"a": "patched"}
+6	true	{"a": "patched"}
+7	false	{"a": "patched"}
+8	null	{"a": "patched"}
+9	-1	{"a": "patched"}
+10	1	{"a": "patched"}
+11	32767	{"a": "patched"}
+12	32768	{"a": "patched"}
+13	-32768	{"a": "patched"}
+14	-32769	{"a": "patched"}
+15	2147483647	{"a": "patched"}
+16	2147483648	{"a": "patched"}
+17	-2147483648	{"a": "patched"}
+18	-2147483649	{"a": "patched"}
+19	18446744073709551615	{"a": "patched"}
+20	1.8446744073709552e19	{"a": "patched"}
+21	3.14	{"a": "patched"}
+22	{}	{"a": "patched"}
+23	[]	{"a": "patched"}
+24	"2015-01-15 23:24:25.000000"	{"a": "patched"}
+25	"23:24:25.000000"	{"a": "patched"}
+26	"2015-01-15"	{"a": "patched"}
+27	"2015-01-15 23:24:25.000000"	{"a": "patched"}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": "patched", "type": "Point", "coordinates": [1.0, 1.0]}
+29	[]	{"a": "patched"}
+30	"base64:type15:yv66vg=="	{"a": "patched"}
+UPDATE t1 SET j2 = JSON_MERGE_PRESERVE(j, j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
 0	NULL	NULL
@@ -793,9 +827,9 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15", "2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": ["Point", "Point"], "coordinates": [1, 1, 1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": ["Point", "Point"], "coordinates": [1.0, 1.0, 1.0, 1.0]}
 29	[]	[]
-30	"base64:type16:yv66vg=="	["base64:type16:yv66vg==", "base64:type16:yv66vg=="]
+30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = JSON_SEARCH(j, 'one', 'abc');
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -827,9 +861,9 @@ i	j	j2
 25	"23:24:25.000000"	NULL
 26	"2015-01-15"	NULL
 27	"2015-01-15 23:24:25.000000"	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	NULL
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	NULL
 29	[]	NULL
-30	"base64:type16:yv66vg=="	NULL
+30	"base64:type15:yv66vg=="	NULL
 UPDATE t1 SET j2 = CAST(JSON_CONTAINS(j, '[1]') AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -861,9 +895,9 @@ i	j	j2
 25	"23:24:25.000000"	false
 26	"2015-01-15"	false
 27	"2015-01-15 23:24:25.000000"	false
-28	{"type": "Point", "coordinates": [1, 1]}	false
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	false
 29	[]	false
-30	"base64:type16:yv66vg=="	false
+30	"base64:type15:yv66vg=="	false
 UPDATE t1 SET j2 = CAST(JSON_CONTAINS_PATH(j, 'one', '$.a') AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -895,9 +929,9 @@ i	j	j2
 25	"23:24:25.000000"	false
 26	"2015-01-15"	false
 27	"2015-01-15 23:24:25.000000"	false
-28	{"type": "Point", "coordinates": [1, 1]}	false
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	false
 29	[]	false
-30	"base64:type16:yv66vg=="	false
+30	"base64:type15:yv66vg=="	false
 UPDATE t1 SET j2 = CAST(JSON_LENGTH(j) AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -929,9 +963,9 @@ i	j	j2
 25	"23:24:25.000000"	1
 26	"2015-01-15"	1
 27	"2015-01-15 23:24:25.000000"	1
-28	{"type": "Point", "coordinates": [1, 1]}	2
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	2
 29	[]	0
-30	"base64:type16:yv66vg=="	1
+30	"base64:type15:yv66vg=="	1
 UPDATE t1 SET j2 = CAST(JSON_DEPTH(j) AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -963,9 +997,9 @@ i	j	j2
 25	"23:24:25.000000"	1
 26	"2015-01-15"	1
 27	"2015-01-15 23:24:25.000000"	1
-28	{"type": "Point", "coordinates": [1, 1]}	3
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	3
 29	[]	1
-30	"base64:type16:yv66vg=="	1
+30	"base64:type15:yv66vg=="	1
 UPDATE t1 SET j2 = JSON_OBJECT('a', j, 'b', j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -997,9 +1031,9 @@ i	j	j2
 25	"23:24:25.000000"	{"a": "23:24:25.000000", "b": "23:24:25.000000"}
 26	"2015-01-15"	{"a": "2015-01-15", "b": "2015-01-15"}
 27	"2015-01-15 23:24:25.000000"	{"a": "2015-01-15 23:24:25.000000", "b": "2015-01-15 23:24:25.000000"}
-28	{"type": "Point", "coordinates": [1, 1]}	{"a": {"type": "Point", "coordinates": [1, 1]}, "b": {"type": "Point", "coordinates": [1, 1]}}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": {"type": "Point", "coordinates": [1.0, 1.0]}, "b": {"type": "Point", "coordinates": [1.0, 1.0]}}
 29	[]	{"a": [], "b": []}
-30	"base64:type16:yv66vg=="	{"a": "base64:type16:yv66vg==", "b": "base64:type16:yv66vg=="}
+30	"base64:type15:yv66vg=="	{"a": "base64:type15:yv66vg==", "b": "base64:type15:yv66vg=="}
 UPDATE t1 SET j2 = JSON_ARRAY(JSON_UNQUOTE(j));
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -1031,9 +1065,9 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	["{\"type\": \"Point\", \"coordinates\": [1, 1]}"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"]
 29	[]	["[]"]
-30	"base64:type16:yv66vg=="	["base64:type16:yv66vg=="]
+30	"base64:type15:yv66vg=="	["base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = CAST(JSON_QUOTE(CAST(j AS CHAR)) AS JSON);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
@@ -1065,9 +1099,9 @@ i	j	j2
 25	"23:24:25.000000"	"\"23:24:25.000000\""
 26	"2015-01-15"	"\"2015-01-15\""
 27	"2015-01-15 23:24:25.000000"	"\"2015-01-15 23:24:25.000000\""
-28	{"type": "Point", "coordinates": [1, 1]}	"{\"type\": \"Point\", \"coordinates\": [1, 1]}"
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	"{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"
 29	[]	"[]"
-30	"base64:type16:yv66vg=="	"\"base64:type16:yv66vg==\""
+30	"base64:type15:yv66vg=="	"\"base64:type15:yv66vg==\""
 ALTER TABLE t1 ADD COLUMN j3 JSON AS (JSON_EXTRACT(j2, '$.abc'));
 SELECT * FROM t1 ORDER BY i;
 i	j	j2	j3
@@ -1099,9 +1133,9 @@ i	j	j2	j3
 25	"23:24:25.000000"	"\"23:24:25.000000\""	NULL
 26	"2015-01-15"	"\"2015-01-15\""	NULL
 27	"2015-01-15 23:24:25.000000"	"\"2015-01-15 23:24:25.000000\""	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	"{\"type\": \"Point\", \"coordinates\": [1, 1]}"	NULL
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	"{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"	NULL
 29	[]	"[]"	NULL
-30	"base64:type16:yv66vg=="	"\"base64:type16:yv66vg==\""	NULL
+30	"base64:type15:yv66vg=="	"\"base64:type15:yv66vg==\""	NULL
 UPDATE t1 SET j2 = JSON_OBJECT('abc', j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2	j3
@@ -1133,17 +1167,886 @@ i	j	j2	j3
 25	"23:24:25.000000"	{"abc": "23:24:25.000000"}	"23:24:25.000000"
 26	"2015-01-15"	{"abc": "2015-01-15"}	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	{"abc": "2015-01-15 23:24:25.000000"}	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"abc": {"type": "Point", "coordinates": [1, 1]}}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"abc": {"type": "Point", "coordinates": [1.0, 1.0]}}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	{"abc": []}	[]
-30	"base64:type16:yv66vg=="	{"abc": "base64:type16:yv66vg=="}	"base64:type16:yv66vg=="
+30	"base64:type15:yv66vg=="	{"abc": "base64:type15:yv66vg=="}	"base64:type15:yv66vg=="
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 include/diff_tables.inc [master:t5, slave:t5]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 DROP TABLE t1, t2, t3, t4, t5;
 include/sync_slave_sql_with_master.inc
+#
+# WL#7987: JSON AGGREGATION FUNCTIONS
+#
+# Create tables of various data types
+CREATE TABLE data_table (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL);
+CREATE TABLE json_data (nkey INT PRIMARY KEY AUTO_INCREMENT, jcol JSON);
+# Insert values into the tables using the aggregation functions
+INSERT INTO data_table(txt, vcol, num) VALUES ('ailemac', 'namor', 15),
+('nielk', 'uciov', 12),
+('nuicarc', 'ierdna', 13),
+('ihcseruj', 'elisav', 14),
+('qweasdas', 'jugcvb', 16);
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey, gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(num , vcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey , txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+nkey	jcol
+1	{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+6	[1, 2, 3, 4, 5]
+SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
+JSON_OBJECTAGG(t1.pkey, t2.jcol)
+{"1": [1, 2, 3, 4, 5], "2": [1, 2, 3, 4, 5], "3": [1, 2, 3, 4, 5], "4": [1, 2, 3, 4, 5], "5": [1, 2, 3, 4, 5]}
+SELECT JSON_ARRAYAGG(jcol) FROM json_data;
+JSON_ARRAYAGG(jcol)
+[{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, ["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"], [30, 24, 26, 28, 32], {"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}, {"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}, [1, 2, 3, 4, 5]]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data WHERE nkey = 1;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+DROP TABLE data_table;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9191: ADD JSON_PRETTY FUNCTION
+#
+[Connection Master]
+# Create tables of various data types
+CREATE TABLE data (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL,
+gcol2 JSON AS (JSON_PRETTY(JSON_OBJECT(num,gcol))));
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT, jcol TEXT, jgcol TEXT AS (JSON_PRETTY(jcol)));
+# Insert values into the tables using the pretty function
+INSERT INTO data (txt, vcol, num) VALUES ('abc', 'namotgr', 150),
+('fwjh4', 'ucierov', 142),
+('8942rhkjh', 'roiu3r', 913),
+('imfmf', 'r3jr2', 15),
+('32rj2jr', 'r2ihrhr', 32);
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey, gcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAYAGG(txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}
+2	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+SELECT gcol2  FROM data;
+gcol2
+{"150": 300}
+{"142": 284}
+{"913": 1826}
+{"15": 30}
+{"32": 64}
+include/diff_tables.inc [master:json_data, slave:json_data]
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 64
+}	{
+  "1": 64
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 64
+}	{
+  "1": 64
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+DROP TABLE data;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#8963: SUPPORT FOR PARTIAL UPDATE OF JSON IN THE OPTIMIZER
+# WL#9192: ADD JSON_STORAGE_SIZE / JSON_STORAGE_FREE FUNCTIONS
+#
+[Connection Master]
+# Create table containing various types of data
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+id INT,
+jd JSON,
+td TEXT,
+gcol INT AS (JSON_STORAGE_SIZE(jd)),
+gcol2 INT AS (JSON_STORAGE_FREE(jd)) VIRTUAL,
+gcol3 JSON AS (JSON_ARRAY(id,jd,td,gcol,gcol2)),
+gcol4 JSON AS (JSON_OBJECT(id,jd,gcol,td)) VIRTUAL);
+# Insert data into the table
+INSERT INTO json_data(id,jd,td) VALUES(10, '{"a":1}', 'characters'),
+(20, '[10,20,30]', 'alphabet'),
+(30, '[{"a":"abc"},{"b":"abcd"}]', 'words'),
+(40, '{"key":["array", "of", "strings"]}', 'letters'),
+(50, '{"key":[{"key":"value"},{"key":"value2"}]}', 'strings');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table was created on the slave
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": 1}	characters	13	0	[10, {"a": 1}, "characters", 13, 0]	{"10": {"a": 1}, "13": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "abc"}, {"b": "abcd"}]	words	44	0	[30, [{"a": "abc"}, {"b": "abcd"}], "words", 44, 0]	{"30": [{"a": "abc"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["array", "of", "strings"]}	letters	45	0	[40, {"key": ["array", "of", "strings"]}, "letters", 45, 0]	{"40": {"key": ["array", "of", "strings"]}, "45": "letters"}
+5	50	{"key": [{"key": "value"}, {"key": "value2"}]}	strings	66	0	[50, {"key": [{"key": "value"}, {"key": "value2"}]}, "strings", 66, 0]	{"50": {"key": [{"key": "value"}, {"key": "value2"}]}, "66": "strings"}
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jd = JSON_REPLACE(jd, '$[0].a',"a");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["array", "of", "strings"]}	letters	45	0	[40, {"key": ["array", "of", "strings"]}, "letters", 45, 0]	{"40": {"key": ["array", "of", "strings"]}, "45": "letters"}
+5	50	{"key": [{"key": "value"}, {"key": "value2"}]}	strings	66	0	[50, {"key": [{"key": "value"}, {"key": "value2"}]}, "strings", 66, 0]	{"50": {"key": [{"key": "value"}, {"key": "value2"}]}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+72	75
+93	96
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update more values in the table
+UPDATE json_data SET jd = JSON_SET(jd, '$.key[0]', "ar");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["ar", "of", "strings"]}	letters	45	3	[40, {"key": ["ar", "of", "strings"]}, "letters", 45, 3]	{"40": {"key": ["ar", "of", "strings"]}, "45": "letters"}
+5	50	{"key": ["ar", {"key": "value2"}]}	strings	66	17	[50, {"key": ["ar", {"key": "value2"}]}, "strings", 66, 17]	{"50": {"key": ["ar", {"key": "value2"}]}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+69	72
+76	79
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update values again
+UPDATE json_data SET jd = JSON_REPLACE(jd, '$.key', "hello");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": "hello"}	letters	45	24	[40, {"key": "hello"}, "letters", 45, 24]	{"40": {"key": "hello"}, "45": "letters"}
+5	50	{"key": "hello"}	strings	66	45	[50, {"key": "hello"}, "strings", 66, 45]	{"50": {"key": "hello"}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+48	51
+48	51
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update values such that they can fill up the "free" space
+UPDATE json_data SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	characters	47	0	[10, {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "characters", 47, 0]	{"10": {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "47": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	letters	45	8	[40, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "letters", 45, 8]	{"40": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "45": "letters"}
+5	50	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	strings	66	29	[50, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "strings", 66, 29]	{"50": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+77	80
+42	45
+67	70
+64	67
+64	67
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Clean up
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9831: RANGES IN JSON PATH EXPRESSIONS
+#
+[Connection Master]
+# Create table with JSON data
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+id INT,
+jd JSON,
+td TEXT,
+gcol JSON AS (JSON_EXTRACT(jd, '$[last -2 to last]')) VIRTUAL,
+gcol2 VARCHAR(100) AS (JSON_EXTRACT(td, '$[0 to 3]')) STORED,
+gcol3 JSON AS (JSON_EXTRACT(JSON_ARRAY(id,jd,td,gcol,gcol2),
+'$[2][last -3 to last -1]')) VIRTUAL,
+gcol4 JSON AS (JSON_EXTRACT(JSON_OBJECT(id,jd,gcol,td),
+'$.id[0 to last]')) STORED,
+key(gcol2));
+# Insert data into the table
+INSERT INTO json_data(id,jd,td) VALUES(10, '["abc", "def", "ghi", "jkl", "mno"]',
+'["pqr", "stu", "vwx", "xyz"]'),
+(20, '[10, 20, 30, 40, 50]',
+'["alpha", "beta", "gamma", "delta"]'),
+(30, '["z", "y", "x", "w", "v"]',
+'["Bengaluru", "Mysuru", "Davangere", "Belagaum"]'),
+(40, '["array", "of", "strings", "and", "more"]',
+'[2, 3, 5, 7]'),
+(50, '[{"key":[{"key":"value"},{"key":"value2"}]},
+                                             {"key":[{"key":"value3"},{"key":"value4"}]}]',
+'["N", "U", "L", "L"]');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table was created on the slave
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	["abc", "def", "ghi", "jkl", "mno"]	["pqr", "stu", "vwx", "xyz"]	["ghi", "jkl", "mno"]	["pqr", "stu", "vwx", "xyz"]	NULL	NULL
+2	20	[10, 20, 30, 40, 50]	["alpha", "beta", "gamma", "delta"]	[30, 40, 50]	["alpha", "beta", "gamma", "delta"]	NULL	NULL
+3	30	["z", "y", "x", "w", "v"]	["Bengaluru", "Mysuru", "Davangere", "Belagaum"]	["x", "w", "v"]	["Bengaluru", "Mysuru", "Davangere", "Belagaum"]	NULL	NULL
+4	40	["array", "of", "strings", "and", "more"]	[2, 3, 5, 7]	["strings", "and", "more"]	[2, 3, 5, 7]	NULL	NULL
+5	50	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	NULL	NULL
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jd = JSON_SET(jd, '$[1]', "replaced") WHERE
+JSON_CONTAINS(JSON_EXTRACT(jd, '$[0 to last]'), '[10, 20, 30, 40, 50]');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	["abc", "def", "ghi", "jkl", "mno"]	["pqr", "stu", "vwx", "xyz"]	["ghi", "jkl", "mno"]	["pqr", "stu", "vwx", "xyz"]	NULL	NULL
+2	20	[10, "replaced", 30, 40, 50]	["alpha", "beta", "gamma", "delta"]	[30, 40, 50]	["alpha", "beta", "gamma", "delta"]	NULL	NULL
+3	30	["z", "y", "x", "w", "v"]	["Bengaluru", "Mysuru", "Davangere", "Belagaum"]	["x", "w", "v"]	["Bengaluru", "Mysuru", "Davangere", "Belagaum"]	NULL	NULL
+4	40	["array", "of", "strings", "and", "more"]	[2, 3, 5, 7]	["strings", "and", "more"]	[2, 3, 5, 7]	NULL	NULL
+5	50	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	NULL	NULL
+SELECT JSON_EXTRACT(td, '$[0 to last]') FROM json_data;
+JSON_EXTRACT(td, '$[0 to last]')
+["pqr", "stu", "vwx", "xyz"]
+["alpha", "beta", "gamma", "delta"]
+["Bengaluru", "Mysuru", "Davangere", "Belagaum"]
+[2, 3, 5, 7]
+["N", "U", "L", "L"]
+[Connection Master]
+# Clean up
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9692: ADD JSON_MERGE_PATCH, RENAME JSON_MERGE TO JSON_MERGE_PRESERVE
+#
+[Connection Master]
+# Create table with JSON data
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+id INT,
+jd JSON,
+td TEXT,
+gcol VARCHAR(30) AS (JSON_EXTRACT(JSON_MERGE_PATCH(jd,JSON_OBJECT(id,td)), '$.a')) VIRTUAL,
+KEY(gcol));
+# Insert data into the table
+INSERT INTO json_data(id,jd,td) VALUES(10,'["a","b","c","d","e"]', "pink"),
+(20,'{"a":[1,2,6,7,9]}', "floyd"),
+(30,'{"a":["ears","nose","eyes"]}', "megadeth"),
+(40,'[null,null,"null",0,1]', "def"),
+(50,'{"a":null}', "leppard");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table was created on the slave
+SELECT * FROM json_data;
+pk	id	jd	td	gcol
+1	10	["a", "b", "c", "d", "e"]	pink	NULL
+2	20	{"a": [1, 2, 6, 7, 9]}	floyd	[1, 2, 6, 7, 9]
+3	30	{"a": ["ears", "nose", "eyes"]}	megadeth	["ears", "nose", "eyes"]
+4	40	[null, null, "null", 0, 1]	def	NULL
+5	50	{"a": null}	leppard	null
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Create tables using the JSON_MERGE_PATCH function
+CREATE TABLE json_data2(field1 JSON);
+INSERT INTO json_data2
+SELECT JSON_MERGE_PATCH(JSON_ARRAYAGG(jd), JSON_OBJECTAGG(pk, jd))
+FROM json_data;
+CREATE TABLE json_data3(field1 JSON);
+INSERT INTO json_data3
+SELECT JSON_MERGE_PATCH(JSON_OBJECTAGG(id, gcol), JSON_ARRAYAGG(td))
+FROM json_data;
+CREATE TABLE json_data4(field1 JSON);
+INSERT INTO json_data4
+SELECT JSON_MERGE_PATCH(JSON_OBJECT(id, jd), JSON_ARRAY(gcol))
+FROM json_data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the tables were created on the slave
+SELECT * FROM json_data2;
+field1
+{"1": ["a", "b", "c", "d", "e"], "2": {"a": [1, 2, 6, 7, 9]}, "3": {"a": ["ears", "nose", "eyes"]}, "4": [null, null, "null", 0, 1], "5": {}}
+SELECT * FROM json_data3;
+field1
+["pink", "floyd", "megadeth", "def", "leppard"]
+SELECT * FROM json_data4;
+field1
+[null]
+["[1, 2, 6, 7, 9]"]
+["[\"ears\", \"nose\", \"eyes\"]"]
+[null]
+["null"]
+SELECT JSON_MERGE_PATCH(t1.field1, t2.field1) FROM json_data2 as t1, json_data3 as t2;
+JSON_MERGE_PATCH(t1.field1, t2.field1)
+["pink", "floyd", "megadeth", "def", "leppard"]
+SELECT JSON_MERGE_PRESERVE(t1.field1, t2.field1) FROM json_data3 as t1, json_data4 as t2;
+JSON_MERGE_PRESERVE(t1.field1, t2.field1)
+["pink", "floyd", "megadeth", "def", "leppard", null]
+["pink", "floyd", "megadeth", "def", "leppard", "[1, 2, 6, 7, 9]"]
+["pink", "floyd", "megadeth", "def", "leppard", "[\"ears\", \"nose\", \"eyes\"]"]
+["pink", "floyd", "megadeth", "def", "leppard", null]
+["pink", "floyd", "megadeth", "def", "leppard", "null"]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),JSON_ARRAY(td))) WHERE id IN (10,40);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:json_data, slave:json_data]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol
+1	10	["a", ["pink"], "c", "d", "e"]	pink	NULL
+2	20	{"a": [1, 2, 6, 7, 9]}	floyd	[1, 2, 6, 7, 9]
+3	30	{"a": ["ears", "nose", "eyes"]}	megadeth	["ears", "nose", "eyes"]
+4	40	[null, ["def"], "null", 0, 1]	def	NULL
+5	50	{"a": null}	leppard	null
+[Connection Master]
+# Clean up
+DROP TABLE json_data, json_data2, json_data3, json_data4;
+include/sync_slave_sql_with_master.inc
+#
+# WL#8867: ADD JSON TABLE FUNCTIONS
+#
+[Connection Master]
+# Create table using data obtained from JSON_TABLE function
+CREATE TABLE json_data(j json);
+INSERT INTO json_data VALUES('{"a":1, "b":"trucks", "c":[1,2,3], "d":"taste", "e":"93-01-01", "f":"03:48:07"}');
+INSERT INTO json_data VALUES('{"a":2, "b":"rickshaws", "c":{"key":"value"}, "d":"smell" , "e":"12-11-12", "f":"09:09:10"}');
+INSERT INTO json_data VALUES('{"a":3, "b":"cars", "c":["a","b","c","d"], "d":"sight", "e":"01-01-01", "f":"05:18:12"}');
+INSERT INTO json_data VALUES('{"a":4, "b":"bikes", "c":{"a":[1,2]}, "d":"hearing", "e":"98-05-06", "f":"00:00:00" }');
+INSERT INTO json_data VALUES('{"a":5, "b":"mopeds", "c":["one", "two", "three"], "d":"touch", "e":"56-12-07", "f":"12:12:12"}');
+CREATE TABLE data(i INT, v VARCHAR(10), j JSON, b BLOB, d DATE, t TIME, n JSON);
+INSERT INTO data SELECT jint, jchar, jjson, jblob, jdate, jtime, njson FROM json_data,JSON_TABLE(j, '$' COLUMNS(o FOR ORDINALITY, jexst INT EXISTS PATH '$.g', jint INT PATH '$.a', jchar VARCHAR(10) PATH '$.b', jjson JSON PATH '$.c', jblob BLOB PATH '$.d', jdate DATE PATH '$.e', jtime TIME PATH '$.f', NESTED PATH '$.c' COLUMNS(njson JSON PATH '$[0]' DEFAULT '{"json":"json_val"}' ON EMPTY ))) AS alias;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the table was created on the slave
+SELECT * FROM data;
+i	v	j	b	d	t	n
+1	trucks	[1, 2, 3]	taste	1993-01-01	03:48:07	1
+2	rickshaws	{"key": "value"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	bikes	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Update values in the table with data obtained from JSON_TABLE
+UPDATE data SET j = (SELECT ucol FROM json_data,JSON_TABLE(j, '$' COLUMNS(ucol JSON PATH '$', ucol2 INT PATH '$.a')) AS alias WHERE ucol2 = 2) WHERE i = 2;
+UPDATE data SET v = (SELECT ucol FROM JSON_TABLE('{"key":["update"]}', '$' COLUMNS(ucol VARCHAR(10) PATH '$.key[0]')) AS alias) WHERE i = 4;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the values were updated
+SELECT j,v FROM data;
+j	v
+[1, 2, 3]	trucks
+{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	rickshaws
+["a", "b", "c", "d"]	cars
+{"a": [1, 2]}	update
+["one", "two", "three"]	mopeds
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM data WHERE i = (SELECT dcol FROM JSON_TABLE('{"key":["delete",1,"2"]}', '$' COLUMNS(dcol INT PATH '$.key[1]')) AS alias);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the row was deleted
+SELECT * FROM data;
+i	v	j	b	d	t	n
+2	rickshaws	{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	update	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# cleanup
+DROP TABLE data,json_data;
+include/sync_slave_sql_with_master.inc
+#
+# Bug#26177130: SLAVE CAN'T FIND ROW USING HASH_SCAN
+#               IF JSON HAS DIFFERENT BINARY FORMAT
+#
+[connection slave]
+include/begin_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection master]
+SET @old_binlog_format = @@SESSION.binlog_format;
+SET SESSION binlog_format = ROW;
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+CREATE TABLE t (j JSON);
+SET SQL_LOG_BIN = 0;
+INSERT INTO t VALUES ('["abc", "abcdefghij"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'a');
+SET SQL_LOG_BIN = 1;
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	26	2
+include/sync_slave_sql_with_master.inc
+INSERT INTO t VALUES ('["a", "abcdefghij"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	24	0
+# At this point, the master and the slave have the same JSON document,
+# but the binary representation is different (the master has a 'gap' due
+# to partial update).
+[connection master]
+DELETE FROM t;
+# Verify that the slave and the master are in sync after the DELETE.
+# Before the fix, the slave could not locate the row due with
+# slave_rows_search_algorithms=HASH_SCAN because of the difference in
+# the representation.
+include/sync_slave_sql_with_master.inc
+# Clean up
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_format = @old_binlog_format;
 include/rpl_end.inc

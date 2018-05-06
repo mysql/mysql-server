@@ -200,8 +200,8 @@ thread_id	event_id	event_name	digest	digest_text	sql_text
 update performance_schema.setup_instruments set enabled='no', timed='no'
   where name like '%statement/abstract/relay_log%';
 select * from performance_schema.setup_instruments where name like '%statement/abstract/relay_log%';
-NAME	ENABLED	TIMED
-statement/abstract/relay_log	NO	NO
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+statement/abstract/relay_log	NO	NO	mutable	0	New event just read from the relay log. At this point, the real statement type is unknown, the type will be refined after parsing the event.
 
 #
 # STEP 7 - UPDATE TABLES ON MASTER, REPLICATE

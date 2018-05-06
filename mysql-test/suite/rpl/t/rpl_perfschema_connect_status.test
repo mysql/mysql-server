@@ -34,7 +34,7 @@
 #
 source include/not_valgrind.inc;
 source include/master-slave.inc;
-source include/have_ssl_communication.inc;
+source include/have_ssl.inc;
 source include/have_binlog_format_mixed.inc;
 
 --let $assert_text= On master, the table should return an empty set.
@@ -76,18 +76,9 @@ source include/assert.inc;
 # IS. So to test count_received_heartbeats and last_heartbeat_timestamp
 # we compare values from IS and PS unlike SSS and PS for other fields in this
 # test.
-#
-
-let $is_value= query_get_value(select Variable_Value from information_schema.global_status where Variable_name = 'slave_received_heartbeats', Variable_Value, 1);
-let $ps_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
-let $assert_text= IS and PS tables should both show that no heartbeats have been received.;
-let $assert_cond= "$is_value" = "$ps_value";
-source include/assert.inc;
-
-let $is_value= query_get_value(select Variable_Value from information_schema.global_status where Variable_name = 'slave_last_heartbeat', Variable_Value, 1);
 let $ps_value= query_get_value(select last_heartbeat_timestamp from performance_schema.replication_connection_status, last_heartbeat_timestamp, 1);
-let $assert_text= IS table should give an empty output and PS table should output 0000-00-00 00:00:00 both indicating no heartbeats have been received;
-let $assert_cond= "$is_value" = "" AND "$ps_value"= "0000-00-00 00:00:00";
+let $assert_text= PS table should output 0000-00-00 00:00:00.000000 indicating no heartbeats have been received;
+let $assert_cond= "$ps_value"= "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
@@ -110,8 +101,8 @@ source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
-let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.;
-let $assert_cond= "$ps_value" = "0000-00-00 00:00:00";
+let $assert_text= Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.000000.;
+let $assert_cond= "$ps_value" = "0000-00-00 00:00:00.000000";
 source include/assert.inc;
 
 source include/stop_slave.inc;
@@ -234,16 +225,18 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and the microseconds (after WL7319) so that it can be matched
+# directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo
@@ -251,6 +244,7 @@ source include/assert.inc;
 --echo # after STOP SLAVE, thread_id changes to NULL and service_state to "off".
 --echo
 
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
 source include/stop_slave.inc;
 
 --echo
@@ -315,17 +309,19 @@ EOF
 
 # The timestamp format is slightly different in SSS and PS.
 # SSS => YYMMDD HH:MM:SS
-# PS  => YYYY-MM-DD HH:MM:SS
+# PS  => YYYY-MM-DD HH:MM:SS.ssssss
 # To match the two, we get rid of hyphons from PS output and first two digits
-# the year field so that it can be matched directly.
+# the year field and also the microseconds (after WL#7319) so that it can be
+# matched directly.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_IO_Error_Timestamp, 1);
 let $ps_value= query_get_value(select Last_Error_Timestamp from performance_schema.replication_connection_status, Last_Error_Timestamp, 1);
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
 let $ps_value_without_hyphons= `SELECT REPLACE("$ps_value", '-', '')`;
 let $ps_value_in_sss_format= `select substring("$ps_value_without_hyphons", 3)`;
+let $ps_value_without_microseconds= `select substring_index("$ps_value_in_sss_format", '.', 1)`;
 let $assert_text= Value returned by SSS and PS table for Last_Error_Timestamp should be same.;
-let $assert_cond= "$sss_value" = "$ps_value_in_sss_format";
+let $assert_cond= "$sss_value" = "$ps_value_without_microseconds";
 source include/assert.inc;
 
 --echo

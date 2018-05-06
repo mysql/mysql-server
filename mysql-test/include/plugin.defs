@@ -27,59 +27,99 @@
 #
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
-
-auth_test_plugin   plugin/auth        PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
-qa_auth_interface  plugin/auth        PLUGIN_AUTH_INTERFACE qa_auth_interface
-qa_auth_server     plugin/auth        PLUGIN_AUTH_SERVER    qa_auth_server
-qa_auth_client     plugin/auth        PLUGIN_AUTH_CLIENT    qa_auth_client
-udf_example        sql                UDF_EXAMPLE_LIB
-ha_example         storage/example    EXAMPLE_PLUGIN         EXAMPLE
-semisync_master    plugin/semisync    SEMISYNC_MASTER_PLUGIN
-semisync_slave     plugin/semisync    SEMISYNC_SLAVE_PLUGIN
-ha_archive         storage/archive    ARCHIVE_PLUGIN
-ha_blackhole       storage/blackhole  BLACKHOLE_PLUGIN
-ha_federated       storage/federated  FEDERATED_PLUGIN
-ha_partition       storage/partition  PARTITION_PLUGIN  partition
-mypluglib          plugin/fulltext    SIMPLE_PARSER
-libpluginmecab     plugin/fulltext    MECAB
-keyring_file       plugin/keyring     KEYRING_PLUGIN keyring_file
-keyring_udf        plugin/keyring_udf KEYRING_UDF keyring_udf
-adt_null           plugin/audit_null  AUDIT_NULL
-test_security_context  plugin/audit_null  TEST_SECURITY_CONTEXT  test_security_context
-libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
-replication_observers_example_plugin    plugin/replication_observers_example RPL_OBS_EXAMPLE
-libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED
-# libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED daemon_memcached
-innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
-validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password
-rewrite_example    plugin/rewrite_example REWRITE_EXAMPLE
-rewriter           plugin/rewriter    REWRITER
-mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
-test_udf_services  plugin/udf_services TESTUDFSERVICES
-group_replication  plugin/group_replication   GROUP_REPLICATION
-locking_service    sql                        LOCKING_SERVICE
-version_token      plugin/version_token       VERSION_TOKEN
+auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
+qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
+qa_auth_server                          plugin_output_directory PLUGIN_AUTH_SERVER    qa_auth_server
+qa_auth_client                          plugin_output_directory PLUGIN_AUTH_CLIENT    qa_auth_client
+udf_example                             plugin_output_directory UDF_EXAMPLE_LIB
+ha_example                              plugin_output_directory EXAMPLE_PLUGIN         EXAMPLE
+semisync_master                         plugin_output_directory SEMISYNC_MASTER_PLUGIN
+semisync_slave                          plugin_output_directory SEMISYNC_SLAVE_PLUGIN
+ha_archive                              plugin_output_directory ARCHIVE_PLUGIN
+ha_blackhole                            plugin_output_directory BLACKHOLE_PLUGIN
+ha_federated                            plugin_output_directory FEDERATED_PLUGIN
+ha_partition                            plugin_output_directory PARTITION_PLUGIN  partition
+mypluglib                               plugin_output_directory SIMPLE_PARSER
+libpluginmecab                          plugin_output_directory MECAB
+adt_null                                plugin_output_directory AUDIT_NULL
+keyring_udf                             plugin_output_directory KEYRING_UDF keyring_udf
+keyring_file                            plugin_output_directory KEYRING_PLUGIN        keyring_file
+test_security_context                   plugin_output_directory TEST_SECURITY_CONTEXT  test_security_context
+libdaemon_example                       plugin_output_directory DAEMONEXAMPLE
+replication_observers_example_plugin    plugin_output_directory RPL_OBS_EXAMPLE
+libmemcached                            plugin_output_directory DAEMON_MEMCACHED
+# libmemcached     			plugin_output_directory DAEMON_MEMCACHED daemon_memcached
+innodb_engine      			plugin_output_directory INNODB_ENGINE
+validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
+rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
+rewriter           			plugin_output_directory REWRITER
+mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
+test_udf_services  			plugin_output_directory TESTUDFSERVICES
+test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
+group_replication  			plugin_output_directory GROUP_REPLICATION
+locking_service    			plugin_output_directory LOCKING_SERVICE
+version_token      			plugin_output_directory VERSION_TOKEN
 # Test services framework
-libtest_services   plugin/test_services TESTSERVICES
-libtest_services_threaded  plugin/test_services TESTSERVICESTHREADED
+libtest_services                        plugin_output_directory TESTSERVICES
+libtest_services_threaded               plugin_output_directory TESTSERVICESTHREADED
+test_services_plugin_registry           plugin_output_directory TEST_SERVICES_PLUGIN_REGISTRY
 # Test session API
-libtest_session_in_thd                  plugin/test_service_sql_api TEST_SESSION_IN_THD
-libtest_x_sessions_init                 plugin/test_service_sql_api TEST_X_SESSIONS_INIT
-libtest_x_sessions_deinit               plugin/test_service_sql_api TEST_X_SESSIONS_DEINIT
-libtest_session_detach                  plugin/test_service_sql_api TEST_SESSION_DETACH
-libtest_session_info                    plugin/test_service_sql_api TEST_SESSION_INFO
+libtest_session_in_thd                  plugin_output_directory TEST_SESSION_IN_THD
+libtest_x_sessions_init                 plugin_output_directory TEST_X_SESSIONS_INIT
+libtest_x_sessions_deinit               plugin_output_directory TEST_X_SESSIONS_DEINIT
+libtest_session_detach                  plugin_output_directory TEST_SESSION_DETACH
+libtest_session_attach                  plugin_output_directory TEST_SESSION_ATTACH
+libtest_session_info                    plugin_output_directory TEST_SESSION_INFO
 # Test SQL API
-libtest_sql_complex                     plugin/test_service_sql_api TEST_SQL_COMPLEX
-libtest_sql_2_sessions                  plugin/test_service_sql_api TEST_SQL_2_SESSIONS
-libtest_sql_cmds_1                      plugin/test_service_sql_api TEST_SQL_CMDS_1
-libtest_sql_all_col_types               plugin/test_service_sql_api TEST_SQL_ALL_COL_TYPES
-libtest_sql_processlist                 plugin/test_service_sql_api TEST_SQL_PROCESSLIST
-libtest_sql_shutdown                    plugin/test_service_sql_api TEST_SQL_SHUTDOWN
-libtest_sql_stored_procedures_functions plugin/test_service_sql_api TEST_SQL_STORED_PROCEDURES_FUNCTIONS
-libtest_sql_views_triggers              plugin/test_service_sql_api TEST_SQL_VIEWS_TRIGGERS
-libtest_sql_commit                      plugin/test_service_sql_api TEST_SQL_COMMIT
-libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOCK
-libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
-libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
-libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS
-connection_control  plugin/connection_control   CONNECTION_CONTROL_PLUGIN    connection_control
+libtest_sql_complex                     plugin_output_directory TEST_SQL_COMPLEX
+libtest_sql_2_sessions                  plugin_output_directory TEST_SQL_2_SESSIONS
+libtest_sql_cmds_1                      plugin_output_directory TEST_SQL_CMDS_1
+libtest_sql_all_col_types               plugin_output_directory TEST_SQL_ALL_COL_TYPES
+libtest_sql_processlist                 plugin_output_directory TEST_SQL_PROCESSLIST
+libtest_sql_shutdown                    plugin_output_directory TEST_SQL_SHUTDOWN
+libtest_sql_stored_procedures_functions plugin_output_directory TEST_SQL_STORED_PROCEDURES_FUNCTIONS
+libtest_sql_views_triggers              plugin_output_directory TEST_SQL_VIEWS_TRIGGERS
+libtest_sql_commit                      plugin_output_directory TEST_SQL_COMMIT
+libtest_sql_lock                        plugin_output_directory TEST_SQL_LOCK
+libtest_sql_sqlmode                     plugin_output_directory TEST_SQL_SQLMODE
+libtest_sql_replication                 plugin_output_directory TEST_SQL_REPLICATION
+libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
+libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
+connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
+# Test component
+component_example_component1    component_output_directory  EXAMPLE_COMPONENT_1
+component_example_component2    component_output_directory  EXAMPLE_COMPONENT_2
+component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
+
+component_test_string_service   component_output_directory  TEST_STRING_SERVICE
+component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
+component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+
+component_test_backup_lock_service   component_output_directory  TEST_BACKUP_LOCK_SERVICE
+# Test Performance Schema services
+component_test_pfs_notification         component_output_directory  TEST_PFS_NOTIFICATION_SERVICE
+component_test_pfs_resource_group       component_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
+component_log_sink_json         component_output_directory  LOGGING_COMPONENTS
+
+# pfs_example_plugin_employee plugin
+pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLOYEE pfs_example_plugin_employee
+# pfs_example_component_population component
+component_pfs_example_component_population    component_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
+
+component_test_udf_registration    component_output_directory  TEST_UDF_REGISTRATION
+component_udf_reg_3_func   component_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
+component_udf_reg_only_3_func component_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
+component_udf_unreg_3_func   component_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
+component_test_component_sys_var_service   component_output_directory  TEST_COM_SYS_VAR_SERVICES_OPT
+component_test_sys_var_service component_output_directory SYS_VAR_SERVICE component_test_sys_var_service
+component_test_sys_var_service_same component_output_directory SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
+component_test_status_var_service component_output_directory STATUS_VAR_SERVICE component_test_status_var_service
+
+# pfs_example
+component_pfs_example    component_output_directory  PFS_EXAMPLE
+
+# Test system_variable_source service
+component_test_system_variable_source component_output_directory TEST_SYSTEM_VARIABLE_SOURCE
+
+# password validation component
+component_validate_password     component_output_directory  VALIDATE_PASSWORD_COMPONENT

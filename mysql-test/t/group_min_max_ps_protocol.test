@@ -1,0 +1,86 @@
+#
+# group_min_max related tests that result in an different output when run
+# under --ps.
+#
+#
+
+--source include/have_ps_protocol.inc
+
+#
+# Bug#24156: Loose index scan not used with CREATE TABLE ...SELECT and similar statements
+#
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
+INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
+       (2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6),
+       (5,1), (5,2), (5,3), (5,4), (5,5);
+--replace_column 10 X
+EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
+FLUSH STATUS;
+SELECT max(b), a FROM t1 GROUP BY a;
+SHOW STATUS LIKE 'handler_read__e%';
+--replace_column 10 X
+EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
+FLUSH STATUS;
+CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
+SHOW STATUS LIKE 'handler_read__e%';
+FLUSH STATUS;
+SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
+SHOW STATUS LIKE 'handler_read__e%';
+FLUSH STATUS;
+(SELECT max(b), a FROM t1 GROUP BY a) UNION
+ (SELECT max(b), a FROM t1 GROUP BY a);
+SHOW STATUS LIKE 'handler_read__e%';
+--replace_column 10 X
+EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION
+ (SELECT max(b), a FROM t1 GROUP BY a);
+
+--echo # In queries below "index for group-by" should be used for subqueries
+--replace_column 10 X
+EXPLAIN SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
+  FROM t1 AS t1_outer;
+--replace_column 10 X
+EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
+  (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_column 10 X
+EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
+  (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
+--replace_column 10 X
+EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
+  a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_column 10 X
+EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING
+  a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
+--replace_column 10 X
+EXPLAIN SELECT 1 FROM t1 AS t1_outer1 LEFT JOIN t1 AS t1_outer2
+   ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
+   AND t1_outer1.b = t1_outer2.b;
+--replace_column 10 X
+EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
+  FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
+
+CREATE TABLE t3 LIKE t1;
+--echo # Ensure that t3 is loaded into data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SHOW CREATE TABLE t3;
+--enable_result_log
+--enable_query_log
+FLUSH STATUS;
+INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
+SHOW STATUS LIKE 'handler_read__e%';
+DELETE FROM t3;
+FLUSH STATUS;
+INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) 
+  FROM t1 LIMIT 1;
+SHOW STATUS LIKE 'handler_read__e%';
+FLUSH STATUS;
+DELETE FROM t3 WHERE (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) > 10000;
+SHOW STATUS LIKE 'handler_read__e%';
+FLUSH STATUS;
+--error ER_SUBQUERY_NO_1_ROW
+DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
+                      FROM t1) > 10000;
+SHOW STATUS LIKE 'handler_read__e%';
+
+DROP TABLE t1,t2,t3;

@@ -1,5 +1,5 @@
-
  #Get deafult engine value
+--source include/no_ps_protocol.inc
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
@@ -12,7 +12,7 @@ select CAST('10 ' as unsigned integer);
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
-explain extended select ~5, cast(~5 as signed);
+explain select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
 select cast(NULL as signed), cast(1/0 as signed);
 #
@@ -115,6 +115,27 @@ select * from t1;
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
+
+--echo #
+--echo # Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
+--echo #
+SELECT
+  CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
+  CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
+  CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
+  CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
+  CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+
+CREATE TABLE t1 SELECT
+  CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
+  CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
+  CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
+  CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
+  CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 SET sql_mode = default;
 #
 # Bug 2202
@@ -321,6 +342,17 @@ WHERE CAST(a as BINARY)=x'62736D697468'
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#22885819: CAST( .. AS BINARY(N)) GETS UNEXPECTED NULL
+--echo #
+SELECT CAST( 'a' AS BINARY(429496729));
+SELECT CAST( 'a' AS BINARY(4294967294));
+SELECT CAST( 'a' AS BINARY(4294967295));
+--error ER_TOO_BIG_DISPLAYWIDTH
+SELECT CAST( 'a' AS BINARY(4294967296));
+--error ER_TOO_BIG_DISPLAYWIDTH
+SELECT CAST( 'a' AS BINARY(4294967296784564));
 
 --echo #
 --echo # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE

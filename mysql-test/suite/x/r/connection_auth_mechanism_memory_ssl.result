@@ -1,0 +1,42 @@
+CREATE USER xuser_ssl@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'pass'
+  REQUIRE SSL;
+
+#######################################################################
+## 1. Memory authentication fails on non SSL connection when account
+##    is marked that it required SSL
+##
+## when:
+## * Fill the cache with the account
+## * Use memory auth on SSL connection, expect success
+## * Use memory auth on non SSL connection, expect failure
+##
+## Requirements: F6
+#
+-- Expecting success with parameters: REQUIRED	plain	xuser_ssl	pass
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_ssl	pass
+--
+connecting...
+active session is now 'sess0'
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting failure with parameters: DISABLED	memory	xuser_ssl	pass
+--
+connecting...
+Got expected error: Current account requires TLS to be activate. (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER xuser_ssl@localhost;

@@ -1,0 +1,61 @@
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+command ok
+
+command ok
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+Got expected error: Collection contains document missing required field (code 5117)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+Got expected error: Document is missing a required field (code 5115)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+Got expected error: Argument value '' for index name is invalid (code 5017)
+Got expected error: Invalid or unsupported type specification 'text(20);drop table' (code 5017)
+Got expected error: Invalid or unsupported type specification 'varchar(20)' (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Table	Create Table
+books0	CREATE TABLE `books0` (
+  `doc` json DEFAULT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.isbn'))) VIRTUAL,
+  `$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2` int(11) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.pages')) VIRTUAL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `mix` (`$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7`(80),`$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

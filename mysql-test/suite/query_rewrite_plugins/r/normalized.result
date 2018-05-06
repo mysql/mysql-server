@@ -1,7 +1,3 @@
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # Bug#21619780: TABLE HINTS ARE LOST IN NORMALIZED PRINT OF STATEMENTS
@@ -12,8 +8,6 @@ INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ('SELECT /*+ NO_MRR(t1 idx1) */ * FROM test.t1',
 'SELECT /*+ MRR(t1) */ * FROM test.t1');
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT normalized_pattern FROM query_rewrite.rewrite_rules;
 normalized_pattern
 select /*+ NO_MRR(`t1`@`select#1` `idx1`) */ `*` from `test`.`t1`

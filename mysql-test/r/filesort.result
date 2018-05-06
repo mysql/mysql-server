@@ -1,0 +1,22 @@
+#
+# Bug#24709595 WL#8741: ASSERTION `SORTORDER->NEED_STRXNFRM == 0' FAILED
+#
+CREATE TABLE t1(
+c VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL
+);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t2(
+c1 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+c2 VARCHAR(10) CHARACTER SET utf8 DEFAULT NULL
+);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES('x');
+INSERT INTO t2 VALUES('g','if'), ('not','ojgygqcgqi');
+SELECT * FROM t2 WHERE (c2) <> (SELECT MAX(c) FROM t1 GROUP BY c1);
+c1	c2
+g	if
+not	ojgygqcgqi
+DROP TABLE t1, t2;

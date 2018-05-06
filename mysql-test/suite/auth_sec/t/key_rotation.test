@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # This test will will check parser support for
 # ALTER INSTANCE ROTATE <key_type> MASTER KEY statement.

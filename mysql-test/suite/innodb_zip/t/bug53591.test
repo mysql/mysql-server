@@ -1,5 +1,4 @@
--- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 
 let $file_per_table=`select @@innodb_file_per_table`;
 

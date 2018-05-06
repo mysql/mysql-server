@@ -1,5 +1,114 @@
 drop table if exists t1, t2;
 #
+#BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+#              CORRUPTS FRM
+# After WL#8971, the test case was rewritten to use InnoDB.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`fld1`)
+PARTITIONS 5 */
+ALTER TABLE t1 ENGINE= ARCHIVE;
+ERROR 42000: The storage engine for the table doesn't support native partitioning
+#After the patch, the ENGINE is correctly displayed as InnoDB
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int(11) NOT NULL,
+  PRIMARY KEY (`fld1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`fld1`)
+PARTITIONS 5 */
+#Cleanup.
+DROP TABLE t1;
+#
+# Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
+# (bad/confusing error message)
+# After WL#8971, the test case was rewritten to use InnoDB.
+# The errors returned are  different.
+#
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+b VARCHAR(200),
+c TEXT)
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+CREATE FULLTEXT INDEX msg ON t1 (b, c);
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+b VARCHAR(200),
+c TEXT,
+FULLTEXT (b, c))
+ENGINE=InnoDB
+PARTITION BY HASH(a) PARTITIONS 1;
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+#
+# BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
+# After WL#8971, the test case was rewritten to use InnoDB.
+#
+CREATE TABLE t1 (
+i INT
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (i)
+(PARTITION p3 VALUES LESS THAN (3),
+PARTITION p5 VALUES LESS THAN (5),
+PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	2653438147
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
+/*!50100 PARTITION BY RANGE (`i`)
+(PARTITION p3 VALUES LESS THAN (3) ENGINE = InnoDB,
+ PARTITION p5 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+# Same test without partitioning
+CREATE TABLE t1 (
+i INT
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+Table	Checksum
+test.t1	2653438147
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2653438147
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
+DROP TABLE t1;
+#
 # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
 #               INNODB PARTITION STATISTICS
 #
@@ -26,7 +135,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT b FROM t1 WHERE b between 'L' and 'N' AND a > -100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	71	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	263	NULL	8	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` between 'L' and 'N') and (`test`.`t1`.`a` > <cache>(-(100))))
 DROP TABLE t1;
@@ -191,59 +300,50 @@ ERROR HY000: Table has no partition for value 110
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
+EXPLAIN SELECT * FROM t1 WHERE a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
+EXPLAIN SELECT * FROM t1 WHERE a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
+EXPLAIN SELECT * FROM t1 WHERE a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 90)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
+EXPLAIN SELECT * FROM t1 WHERE a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
+EXPLAIN SELECT * FROM t1 WHERE a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
+EXPLAIN SELECT * FROM t1 WHERE a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 89)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
+EXPLAIN SELECT * FROM t1 WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 100)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
+EXPLAIN SELECT * FROM t1 WHERE a >= 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 100)
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+EXPLAIN SELECT * FROM t1 WHERE a > 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 100)
 DROP TABLE t1;
 #
@@ -278,30 +378,6 @@ insert into t1 values ('g', 10, 'w', '2001-10-27 06:34:00');
 update t1 set a = 'c' where a > 'f';
 drop table t1;
 create table t1 (a varchar(5))
-engine=memory
-partition by range columns(a)
-( partition p0 values less than ('m'),
-partition p1 values less than ('za'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values  ('j');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-create table t1 (a varchar(5))
-engine=myisam
-partition by range columns(a)
-( partition p0 values less than ('m'),
-partition p1 values less than ('za'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values  ('j');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-update t1 set a = 'z' where (a >= 'j');
-drop table t1;
-create table t1 (a varchar(5))
 engine=innodb
 partition by range columns(a)
 ( partition p0 values less than ('m'),
@@ -331,16 +407,12 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
 (9,9), (10,10), (11,11);
-SET @old_tx_isolation := @@session.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @old_transaction_isolation := @@session.transaction_isolation;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET autocommit = 0;
 UPDATE t1 SET DATA = data*2 WHERE id = 3;
 UPDATE t1 SET data = data*2 WHERE data = 2;
-SET @@session.tx_isolation = @old_tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@session.transaction_isolation = @old_transaction_isolation;
 DROP TABLE t1;
 # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
 CREATE TABLE t1 (
@@ -422,44 +494,53 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	4	#	#	0	0	#	NULL	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	4	#	#	0	0	#	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	#	#	0	0	#	1	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	0	#	#	0	0	#	1	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	4	#	#	0	0	#	5	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	4	#	#	0	0	#	5	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	8	#	#	0	0	#	9	#	#	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Dynamic	8	#	#	0	0	#	9	#	#	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -477,12 +558,11 @@ engine = innodb
 partition by range (year(a))
 (partition p0 values less than (2006),
 partition p1 values less than (2007));
-explain partitions select * from t1
+explain select * from t1
 where a between '2006-01-01' and '2007-06-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '2006-01-01' and '2007-06-01')
 drop table t1;
 create table t1 (a int)
@@ -499,8 +579,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB) */
 drop table t1;
 create table t1
@@ -572,20 +652,17 @@ ENGINE = MyISAM
 PARTITION BY RANGE (int_column)
 subpartition by key (char_column) subpartitions 2
 (PARTITION p1 VALUES LESS THAN (5));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `int_column` int(11) DEFAULT NULL,
   `char_column` char(5) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (int_column)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`int_column`)
 SUBPARTITION BY KEY (char_column)
 SUBPARTITIONS 2
-(PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB
 PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
@@ -596,8 +673,6 @@ DROP TABLE t1;
 #
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
 ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
 SET @old_mode = @@sql_mode;
@@ -629,7 +704,7 @@ t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
 SELECT * FROM t1;
@@ -648,16 +723,13 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 # Copying the .cfg and .ibd files as backup
 UNLOCK TABLES;
 # List of files after UNLOCK (no .cfg files).
 t1#P#p0.ibd
 t1#P#p1.ibd
-t1.frm
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List of files after DISCARD (no .cfg/.ibd files).
-t1.frm
 # Moving the .cfg and .ibd files back from backup
 ALTER TABLE t1 IMPORT TABLESPACE;
 # List of files after IMPORT (.cfg files still there).
@@ -665,7 +737,6 @@ t1#P#p0.cfg
 t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
-t1.frm
 DROP TABLE t1;
 # List of files after DROP (.cfg files should also be removed).
 #
@@ -913,6 +984,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 COUNT(*)
@@ -923,7 +997,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
-AND TABLE_NAME='t1';
+AND TABLE_NAME='t1' OR FALSE;
 COUNT(*)
 1
 DROP TABLE t1;
@@ -970,8 +1044,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -990,8 +1062,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -1010,8 +1080,6 @@ t1	CREATE TABLE `t1` (
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 REBUILD PARTITION ALL;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1024,11 +1092,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1042,12 +1108,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir/' ENGINE = InnoDB) */
 t1#p#p1.ibd
 t1#p#p0.ibd
-t1#p#p1.isl
-t1.frm
 DROP TABLE t1;
+# restart: --innodb-directories=MYSQL_TMP_DIR
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
 CREATE TABLE `t1` (
 `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1070,7 +1135,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
@@ -1086,7 +1151,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -1102,7 +1167,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
@@ -1118,7 +1183,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
+ PARTITION p1 VALUES IN (1) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc/' ENGINE = InnoDB) */
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
@@ -1222,13 +1287,15 @@ SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
 ERROR HY000: Tablespace has been discarded for table 't2'
 DROP TABLE t1,t2;
 
-Bug #26034430	ASSERTION `PART_REC_BUF_PTR' FAILED.
+Bug #26034430    ASSERTION `PART_REC_BUF_PTR' FAILED.
 
 
 CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(a,b)) PARTITION BY RANGE (a)(PARTITION x1 VALUES LESS THAN (1));
 SELECT * FROM t1 WHERE (a = 1 and b = 1 and c = 'b') OR (a > 2) ORDER BY a DESC;
 a	b	c
-CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg
+TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE
+COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
 SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
 id	dttm	msg
 DROP TABLE t,t1;
@@ -1265,31 +1332,3 @@ begin;
 update test12 set grade=0,date=now()  where age=20 and
 partition_id=1;
 drop table test12;
-
-
-Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
-MYSQL.INNODB_TABLE_STATS.
-
-CREATE DATABASE test_jfg;
-CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
-CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
-KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
-ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
-InnoDB);
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-database_name	table_name
-test_jfg	test_jfg1
-test_jfg	test_jfg2#P#p1000
-test_jfg	test_jfg2#P#pmax
-RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
-RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
-SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
-database_name = 'test_jfg';
-database_name	table_name
-test_jfg	test_jfg11
-test_jfg	test_jfg12#P#p1000
-test_jfg	test_jfg12#P#pmax
-DROP DATABASE test_jfg;

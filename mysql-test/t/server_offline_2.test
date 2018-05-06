@@ -1,12 +1,11 @@
 # Created: Horst Hunger 2014-05-19
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # test case 2.1.6 1)
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE variable_name LIKE '%offline_mode%';
+SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE '%offline_mode%';
 --enable_warnings
 # Save the global value to be used to restore the original value.
 let $global_saved_tmp =  `SELECT @@global.offline_mode`;
@@ -14,7 +13,8 @@ let $global_saved_tmp =  `SELECT @@global.offline_mode`;
 --enable_connect_log
 # This count may not be 1, because of the probably existing connections
 # from the previous/parallel test runs
-let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST`;
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER != 'event_scheduler'`;
 
 # Create 3 non-super users
 

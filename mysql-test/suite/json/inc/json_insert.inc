@@ -3,7 +3,7 @@
 
 SET NAMES utf8;
 
-CREATE TABLE t1 (i INT, j JSON);
+CREATE TABLE t1 (i INT, j JSON) CHARSET utf8mb4;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES (0, NULL);
 INSERT INTO t1 VALUES (1, '{"a": 2}');
@@ -124,27 +124,6 @@ drop prepare ps2;
 drop table pt1;
 drop table pt2;
 drop table t1;
-
---echo #
---echo # Bug #22843444: INSERTING LARGE JSON DATA TAKES AN INORDINATE AMOUNT OF
---echo #                TIME
---echo #
-
-SET global max_allowed_packet=1024*1024*16;
-connect (con1,localhost,root,,);
-connection con1;
-
-CREATE TABLE t1(a JSON);
-SET @a:=CONCAT('[',REPEAT('"a",',1500000),'"a"]');
-SELECT JSON_TYPE(@a), LENGTH(@a), LENGTH(@a)*3;
-INSERT INTO t1(a) VALUES(@a);
-
-DROP TABLE t1;
-disconnect con1;
---source include/wait_until_disconnected.inc
-connection default;
-
-SET global max_allowed_packet=default;
 
 --echo #
 --echo # Bug#26867509: JSON_OBJECT CREATES INVALID JSON CODE

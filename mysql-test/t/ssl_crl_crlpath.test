@@ -1,6 +1,4 @@
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
 -- source include/have_openssl.inc
 
 let $crllen=`select length(trim(coalesce(@@ssl_crl, ''))) + length(trim(coalesce(@@ssl_crlpath, '')))`;

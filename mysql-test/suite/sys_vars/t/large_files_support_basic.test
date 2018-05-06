@@ -7,8 +7,8 @@ select @@session.large_files_support;
 show global variables like 'large_files_support';
 show session variables like 'large_files_support';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='large_files_support';
-select * from information_schema.session_variables where variable_name='large_files_support';
+select * from performance_schema.global_variables where variable_name='large_files_support';
+select * from performance_schema.session_variables where variable_name='large_files_support';
 --enable_warnings
 
 #

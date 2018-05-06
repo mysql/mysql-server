@@ -1,6 +1,5 @@
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
--- source include/have_geometry.inc
 
 #
 # test of rtree (using with spatial data)
@@ -11,7 +10,7 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-  g GEOMETRY NOT NULL,
+  g GEOMETRY NOT NULL SRID 0,
   SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 
@@ -36,7 +35,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-  g GEOMETRY NOT NULL
+  g GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 
 --disable_query_log

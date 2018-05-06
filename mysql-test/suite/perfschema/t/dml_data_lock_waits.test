@@ -1,0 +1,32 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--disable_result_log
+select * from performance_schema.data_lock_waits;
+--enable_result_log
+
+select * from performance_schema.data_lock_waits
+  where blocking_thread_id='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.data_lock_waits
+  set blocking_engine='FOO', blocking_thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.data_lock_waits
+  set blocking_thread_id=12 where blocking_engine='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.data_lock_waits;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.data_lock_waits
+  where blocking_engine='CYCLE';
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.data_lock_waits READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.data_lock_waits WRITE;
+UNLOCK TABLES;
+

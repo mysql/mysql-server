@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 --echo '#---------------------BS_STVARS_035_01----------------------#'
 ####################################################################
@@ -55,7 +54,7 @@ SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_max_undo_log_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_undo_log_size';
 --echo 1 Expected
 
@@ -63,7 +62,7 @@ SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_undo_log_size';
 --echo 1 Expected
 --enable_warnings

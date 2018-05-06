@@ -84,7 +84,7 @@ SET @@global.ft_boolean_syntax = 'IGNORE';
 ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of 'IGNORE'
 '#--------------------FN_DYNVARS_033_06-------------------------#'
 SELECT @@global.ft_boolean_syntax = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
 res
 1

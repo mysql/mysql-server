@@ -1,17 +1,24 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_HOST_CACHE_H
 #define TABLE_HOST_CACHE_H
@@ -21,19 +28,27 @@
   Table HOST_CACHE (declarations).
 */
 
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
+#include <sys/types.h>
 
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/table_helper.h"
+
+class Field;
 class Host_entry;
+class Plugin_table;
+class THD;
+struct TABLE;
+struct THR_LOCK;
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 
 /** A row of PERFORMANCE_SCHEMA.HOST_CACHE. */
-struct row_host_cache
-{
+struct row_host_cache {
   /** Column IP. */
   char m_ip[64];
   uint m_ip_length;
@@ -96,40 +111,73 @@ struct row_host_cache
   ulonglong m_last_error_seen;
 };
 
+class PFS_index_host_cache : public PFS_engine_index {
+ public:
+  PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+
+  ~PFS_index_host_cache() {}
+
+  virtual bool match(const row_host_cache *row) = 0;
+};
+
+class PFS_index_host_cache_by_ip : public PFS_index_host_cache {
+ public:
+  PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP") {}
+
+  ~PFS_index_host_cache_by_ip() {}
+
+  bool match(const row_host_cache *row);
+
+ private:
+  PFS_key_ip m_key;
+};
+
+class PFS_index_host_cache_by_host : public PFS_index_host_cache {
+ public:
+  PFS_index_host_cache_by_host()
+      : PFS_index_host_cache(&m_key), m_key("HOST") {}
+
+  ~PFS_index_host_cache_by_host() {}
+
+  bool match(const row_host_cache *row);
+
+ private:
+  PFS_key_host m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */
-class table_host_cache : public PFS_engine_table
-{
-public:
+class table_host_cache : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
-                              bool read_all);
+  virtual int rnd_next();
+  virtual int rnd_pos(const void *pos);
 
+  virtual int index_init(uint idx, bool sorted);
+  virtual int index_next();
+
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                              bool read_all);
   table_host_cache();
 
-public:
-  ~table_host_cache()
-  {}
+ public:
+  ~table_host_cache() {}
 
-private:
+ private:
   void materialize(THD *thd);
-  static void make_row(Host_entry *entry, row_host_cache *row);
+  static int make_row(Host_entry *entry, row_host_cache *row);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   row_host_cache *m_all_rows;
   uint m_row_count;
@@ -139,6 +187,8 @@ private:
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
+
+  PFS_index_host_cache *m_opened_index;
 };
 
 /** @} */

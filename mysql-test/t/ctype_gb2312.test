@@ -1,7 +1,5 @@
 --source include/no_valgrind_without_big.inc
 
--- source include/have_gb2312.inc
-
 #
 # Tests with the gb2312 character set
 #
@@ -74,7 +72,10 @@ let $default_engine = `select @@SESSION.default_storage_engine`;
 --enable_query_log
 --replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
 # Display all characters that have upper or lower case mapping.
@@ -144,12 +145,10 @@ DROP TABLE t1;
 
 set names gb2312;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 set collation_connection=gb2312_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 --echo #

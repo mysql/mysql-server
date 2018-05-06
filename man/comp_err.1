@@ -1,0 +1,263 @@
+'\" t
+.\"     Title: \fBcomp_err\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 04/04/2018
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 8.0
+.\"  Language: English
+.\"
+.TH "\FBCOMP_ERR\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+comp_err \- compile MySQL error message file
+.SH "SYNOPSIS"
+.HP \w'\fBcomp_err\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
+\fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
+.SH "DESCRIPTION"
+.PP
+\fBcomp_err\fR
+creates the
+errmsg\&.sys
+file that is used by
+\fBmysqld\fR
+to determine the error messages to display for different error codes\&.
+\fBcomp_err\fR
+normally is run automatically when MySQL is built\&. It compiles the
+errmsg\&.sys
+file from the text file located at
+sql/share/errmsg\-utf8\&.txt
+in MySQL source distributions\&.
+.PP
+\fBcomp_err\fR
+also generates
+mysqld_error\&.h,
+mysqld_ername\&.h, and
+sql_state\&.h
+header files\&.
+.PP
+For more information about how error messages are defined, see the
+\m[blue]\fBMySQL Internals Manual\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.PP
+Invoke
+\fBcomp_err\fR
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBcomp_err [\fR\fB\fIoptions\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBcomp_err\fR
+supports the following options\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-charset=\fR\fB\fIdir_name\fR\fR,
+\fB\-C \fR\fB\fIdir_name\fR\fR
+.sp
+The character set directory\&. The default is
+\&.\&./sql/share/charsets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
+\fB\-# \fR\fB\fIdebug_options\fR\fR
+.sp
+Write a debugging log\&. A typical
+\fIdebug_options\fR
+string is
+d:t:O,\fIfile_name\fR\&. The default is
+d:t:O,/tmp/comp_err\&.trace\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-debug\-info\fR,
+\fB\-T\fR
+.sp
+Print some debugging information when the program exits\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-header_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-H \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the error header file\&. The default is
+mysqld_error\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-in_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-F \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the input file\&. The default is
+\&.\&./sql/share/errmsg\-utf8\&.txt\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-name_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-N \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the error name file\&. The default is
+mysqld_ername\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-out_dir=\fR\fB\fIdir_name\fR\fR,
+\fB\-D \fR\fB\fIdir_name\fR\fR
+.sp
+The name of the output base directory\&. The default is
+\&.\&./sql/share/\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-out_file=\fR\fB\fIfile_name\fR\fR,
+\fB\-O \fR\fB\fIfile_name\fR\fR
+.sp
+The name of the output file\&. The default is
+errmsg\&.sys\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-statefile=\fR\fB\fIfile_name\fR\fR,
+\fB\-S \fR\fB\fIfile_name\fR\fR
+.sp
+The name for the SQLSTATE header file\&. The default is
+sql_state\&.h\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR,
+\fB\-V\fR
+.sp
+Display version information and exit\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "NOTES"
+.IP " 1." 4
+MySQL Internals Manual
+.RS 4
+\%http://dev.mysql.com/doc/internals/en
+.RE
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

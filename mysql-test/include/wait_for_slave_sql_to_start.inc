@@ -5,7 +5,7 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/wait_for_slave_sql_to_start.inc
@@ -22,6 +22,10 @@
 
 
 --let $include_filename= wait_for_slave_sql_to_start.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 
@@ -32,9 +36,8 @@ let $slave_param_value= Yes;
 # *before* it clears Last_SQL_Errno.  So we have to allow errors in
 # the SQL thread here.
 
-#--let $slave_error_param= Last_SQL_Errno
+--let $slave_error_param=
 source include/wait_for_slave_param.inc;
-#--let $slave_error_param=
 
 
 --let $include_filename= wait_for_slave_sql_to_start.inc

@@ -1,10 +1,4 @@
 drop table if exists t1;
-set sql_mode="MySQL40";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-select @@sql_mode;
-@@sql_mode
-MYSQL40,HIGH_NOT_PRECEDENCE
 set @@sql_mode="ANSI";
 select @@sql_mode;
 @@sql_mode
@@ -19,32 +13,3 @@ SELECT id FROM t1 GROUP BY id2;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop table t1;
 SET @@SQL_MODE="";
-CREATE TABLE t1 (i int auto_increment NOT NULL, PRIMARY KEY (i));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`i`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-SET @@SQL_MODE="MYSQL323";
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`i`)
-) TYPE=ENGINE
-SET @@SQL_MODE="MYSQL40";
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`i`)
-) TYPE=ENGINE
-SET @@SQL_MODE="NO_FIELD_OPTIONS";
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  PRIMARY KEY (`i`)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-DROP TABLE t1;

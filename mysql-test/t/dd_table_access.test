@@ -1,0 +1,195 @@
+if (!$TABLE)
+{
+  --echo #
+  --echo # WL#6391: Hide DD tables.
+  --echo #
+  --echo # Prohibit access to the DD tables from user submitted
+  --echo # SQL statements, but allow DD initialization to execute
+  --echo # such statements.
+  --echo #
+
+  --source include/have_debug.inc
+
+  --echo # DD schema DDL
+  --error ER_NO_SYSTEM_SCHEMA_ACCESS
+  DROP SCHEMA mysql;
+  --error ER_NO_SYSTEM_SCHEMA_ACCESS
+  CREATE SCHEMA mysql;
+  --error ER_NO_SYSTEM_SCHEMA_ACCESS
+  ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+
+  --echo # DD tablespace DDL
+  --error ER_WRONG_TABLESPACE_NAME
+  DROP TABLESPACE mysql;
+  --error ER_WRONG_TABLESPACE_NAME
+  CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+  --error ER_WRONG_TABLESPACE_NAME
+  ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+
+  --echo # Create a non- white listed table in the DD tablespace
+  --error ER_RESERVED_TABLESPACE_NAME
+  CREATE TABLE table_not_white_listed (pk INTEGER PRIMARY KEY) TABLESPACE mysql;
+
+  USE mysql;
+  CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
+
+  --let $TABLE= mysql.dd_properties
+  --source dd_table_access.test
+
+  --let $TABLE= dd_properties
+  --source dd_table_access.test
+
+  --let $TABLE= mysql.indexes
+  --source dd_table_access.test
+
+  --let $TABLE= indexes
+  --source dd_table_access.test
+
+  --echo # Turn off innodb_stats_auto_recalc to avoid conflicting updates.
+  SET @@global.innodb_stats_auto_recalc= OFF;
+
+  --echo # Check that we may query and update mysql.innodb_index_stats.
+  SELECT @old_description:= stat_description FROM  mysql.innodb_index_stats
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  UPDATE mysql.innodb_index_stats SET stat_description= 'Updated'
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  SELECT stat_description FROM mysql.innodb_index_stats
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  UPDATE mysql.innodb_index_stats SET stat_description= @old_description
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+
+  --echo # Check that we may not DROP or CREATE mysql.innodb_index_stats.
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  DROP TABLE mysql.innodb_index_stats;
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+
+  --echo # Check that we may CREATE FROM mysql.innodb_index_stats.
+  CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
+  DROP TABLE t1;
+
+  --echo # Check that we may not CREATE LIKE mysql.innodb_index_stats
+  --echo # due to restricted tablespace.
+  --error ER_RESERVED_TABLESPACE_NAME
+  CREATE TABLE t1 LIKE mysql.innodb_index_stats;
+
+  --echo # Check access from stored programs.
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE PROCEDURE ddse_access() CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  CREATE PROCEDURE ddse_access() DROP TABLE mysql.innodb_index_stats(i INTEGER);
+
+  --echo # Check access from prepared statements.
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  --eval PREPARE ps FROM 'CREATE TABLE mysql.innodb_index_stats(i INTEGER)';
+  --error ER_NO_SYSTEM_TABLE_ACCESS
+  --eval PREPARE ps FROM 'DROP TABLE mysql.innodb_index_stats';
+
+  --echo # But ALTER and CHECK is allowed.
+  ALTER TABLE mysql.innodb_index_stats COMMENT 'Altered';
+  SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='innodb_index_stats';
+
+  --echo # Test CHECK TABLE mysql.innodb_index_stats.
+  CHECK TABLE mysql.innodb_index_stats;
+
+  --echo # Reset innodb_stats_auto_recalc.
+  SET @@global.innodb_stats_auto_recalc= default;
+
+  DROP TABLE t;
+
+  --exit
+}
+
+
+--echo #
+--echo # DD table access in LOAD statements.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval LOAD DATA INFILE 'no_such_file' INTO TABLE $TABLE
+
+--echo #
+--echo # DD table access in HANDLER statements.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval HANDLER $TABLE OPEN
+
+--echo #
+--echo # DD table visibility in I_S.
+--echo #
+--echo # A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+--eval SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '$TABLE' AND TABLE_SCHEMA = 'mysql'
+--echo # A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval SHOW CREATE TABLE $TABLE
+
+--echo #
+--echo # DD table access in DDL.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval DROP TABLE $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE TABLE $TABLE (i INTEGER)
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE TABLE new_tab LIKE $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE TABLE new_tab SELECT * FROM $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval ALTER TABLE $TABLE ADD COLUMN (new_col INTEGER)
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval TRUNCATE TABLE $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval RENAME TABLE $TABLE TO new_tab
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval RENAME TABLE t TO $TABLE
+
+--echo #
+--echo # DD table access in DML.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval SELECT * from $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM $TABLE)
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval DELETE FROM $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval UPDATE $TABLE SET id= 0 WHERE ID= 1
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval INSERT INTO $TABLE VALUES (1)
+
+--echo #
+--echo # DD table access from views.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE VIEW new_view AS SELECT * FROM $TABLE
+
+--echo #
+--echo # DD table access from stored programs.
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE PROCEDURE dd_access() SELECT * FROM $TABLE
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM $TABLE)
+
+--echo #
+--echo # DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval PREPARE ps FROM 'DROP TABLE $TABLE';
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval PREPARE ps FROM 'SELECT * FROM $TABLE';
+
+--echo #
+--echo # DD table access from triggers
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval CREATE TRIGGER trg BEFORE INSERT ON $TABLE FOR EACH ROW SET @count = @count + 1;
+
+--echo #
+--echo # DD table access from foreign keys
+--echo #
+--error ER_NO_SYSTEM_TABLE_ACCESS
+--eval ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES $TABLE (id);

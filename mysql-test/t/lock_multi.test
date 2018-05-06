@@ -1199,8 +1199,10 @@ let $wait_condition=
 # Note: This query causes two timeouts.
 # 1: try_acquire_high_prio_shared_mdl_lock on t1
 # 2: recover_from_failed_open on t1
-SELECT table_name, table_comment FROM information_schema.tables
+SET SESSION information_schema_stats_expiry=0;
+SELECT table_name, table_rows, table_comment FROM information_schema.tables
   WHERE table_schema= 'test' AND table_name= 't1';
+SET SESSION information_schema_stats_expiry=default;
 
 --echo # Connection default
 connection default;

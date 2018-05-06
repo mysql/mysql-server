@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+
 --source include/have_debug.inc
 
 --echo #
@@ -7,14 +7,12 @@
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot allocate .*");
-call mtr.add_suppression("InnoDB: .* failed to allocate the chunk array");
-call mtr.add_suppression("InnoDB: .* failed to allocate new memory");
-call mtr.add_suppression("InnoDB: .* failed; errno 12");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot allocate .*");
+call mtr.add_suppression(".* failed to allocate the chunk array");
+call mtr.add_suppression(".* failed to allocate new memory");
+call mtr.add_suppression(".* failed; errno 12");
 
-set @old_innodb_disable_resize   = @@innodb_disable_resize_buffer_pool_debug;
 set @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
-set global innodb_disable_resize_buffer_pool_debug = OFF;
 --enable_query_log
 
 SET GLOBAL DEBUG='+d,buf_pool_resize_chunk_null';
@@ -25,7 +23,7 @@ SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size + 10485760;
 let $wait_timeout = 60;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 27) = 'Resizing buffer pool failed'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 --source include/wait_condition.inc
@@ -39,12 +37,7 @@ SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
 let $wait_timeout = 60;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 --source include/wait_condition.inc
-
---disable_query_log
-set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
---enable_query_log
-

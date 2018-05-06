@@ -1,6 +1,4 @@
-SET TX_ISOLATION='READ-COMMITTED';
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET TRANSACTION_ISOLATION='READ-COMMITTED';
 CREATE TABLE bug40360 (a INT) engine=innodb;
 INSERT INTO bug40360 VALUES (1);
 DROP TABLE bug40360;

@@ -1,0 +1,39 @@
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+b varchar(500),
+c varchar(500),
+d varchar(500),
+e varchar(500)) ENGINE = InnoDB TABLESPACE = innodb_system;
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0a', 250), repeat('1a', 250), repeat('2a', 250), repeat('3a', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0b', 250), repeat('1b', 250), repeat('2b', 250), repeat('3b', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0c', 250), repeat('1c', 250), repeat('2c', 250), repeat('3c', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0d', 250), repeat('1d', 250), repeat('2d', 250), repeat('3d', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0e', 250), repeat('1e', 250), repeat('2e', 250), repeat('3e', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0f', 250), repeat('1f', 250), repeat('2f', 250), repeat('3f', 250));
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0g', 250), repeat('1g', 250), repeat('2g', 250), repeat('3g', 250));
+INSERT INTO t2 VALUES(0), (0), (0);
+# Invoke checkpoint to persist metadata of t2 to DDTableBuffer
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+set global innodb_log_checkpoint_now=ON;
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SET DEBUG_SYNC='delete_metadata_before SIGNAL delete WAIT_FOR insert';
+ALTER TABLE t2 ADD COLUMN b INT;
+SET DEBUG_SYNC='now WAIT_FOR delete';
+INSERT INTO t1(b, c, d, e) VALUES(repeat('0a', 250), repeat('1a', 250), repeat('2a', 250), repeat('3a', 250));
+SET DEBUG_SYNC='now SIGNAL insert';
+SET DEBUG_SYNC='RESET';
+SELECT count(*) FROM t1;
+count(*)
+8
+SELECT count(*) FROM t2;
+count(*)
+3
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;

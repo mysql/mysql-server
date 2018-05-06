@@ -9,7 +9,7 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (id int not null, str char(10), unique(str));
+create table t1 (id int not null, str char(10), unique(str)) charset utf8mb4;
 explain select * from t1;
 insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
 select * from t1 where str is null;
@@ -41,11 +41,13 @@ drop table t1;
 # Bug #3403 Wrong encoding in EXPLAIN SELECT output
 #
 set names koi8r;
+--character_set koi8r
 create table таб (кол0 int, кол1 int, key инд0 (кол0), key инд01 (кол0,кол1));
 insert into таб (кол0) values (1);
 insert into таб (кол0) values (2);
 explain select кол0 from таб where кол0=1;
 drop table таб;
+--character_set utf8mb4
 set names latin1;
 
 # End of 4.1 tests
@@ -58,17 +60,17 @@ select 3 into @v1;
 explain select 3 into @v1;
 
 #
-# Bug#22331: Wrong WHERE in EXPLAIN EXTENDED when all expressions were
+# Bug#22331: Wrong WHERE in EXPLAIN when all expressions were
 #            optimized away.
 #
 create table t1(f1 int, f2 int);
 insert into t1 values (1,1);
 create view v1 as select * from t1 where f1=1;
-explain extended select * from v1 where f2=1;
-explain extended select * from t1 where 0;
-explain extended select * from t1 where 1;
-explain extended select * from t1 having 0;
-explain extended select * from t1 having 1;
+explain select * from v1 where f2=1;
+explain select * from t1 where 0;
+explain select * from t1 where 1;
+explain select * from t1 having 0;
+explain select * from t1 having 1;
 drop view v1;
 drop table t1;
 
@@ -101,7 +103,7 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 #
-# Bug #34773: query with explain extended and derived table / other table
+# Bug #34773: query with explain and derived table / other table
 # crashes server
 #
 
@@ -110,14 +112,14 @@ CREATE TABLE t2(a INT);
 INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
 
-EXPLAIN EXTENDED SELECT 1
+EXPLAIN SELECT 1
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 
-EXPLAIN EXTENDED SELECT 1
+EXPLAIN SELECT 1
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 
 prepare s1 from 
-'EXPLAIN EXTENDED SELECT 1  
+'EXPLAIN SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 
@@ -127,7 +129,7 @@ prepare s1 from
 execute s1;
 
 prepare s1 from 
-'EXPLAIN EXTENDED SELECT 1  
+'EXPLAIN SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 execute s1;
@@ -136,13 +138,13 @@ DROP TABLE t1,t2;
 
 
 #
-# Bug #43354: Use key hint can crash server in explain extended query
+# Bug #43354: Use key hint can crash server in explain query
 #
 
 CREATE TABLE t1 (a INT PRIMARY KEY);
 
 --error ER_KEY_DOES_NOT_EXITS
-EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
+EXPLAIN SELECT COUNT(a) FROM t1 USE KEY(a);
 
 DROP TABLE t1;
 
@@ -164,7 +166,7 @@ DROP TABLE t1;
 
 --echo #
 --echo # Bug#48295:
---echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
+--echo # explain crash with subquery and ONLY_FULL_GROUP_BY sql_mode
 --echo #
 
 CREATE TABLE t1 (f1 INT);
@@ -172,11 +174,11 @@ CREATE TABLE t1 (f1 INT);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
-# EXPLAIN EXTENDED (with subselect). used to crash.
+# EXPLAIN (with subselect). used to crash.
 # This is actually a valid query for this sql_mode,
 # but it was transformed in such a way that it failed, see
 # Bug#12329653 - EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
-EXPLAIN EXTENDED SELECT 1 FROM t1
+EXPLAIN SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 
 SET SESSION sql_mode=@old_sql_mode;
@@ -213,26 +215,26 @@ drop tables t1, t2;
 set optimizer_switch= @opt_sw_save;
 
 --echo #
---echo # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
+--echo # Bug#47669: Query showed by EXPLAIN gives different result from original query
 --echo #
 
 CREATE TABLE t1 (c int);
 INSERT INTO t1 VALUES (NULL);
 CREATE TABLE t2 (d int);
 INSERT INTO t2 VALUES (NULL), (0);
-EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
+EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
 DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug#30302: Tables that were optimized away are printed in the
---echo #            EXPLAIN EXTENDED warning.
+--echo #            EXPLAIN warning.
 --echo #
 create table t1(f1 int);
 create table t2(f2 int);
 insert into t1 values(1);
 insert into t2 values(1),(2);
-explain extended select * from t1 where f1=1;
-explain extended select * from t1 join t2 on f1=f2 where f1=1;
+explain select * from t1 where f1=1;
+explain select * from t1 join t2 on f1=f2 where f1=1;
 drop table t1,t2;
 
 --echo #
@@ -303,14 +305,14 @@ DROP TABLE t1;
 
 --echo #
 --echo # Bug#46860: 
---echo # Crash/segfault using EXPLAIN EXTENDED on query using UNION in subquery.
+--echo # Crash/segfault using EXPLAIN on query using UNION in subquery.
 --echo #
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 create table `t1` (`a` int);
 --error ER_NON_UNIQ_ERROR
-explain extended select 1 from `t1`, `t1` as `t2`
+explain select 1 from `t1`, `t1` as `t2`
 where `t1`.`a`  > all ( (select `a` from `t1` ) union (select `a`) );
 drop table t1;
 
@@ -336,34 +338,34 @@ EXPLAIN
 --echo #            index is not used due to type conversion
 --echo #
 
-CREATE TABLE t1 (url char(1) PRIMARY KEY);
+CREATE TABLE t1 (url char(1) PRIMARY KEY) charset latin1;
 INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');       
 
 --echo
 --echo # Normally, lookup access on primary key is done
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1';
+EXPLAIN SELECT * FROM t1 WHERE url='1';
 --echo
 --echo # Test that index can't be used for lookup due to type conversion
 --echo # (comparing char and int)
 SELECT * FROM t1 WHERE url=1;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
+EXPLAIN SELECT * FROM t1 WHERE url=1;
 --echo
 --echo # Test that index can't be used for lookup due to collation mismatch
 SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+EXPLAIN SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 
 --echo
 --echo # Normally, range access on primary key is done
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3';
+EXPLAIN SELECT * FROM t1 WHERE url>'3';
 --echo
 --echo # Test that range access on index can't be done due to type conversion
 --echo # (comparing char and int)
 SELECT * FROM t1 WHERE url>3;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
+EXPLAIN SELECT * FROM t1 WHERE url>3;
 --echo
 --echo # Test that range access on index can't be done due to collation mismatch
 SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+EXPLAIN SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
 
 --echo
 DROP TABLE t1;
@@ -371,7 +373,7 @@ DROP TABLE t1;
 --echo # End BUG#53562
 
 --echo #
---echo # Bug#11829785 EXPLAIN EXTENDED CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
+--echo # Bug#11829785 EXPLAIN CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
 --echo #
 
 CREATE TABLE t1(a INT);
@@ -379,7 +381,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0), (0);
 
 PREPARE s FROM 
-'EXPLAIN EXTENDED
+'EXPLAIN
 SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
 FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
 
@@ -447,4 +449,23 @@ DISCONNECT c2;
 DROP TABLE t1;
 
 --echo # End of test for Bug#18899860
+
+--echo # 
+--echo # Bug #23209903: ASSERTION: SELECT_LEX->LEAF_TABLE_COUNT == 0 ||
+--echo # THD->LEX->IS_QUERY_TABLES_LOCKED
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=INNODB PARTITION BY KEY (b) PARTITIONS 2;
+CREATE TABLE t2 (c INT) ENGINE=INNODB;
+--echo
+--echo # Test single-table update with subquery and empty outer query block
+UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+--echo
+--echo # Test delete from single-table with subquery and empty outer query block
+DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+DROP TABLE t1, t2;
+
+--echo # End of test for Bug#23209903
 

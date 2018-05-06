@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 CREATE TABLE t1
 (

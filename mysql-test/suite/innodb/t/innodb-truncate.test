@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/have_innodb_min_8k.inc
 
 --echo #
 --echo # TRUNCATE TABLE
@@ -55,11 +55,38 @@ SET @@SESSION.foreign_key_checks = @old_foreign_key_checks;
 
 CREATE TABLE t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT);
 INSERT INTO t1 VALUES (NULL), (NULL);
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
 SELECT * FROM t1 ORDER BY a;
 TRUNCATE TABLE t1;
+ANALYZE TABLE t1;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't1';
 INSERT INTO t1 VALUES (NULL), (NULL);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo #
+--echo # Test that TRUNCATE with innodb_default_row_format changed
+--echo #
+
+CREATE TEMPORARY TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
+ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
+'Binary';
+ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
+SET @@GLOBAL.innodb_default_row_format=1;
+TRUNCATE t1;
+DROP TABLE t1;
+
+SET @@GLOBAL.innodb_default_row_format=default;
+CREATE  TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
+ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
+'Binary';
+ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
+
+alter table t1 partition by key (c2) partitions 2;
+SET @@GLOBAL.innodb_default_row_format=1;
+TRUNCATE t1;
+DROP TABLE t1;
+SET @@GLOBAL.innodb_default_row_format=default;

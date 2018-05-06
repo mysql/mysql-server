@@ -1,4 +1,6 @@
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE corrupt_bit_test_ā(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR(100),
@@ -29,12 +31,13 @@ ERROR 42000: Can't open table
 CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 ERROR 42000: Can't open table
 select c from corrupt_bit_test_ā;
-ERROR HY000: Index corrupt_bit_test_ā is corrupted
+ERROR HY000: Index idxā is corrupted
 select z from corrupt_bit_test_ā;
-ERROR HY000: Index corrupt_bit_test_ā is corrupted
+ERROR HY000: Index idxē is corrupted
 show warnings;
 Level	Code	Message
 Warning	180	InnoDB: Index idxē for table `test`.`corrupt_bit_test_ā` is marked as corrupted
+Error	1712	Index idxē is corrupted
 Error	1712	Index corrupt_bit_test_ā is corrupted
 insert into corrupt_bit_test_ā values (10001, "a", 20001, 20001);
 select * from corrupt_bit_test_ā use index(primary) where a = 10001;
@@ -52,8 +55,10 @@ test.corrupt_bit_test_ā	check	Warning	InnoDB: Index idx is marked as corrupted
 test.corrupt_bit_test_ā	check	Warning	InnoDB: Index idxē is marked as corrupted
 test.corrupt_bit_test_ā	check	error	Corrupt
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select z from corrupt_bit_test_ā;
-ERROR HY000: Index corrupt_bit_test_ā is corrupted
+ERROR HY000: Index idxē is corrupted
 drop index idxē on corrupt_bit_test_ā;
 CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
 ERROR 42000: Can't open table
@@ -68,3 +73,341 @@ z
 1
 2
 drop table corrupt_bit_test_ā;
+CREATE DATABASE corrupted;
+use corrupted;
+CREATE TABLE t1 (
+a INT NOT NULL PRIMARY KEY,
+b INT,
+c CHAR(10),
+v VARCHAR(100),
+t TEXT,
+p POINT NOT NULL);
+CREATE TABLE t2 LIKE t1;
+CREATE TEMPORARY TABLE t3 LIKE t2;
+CREATE FULLTEXT INDEX ft ON t2(t);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+CREATE INDEX idx_c ON t3(c);
+INSERT INTO t1 VALUES (1, 2, 'aaa', 'abcdefghij', 'This is a', st_pointfromtext('POINT(0 0)')),
+(2, 4, 'bb', 'qwerty', 'test case', st_pointfromtext('POINT(1 1)')),
+(3, 6, 'ccccc', 'poiuy', 'for corrupted index', st_pointfromtext('POINT(2 2)'));
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+SELECT count(*) FROM t1;
+count(*)
+3
+SELECT count(*) FROM t2;
+count(*)
+3
+SELECT count(*) FROM t3;
+count(*)
+3
+# Marking clustered index as corrupted results in ER_NO_SUCH_TABLE
+set debug = "+d, dict_set_clust_index_corrupted";
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+corrupted.t1	check	Warning	InnoDB: The B-tree of index PRIMARY is corrupted.
+corrupted.t1	check	error	Corrupt
+set debug = "-d, dict_set_clust_index_corrupted";
+CREATE INDEX b ON t1(b);
+ERROR 42S02: Table 'corrupted.t1' doesn't exist
+# Mark the secondary index as corrupted
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+corrupted.t2	check	Warning	InnoDB: The B-tree of index ft is corrupted.
+corrupted.t2	check	Warning	InnoDB: The B-tree of index FTS_DOC_ID_INDEX is corrupted.
+corrupted.t2	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT * FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+ERROR HY000: The table does not have FULLTEXT index to support this query
+SELECT a, b, c FROM t2 WHERE ST_Equals(p, st_pointfromtext('POINT(2 2)'));
+a	b	c
+3	6	ccccc
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+corrupted.t3	check	Warning	InnoDB: The B-tree of index idx_c is corrupted.
+corrupted.t3	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT c FROM t3 WHERE c = 'bb';
+ERROR HY000: Index idx_c is corrupted
+# restart
+# Make sure the corrupted indexes are still corrupted
+use corrupted;
+SHOW TABLES;
+Tables_in_corrupted
+t1
+t2
+CREATE INDEX b ON t1(b);
+ERROR 42000: Can't open table
+SELECT t FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+ERROR HY000: The table does not have FULLTEXT index to support this query
+DROP INDEX ft ON t2;
+ALTER TABLE t2 ADD FULLTEXT INDEX(t);
+ERROR 42000: Can't open table
+# Have to use ALTER TABLE ... COPY, in case 'Incorrect key file for table...'
+# would be reported
+ALTER TABLE t2 ADD FULLTEXT INDEX(t), ALGORITHM=COPY;
+# This should be fine
+SELECT t FROM t2 WHERE MATCH(t) AGAINST('corrupted');
+t
+for corrupted index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+corrupted.t1	check	error	Corrupt
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+corrupted.t2	check	status	OK
+# We can drop the corrupted table t1 directly here
+DROP TABLE t1, t2;
+use corrupted;
+CREATE TABLE t3 (
+a INT NOT NULL PRIMARY KEY,
+b INT,
+c CHAR(10),
+v VARCHAR(100),
+t TEXT,
+p POINT NOT NULL SRID 0);
+CREATE INDEX idx_b ON t3(b);
+INSERT INTO t3 VALUES (1, 2, 'aaa', 'abcdefghij', 'This is a', st_pointfromtext('POINT(0 0)')),
+(2, 4, 'bb', 'qwerty', 'test case', st_pointfromtext('POINT(1 1)')),
+(3, 6, 'ccccc', 'poiuy', 'for corrupted index', st_pointfromtext('POINT(2 2)'));
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+corrupted.t3	check	Warning	InnoDB: The B-tree of index idx_b is corrupted.
+corrupted.t3	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT b FROM t3 WHERE b > 2;
+ERROR HY000: Index idx_b is corrupted
+CREATE TABLE t4 LIKE t3;
+CREATE INDEX idx_c ON t4(c);
+CREATE INDEX idx_v ON t4(v);
+INSERT INTO t4 SELECT * FROM t3;
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+corrupted.t4	check	Warning	InnoDB: The B-tree of index idx_b is corrupted.
+corrupted.t4	check	Warning	InnoDB: The B-tree of index idx_c is corrupted.
+corrupted.t4	check	Warning	InnoDB: The B-tree of index idx_v is corrupted.
+corrupted.t4	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT b FROM t4 WHERE b > 3;
+ERROR HY000: Index idx_b is corrupted
+show warnings;
+Level	Code	Message
+Warning	180	InnoDB: Index idx_b for table `corrupted`.`t4` is marked as corrupted
+Error	1712	Index idx_b is corrupted
+Error	1712	Index t4 is corrupted
+SELECT c FROM t4 WHERE c = 'bb';
+ERROR HY000: Index idx_c is corrupted
+SELECT v FROM t4 WHERE v = 'abcdefg';
+ERROR HY000: Index idx_v is corrupted
+CREATE TABLE t5 LIKE t3;
+CREATE SPATIAL INDEX idx_p ON t5(p);
+INSERT INTO t5 SELECT * FROM t3;
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: The B-tree of index idx_b is corrupted.
+corrupted.t5	check	Warning	InnoDB: The B-tree of index idx_p is corrupted.
+corrupted.t5	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT b FROM t5 WHERE b > 5;
+ERROR HY000: Index idx_b is corrupted
+# Kill and restart
+use corrupted;
+# Check that all corrupted indexes are still marked as corrupted,
+# and non-corrupted indexes are still good.
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+corrupted.t3	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t3	check	error	Corrupt
+SELECT b FROM t3 WHERE b > 2;
+ERROR HY000: Index idx_b is corrupted
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+corrupted.t4	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_c is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_v is marked as corrupted
+corrupted.t4	check	error	Corrupt
+SELECT b FROM t4 WHERE b > 3;
+ERROR HY000: Index idx_b is corrupted
+SELECT c FROM t4 WHERE c = 'bb';
+ERROR HY000: Index idx_c is corrupted
+SELECT v FROM t4 WHERE v = 'abcdefg';
+ERROR HY000: Index idx_v is corrupted
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t5	check	Warning	InnoDB: Index idx_p is marked as corrupted
+corrupted.t5	check	error	Corrupt
+SELECT b FROM t5 WHERE b > 5;
+ERROR HY000: Index idx_b is corrupted
+# Let's just fix corrupted index for t5
+DROP INDEX idx_b ON t5;
+DROP INDEX idx_p ON t5;
+CREATE INDEX idx_b ON t5(b);
+# restart
+use corrupted;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+corrupted.t3	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t3	check	error	Corrupt
+SELECT b FROM t3 WHERE b > 2;
+ERROR HY000: Index idx_b is corrupted
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+corrupted.t4	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_c is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_v is marked as corrupted
+corrupted.t4	check	error	Corrupt
+SELECT b FROM t4 WHERE b > 3;
+ERROR HY000: Index idx_b is corrupted
+SELECT c FROM t4 WHERE c = 'bb';
+ERROR HY000: Index idx_c is corrupted
+SELECT v FROM t4 WHERE v = 'abcdefg';
+ERROR HY000: Index idx_v is corrupted
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	status	OK
+SELECT b FROM t5 WHERE b > 5;
+b
+6
+# Based on these tables, let's test more on checkpoint
+CREATE TABLE t6 LIKE t3;
+CREATE INDEX idx_c ON t6(c);
+INSERT INTO t6 SELECT * FROM t3;
+# Corrupt new table indexes
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	Warning	InnoDB: The B-tree of index idx_b is corrupted.
+corrupted.t6	check	Warning	InnoDB: The B-tree of index idx_c is corrupted.
+corrupted.t6	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+@start_global_value
+0
+# Invoke a checkpoint, which would persist the corrupted bits
+# of t6 into DD Table Buffer
+set global innodb_log_checkpoint_now=ON;
+# Then mark the clustered index as corrupted, make sure that new
+# corruption bits would take effect as well
+set debug = "+d, dict_set_clust_index_corrupted";
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	Warning	InnoDB: The B-tree of index PRIMARY is corrupted.
+corrupted.t6	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t6	check	Warning	InnoDB: Index idx_c is marked as corrupted
+corrupted.t6	check	error	Corrupt
+set debug = "-d, dict_set_clust_index_corrupted";
+# Corrupt old table indexes
+set debug = "+d, dict_set_index_corrupted";
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: The B-tree of index idx_b is corrupted.
+corrupted.t5	check	error	Corrupt
+set debug = "-d, dict_set_index_corrupted";
+SELECT @start_global_value;
+@start_global_value
+0
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+@@global.innodb_log_checkpoint_now
+0
+# This crash would leave latest corruption bits un-persisted
+# Kill and restart
+use corrupted;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+corrupted.t3	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t3	check	error	Corrupt
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+corrupted.t4	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_c is marked as corrupted
+corrupted.t4	check	Warning	InnoDB: Index idx_v is marked as corrupted
+corrupted.t4	check	error	Corrupt
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t5	check	error	Corrupt
+SELECT b FROM t5 WHERE b > 5;
+ERROR HY000: Index idx_b is corrupted
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	Error	Table 'corrupted.t6' doesn't exist
+corrupted.t6	check	status	Operation failed
+CREATE INDEX idx_v ON t6(v);
+ERROR 42000: Can't open table
+# Invoke checkpoint to persist the latest corruption bits again
+SET @start_global_value = @@global.innodb_log_checkpoint_now;
+SELECT @start_global_value;
+@start_global_value
+0
+set global innodb_log_checkpoint_now=ON;
+SELECT @start_global_value;
+@start_global_value
+0
+SET @@global.innodb_log_checkpoint_now = @start_global_value;
+SELECT @@global.innodb_log_checkpoint_now;
+@@global.innodb_log_checkpoint_now
+0
+# restart
+use corrupted;
+# After a shutdown and restart, the corrupted bits should be persisted
+# to DD Table Buffer, and we can get them correctly.
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t5	check	error	Corrupt
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	error	Corrupt
+# An IN-PLACE 'ALTER TABLE' would not recover the table
+ALTER TABLE t5 CHANGE c c1 CHAR(10), ALGORITHM = INPLACE;
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
+corrupted.t5	check	error	Corrupt
+# An 'ALTER TABLE' requiring rebuild would recover the table
+ALTER TABLE t5 ADD COLUMN d INT NOT NULL;
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	status	OK
+SELECT a, b, c1, v, t, st_astext(p) FROM t5 WHERE b > 2;
+a	b	c1	v	t	st_astext(p)
+2	4	bb	qwerty	test case	POINT(1 1)
+3	6	ccccc	poiuy	for corrupted index	POINT(2 2)
+# Re-create the table should recover the table
+DROP TABLE t6;
+CREATE TABLE t6 LIKE t3;
+INSERT INTO t6 SELECT * FROM t3;
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	status	OK
+# Kill and restart
+use corrupted;
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	status	OK
+SELECT a, b, c1, v, t, st_astext(p) FROM t5 WHERE b > 2;
+a	b	c1	v	t	st_astext(p)
+2	4	bb	qwerty	test case	POINT(1 1)
+3	6	ccccc	poiuy	for corrupted index	POINT(2 2)
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	status	OK
+# restart
+use corrupted;
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+corrupted.t5	check	status	OK
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+corrupted.t6	check	status	OK
+DROP TABLE t3, t4, t5, t6;
+DROP DATABASE corrupted;

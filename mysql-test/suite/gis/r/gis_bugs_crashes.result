@@ -2,7 +2,7 @@
 # BUG#18900932 : ERROR MESSAGE ISN'T SENT TO CLIENT WHEN SERVER REPORTS ONE
 ######################################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5, 0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,6 4,8 4,4 4))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
 ######################################################################################################
@@ -40,7 +40,7 @@ ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
 NULL
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')))
 NULL
@@ -132,14 +132,14 @@ POINT(-0 0)
 # BUG#19142227 : ENVELOPE() SPATIAL ANALYSIS FUNCTION ACCEPTS INVALID POLYGONS AS THE ARGUMENT
 ######################################################################################################
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10, 0 0))')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10, 0 0))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#19154955 : ST_GEOHASH() FUNCTION RETURNS BINARY DATA INSTEAD OF TEXT WITH A CHARSET
 ######################################################################################################
@@ -149,8 +149,8 @@ ST_LONGFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10))
 SELECT ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10));
 ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10))
 10
-SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10));
-ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10))
+SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),0));
+ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),0))
 POINT(10 10)
 ######################################################################################################
 # BUG#19204199 : DISTANCE() AND ENVELOPE() FUNCTIONS RETURN WRONG RESULT
@@ -200,17 +200,17 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }"))
-{"type": "Point", "coordinates": [10, 15]}
+{"type": "Point", "coordinates": [10.0, 15.0]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": [ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ]}"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": [ [102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0] ]}"))
-{"type": "LineString", "coordinates": [[102, 0], [103, 1], [104, 0], [105, 1]]}
+{"type": "LineString", "coordinates": [[102.0, 0.0], [103.0, 1.0], [104.0, 0.0], [105.0, 1.0]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"));
 ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"))
-{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35]]}
+{"type": "MultiPoint", "coordinates": [[-105.01, 39.57], [-80.66, 35.0]]}
 SELECT CHARSET(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"MultiPoint\", \"coordinates\": [ [-105.01, 39.57],[-80.66, 35.0] ] }"));
 CHARSET(ST_GEOMFROMGEOJSON(
@@ -237,9 +237,9 @@ ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Membe
 # BUG#19351967 : CENTROID() AND COVEXHULL() ACCEPTS GEOMETRYCOLLECTION CONTAINING INVALID POLYGON
 ######################################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,5 5,10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#19498377 : ST_GEOMFROMGEOJSON() FUNCTION ACCEPTS INVALID GEOJSON VALUE
 ######################################################################################################
@@ -256,22 +256,24 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.00000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.00000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.000000, 11]}"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.000000, 11]}"))
-POINT(102 11)
+POINT(11 102)
 ######################################################################################################
 # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 ######################################################################################################
-SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
-ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 100, which should have been identical.
+SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',4326));
+ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',4326));
+ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 4326, which should have been identical.
 ######################################################################################################
 # BUG#19552241 : MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
 ######################################################################################################
@@ -284,6 +286,7 @@ MBRTOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(5 0,5 10),GEOMETRYCOLL
 ######################################################################################################
 # BUG#19784515 : ASSERTION `DIM1 >= 0 && DIM1 <= 2 && DIM2 >= 0 && DIM2 <= 2' FAILED
 ######################################################################################################
+# Invalid geometry in input
 SELECT MBRWITHIN(
 ST_CENTROID(
 ST_UNION(
@@ -337,7 +340,7 @@ ST_GEOMFROMTEXT(
                                              '((981 -394,189 -400,649 -325,-977 371,30 859,590 318,329 -894,-51 262,197 952,-846 -139,-920 399, 981 -394)),'
                                              '((-236 -759,834 757,857 747,437 -146,194 913,316 862,976 -491,-745 933,610 687,-149 -164,-803 -565,451 -275, -236 -759)),'
                                              '((572 96,-160 -607,529 930,-544 -132,458 294, 572 96))))')),
-ST_CENTROID(GEOMFROMTEXT('POINT(-939 -921)')))))),
+ST_CENTROID(ST_GEOMFROMTEXT('POINT(-939 -921)')))))),
 ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'MULTILINESTRING((541 -927,-414 316,-429 -444,212 260,-125 104,445 563,-713 -975,-976 514),'
@@ -345,7 +348,7 @@ ST_GEOMFROMTEXT(
                             '(806 347,-87 220,226 -22,-12 468,707 598,83 951,-592 701,833 964,270 -932,743 -514,231 469,-575 -122,-99 -245,416 465,801 -587))'),
 ST_GEOMFROMTEXT(
 'LINESTRING(-96 -182,-373 75,697 687,-881 -463,-557 -959,-493 810)')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
 ######################################################################################################
 # BUG#20085563 : ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
 ######################################################################################################
@@ -353,7 +356,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOL
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), 
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 ######################################################################################################
 # BUG#20111542 : SET OPERATIONS RETURN GEOMETRYCOLLECTION CONTAINING SINGLE GEOMETRY COMPONENT
 ######################################################################################################
@@ -519,6 +522,7 @@ ST_GEOMFROMTEXT('MULTIPOINT(-9 4,10 -4,3 -10,-6 5,2 -4,-4 -8,1 10,4 10,6 6,9 2,9
 ST_GEOMFROMTEXT('MULTIPOLYGON(((3 5,-7 -2,-5 -1,1 -4,2 9,-9 -6,-6 10,-7 2,9 -2,-2 1,-1 4,-3 10, 3 5)),'
                
 1
+# Invalid geometry in input
 SELECT ST_ISEMPTY(ST_INTERSECTION(
 ST_CONVEXHULL(
 ST_GEOMFROMTEXT('POLYGON((0 10,-4 7,10 5,-8 -6,9 1,4 7,5 0,-3 -1,9 10,-7 -5, 0 10))')),
@@ -529,7 +533,13 @@ ST_GEOMFROMTEXT('MULTILINESTRING((1 3,10 -8,-5 -8,-10 8,-9 -10,-5 8,8 6,6 -6,5 -
 ST_GEOMFROMTEXT('MULTIPOLYGON(((-10 0,-9 -8,4 -6,-8 6,0 -1,1 0,5 2,8 -5, -10 0)),'
                                                        '((-9 10,4 -8,-9 5,7 -9,-5 9,3 7,-5 -7,-4 -7,1 -7,10 2, -9 10)),'
                                                        '((-2 6,-2 -6,-7 -5,1 4,7 -4,5 10,7 4,-6 -4,0 4,-3 0,0 2, -2 6)))'))));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
+ST_ISEMPTY(ST_INTERSECTION(
+ST_CONVEXHULL(
+ST_GEOMFROMTEXT('POLYGON((0 10,-4 7,10 5,-8 -6,9 1,4 7,5 0,-3 -1,9 10,-7 -5, 0 10))')),
+ST_UNION(
+ST_GEOMFROMTEXT('MULTILINESTRING((1 3,10 -8,-5 -8,-10 8,-9 -10,-5 8,8 6,6 -6,5 -3,-3 -8,-6 1,7 8,-2 -2),'
+        
+0
 SELECT ST_ISEMPTY(ST_UNION(
 ST_INTERSECTION(
 ST_UNION(
@@ -550,6 +560,7 @@ ST_GEOMFROMTEXT('MULTIPOLYGON(((-4 3,1 -6,5 -4,-3 1,-7 -6,4 4,4 -2,0 4,-7 -1,1 -
 ST_UNION(
 ST_GEOMFROMTEXT('MULTIP
 0
+# Invalid geometry in input
 SELECT ST_SRID(
 ST_INTERSECTION(
 ST_UNION(
@@ -631,7 +642,7 @@ ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'LINESTRING(4 -3,2 -10,5 -5,8 5,8 -3,-4 -9,2 -2,-3 4,-7 5,-9 -10)'),
 ST_GEOMFROMTEXT('MULTIPOINT(-7 10,-9 8,3 3,5 5,10 -8,10 -9)'))))))));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
+ERROR 22023: Invalid GIS data provided to function st_union.
 ######################################################################################################
 # BUG#20218936 : ASSERTION `(M_PREVIOUS_OPERATION != OVERLAY::OPERATION_CONTINUE)' FAILED
 ######################################################################################################
@@ -741,13 +752,13 @@ ST_CROSSES(ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 10,20 20)'), ST_GEOMFROMTEXT('POLY
 ######################################################################################################
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
-0
+NULL
 ######################################################################################################
 # BUG#20187460 : OVERLAPPING GEOMETRY COMPONENTS OF SAME TYPE ARE NOT GETTING MERGED PROPERLY
 ######################################################################################################
@@ -847,37 +858,37 @@ ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2))'), ST_GEOMFR
 ######################################################################################################
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_DISJOINT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-1
+NULL
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
 0
 SELECT ST_WITHIN(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_WITHIN(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 ######################################################################################################
 # BUG#20309003 : ST_CONTAINS(GEOMETRYCOLLECTION(POLY,POLY), MULTIPOINT) RETURNS WRONG RESULT
 ######################################################################################################
@@ -1098,94 +1109,8 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'
 ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'), ST_GEOMFROMTEXT('LINESTRING(1 1,5 5,4 4)'))
 1
 ######################################################################################################
-# BUG#20357097 : ASSERTION `INDEX >= 0 && UNSIGNED(INDEX) < INFO.COUNT' FAILED
-######################################################################################################
-SELECT ST_ASTEXT(
-ST_ENVELOPE(
-ST_UNION(
-ST_UNION(
-ST_ENVELOPE(
-ST_CONVEXHULL(
-ST_ENVELOPE(
-ST_GEOMFROMTEXT('MULTILINESTRING((-3 -4,0 9,3 -2,4 9,-6 -8,-6 4,-10 7,-9 6,-10 6,-8 2,8 2,7 -5),'
-                                                            '(-6 6,8 0,9 -7,-7 -7,1 -2),'
-                                                            '(-2 -8,7 3,-1 8,1 5,-1 -5,-10 -6,2 2,-2 -9,0 5,2 7,6 8,6 -3,9 7,7 -8))')))),
-ST_UNION(
-ST_ENVELOPE(
-ST_UNION(
-ST_ENVELOPE(
-ST_GEOMFROMTEXT('MULTIPOINT(4 0,-2 3,-1 -4,3 0,0 1,5 3,-4 -3,-7 -3,3 3)')),
-ST_ENVELOPE(
-ST_ENVELOPE(
-ST_GEOMFROMTEXT('MULTILINESTRING((-3 3,8 10,7 5,-7 0,-10 -4,1 2,-3 -2,-5 8,-3 6,3 8,8 10,3 -4,9 -6,4 -2,6 0),'
-                                                                    '(10 -4,3 5,4 -3,6 -10,5 3,-10 8))'))))),
-ST_CONVEXHULL(
-ST_ENVELOPE(
-ST_UNION(
-ST_INTERSECTION(
-ST_ENVELOPE(
-ST_UNION(
-ST_CONVEXHULL(
-ST_ENVELOPE(
-ST_CONVEXHULL(
-ST_INTERSECTION(
-ST_GEOMFROMTEXT('MULTILINESTRING((8 7,6 1,-3 -7,7 3,-4 2,-6 -8,-4 -8,6 -7,10 -7,-5 10,-3 4),'
-                                                                                            '(-1 3,-7 7,-10 -2,-4 -5,-3 -7,-2 -8,-6 -7),'
-                                                                                            '(-6 -6,-3 -1,1 10,2 3,7 4,-7 7,-2 5,-10 -3,-6 0,-6 6,-8 -5,-5 7,0 -3,-6 5))'),
-ST_GEOMFROMTEXT('POINT(2 4)'))))),
-ST_CONVEXHULL(
-ST_UNION(
-ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
-                                                                        'POLYGON((7 4,1 0,-4 -9,-9 8,7 4)))'),
-ST_GEOMFROMTEXT('MULTILINESTRING((-2 -3,-4 -9,-7 -8,-4 6,4 2,4 -6,7 -6,9 9,-5 10,-6 -9,0 -5,2 2,-3 5,4 -4),'
-                                                                                    '(1 3,5 -10,6 -6,-2 -4,-5 6,7 -9,-8 -7,5 3,7 -6,-9 -4,10 7,5 9,-7 -2,4 -2),'
-                                                                                    '(8 5,4 5,0 -7))'))))),
-ST_CONVEXHULL(
-ST_GEOMFROMTEXT('LINESTRING(9 4,-9 -9,9 9)'))),
-ST_CONVEXHULL(
-ST_INTERSECTION(
-ST_ENVELOPE(
-ST_ENVELOPE(
-ST_CONVEXHULL(
-ST_ENVELOPE(
-ST_CONVEXHULL(
-ST_GEOMFROMTEXT('MULTIPOINT(-7 -5,-10 -8,3 7,3 8,3 -1,7 -4,-9 -9,-7 2,-6 0)')))))),
-ST_INTERSECTION(
-ST_UNION(
-ST_GEOMFROMTEXT('LINESTRING(-10 -4,9 -4,-5 5,8 8)'),
-ST_GEOMFROMTEXT('MULTIPOLYGON(((-10 -1,6 9,8 9,-10 -1)),'
-                                                                             '((3 2,5 1,9 10,-7 -9,-9 4,3 2)),'
-                                                                             '((2 8,10 -9,3 -10,-9 -7,7 -9,9 9,-9 0,-9 -5,2 7,-7 -2,-2 -9,-1 -9,2 -2,2 4,1 -6,2 8)))')),
-ST_UNION(
-ST_GEOMFROMTEXT('LINESTRING(-8 -10,-4 3,10 -7,9 -2,-8 -8,1 -10,1 -1)'),
-ST_GEOMFROMTEXT('MULTIPOLYGON(((-3 3,-9 -6,2 4,1 -9,-3 -7,-8 7,9 -9,3 10,-8 2,-5 -3,-3 -1,1 7,-8 4,-3 3)),'
-                                                                             '((-1 8,4 -4,8 1,2 9,-5 -10,5 -5,-7 9,7 3,-1 8)),'
-                                                                             '((2 -4,6 -1,5 -4,3 2,3 10,8 0,-6 4,2 7,8 -6,-2 6,-9 3,2 -4)),'
-                                                                             '((-8 4,-6 2,-1 1,-1 4,7 8,-1 -10,-3 4,-3 4,7 -4,-7 6,4 1,-10 -7,-10 -7,-2 -1, -8 4)))')))))))))),
-ST_UNION(
-ST_GEOMFROMTEXT('POLYGON((-7 -6,3 -7,-2 -4,8 -10,3 -3,-7 4,-8 2,-10 7,-7 -7,10 -10,-9 2, -7 -6))'),
-ST_GEOMFROMTEXT('LINESTRING(8 0,9 -7,4 -9,10 -1,6 0)')))));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-######################################################################################################
 # More GIS crashes/assertion failure test cases
 ######################################################################################################
-SELECT MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                               'MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),
-ST_GEOMFROMTEXT(
-'MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
-ST_UNION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),
-ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                  
-1
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1203,7 +1128,7 @@ ST_GEOMFROMTEXT(
                                            '(1 4,4 0,0 2,6.9 6,2.232432 -.8,7 3,1 4)))')),
 ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),
 ST_GEOMFROMTEXT('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_TOUCHES(ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'POLYGON((6 9,0 0,10.0002 -6,6 9),'
@@ -1212,38 +1137,18 @@ ST_GEOMFROMTEXT(
 ST_GEOMFROMTEXT('POINT(7 8)',0)),
 ST_DIFFERENCE(
 ST_GEOMFROMWKB(
-MULTIPOINT(POINT(-3.4,2),POINT(9,5),POINT(8,9),POINT(-.0,-.7),POINT(8,1.8),POINT(-5.0,9),POINT(4,3),
-POINT(8,-9.9),POINT(1,9),POINT(+.7,3),POINT(1,1),POINT(1,0),POINT(+.3,.7),POINT(4,7),POINT(2,-.0))),
-ST_GEOMFROMWKB(POINT(0,2))));
+ST_ASWKB(MULTIPOINT(POINT(-3.4,2),POINT(9,5),POINT(8,9),POINT(-.0,-.7),POINT(8,1.8),POINT(-5.0,9),POINT(4,3),
+POINT(8,-9.9),POINT(1,9),POINT(+.7,3),POINT(1,1),POINT(1,0),POINT(+.3,.7),POINT(4,7),POINT(2,-.0)))),
+ST_GEOMFROMWKB(ST_ASWKB(POINT(0,2)))));
 ST_TOUCHES(ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'POLYGON((6 9,0 0,10.0002 -6,6 9),'
                                   '(5 7,2 7,9 6,9 9,2 0,3 7,+.7 1,2.232432 9,8 +.3,5 7),'
                                   '(0 6,5 9,-.0 0,7 4,2 -3,2 7,9 2,0 6))'),
 ST_GEOMF
-0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                               'MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),
-ST_GEOMFROMTEXT('MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
-ST_UNION(
-ST_GEOMFROMWKB(
-ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                  
-1
+NULL
 SELECT ST_CONTAINS(ST_UNION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
 POINT(1,6),
 MULTIPOLYGON(
@@ -1261,7 +1166,7 @@ LINESTRING(POINT(0,8),POINT(1,9),POINT(2,3),POINT(3,2),POINT(4,-3.2),POINT(7,6),
 POINT(3,5),POINT(7,-.0),POINT(1,2),POINT(4,-.8),POINT(-2.3,7),POINT(9,4),POINT(0,8)),
 LINESTRING(POINT(3,6),POINT(5,7),POINT(2,2),POINT(3,2),POINT(7,1),POINT(2,2),
 POINT(3,9),POINT(5,7),POINT(8,2),POINT(5,6),POINT(3,6))),
-POLYGON(LINESTRING(POINT(0,3),POINT(3,-.4),POINT(-.2,3),POINT(5,4.6),POINT(-2.7,8),POINT(0,3)))))),
+POLYGON(LINESTRING(POINT(0,3),POINT(3,-.4),POINT(-.2,3),POINT(5,4.6),POINT(-2.7,8),POINT(0,3))))))),
 ST_GEOMFROMTEXT('POINT(-1032.34324 -.9)')),
 ST_UNION(
 ST_GEOMFROMWKB(
@@ -1279,7 +1184,7 @@ ST_GEOMFROMTEXT(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((5 2,1 -0.7654,-6.3 9,6 3,2 6,7 6,4 -0.7654,2 +.2,-0.7654 9,5 2)))')));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT MBROVERLAPS(ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
 MULTILINESTRING(
 LINESTRING(POINT(3,3)),
@@ -1291,43 +1196,26 @@ LINESTRING(POINT(9,8.8),POINT(-.3,.1),POINT(2,2),POINT(2,8))),
 POLYGON(
 LINESTRING(POINT(6,8),POINT(4,1),POINT(6,8),POINT(-.2,2),POINT(6,6.3),POINT(3,7),POINT(4,7.1),POINT(6,8))),
 MULTILINESTRING(
-LINESTRING(POINT(9,9))))),
+LINESTRING(POINT(9,9)))))),
 ST_GEOMFROMWKB(
 ST_ASWKB(
 ST_GEOMFROMTEXT(
 'MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))),
 ST_DIFFERENCE(
 ST_GEOMFROMTEXT('LINESTRING(3.2 2)'),
-ST_GEOMFROMTEXT('LINESTRING(7 3,-2 10.0002,1 6,3 7)',10)));
+ST_GEOMFROMTEXT('LINESTRING(7 3,-2 10.0002,1 6,3 7)',0)));
 ERROR 22023: Invalid GIS data provided to function linestring.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMTEXT('POLYGON((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT MBRWITHIN(ST_SYMDIFFERENCE(
-ST_GEOMFROMWKB(POINT(3,8),10),
-ST_GEOMFROMWKB(
-ST_ASWKB(
-ST_GEOMFROMTEXT(
-'MULTILINESTRING((10.0002 6,6 9,1 2,2 -6),(-2 -1032.34324,6 189.7654,6 -.6,-.0 -.6,5 0),(0.6 1,5 0,1 -6,6 1))')),10)),
-ST_INTERSECTION(
-ST_GEOMFROMTEXT('MULTIPOINT(+.8 4,5 -2,6 10.0002,4 9,1 3)'),
-ST_GEOMFROMWKB(MULTIPOINT(POINT(8,5),POINT(9,4),POINT(-0.5,-.9)))));
-MBRWITHIN(ST_SYMDIFFERENCE(
-ST_GEOMFROMWKB(POINT(3,8),10),
-ST_GEOMFROMWKB(
-ST_ASWKB(
-ST_GEOMFROMTEXT(
-'MULTILINESTRING((10.0002 6,6 9,1 2,2 -6),(-2 -1032.34324,6 189.7654,6 -.6,-.0 -.6,5 0),(0.6 1,5 0,1 -6,6 1))')),10)),
-ST_INTERSECTION(
-ST_GEOMFROMTEXT('
-NULL
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+ST_ASTEXT(ST_INTERSECTION(
+ST_GEOMFROMTEXT('POLYGON((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
+ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((1.7254659689012 3.335403817141154,2.6837209693283324 4,1.8666664746665438 4,1.2965517524471035 3.448275889464939,1.7254659689012 3.335403817141154))),MULTIPOINT((1.2965517524471029 3.448275889464939),(4.7368421052631575 3.5789473684210527),(4.857142857142858 4)))
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 'MULTIPOINT(189.7654 2)'),
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(7,5),POINT(5,-.5),POINT(0,2),POINT(6.9,0)),
 POLYGON(
@@ -1348,10 +1236,11 @@ LINESTRING(POINT(0,2),POINT(7,3),POINT(5,0),POINT(0,1),POINT(1,0),POINT(7,3),POI
 POLYGON(
 LINESTRING(POINT(8,9),POINT(8,1),POINT(-.9,-.8),POINT(4,6),POINT(8,9)),
 LINESTRING(POINT(2,8),POINT(6,7),POINT(8,+.2),POINT(5,-6.1),POINT(4,5),POINT(4,-.2),
-POINT(1,5),POINT(-3.6,5),POINT(6,3),POINT(2,8),POINT(7,1.2),POINT(2,8)))))));
+POINT(1,5),POINT(-3.6,5),POINT(6,3),POINT(2,8),POINT(7,1.2),POINT(2,8))))))));
 ERROR 22023: Invalid GIS data provided to function polygon.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
 POINT(7,7),
 POLYGON(
@@ -1363,10 +1252,10 @@ LINESTRING(POINT(0,8),POINT(0,0),POINT(3,-8.6),POINT(0,7),POINT(2,-.9),POINT(0,9
 POLYGON(
 LINESTRING(POINT(3,2),POINT(8,8),POINT(0,9),POINT(4,7.9),POINT(3,4),POINT(2,0),POINT(0,0),POINT(4,6.0),POINT(3,2))),
 LINESTRING(POINT(5,2),POINT(9,2),POINT(7,5),POINT(5,1)),
-MULTIPOINT(POINT(1,8),POINT(.6,8),POINT(.8,3)))),
+MULTIPOINT(POINT(1,8),POINT(.6,8),POINT(.8,3))))),
 ST_GEOMFROMTEXT(
 'POLYGON((3 6,2 3,2 8,3 -1.6,4 -0.7654,3 6))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT MBREQUALS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'POINT(5 0)'),
@@ -1381,7 +1270,7 @@ ST_GEOMFROMTEXT(
                                               '(2 4,6 2,1 7,-2.7 5,0 4,-3.4 3,3 8,2 4),'
                                               '(8 0,189.7654 10.0002,9 1.1,1 0,6 -2.6,4 10.0002,1 8,8 0))'))),
 ST_GEOMFROMTEXT('LINESTRING(6 1)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1398,10 +1287,10 @@ ST_UNION(
 ST_GEOMFROMTEXT(
 'MULTILINESTRING((-.5 9,1 1,1 6,6 6),(6 -.5,6 -.2,6 9,2 4),(4 7),(8 7,5 5,9 3,8 -.3))'),
 ST_GEOMFROMTEXT('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_INTERSECTS(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),
-ST_GEOMFROMWKB(MULTIPOINT(POINT(8,9))));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ST_GEOMFROMWKB(ST_ASWKB(MULTIPOINT(POINT(8,9)))));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(10 10)')));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(10 10)')))
 POINT(10 10)
@@ -1428,7 +1317,7 @@ POLYGON((15 3.882,24.5528 -0.8944,24.6028 -0.9139,24.6518 -0.9374,24.6896 -0.947
 SET @buf = ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 1);
 SELECT st_area(@buf);
 st_area(@buf)
-373.4694
+373.4693943061964
 SELECT ST_ASTEXT(ST_BUFFER(@buf, 1));
 ST_ASTEXT(ST_BUFFER(@buf, 1))
 POLYGON((15 2.7639,24.1056 -1.7889,24.1905 -1.8265,24.2045 -1.8319,24.2187 -1.8387,24.3275 -1.8791,24.3273 -1.8797,24.3634 -1.8937,24.3774 -1.8977,24.3917 -1.903,24.4294 -1.9132,24.4296 -1.9126,24.5417 -1.9446,24.5556 -1.9472,24.5699 -1.951,24.6856 -1.971,24.6855 -1.9715,24.7241 -1.9787,24.7377 -1.98,24.7518 -1.9824,24.7912 -1.9855,24.7912 -1.9849,24.9088 -1.9958,24.922 -1.9957,24.9358 -1.9968,25.0546 -1.9952,25.0546 -1.9956,25.0943 -1.9956,25.107 -1.9944,25.1203 -1.9942,25.1601 -1.99,25.16 -1.9894,25.2789 -1.9783,25.291 -1.976,25.3038 -1.9746,25.4217 -1.9509,25.4218 -1.9513,25.4612 -1.9439,25.4726 -1.9406,25.4847 -1.9382,25.5235 -1.9265,25.5234 -1.926,25.6396 -1.8927,25.6501 -1.8886,25.6615 -1.8852,25.7743 -1.8396,25.7745 -1.84,25.8123 -1.8253,25.822 -1.8204,25.8327 -1.8161,25.8691 -1.7973,25.8689 -1.7969,25.9782 -1.742,25.9869 -1.7365,25.9967 -1.7315,26.1004 -1.6652,26.1006 -1.6656,26.1354 -1.6438,26.1433 -1.6378,26.1522 -1.6321,26.185 -1.6067,26.1847 -1.6063,26.2831 -1.5314,26.29 -1.525,26.2979 -1.5188,26.3888 -1.4337,26.389 -1.4339,26.4196 -1.4058,26.4256 -1.3991,26.4325 -1.3926,26.4603 -1.3612,26.46 -1.3609,26.5438 -1.2681,26.5489 -1.2612,26.5549 -1.2545,26.6294 -1.1529,26.6297 -1.1531,26.6548 -1.1194,26.659 -1.1125,26.6641 -1.1056,26.6859 -1.0693,26.6855 -1.0691,26.7515 -0.9611,26.7548 -0.9543,26.759 -0.9473,26.8141 -0.8325,26.8144 -0.8326,26.8331 -0.7945,26.8356 -0.7878,26.8389 -0.781,26.8538 -0.7408,26.8535 -0.7407,26.8988 -0.6211,26.9006 -0.6147,26.9031 -0.608,26.9366 -0.4836,26.9368 -0.4837,26.9483 -0.4423,26.9494 -0.4362,26.9511 -0.4298,26.9585 -0.387,26.9582 -0.387,26.9809 -0.2597,26.9814 -0.254,26.9824 -0.2479,26.9926 -0.1181,26.9928 -0.1181,26.9964 -0.0748,26.9964 -0.0696,26.9968 -0.0639,26.9962 -0.0201,26.9959 -0.0201,26.9948 0.1107,26.9943 0.1154,26.9942 0.1207,26.9802 0.2515,26.9804 0.2515,26.9759 0.2952,26.9751 0.2994,26.9746 0.3042,26.9658 0.3476,26.9656 0.3476,26.94 0.4772,26.9389 0.4808,26.9381 0.4851,26.9157 0.5747,24.3542 9.1129,31.06 13.304,31.1359 13.3564,31.2824 13.4681,31.4181 13.5927,31.5417 13.7293,31.6522 13.8767,31.7487 14.0337,31.8302 14.1989,31.8962 14.3709,31.9461 14.5483,31.9795 14.7295,31.996 14.913,31.9955 15.0972,31.9781 15.2806,31.9438 15.4616,31.893 15.6387,31.8261 15.8104,31.7437 15.9752,31.6465 16.1317,31.5352 16.2785,31.4109 16.4145,31.2746 16.5385,31.1275 16.6493,30.9707 16.7462,30.8057 16.8282,30.6339 16.8946,30.4567 16.945,30.2756 16.9788,30.0921 16.9957,30 17,20.3541 17,16.857 25.7428,16.8191 25.8261,16.736 25.989,16.6383 26.1436,16.5268 26.2886,16.4026 26.4228,16.2667 26.5451,16.1201 26.6544,15.9641 26.7499,15.8001 26.8307,15.6294 26.8962,15.4533 26.9458,15.2735 26.9791,15.0914 26.9958,14.9086 26.9958,14.7265 26.9791,14.5467 26.9458,14.3706 26.8962,14.1999 26.8307,14.0359 26.7499,13.8799 26.6544,13.7333 26.5451,13.5974 26.4228,13.4732 26.2886,13.3617 26.1436,13.264 25.989,13.1809 25.8261,13.143 25.7428,9.6459 17,0 17,-0.0928 16.9957,-0.2775 16.9785,-0.4598 16.9442,-0.6382 16.8932,-0.8111 16.8258,-0.9769 16.7427,-1.1344 16.6445,-1.2821 16.5322,-1.4187 16.4067,-1.543 16.269,-1.6541 16.1204,-1.7509 15.9621,-1.8326 15.7955,-1.8985 15.6221,-1.948 15.4433,-1.9808 15.2607,-1.9964 15.0758,-1.9948 14.8903,-1.9761 14.7057,-1.9402 14.5237,-1.8877 14.3457,-1.8188 14.1735,-1.7343 14.0083,-1.6349 13.8517,-1.5213 13.705,-1.3946 13.5694,-1.2559 13.4462,-1.1063 13.3364,-1.029 13.285,6.3814 8.8388,3.143 0.7428,3.1126 0.6551,3.06 0.4772,3.0241 0.2952,3.0052 0.1107,3.0036 -0.0748,3.0191 -0.2597,3.0517 -0.4423,3.1011 -0.6211,3.1669 -0.7945,3.2485 -0.9611,3.3452 -1.1194,3.4562 -1.2681,3.5804 -1.4058,3.717 -1.5314,3.8645 -1.6438,4.0219 -1.742,4.1877 -1.8252,4.3605 -1.8927,4.5388 -1.9439,4.721 -1.9783,4.9057 -1.9956,5.0912 -1.9958,5.2759 -1.9787,5.4583 -1.9446,5.6366 -1.8937,5.8095 -1.8265,5.8944 -1.7889,15 2.7639))
@@ -1440,7 +1329,7 @@ ST_ASTEXT(ST_CONVEXHULL(@buf))
 POLYGON((-0.9964 15.0843,-0.9949 14.8988,-0.959 14.7167,4.065 -0.3547,4.1466 -0.5213,4.2576 -0.6699,4.3941 -0.7955,4.5514 -0.8937,4.7242 -0.9612,4.9065 -0.9956,5.092 -0.9958,25.014 -0.9999,25.0935 -0.9956,25.1976 -0.9803,25.2758 -0.9612,25.3743 -0.9273,25.4486 -0.8937,25.5384 -0.8427,25.6059 -0.7955,25.6841 -0.7294,25.7424 -0.6699,25.8065 -0.5913,25.8534 -0.5213,25.9014 -0.433,25.935 -0.3547,30.9626 14.7292,30.996 14.9104,30.9955 15.0947,30.9612 15.2757,30.8944 15.4473,30.7971 15.6038,30.6728 15.7398,30.5257 15.8507,15.5979 25.8015,15.442 25.897,15.2712 25.9625,15.0914 25.9958,14.9086 25.9958,14.7288 25.9625,14.558 25.897,14.4021 25.8015,-0.529 15.8486,-0.6766 15.7363,-0.801 15.5986,-0.8978 15.4404,-0.9637 15.2669,-0.9964 15.0843))
 SELECT ST_ASTEXT(ST_ENVELOPE(@buf));
 ST_ASTEXT(ST_ENVELOPE(@buf))
-POLYGON((-0.9964 -0.9999,30.996 -0.9999,30.996 25.9958,-0.9964 25.9958,-0.9964 -0.9999))
+POLYGON((-0.9964394501011175 -0.9999013929047789,30.995979706343796 -0.9999013929047789,30.995979706343796 25.995811240678275,-0.9964394501011175 25.995811240678275,-0.9964394501011175 -0.9999013929047789))
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)) as result;
 result
 0
@@ -1479,10 +1368,10 @@ GEOMETRYCOLLECTION(POLYGON((4294967211 0,1.8446744073709552e19 0,1.8446744073709
 ######################################################################################################
 # BUG#17535294 : ISSIMPLE() PRODUCING WRONG RESULTS W.R.T. SINGLE POINT POLYGON
 ######################################################################################################
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 ######################################################################################################
 # BUG#17507827 : ISSIMPLE() FUNCTION PRODUCING WRONG RESULTS
 ######################################################################################################
@@ -1495,18 +1384,12 @@ ST_ISSIMPLE(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,1 0,2 0,2 0,2 0, 2 1, 1.5 0)')
 ######################################################################################################
 # BUG#17376038 : MULTIPOINT'S PROPERTY OF BEING SIMPLE GEOMETRY, BREACHED
 ######################################################################################################
-SELECT ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
-ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
+SELECT ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
+ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
 0
-Warnings:
-Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
-Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
-SELECT ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
-ST_ISSIMPLE(MPOINTFROMWKB(ST_ASWKB(MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
+SELECT ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))));
+ST_ISSIMPLE(ST_MPOINTFROMWKB(ST_ASWKB(ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0, 0 0, 1 1, 2 2, 1 1)'))))
 0
-Warnings:
-Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
-Warning	1287	'MULTIPOINTFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMTEXT instead
 ######################################################################################################
 # BUG#20402476 : ASSERTION FAILURE IN ITEM_FUNC_SPATIAL_OPERATION::VAL_STR FUNCTION
 ######################################################################################################
@@ -1549,13 +1432,13 @@ ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POLYGON((0 0,0 4,0 8,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0))'), ST_GEOMFROMTEXT('POINT(0 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,0 8,0 0)))'), ST_GEOMFROMTEXT('POINT(0 0)')));
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,0 8,0 0)))')));
@@ -1567,6 +1450,7 @@ ERROR 22023: Invalid GIS data provided to function st_disjoint.
 ######################################################################################################
 # BUG#20142402 : ASSERTION FAILURE IN GIS_GEOMETRY_COLLECTION::APPEND_GEOMETRY FUNCTION
 ######################################################################################################
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('LINESTRING(6 -6,4 -2,5 -1,1 1,-10 10,-1 -10,-8 8,-4 -9,-4 -3,1 -9,5 -2,-4 0,3 5,0 -5)'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -1604,7 +1488,7 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                             'MULTILINESTRING((-3 -1,-8 -5,4 10),'
                                             '(-5 10,-5 -9,4 0,8 3,5 9)),'
                             'MULTIPOINT(0 -2,9 2,-6 0,8 -5,1 -2,8 0,9 6,-9 1,-5 -6,1 9,-6 -5,4 3,-2 -6))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+ERROR 22023: Invalid GIS data provided to function st_union.
 ######################################################################################################
 # BUG#20415950 : WL#7225 : ASSERTION FAILURE IN ITEM_GEOFUNC_SETOPS.CC FILE
 ######################################################################################################
@@ -1620,54 +1504,54 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8,
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                        'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                        'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))'))),
-ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
-LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
-LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2))))));
-ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
-LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
-LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2)))),
-ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))')))));
-ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))'))),
-ST_GEOMFROMWKB(GEOMETRYCOLLECTION(
-POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
+ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
 LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
 LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2)))))));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(GEOMETRYCOLLECTION(
-POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
 LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
 LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2))))),
+ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))')))));
+ERROR 22023: Invalid GIS data provided to function polygon.
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0)))'))),
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
+LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
+LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2))))))));
+ERROR 22023: Invalid GIS data provided to function polygon.
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(4,9), POINT(0,2), POINT(-9.9,5), POINT(2.3,6), POINT(5,4), POINT(4,9)),
+LINESTRING(POINT(3,2), POINT(5,-.3), POINT(3,2)),
+LINESTRING(POINT(9,2), POINT(2.0,6), POINT(9,2)))))),
 ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.7654,-3 -2,0 7,8 3,7 0))))')))));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(MULTIPOLYGON(
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),10),
-ST_GEOMFROMWKB(POINT(5,8),10)));
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0)),
+ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8),0))));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(POINT(5,8),10),
-ST_GEOMFROMWKB(MULTIPOLYGON(
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8)),0),
+ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4),POINT(-.0,0), POINT(1,2), POINT(2,+.2), POINT(1,4), POINT(2,4)))),10)));
+POLYGON(LINESTRING(POINT(2,4),POINT(-.0,0), POINT(1,2), POINT(2,+.2), POINT(1,4), POINT(2,4)))),0))));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(MULTIPOLYGON(
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),10),
-ST_GEOMFROMWKB(GEOMETRYCOLLECTION(POINT(5,8),10))));
-ERROR 22007: Illegal non geometric '10' value found during parsing
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(GEOMETRYCOLLECTION(POINT(5,8),10)),
-ST_GEOMFROMWKB(MULTIPOLYGON(
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0)),
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),0)))));
+ERROR 22007: Illegal non geometric '0' value found during parsing
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),0))),
+ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2), POINT(1,4), POINT(2,4)))),10)));
-ERROR 22007: Illegal non geometric '10' value found during parsing
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0))));
+ERROR 22007: Illegal non geometric '0' value found during parsing
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((9 2,8 -7,1 -7))'), ST_GEOMFROMTEXT('POINT(-6 8)')));
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((9 2,8 -7,1 -7))'), ST_GEOMFROMTEXT('POINT(-6 8)')))
 GEOMETRYCOLLECTION(MULTILINESTRING((9 2,8 -7,1 -7)),POINT(-6 8))
@@ -1723,11 +1607,11 @@ ERROR 22023: Invalid GIS data provided to function st_union.
 ######################################################################################################
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 POLYGON(LINESTRING(POINT(3,4),POINT(1,9),POINT(3,4)),
 LINESTRING(POINT(5,1),POINT(1,6),POINT(2,3),POINT(2,3),POINT(2,9),POINT(0,1),POINT(4,4),POINT(5,1)),
-LINESTRING(POINT(7,3),POINT(8,3),POINT(4,4),POINT(3,8),POINT(4.2,9),POINT(6,4),POINT(8,8),POINT(-.7,1),POINT(7,3)))),
-ST_GEOMFROMWKB(POINT(5,+.1))));
+LINESTRING(POINT(7,3),POINT(8,3),POINT(4,4),POINT(3,8),POINT(4.2,9),POINT(6,4),POINT(8,8),POINT(-.7,1),POINT(7,3))))),
+ST_GEOMFROMWKB(ST_ASWKB(POINT(5,+.1)))));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(
 ST_SYMDIFFERENCE(
@@ -1747,10 +1631,10 @@ ST_GEOMFROMTEXT(
 GEOMETRYCOLLECTION(MULTILINESTRING((8 -2,3.15625 -5.875),(3.064935064935065 -5.948051948051948,-2 -10,1.7142857142857144 -4.428571428571429),(1.8095238095238093 -4.285714285714286,1.8823529411764706 -4.176470588235294,4.4324324324324325 -0.35135135135135176,5.087719298245614 0.631578947368421),(6.67741935483871 3.016129032258065,8 5)),MULTIPOINT((-7 -4),(-3 -8),(1 -8),(1 2),(4 8),(5 -6),(7 -6),(9 1)),POINT(5 2),MULTIPOLYGON(((5 -1,-2 7,-9 6,-4 2,4 -7,-2 1,9 2,-7 9,6 0,8 0,-5 -9,-8 2,-6 4,10 2,5 -1))))
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(2,2),POINT(6,0),POINT(2,2)),
-LINESTRING(POINT(4,8),POINT(9,4),POINT(7,-.7),POINT(4,7),POINT(4,8))))),
+LINESTRING(POINT(4,8),POINT(9,4),POINT(7,-.7),POINT(4,7),POINT(4,8)))))),
 ST_GEOMFROMWKB(
 ST_ASWKB(
 ST_GEOMFROMTEXT('MULTIPOINT(1 189.7654,41,-1032.34324 9,6.4 1,4 9)')))));
@@ -1781,7 +1665,8 @@ SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((2 9,-2 9,-3 -5)),((-10 6,1 6,3 -4,-1 6)))'),
 ST_GEOMFROMTEXT('MULTIPOINT(8 -2,-2 -5,9 -9,-4 -10,-9 -4,10 -3,9 10,-1 -5,-3 3)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+# Invalid geometry in input.
 SELECT ST_ASTEXT(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((-2 3,3 2,-7 4,-8 -4,-8 8,4 3,-10 -4,0 6,-4 7,-9 3,-6 0,-1 -8,-5 -3,2 -6,-7 -7, -2 3)),'
@@ -1796,19 +1681,19 @@ ST_ASTEXT(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((-2 3,3 2,-7 4,-8 -4,-8 8,4 3,-10 -4,0 6,-4 7,-9 3,-6 0,-1 -8,-5 -3,2 -6,-7 -7, -2 3)),'
                                          '((-8 -9,-4 7,-5 5,6 -9,-6 -4,-1 6,-7 8,-2 0,1 -4,-9 -5,2 -3,0 6,
-GEOMETRYCOLLECTION(MULTIPOLYGON(((-2 3,-7 -7,2 -6,-5 -3,-1 -8,-6 0,-9 3,-4 7,0 6,-10 -4,4 3,-8 8,-8 -4,-7 4,3 2,-2 3)),((-8 -9,8 -6,0 6,2 -3,-9 -5,1 -4,-2 0,-7 8,-1 6,-6 -4,6 -9,-5 5,-4 7,-8 -9)),((-4 -5,-10 8,-1 -1,-5 -7,-5 5,0 6,10 1,6 -9,8 -4,6 7,-10 2,10 -8,0 -7,-4 -5)),((4 -9,7 -5,3 -6,4 -9)),((-8 -4,5 4,-3 8,-10 -2,-3 -3,5 -8,9 -8,3 7,8 -1,8 4,-8 -4))),MULTILINESTRING((0.0412 0.9484,0.5714 0.2857),(5.3333 -5.6666,5.9130 -6.3913,5.9354 -6.4193,6.6666 -7.3333),(7.2 -8,8 -9,7 -8),(6.6666 -7.6666,6.5714 -7.5714),(4.6 -5.6,4 -5),(2 -3,-0.6666 -0.3333,-1 0,-1.0551 -0.0206),(-1.7272 -0.2727,-1.7804 -0.2926),(-3.8571 -1.0714,-4.0769 -1.1538,-4.6923 -1.3846,-5 -1.5),(-6.2413 -1.9655,-7.3448 -2.3793,-7.8196 -2.5573),(-8 -2.625,-9 -3,-9 -2.1428),(-9 -0.5714,-9 1.5),(-9 2.3125,-9 3),(-9 5.8333,-9 7),(-9 7,-9 5.8333),(-9 2,-8 1.4),(-9 2,-7.7323 1.2394),(-7.3720 1.0232,-6.5531 0.5319,-6.5 0.5,-5.875 0.125),(-5 -0.3999,-4.3846 -0.7692),(-3.5569 -1.2658,-3.0909 -1.5454),(0.0869 -3.3478,-1.3333 -2.3333),(-1.7096 -2.0645,-2.7058 -1.3529,-3.1652 -1.0247),(-3.7894 -0.5789,-4.1578 -0.3157,-5 0.2857),(-5.4166 0.5833,-5.5757 0.6969,-6 1,-5.3 1.8),(-5 2.1428,-4.6 2.6),(-4.0312 3.25,-3.9148 3.3829),(-3.8172 3.4946,-3.2903 4.0967,-2.0458 5.5190,-1.9696 5.6060),(-0.8260 6.9130,1 9,-0.5 6.75),(-0.8571 6.2142,-1.1538 5.7692,-1.4782 5.2826),(-2.8823 3.1764,-3 3),(-3.8 1.7999,-5 0),(-5.25 -0.375,-5.5161 -0.7741),(-6.2 -1.7999,-6.5 -2.25,-6.6521 -2.4782,-7.4347 -3.6521,-7.5 -3.75),(-8.2857 -4.9285,-9 -6,-7.2807 -6.1228),(-9 -6,-6.5862 -6.1724),(-5 -6.2857,-4.5454 -6.3181),(-2.3043 -6.4782,-2.2121 -6.4848),(-1.9345 -6.5046,-0.8333 -6.5833,0.4137 -6.6724),(3.3103 -6.8793,4.3945 -6.9567,5 -7,4.9496 -6.5719),(4.8285 -5.5428,4.8125 -5.4062),(4.2142 -0.3214,3.9444 1.9722,3.8333 2.9166),(3.8144 3.0773,3.7932 3.2573),(3.625 4.6875,3.5 5.75,3.4468 6.2021,3.4347 6.3043),(3 10,2.6315 5.9473),(3 10,2.5652 5.2173),(2.5217 4.7391,2.4233 3.6569),(2.3037 2.3407,2.2857 2.1428),(6 -3,7.25 -3.625,8 -4)),POINT(4 8))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((-2 3,-7 -7,2 -6,-5 -3,-1 -8,-6 0,-9 3,-4 7,0 6,-10 -4,4 3,-8 8,-8 -4,-7 4,3 2,-2 3)),((-8 -9,8 -6,0 6,2 -3,-9 -5,1 -4,-2 0,-7 8,-1 6,-6 -4,6 -9,-5 5,-4 7,-8 -9)),((-4 -5,-10 8,-1 -1,-5 -7,-5 5,0 6,10 1,6 -9,8 -4,6 7,-10 2,10 -8,0 -7,-4 -5)),((4 -9,7 -5,3 -6,4 -9)),((-8 -4,5 4,-3 8,-10 -2,-3 -3,5 -8,9 -8,3 7,8 -1,8 4,-8 -4))),MULTILINESTRING((0 1,0.0412 0.9484,0.5714 0.2857),(5.3333 -5.6666,5.9130 -6.3913,5.9354 -6.4193,6.6666 -7.3333),(7.2 -8,8 -9,7 -8),(6.6666 -7.6666,6.5714 -7.5714),(4.6 -5.6,4 -5),(2 -3,-0.6666 -0.3333,-1 0,-1.0551 -0.0206),(-1.7272 -0.2727,-1.7804 -0.2926),(-3.8571 -1.0714,-4.0769 -1.1538,-4.6923 -1.3846,-5 -1.5),(-6.2413 -1.9655,-7.3448 -2.3793,-7.8196 -2.5573),(-8 -2.625,-9 -3,-9 -2.1428),(-9 -0.5714,-9 1.5),(-9 2.3125,-9 3),(-9 5.8333,-9 7),(-9 7,-9 5.8333),(-9 2,-8 1.4),(-9 2,-7.7323 1.2394),(-7.3720 1.0232,-6.5531 0.5319,-6.5 0.5,-5.875 0.125),(-5 -0.3999,-4.3846 -0.7692),(-3.5569 -1.2658,-3.0909 -1.5454),(0.0869 -3.3478,-1.3333 -2.3333),(-1.7096 -2.0645,-2.7058 -1.3529,-3.1652 -1.0247),(-3.7894 -0.5789,-4.1578 -0.3157,-5 0.2857),(-5.4166 0.5833,-5.5757 0.6969,-6 1,-5.3 1.8),(-5 2.1428,-4.6 2.6),(-4.0312 3.25,-3.9148 3.3829),(-3.8172 3.4946,-3.2903 4.0967,-2.0458 5.5190,-1.9696 5.6060),(-0.8260 6.9130,1 9,-0.5 6.75),(-0.8571 6.2142,-1.1538 5.7692,-1.4782 5.2826),(-2.8823 3.1764,-3 3),(-3.8 1.7999,-5 0),(-5.25 -0.375,-5.5161 -0.7741),(-6.2 -1.7999,-6.5 -2.25,-6.6521 -2.4782,-7.4347 -3.6521,-7.5 -3.75),(-8.2857 -4.9285,-9 -6,-7.2807 -6.1228),(-9 -6,-6.5862 -6.1724),(-5 -6.2857,-4.5454 -6.3181),(-2.3043 -6.4782,-2.2121 -6.4848),(-1.9345 -6.5046,-0.8333 -6.5833,0.4137 -6.6724),(3.3103 -6.8793,4.3945 -6.9567,5 -7,4.9496 -6.5719),(4.8285 -5.5428,4.8125 -5.4062),(4.2142 -0.3214,3.9444 1.9722,3.8333 2.9166),(3.8144 3.0773,3.7932 3.2573),(3.625 4.6875,3.5 5.75,3.4468 6.2021,3.4347 6.3043),(3 10,2.6315 5.9473),(3 10,2.5652 5.2173),(2.5217 4.7391,2.4233 3.6569),(2.3037 2.3407,2.2857 2.1428),(6 -3,7.25 -3.625,8 -4)),POINT(4 8))
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('MULTILINESTRING((3 -.7),(4 -1032.34324),(2 1,8 7),(7 5,-4 8,2.2 8,2 8,6 7))'),
 ST_GEOMFROMTEXT('POLYGON((5 2,+.1 0,5 2))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMTEXT('POLYGON((5 3,6 7,-2.0 4,0 1,7 -0,5 3),(5 6,9 5,5 6))',10),ST_GEOMFROMTEXT('POINT(8 9)',10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ST_GEOMFROMTEXT('POLYGON((5 3,6 7,-2.0 4,0 1,7 -0,5 3),(5 6,9 5,5 6))',0),ST_GEOMFROMTEXT('POINT(8 9)',0)));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_UNION(
-ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(9,0),POINT(7,1),POINT(9,0)))),
+ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(9,0),POINT(7,1),POINT(9,0))))),
 ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOINT(8 9,-9.9 6,7 8,7 5,1 -4)')))));
 ERROR 22023: Invalid GIS data provided to function polygon.
 DO (SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -1816,14 +1701,14 @@ DO (SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                             'LINESTRING(-6 -5,-6 -3,4 0,2 -7,-10 -3,0 -5,-10 -3,0 8,-6 -2,6 -9))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((9 -3,-7 9,5 -7,9 -3)),((-7 9,8 -5,3 7,-3 -9,-4 -10,-1 9,-3 4,-4 10,1 5,0 3,-7 9)))'))));
 SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 MULTIPOLYGON(
 POLYGON(
 LINESTRING(POINT(1,5),POINT(-.1,6),POINT(6.9,2),POINT(1,5),POINT(9,-8.8),POINT(4,9),POINT(7,8),POINT(1,5)),
 LINESTRING(POINT(2,2),POINT(0,-.3),POINT(2,2)),
 LINESTRING(POINT(6,1),POINT(4,0.4),POINT(4,9),POINT(2,8),POINT(8,4),POINT(-9.8,-2.4),POINT(9.9,6),
-POINT(1,7),POINT(7,6),POINT(6,0),POINT(6,1)))),10),
-ST_GEOMFROMWKB(
+POINT(1,7),POINT(7,6),POINT(6,0),POINT(6,1))))),0),
+ST_GEOMFROMWKB(ST_ASWKB(
 MULTILINESTRING(
 LINESTRING(POINT(1,2),POINT(3,8),POINT(2,9),POINT(7,+.5)),
 LINESTRING(POINT(2,0),POINT(9,6),POINT(7,4),POINT(.1,7),POINT(3,2),POINT(2.4,2),POINT(-1.1,5)),
@@ -1832,29 +1717,30 @@ POINT(8.8,7),POINT(.9,8),POINT(3,1),POINT(1,9),POINT(5,4),POINT(4,0),POINT(4,9),
 LINESTRING(POINT(8,8),POINT(+.8,+.1),POINT(+.6,-3.1),POINT(8,0),POINT(5,8),POINT(4,9),POINT(9,6)),
 LINESTRING(POINT(1,7),POINT(7,7),POINT(0,4),POINT(5,8)),
 LINESTRING(POINT(-.6,6)),
-LINESTRING(POINT(7,3),POINT(3,0),POINT(2,8),POINT(7,3),POINT(7,2),POINT(0,5),POINT(9,0))),10)));
+LINESTRING(POINT(7,3),POINT(3,0),POINT(2,8),POINT(7,3),POINT(7,2),POINT(0,5),POINT(9,0)))),0)));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 POLYGON(
 LINESTRING(POINT(6,3),POINT(6,8),POINT(6,3)),
 LINESTRING(POINT(9,3),POINT(0,-.1),POINT(8,2),POINT(2.4,1),POINT(9,2),POINT(8,1.9),POINT(1,0),
-POINT(5,9),POINT(8.1,-.5),POINT(0,-4.3),POINT(8,3),POINT(9,3)))),
+POINT(5,9),POINT(8.1,-.5),POINT(0,-4.3),POINT(8,3),POINT(9,3))))),
 ST_GEOMFROMTEXT('POINT(0 +.3)')));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(2,8),POINT(2,5),POINT(2,8))),10),
-ST_GEOMFROMTEXT('LINESTRING(6 6,-8 9,-4 4,1 2)',10)));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(2,8),POINT(2,5),POINT(2,8))),0)),
+ST_GEOMFROMTEXT('LINESTRING(6 6,-8 9,-4 4,1 2)',0)));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(
+ST_GEOMFROMWKB(ST_ASWKB(
 POLYGON(
-LINESTRING(POINT(6,7),POINT(+.3,1),POINT(6,7)))),
-ST_GEOMFROMWKB(
-LINESTRING(POINT(3,5),POINT(3,9),POINT(-2.5,-3.9),POINT(9,8),POINT(5,0),POINT(3,1),POINT(+.3,1.9),POINT(-.3,9),POINT(0,-3.3)))));
+LINESTRING(POINT(6,7),POINT(+.3,1),POINT(6,7))))),
+ST_GEOMFROMWKB(ST_ASWKB(
+LINESTRING(POINT(3,5),POINT(3,9),POINT(-2.5,-3.9),POINT(9,8),POINT(5,0),POINT(3,1),POINT(+.3,1.9),POINT(-.3,9),POINT(0,-3.3))))));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTILINESTRING((5 7,0.8 2,9 3,5 7),(5 3,-3 1))'))),
 ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 5,+.8 -0.7654,1 5))')))));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+# Invalid geometry in input
 SELECT ST_ASTEXT(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('POLYGON((0 4,-8 -1,1 9,0 4))'),
@@ -1876,14 +1762,14 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                             'MULTILINESTRING((6 -5,-3 3,-6 8,9 -7,3 10,-9 -9,1 2,8 -9),'
                                             '(5 -10,6 -10,9 10,-1 -5,-8 4,-7 1,8 1,-2 9,3 5,-10 3,6 5,-9 7,-7 -7,-2 2,1 5),'
                                             '(-6 0,10 -1,2 4,9 3,1 -5),(6 8,-10 1,-3 3,10 6)),POINT(-3 0))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 3,+.5 -1032.34324,1 3))')),10),
-ST_GEOMFROMWKB(GEOMETRYCOLLECTION(POINT(2,.1),
+ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 3,+.5 -1032.34324,1 3))')),0),
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(2,.1),
 LINESTRING(POINT(4,7),POINT(3,5),POINT(-5.1,7),POINT(5,-3.6)),
-LINESTRING(POINT(6,3),POINT(5,3),POINT(0,1),POINT(8,7))),10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+LINESTRING(POINT(6,3),POINT(5,3),POINT(0,1),POINT(8,7))),0))));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMWKB(
@@ -1892,16 +1778,16 @@ LINESTRING(POINT(4,6),POINT(9,9),POINT(2,0),POINT(4,4),POINT(4,6)),
 LINESTRING(POINT(7,5),POINT(4,2),POINT(4,5),POINT(-.8,5),POINT(7,5)),
 LINESTRING(POINT(4,1),POINT(6,0),POINT(3,3),POINT(-1.8,4),POINT(4,1)),
 LINESTRING(POINT(6,7),POINT(2,7),POINT(2,-.0),POINT(.1,-.4),POINT(4,5),POINT(6,7)),
-LINESTRING(POINT(2,5),POINT(2,.6),POINT(4,3),POINT(3,8),POINT(2,5))),10),
-ST_GEOMFROMTEXT('LINESTRING(-.7 -.3,0 5,8 0,9 7)',10)));
-ERROR 22023: Invalid GIS data provided to function st_intersection.
+LINESTRING(POINT(2,5),POINT(2,.6),POINT(4,3),POINT(3,8),POINT(2,5))),0),
+ST_GEOMFROMTEXT('LINESTRING(-.7 -.3,0 5,8 0,9 7)',0)));
+ERROR 22023: Invalid GIS data provided to function st_geomfromwkb.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION('
                         'POLYGON((3 1,5 2,3 1),(8 5,4 9,-4.6 6,2.0 0,4 -1032.34324,8 5)),'
                         'LINESTRING(0 +.6),'
-                        'LINESTRING(4 189.7654,9 5,0 +.8,3 9))',10),
+                        'LINESTRING(4 189.7654,9 5,0 +.8,3 9))',0),
 ST_GEOMFROMWKB(
 MULTIPOLYGON(
 POLYGON(
@@ -1917,8 +1803,8 @@ LINESTRING(POINT(1,0),POINT(8,3),POINT(3,7),POINT(4,3),POINT(9,5),POINT(1,0))),
 POLYGON(
 LINESTRING(POINT(6,4),POINT(-3.0,1),POINT(5,8),POINT(8,4),POINT(3,7),POINT(8,9),POINT(5,6),POINT(6,4)),
 LINESTRING(POINT(5,5),POINT(2,0),POINT(1.3,9),POINT(+.2,9),POINT(6,6),POINT(.5,9),POINT(7,0),
-POINT(9,-.9),POINT(9,4),POINT(3,1),POINT(4,7),POINT(9,0),POINT(-.5,4),POINT(3,1),POINT(5,5)))),10)));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+POINT(9,-.9),POINT(9,4),POINT(3,1),POINT(4,7),POINT(9,0),POINT(-.5,4),POINT(3,1),POINT(5,5)))),0)));
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#20445979 : ASSERTION `RESULT->LENGTH() == 0' FAILED
 ######################################################################################################
@@ -1943,7 +1829,7 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                               'POINT(9 +.7),'
                                               'LINESTRING(189.7654 2, 4 -1032.34324, 9 0, 9 8),'
                                               'POLYGON((1 1, 0 +.0, 2 4, 7 9,9 -3, 3 -0.7654, 10.0002 7, 8 -1032.34324, 1 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#20445765 : ASSERTION `MLS != __NULL' FAILED
 ######################################################################################################
@@ -1955,7 +1841,7 @@ ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION(LINESTRING(9 -0.7654,3 -1032.34324,6 0))'),
 ST_GEOMFROMTEXT(
 'LINESTRING(0 1,-.7 6,9 6,-8.0 -.0,4 7)')))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 ######################################################################################################
 # BUG#20462935 : WL#7225 : MYSQLD GOT SIGNAL 11
 ######################################################################################################
@@ -1991,6 +1877,7 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((5.994534793055166 2.1653522602880457,-0.7654 1
 ######################################################################################################
 # BUG#20379857 : ASSERTION `ENTER_COUNT == 0' FAILED
 ######################################################################################################
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -2001,7 +1888,8 @@ ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTILINESTRING((5 8,-5 -8,3 -7,-2 -7,6 2,6 3,6 10,7 7,1 0,-6 -1,8 -4,-2 1,9 -10,4 -2)),'
    
-GEOMETRYCOLLECTION(POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0)),MULTILINESTRING((-0.5696202531645591 -0.9113924050632936,-1.1702127659574466 -1.872340425531915),(-5 -8,3 -7,-2 -7,0.9938650306748467 -3.6319018404907975),(1.0666666666666669 -3.55,6 2,6 3,6 3.8333333333333335),(1 0,0.6164383561643836 -0.054794520547945216),(-3.17910447761194 -0.5970149253731343,-4.163934426229508 -0.7377049180327869),(-5.176470588235294 -0.8823529411764706,-6 -1,-5.338582677165355 -1.141732283464567),(-1.9067796610169485 -1.8771186440677967,-1.906779661016949 -1.8771186440677967,-1.215189873417724 -2.0253164556962022),(7 -8,9 -10,4 -2)))
+GEOMETRYCOLLECTION(POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0)),MULTILINESTRING((-1 -2,0.375 -2.625),(-0.5696202531645591 -0.9113924050632936,-1.1702127659574466 -1.872340425531915),(-1.25 -2,-5 -8),(-5 -8,3 -7,-2 -7,0.9938650306748467 -3.6319018404907975),(1.0666666666666669 -3.55,6 2,6 3,6 3.8333333333333335),(1.5 0.583333333333333,1 0,0.6164383561643836 -0.0547945205479452),(1 0,0.6164383561643836 -0.054794520547945216),(-3.17910447761194 -0.5970149253731343,-4.163934426229508 -0.7377049180327869),(-5.176470588235294 -0.8823529411764706,-6 -1,-5.338582677165355 -1.141732283464567),(-4.303030303030303 -1.3636363636363635,-1.9067796610169485 -1.8771186440677967,-1.906779661016949 -1.8771186440677967,-1.215189873417724 -2.0253164556962022),(-0.8666666666666663 -2.1,0.5882352941176467 -2.4117647058823533),(2 -1,0.40909090909090917 -0.20454545454545459),(-0.29032258064516125 -0.7096774193548387,1 -2),(7 -8,9 -10,4 -2)))
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'),
 ST_GEOMFROMTEXT('MULTILINESTRING((5 8,-5 -8,3 -7,-2 -7,6 2,6 3,6 10,7 7,1 0,-6 -1,8 -4,-2 1,9 -10,4 -2),(-1 -2,10 -7,8 -5))')));
@@ -2009,6 +1897,7 @@ ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'),
 ST_GEOMFROMTEXT('MULTILINESTRING((5 8,-5 -8,3 -7,-2 -7,6 2,6 3,6 10,7 7,1 0,-6 -1,8 -4,-2 1,9 -10,4 -2),(-1 -2,10 -7,8 -5))')))
 GEOMETRYCOLLECTION(POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0)),MULTILINESTRING((-0.5696202531645573 -0.9113924050632907,-1.1702127659574466 -1.872340425531915),(-1.25 -2,-5 -8),(-5 -8,3 -7,-2 -7,0.9938650306748467 -3.6319018404907975),(1.0666666666666669 -3.55,6 2,6 3,6 3.8333333333333335),(1.5 0.583333333333333,1 0,0.6164383561643836 -0.0547945205479452),(1 0,-2.92 -0.56),(-3.17910447761194 -0.5970149253731343,-4.163934426229508 -0.7377049180327869),(-5.176470588235294 -0.8823529411764706,-6 -1,-5.338582677165355 -1.141732283464567),(-4.303030303030303 -1.3636363636363635,-1.906779661016949 -1.8771186440677967,-1.215189873417721 -2.0253164556962027),(-0.8666666666666663 -2.1,0.5882352941176467 -2.4117647058823533),(2 -1,0.40909090909090917 -0.20454545454545459),(-0.29032258064516125 -0.7096774193548387,1 -2),(7 -8,9 -10,4 -2),(-1 -2,0.375 -2.625)))
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'), ST_GEOMFROMTEXT('LINESTRING(-1 -2,10 -7,8 -5)')));
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'), ST_GEOMFROMTEXT('LINESTRING(-1 -2,10 -7,8 -5)')))
 GEOMETRYCOLLECTION(POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0)),LINESTRING(-1 -2,0.375 -2.625))
@@ -2105,7 +1994,7 @@ ST_ASWKB(
 ST_GEOMFROMTEXT('MULTILINESTRING((1 5, -4.3 -.1),'
                                             '(0 6,8.6 6,189.7654 5,1 3,6 3,3 5,6 2.232432,0 4),'
                                             '(-6 5,1 2
-GEOMETRYCOLLECTION(POINT(-1.3068033885057968 6.95588691462719),POINT(-1.250432813361253 9.348630781695498),POINT(-0.5326974515460634 -0.629698715046247),POINT(-0.3237169258807251 2.7557858007322666),POINT(-0.3093463318554086 2.9885894239423596),POINT(-0.2870773950336814 3.3493462004543613),POINT(-0.27224727752722444 3.5895941040589596),POINT(-0.26002971768202054 3.7875185735512633),POINT(0.17057191599583232 2.5603603747987496),POINT(0.20348293501690584 8.213958459413115),POINT(0.20670833865183072 6.559793242463126),POINT(0.20706121970032634 6.3788163408990215),POINT(0.20779986151819596 5.999999999999999),POINT(0.21087723180606566 4.421754463612131),POINT(0.21122968964554562 4.240994607017413),POINT(0.21182127180948937 3.9375985830383744),POINT(0.2126701994349945 3.502221585687387),POINT(0.2136823839732358 2.983117422044227),POINT(0.21373120040140098 2.9580816601363997),POINT(0.21454060039978828 2.5429766142332513),POINT(0.21523554423848199 2.186571011767442),POINT(0.21538050637760223 2.1122264163466085),POINT(0.2185007981672563 0.5119683620393687),POINT(0.23647190090662562 2.1820461071718458),POINT(0.3301406780816283 2.8671349368006327),POINT(0.38951211292922494 2.9812778660476296),POINT(0.39436697479256644 8.039435908761082),POINT(0.4375000000000009 8),POINT(0.4460055443973996 -116.16503721642789),POINT(0.5720091516699135 8.057199771171568),POINT(0.6149864872883692 2.9789189206070934),POINT(0.6163999319893212 2.9818945936617283),POINT(0.9813981034250419 6),POINT(1 2.232432),POINT(1.0000224788601089 5.9922197425210015),POINT(1.0053012917379935 4.165146520195549),POINT(1.0063480798617221 3.80283806286684),POINT(1.00865931451096 3.0028864381703197),POINT(1.0150805760981134 0.7803952510726049),POINT(1.0388693195486667 3.8833920413539995),POINT(1.0412371134020617 3.876288659793815),POINT(1.2569493468662905 2.972202612534838),POINT(1.3 3.1),POINT(1.5230208408561547 1.9079166365753808),POINT(1.5923914063484486 4.76304343746062),POINT(1.6756969713169383 1.2972121147322464),POINT(1.7017543859649122 3.2339181286549707),POINT(2 3),POINT(2.28326548655475 1.3412256626058738),POINT(2.3207547169811322 1.5849056603773581),POINT(2.3435512850038953 1.7330833525253189),POINT(2.370748356394707 6),POINT(2.386740331491713 3.110497237569061),POINT(2.403519711951156 1.2472751700426596),POINT(2.412406123379353 2.180639801965793),POINT(2.5321325326209725 2.958861462036321),POINT(2.540973363458562 3.0163268624807147),POINT(2.550910316925152 3.080917060013486),POINT(2.6887552170098443 1.6595295465330486),POINT(2.953757225433526 5.699421965317919),POINT(3 6),POINT(3.0067352148266244 6),POINT(3.009100471227746 5.648822426306062),POINT(3.018909545454914 4.192436181818035),POINT(3.0202739190800645 3.989863040459968),POINT(3.0262101246182627 3.1084946370747915),POINT(3.02679622572439 3.0214742344277536),POINT(3.026796475292346 3.0214371802338764),POINT(3.0272528247444535 2.9536814420941813),POINT(3.0307335913939544 2.4368803096727456),POINT(3.033663567232252 2.001856941640744),POINT(3.033831569455859 1.9769130864064213),POINT(3.0364682172170467 1.5854411246265734),POINT(3.0421060737811922 0.7483695969510409),POINT(3.0435512346111793 0.5338017075536241),POINT(3.0498391451947966 -0.39978552692639546),POINT(3.0516129643768455 -0.663150427335685),POINT(3.22810602509037 -796.1565697664814),POINT(3.5555555555555554 3.4444444444444446),POINT(4.007785622525587 4.735738859405178),POINT(4.132774777756052 2.5487432499511145),POINT(4.17391304347826 4.583850931677019),POINT(4.184712625258058 3.8216551503096703),POINT(4.3686805736779 4.087546284214733),POINT(4.38014506152931 4.104116049223448),POINT(4.428571428571429 4.142857142857142),POINT(4.576032868900963 3.5460739550271665),POINT(4.584905660377359 3.566037735849057),POINT(4.957703927492448 4.7492447129909365),POINT(5 1.4359928939902957),POINT(5.000958495470734 4.801150194565025),POINT(5.001920672853931 4.601536538283199),POINT(5.005671512443617 3.823386045765801),POINT(5.006447650211121 3.6623682331926375),POINT(5.007727215776458 3.3969091136893894),POINT(5.008933207833419 3.1467135799541666),POINT(5.009435631356616 3.042480620191782),POINT(5.009640396364852 3),POINT(5.009963648324956 2.9329380353522083),POINT(5.011937172407166 2.5235100393406356),POINT(5.017203083598111 1.4310422627786465),POINT(5.0184945033490065 1.1631238697955268),POINT(5.019096693039546 1.0381933860792287),POINT(5.027386389591994 -0.6815899586538308),POINT(5.038811021211276 -3.051748028281736),POINT(5.135593827717932 1),POINT(5.153811622682032 3.0440103072139495),POINT(5.285714285714286 5.142857142857143),POINT(5.395321452430659 1.0828320372418117),POINT(5.411764705882353 3.235294117647059),POINT(5.6615415557907065 2.926121133261659),POINT(5.666666666666667 6),POINT(5.750265604998302 3.0503298338042706),POINT(5.790142575524733 3.106155359520246),POINT(6.06556854930577 3.0536705195899865),POINT(6.097893693429729 2.9215559542319918),POINT(6.3076923076923075 4.769230769230769),POINT(6.433333333333334 4.266666666666667),POINT(6.562970132999666 -5.083960177332983),POINT(6.581467724157924 -0.6960939149653314),POINT(6.587895790751739 0.8287260628328568),POINT(6.588528668432964 0.9788527794357833),POINT(6.589763454480116 1.2717598931881184),POINT(6.594396750598089 2.3708372565959053),POINT(6.596696373737318 2.9163374086133445),POINT(6.597299068253058 3.0593042905984476),POINT(6.59958542838319 3.6016582864672273),POINT(6.611170446274414 0.8237668507898244),POINT(6.666666666666667 6),POINT(6.826605423768893 -373.94819977080806),POINT(6.851694915254237 2.1355932203389836),POINT(6.98889569410794 1.5910529131698257),POINT(7.233062330623306 -2.168292682926829),POINT(7.857257142857142 6),POINT(7.985622025683107 3.0740137972921215),POINT(8.15490202638159 0.5280884271661537),POINT(8.253731343283583 1),POINT(8.275939597269154 6.586131990897179),POINT(8.525404608739807 2.820210878556703),POINT(8.54865385265276 2.838809529741019),POINT(8.962933842995367 2.891581490761452),POINT(8.982721744049384 -2.9728484549347467),POINT(10.0002 -1032.34324),POINT(-0.7894269180314115 2.9936120963106445),POINT(-0.7566506759703445 3.309638028783253),POINT(-0.7065026362038664 3.6678383128295255),POINT(-0.7053428345352559 3.676122610462458),POINT(-0.5322427770870091 2.8382300111567345),POINT(0.048405275947358994 -0.6351220403152757),POINT(0.10749009908434837 2.209528709622637),POINT(0.23588693775379155 2.5345369799220876),POINT(0.502294295440373 7.6422084936296075),POINT(0.5912311307833158 3.434012408867871),POINT(0.6191428705587008 2.142601182370785),POINT(0.6231653577819406 0.9117872439343158),POINT(0.6237828169691946 0.7228550405709191),POINT(0.7298834721962262 3.7849802218028437),POINT(0.9225495059559787 1.7175497403299207),POINT(1.0043920788723937 4.479838197767776),POINT(1.011679851207373 1.9574351515393573),POINT(1.0118303293156554 1.9053525093718235),POINT(1.0146591820584798 0.9262458018827147),POINT(1.1812448804366062 4.9275020478253575),POINT(1.3644094598868468 2.90677162033946),POINT(1.3882103518465296 2.97082934095975),POINT(1.3990488221743331 3),POINT(1.43457260366905 7.088390762359726),POINT(1.604942857142857 6),POINT(1.7007312147193645 1.283240303215405),POINT(1.871304347826087 1.3860869565217393),POINT(1.8756165050639775 6.685150623941507),POINT(1.9943714821763603 4.602251407129456),POINT(2.0600461893764432 1.2720554272517324),POINT(2.0949344815723228 1.4883622029203474),POINT(2.5137103366277773 6),POINT(2.5419298092694866 6.075949888667898),POINT(3.160359289329147 -775.4271995955245),POINT(3.2336465227304965 -767.0972558089059),POINT(3.266733333333333 6),POINT(4 1.7237686978764892),POINT(4 2.9435044207790746),POINT(4 3.8),POINT(4 4.077477333333333),POINT(4 4.742857142857143),POINT(5.0642816882081485 -559.0243444093659),POINT(5.094956799689188 4.913948159627026),POINT(5.265670276474132 4.812536221179306),POINT(6.476721471593684 4.093114113625265),POINT(7.087453458422117 -329.0674155638844),POINT(8.565495871140024 2.8522826056077957),POINT(9.098259943108358 -100.51594478484922),MULTILINESTRING((-0.7653999999999996 8.881784197001252e-16,-0.7654 0,5 3),(0.7984790874524714 4.806083650190114,0.21122968964554634 4.240994607017228),(0.20779986151819552 6.000000000000227,0.5 6),(1.959700171718825 6,2.05 6),(3.006735214826623 6.000000000000227,3.2727272727272725 6,5.3446750972261565 6,5.640054397824088 5.999999999999999),(7.857257142857143 6,8.571440815976686 6,8.6 6,8.99967072990898 5.997793890390168),(8.6 6,189.7654 5,8.987909888345353 3.0846331996048573),(8.56420058670109 3.0801439308973055,7.985622025683106 3.074013797292121,7.552065143908058 3.0694201918774104),(6.597299068253058 3.0593042905983094,6.06556854930577 3.0536705195899856),(5.348691697728959 3.046075093186876,5.153811622682031 3.0440103072139504),(5.009435631356617 3.042480620191588,4.349104133767298 3.035484300976422,3.6355363469936135 3.0279239346510916),(2.0385111797954947 3.011003194227284,1.2493395517616932 3.0026417929531757,1 3),(1 3,1.25 3),(2.5384615384615383 3,3.0269408593064977 3,3.616216 3,4.333333333333334 3),(5.181818181818182 3,5.333333333333333 3),(5.714314285714286 3,6 3,5.806473464858518 3.1290176900943214),(5.454545454545455 3.3636363636363633,5.00644765021112 3.662368233192586,4.8 3.8,4.714285714285714 3.857142857142857,4.578947368421053 3.9473684210526314),(4.333333333333333 4.111111111111111,3.0135311866190753 4.990979208920617),(3.013554649957279 4.987495528175677,4.0616928480122985 4.020564282670766),(4.220788028120986 3.873795372863086,4.418832382925834 3.6910949665502386),(5.2015078273876965 2.9690591283907626,5.294441808196902 2.8833254245907063),(5.497296552036384 2.696187325357923,6 2.232432,5.594194449425349 2.3519801509030223),(6 2.232432,5.311014836272068 2.4354033546467093),(5.159967073339523 2.479901220018568,5.011937172407167 2.523510039340435,4.2246414098172025 2.7554431720887047,3.578674942152815 2.945741448308139),(2.7079171620240383 3.2022620462925824,2.575576742767682 3.241248827989936),(2.1233856960245974 3.374461898674866,1.0795040326672316 3.6819838693310745,0.9649694452659672 3.715725147928354,0.9383071519877015 3.7235797173292338,0.7972370128659554 3.765138227940425),(-0.3237169258807242 2.7557858007322658,0.17057191599583205 2.56036037479875,0.19922180034015025 2.5490331600680296),(0.21454060039978806 2.542976614233339,0.37734024032055036 2.4786110322537906),(6.242571337505677 -474.43547325137604,6.826605423768893 -373.9481997708082),(8.982721744049384 -2.972848454934746,9 0),(9 0,189.7654 1,8.962933842995369 2.891581490761455),(8.536722473971128 2.8960405756065573,8.408441507515107 2.897382669588586,7.430708887013444 2.907611849351259),(6.596696373737318 2.916337408613302,6.097893693429729 2.9215559542319927),(5.309933236744222 2.929799710232665,5.225931834987745 2.9306785450192585),(5.009963648324956 2.932938035352371,4.3067976265507335 2.94029465973915,3.580166200685639 2.9478967825695905),(2.1101717707519874 2.963276076416004,1.2569493468662902 2.972202612534839,1 2.9748908536795886,0.6149864872883697 2.978918920607094,0.47067814990151646 2.9804286952565526,0.3895121129291965 2.98127786604763),(-1.4 3,-1.306803388505795 6.9558869146271896),(-1.2504328133612521 9.348630781695498,0.31147540983606553 9.91822950819672,0.3751862474892954 9.463133893291465),(0.5800167993280267 8,0.85246534186352 6.05386113944861,1.3638480456882514 4.8544607817247,1.4831932773109244 4.80672268907563),(2.7391304347826084 4.304347826086957,3.018909545454913 4.192436181818039,3.727272727272727 3.909090909090909),(4.132938081864926 3.74682476725403,4.333333333333334 3.666666666666667),(4.902439024390244 3.4390243902439024,5.007727215776458 3.396909113689417),(5.7778019750935545 3.0888792099625784,6 3,5.64 2.2800000000000002),(5.019096693039545 1.0381933860790902,5 1),(5 1,5.019280792729704 1),(5.1355938277179325 1,6 1),(6.454545454545455 1,6.568050583356943 1,6.588617817148249 1),(8.316239316239315 1,9 1),(4.46857804565248 -501.90067007298705,0.4460055443973996 -116.16503721642778),(-0.6865879576035461 -7.5575053130871765,-0.7261514394429778 -3.7636533189761394),(-0.7653999999999996 8.881784197001252e-16,-0.7055293317678581 0.031153433360465096),(-0.48481473565998395 0.14600128230826104,0.21850079816725643 0.5119683620393971,1 0.9186179623269854),(2.324260118172246 1.6076907681195998,2.837760148563958 1.8748882030200635,3.0338315694558604 1.9769130864062845,3.8285992929416066 2.390466902352798),(4.454545454545455 3.2727272727272725,3.9718874308478944 3.5140562845760526),(3.909090909090909 3.5454545454545454,3.4 3.8,3.020273919080065 3.9898630404600226),(2.412406123379353 2.1806398019657944,2.9435510802156513 2.0277891350321307,3.033663567232251 2.0018569416406535,3.7926407441832835 1.7834416744123878),(5.789913532037456 1.2086748923076345,6.091429433528652 1.1219059113715355,6.248741316520661 1.0766353577826588),(6.440982669530936 1.0213129478799579,6.572065590386247 0.9835904549550702,6.588528668432964 0.9788527794357362),(8.15490202638159 0.5280884271661532,8.18212740620899 0.5202536216002167),(8.177611896515856 0.4899997066562385,8.144306401587228 0.49709622464264097),(6.587895790751739 0.8287260628326987,6.559717156435642 0.8347301827439912),(5.018494503349007 1.1631238697952528,5 1.167064558139535,3.6468388143533286 1.4553873322949888,3.0364682172170445 1.5854411246266409),(1.5230208408561545 1.907916636575382,1 2.019358511627907,0.2364719009066274 2.1820461071718453,0.21523554423848168 2.1865710117674553),(0 2.232432,0.20583742977736258 2.117552483741816),(0.2153805063776022 2.112226416346857,1 1.6743240000000001),(2.2172202431565786 0.9949836445323683,2.228987144996931 0.988416442480053,3.04355123461118 0.5338017075534935,3.1987487660730998 0.44718472366447437),(3.272727272727273 0.4058967272727272,4 0,3.420244763820535 0.45294283694077225),(3.2577357848670885 0.5799055159509479,3.042106073781193 0.7483695969508517),(1.5145510415099104 1.9417958339603585,1 2.3437968749999993,0.49916424953825045 2.7350826306068425,0.376565054257604 2.8308651675322727,0.33014067808162784 2.8671349368006327),(1 0,1.32 0.384),(1 0,1.6820976351523418 0.8185171621828095),(1 0,1.7692307692307692 0.9230769230769231),(2.3207547169811322 1.5849056603773586,3.030733591393955 2.436880309672688,3.1739130434782608 2.608695652173913),(3.96875 3.5625,4.184712625258057 3.821655150309668,4.453608247422681 4.144329896907217,4.461538461538462 4.153846153846154,4.704060652458992 4.44487278295079),(5.493413900889959 5.392096681067951,5.863239160499081 5.835886992598898),(6.08107280245768 5.675708790169281,6.181818181818182 5.272727272727273),(6.48149684453794 4.074012621848242,6.570247933884298 3.7190082644628095,6.585246218925046 3.6590151242998155,6.5995854283831905 3.6016582864672375),(6.9375 2.25,7 2,6.851694915254237 2.1355932203389827),(6.594396750598089 2.3708372565960323,6.128394845228898 2.796896141505008),(5.467153284671533 3.4014598540145986,5.005671512443617 3.8233860457658357,4.976190476190477 3.850340136054422,4.787810383747178 4.022573363431151,4.595419847328245 4.198473282442748,4.503547393598493 4.282470954424235),(2.4636027452583242 6.147563204335246,2.2241035856573705 6.366533864541832,2.1741221724427535 6.412231156623768),(0.3943669747925682 8.039435908761082,0.20348293501690584 8.213958459413107),(-0.1752389675387337 5.161128725872514,0.14881901177715107 6.347806546715802),(0.20670833865183091 6.559793242463002,0.2867630190410645 6.8529479238357425),(0.6 8,0.6060238218140649 6.156811087286171,0.6079474591914528 5.568210163234189,0.614985277874548 3.4147551363801174,0.6156517714518788 3.210819228239097),(0.6246098681047852 0.4697911999691291,0.6419435163447376 -4.834015791493288),(3.281209938024379 -783.5596393894779,1.0290092830088593 -4.040530969832162,1.0156054490564213 0.5987291550334248),(1.0086593145109592 3.0028864381703197,1.0063480798617226 3.80283806286684,1.00626504485418 3.831577675788367,1.005845997485208 3.9766160100591605),(0.9967859042368499 5.9935718084737,0.6666666666666667 5.333333333333333,0.21087723180606543 4.4217544636123876),(0.20706121970032676 6.378816340898766,0.2284922020474155 6.314523393857754,0.9685212893551598 4.09443613193452,1 4),(2.0460878080557694 0.938549589258974,2.1914893617021276 0.7446808510638299,2.6052344828254053 0.19302068956612642,2.9014778325123154 -0.2019704433497537),(3.049839145194796 -0.39978552692628,5 -3),(6.3385518590998045 -4.784735812133072,6.562970132999667 -5.08396017733289),(8 -7,7.233062330623306 -2.16829268292683),(7.010274295409558 -0.7647280610802148,7 -0.7,6.9839616248860015 -0.6998503167840819),(6.581467724157925 -0.6960939149653118,5.027386389591995 -0.6815899586541239,5 -0.6813343664985977,3.0516129643768455 -0.6631504273357223),(2.678211929802206 -0.6596655439054776,0.22074060902229764 -0.6367304143985352),(5 0,5.024008414362973 0.019205963251847685),(6.38556086465178 1.1084043555472025,6.4066720887377855 1.1252926592838577,6.515996313447897 1.212748540816685,6.589763454480116 1.2717598931883658),(8.974375935866124 3.17937357374995,8.93904156611594 5.591578492976794,8.545456199729294 6.181897510654993),(6.571428571428571 5.857142857142858,6.218405777667094 5.574724622133675,5.5747237598811035 5.059779007904883),(5.084942084942085 4.667953667953668,5.068965517241379 4.655172413793103,5.001920672853931 4.601536538283145,4.771089625728822 4.416871700583058,4.445783132530121 4.156626506024097),(3 3,2.550910316925152 3.080917060013487),(2.386740331491712 3.110497237569061,1.7017543859649127 3.233918128654971,1.1674528301886793 3.330188679245283,0.8122406639004152 3.394190871369294,0.7393077198119982 3.4073319423762167,0.6221081321605393 3.428448985196299)))
+GEOMETRYCOLLECTION(POINT(-1.3068033885057968 6.95588691462719),POINT(-1.250432813361253 9.348630781695498),POINT(-0.5326974515460634 -0.629698715046247),POINT(-0.3237169258807251 2.7557858007322666),POINT(-0.3093463318554086 2.9885894239423596),POINT(-0.2870773950336814 3.3493462004543613),POINT(-0.27224727752722444 3.5895941040589596),POINT(-0.26002971768202054 3.7875185735512633),POINT(0.19922180034015047 2.5490331600680305),POINT(0.20348293501690584 8.213958459413115),POINT(0.20670833865183072 6.559793242463126),POINT(0.20706121970032634 6.3788163408990215),POINT(0.20779986151819596 5.999999999999999),POINT(0.21087723180606566 4.421754463612131),POINT(0.21122968964554562 4.240994607017413),POINT(0.21182127180948937 3.9375985830383744),POINT(0.2126701994349945 3.502221585687387),POINT(0.2136823839732358 2.983117422044227),POINT(0.21373120040140098 2.9580816601363997),POINT(0.21454060039978828 2.5429766142332513),POINT(0.21523554423848199 2.186571011767442),POINT(0.21538050637760223 2.1122264163466085),POINT(0.2185007981672563 0.5119683620393687),POINT(0.39436697479256644 8.039435908761082),POINT(0.4375000000000009 8),POINT(0.4460055443973996 -116.16503721642789),POINT(0.5720091516699135 8.057199771171568),POINT(0.6163999319893212 2.9818945936617283),POINT(0.8122406639004149 3.394190871369295),POINT(0.9813981034250419 6),POINT(1 2.232432),POINT(1.0000224788601089 5.9922197425210015),POINT(1.0053012917379935 4.165146520195549),POINT(1.00865931451096 3.0028864381703197),POINT(1.0150805760981134 0.7803952510726049),POINT(1.0388693195486667 3.8833920413539995),POINT(1.0412371134020617 3.876288659793815),POINT(1.2569493468662905 2.972202612534838),POINT(1.3 3.1),POINT(1.5230208408561547 1.9079166365753808),POINT(1.5923914063484486 4.76304343746062),POINT(1.6756969713169383 1.2972121147322464),POINT(1.7017543859649122 3.2339181286549707),POINT(2 3),POINT(2.28326548655475 1.3412256626058738),POINT(2.3207547169811322 1.5849056603773581),POINT(2.3435512850038953 1.7330833525253189),POINT(2.370748356394707 6),POINT(2.386740331491713 3.110497237569061),POINT(2.403519711951156 1.2472751700426596),POINT(2.412406123379353 2.180639801965793),POINT(2.5321325326209725 2.958861462036321),POINT(2.540973363458562 3.0163268624807147),POINT(2.550910316925152 3.080917060013486),POINT(2.6887552170098443 1.6595295465330486),POINT(2.953757225433526 5.699421965317919),POINT(3 6),POINT(3.0067352148266244 6),POINT(3.009100471227746 5.648822426306062),POINT(3.018909545454914 4.192436181818035),POINT(3.0202739190800645 3.989863040459968),POINT(3.0262101246182627 3.1084946370747915),POINT(3.02679622572439 3.0214742344277536),POINT(3.026796475292346 3.0214371802338764),POINT(3.0272528247444535 2.9536814420941813),POINT(3.0307335913939544 2.4368803096727456),POINT(3.033663567232252 2.001856941640744),POINT(3.033831569455859 1.9769130864064213),POINT(3.0364682172170467 1.5854411246265734),POINT(3.0421060737811922 0.7483695969510409),POINT(3.0435512346111793 0.5338017075536241),POINT(3.0498391451947966 -0.39978552692639546),POINT(3.0516129643768455 -0.663150427335685),POINT(3.22810602509037 -796.1565697664814),POINT(3.257735784867088 0.5799055159509486),POINT(3.420244763820535 0.452942836940772),POINT(3.5555555555555554 3.4444444444444446),POINT(4.007785622525587 4.735738859405178),POINT(4.132774777756052 2.5487432499511145),POINT(4.17391304347826 4.583850931677019),POINT(4.184712625258058 3.8216551503096703),POINT(4.3686805736779 4.087546284214733),POINT(4.38014506152931 4.104116049223448),POINT(4.428571428571429 4.142857142857142),POINT(4.576032868900963 3.5460739550271665),POINT(4.584905660377359 3.566037735849057),POINT(4.957703927492448 4.7492447129909365),POINT(5 1.4359928939902957),POINT(5.000958495470734 4.801150194565025),POINT(5.001920672853931 4.601536538283199),POINT(5.005671512443617 3.823386045765801),POINT(5.006447650211121 3.6623682331926375),POINT(5.007727215776458 3.3969091136893894),POINT(5.008933207833419 3.1467135799541666),POINT(5.009435631356616 3.042480620191782),POINT(5.009640396364852 3),POINT(5.009963648324956 2.9329380353522083),POINT(5.011937172407166 2.5235100393406356),POINT(5.017203083598111 1.4310422627786465),POINT(5.0184945033490065 1.1631238697955268),POINT(5.019096693039546 1.0381933860792287),POINT(5.027386389591994 -0.6815899586538308),POINT(5.038811021211276 -3.051748028281736),POINT(5.153811622682032 3.0440103072139495),POINT(5.285714285714286 5.142857142857143),POINT(5.395321452430659 1.0828320372418117),POINT(5.411764705882353 3.235294117647059),POINT(5.6615415557907065 2.926121133261659),POINT(5.666666666666667 6),POINT(5.750265604998302 3.0503298338042706),POINT(5.790142575524733 3.106155359520246),POINT(6.06556854930577 3.0536705195899865),POINT(6.097893693429729 2.9215559542319918),POINT(6.3076923076923075 4.769230769230769),POINT(6.433333333333334 4.266666666666667),POINT(6.562970132999666 -5.083960177332983),POINT(6.581467724157924 -0.6960939149653314),POINT(6.587895790751739 0.8287260628328568),POINT(6.588528668432964 0.9788527794357833),POINT(6.589763454480116 1.2717598931881184),POINT(6.594396750598089 2.3708372565959053),POINT(6.596696373737318 2.9163374086133445),POINT(6.597299068253058 3.0593042905984476),POINT(6.59958542838319 3.6016582864672273),POINT(6.611170446274414 0.8237668507898244),POINT(6.666666666666667 6),POINT(6.826605423768893 -373.94819977080806),POINT(6.851694915254237 2.1355932203389836),POINT(6.98889569410794 1.5910529131698257),POINT(7.233062330623306 -2.168292682926829),POINT(7.985622025683107 3.0740137972921215),POINT(8.15490202638159 0.5280884271661537),POINT(8.177611896515856 0.4899997066562394),POINT(8.182127406208988 0.5202536216002172),POINT(8.253731343283583 1),POINT(8.275939597269154 6.586131990897179),POINT(8.525404608739807 2.820210878556703),POINT(8.54865385265276 2.838809529741019),POINT(8.962933842995367 2.891581490761452),POINT(8.982721744049384 -2.9728484549347467),POINT(10.0002 -1032.34324),POINT(-0.7894269180314115 2.9936120963106445),POINT(-0.7566506759703445 3.309638028783253),POINT(-0.7065026362038664 3.6678383128295255),POINT(-0.7053428345352559 3.676122610462458),POINT(-0.5322427770870091 2.8382300111567345),POINT(0.048405275947358994 -0.6351220403152757),POINT(0.10749009908434837 2.209528709622637),POINT(0.23588693775379155 2.5345369799220876),POINT(0.502294295440373 7.6422084936296075),POINT(0.5912311307833158 3.434012408867871),POINT(0.6191428705587008 2.142601182370785),POINT(0.6231653577819406 0.9117872439343158),POINT(0.6237828169691946 0.7228550405709191),POINT(0.7298834721962262 3.7849802218028437),POINT(0.9225495059559787 1.7175497403299207),POINT(1.0043920788723937 4.479838197767776),POINT(1.011679851207373 1.9574351515393573),POINT(1.0118303293156554 1.9053525093718235),POINT(1.0146591820584798 0.9262458018827147),POINT(1.1812448804366062 4.9275020478253575),POINT(1.3644094598868468 2.90677162033946),POINT(1.3882103518465296 2.97082934095975),POINT(1.3990488221743331 3),POINT(1.43457260366905 7.088390762359726),POINT(1.604942857142857 6),POINT(1.7007312147193645 1.283240303215405),POINT(1.871304347826087 1.3860869565217393),POINT(1.8756165050639775 6.685150623941507),POINT(1.9943714821763603 4.602251407129456),POINT(2.0600461893764432 1.2720554272517324),POINT(2.0949344815723228 1.4883622029203474),POINT(2.5137103366277773 6),POINT(2.5419298092694866 6.075949888667898),POINT(3.160359289329147 -775.4271995955245),POINT(3.2336465227304965 -767.0972558089059),POINT(3.266733333333333 6),POINT(4 1.7237686978764892),POINT(4 2.9435044207790746),POINT(4 3.8),POINT(4 4.077477333333333),POINT(4 4.742857142857143),POINT(5.0642816882081485 -559.0243444093659),POINT(5.094956799689188 4.913948159627026),POINT(5.265670276474132 4.812536221179306),POINT(6.476721471593684 4.093114113625265),POINT(7.087453458422117 -329.0674155638844),POINT(8.565495871140024 2.8522826056077957),POINT(9.098259943108358 -100.51594478484922),MULTILINESTRING((-0.7653999999999996 8.881784197001252e-16,-0.7654 0,5 3),(0.7984790874524714 4.806083650190114,0.21122968964554634 4.240994607017228),(0.20779986151819552 6.000000000000227,0.5 6),(1.959700171718825 6,2.05 6),(3.006735214826623 6.000000000000227,3.2727272727272725 6,5.3446750972261565 6,5.640054397824088 5.999999999999999),(7.857257142857143 6,8.571440815976686 6,8.6 6,8.99967072990898 5.997793890390168),(8.6 6,189.7654 5,8.987909888345353 3.0846331996048573),(8.56420058670109 3.0801439308973055,7.985622025683106 3.074013797292121,7.552065143908058 3.0694201918774104),(6.597299068253058 3.0593042905983094,6.06556854930577 3.0536705195899856),(5.348691697728959 3.046075093186876,5.153811622682031 3.0440103072139504),(5.009435631356617 3.042480620191588,4.349104133767298 3.035484300976422,3.6355363469936135 3.0279239346510916),(2.0385111797954947 3.011003194227284,1.2493395517616932 3.0026417929531757,1 3),(1 3,1.25 3),(2.5384615384615383 3,3.0269408593064977 3,3.616216 3,4.333333333333334 3),(5.181818181818182 3,5.333333333333333 3),(5.714314285714286 3,6 3,5.806473464858518 3.1290176900943214),(5.454545454545455 3.3636363636363633,5.00644765021112 3.662368233192586,4.8 3.8,4.714285714285714 3.857142857142857,4.578947368421053 3.9473684210526314),(4.333333333333333 4.111111111111111,3.0135311866190753 4.990979208920617),(3.013554649957279 4.987495528175677,4.0616928480122985 4.020564282670766),(4.220788028120986 3.873795372863086,4.418832382925834 3.6910949665502386),(5.2015078273876965 2.9690591283907626,5.294441808196902 2.8833254245907063),(5.497296552036384 2.696187325357923,6 2.232432,5.594194449425349 2.3519801509030223),(6 2.232432,5.311014836272068 2.4354033546467093),(5.159967073339523 2.479901220018568,5.011937172407167 2.523510039340435,4.2246414098172025 2.7554431720887047,3.578674942152815 2.945741448308139),(2.7079171620240383 3.2022620462925824,2.575576742767682 3.241248827989936),(2.1233856960245974 3.374461898674866,1.0795040326672316 3.6819838693310745,0.9649694452659672 3.715725147928354,0.9383071519877015 3.7235797173292338,0.7972370128659554 3.765138227940425),(-0.3237169258807242 2.7557858007322658,0.17057191599583205 2.56036037479875,0.19922180034015025 2.5490331600680296),(0.21454060039978806 2.542976614233339,0.37734024032055036 2.4786110322537906),(6.242571337505677 -474.43547325137604,6.826605423768893 -373.9481997708082),(8.982721744049384 -2.972848454934746,9 0),(9 0,189.7654 1,8.962933842995369 2.891581490761455),(8.536722473971128 2.8960405756065573,8.408441507515107 2.897382669588586,7.430708887013444 2.907611849351259),(6.596696373737318 2.916337408613302,6.097893693429729 2.9215559542319927),(5.309933236744222 2.929799710232665,5.225931834987745 2.9306785450192585),(5.009963648324956 2.932938035352371,4.3067976265507335 2.94029465973915,3.580166200685639 2.9478967825695905),(2.1101717707519874 2.963276076416004,1.2569493468662902 2.972202612534839,1 2.9748908536795886,0.6149864872883697 2.978918920607094,0.47067814990151646 2.9804286952565526,0.3895121129291965 2.98127786604763),(-1.4 3,-1.306803388505795 6.9558869146271896),(-1.2504328133612521 9.348630781695498,0.31147540983606553 9.91822950819672,0.3751862474892954 9.463133893291465),(0.5800167993280267 8,0.85246534186352 6.05386113944861,1.3638480456882514 4.8544607817247,1.4831932773109244 4.80672268907563),(2.7391304347826084 4.304347826086957,3.018909545454913 4.192436181818039,3.727272727272727 3.909090909090909),(4.132938081864926 3.74682476725403,4.333333333333334 3.666666666666667),(4.902439024390244 3.4390243902439024,5.007727215776458 3.396909113689417),(5.7778019750935545 3.0888792099625784,6 3,5.64 2.2800000000000002),(5.019096693039545 1.0381933860790902,5 1),(5 1,5.019280792729704 1),(5.1355938277179325 1,6 1),(6.454545454545455 1,6.568050583356943 1,6.588617817148249 1),(8.316239316239315 1,9 1),(4.46857804565248 -501.90067007298705,0.4460055443973996 -116.16503721642778),(-0.6865879576035461 -7.5575053130871765,-0.7261514394429778 -3.7636533189761394),(-0.7653999999999996 8.881784197001252e-16,-0.7055293317678581 0.031153433360465096),(-0.48481473565998395 0.14600128230826104,0.21850079816725643 0.5119683620393971,1 0.9186179623269854),(2.324260118172246 1.6076907681195998,2.837760148563958 1.8748882030200635,3.0338315694558604 1.9769130864062845,3.8285992929416066 2.390466902352798),(4.454545454545455 3.2727272727272725,3.9718874308478944 3.5140562845760526),(3.909090909090909 3.5454545454545454,3.4 3.8,3.020273919080065 3.9898630404600226),(2.412406123379353 2.1806398019657944,2.9435510802156513 2.0277891350321307,3.033663567232251 2.0018569416406535,3.7926407441832835 1.7834416744123878),(5.789913532037456 1.2086748923076345,6.091429433528652 1.1219059113715355,6.248741316520661 1.0766353577826588),(6.440982669530936 1.0213129478799579,6.572065590386247 0.9835904549550702,6.588528668432964 0.9788527794357362),(8.15490202638159 0.5280884271661532,8.18212740620899 0.5202536216002167),(8.177611896515856 0.4899997066562385,8.144306401587228 0.49709622464264097),(6.587895790751739 0.8287260628326987,6.559717156435642 0.8347301827439912),(5.018494503349007 1.1631238697952528,5 1.167064558139535,3.6468388143533286 1.4553873322949888,3.0364682172170445 1.5854411246266409),(1.5230208408561545 1.907916636575382,1 2.019358511627907,0.2364719009066274 2.1820461071718453,0.21523554423848168 2.1865710117674553),(0 2.232432,0.20583742977736258 2.117552483741816),(0.2153805063776022 2.112226416346857,1 1.6743240000000001),(2.2172202431565786 0.9949836445323683,2.228987144996931 0.988416442480053,3.04355123461118 0.5338017075534935,3.1987487660730998 0.44718472366447437),(3.272727272727273 0.4058967272727272,4 0,3.420244763820535 0.45294283694077225),(3.2577357848670885 0.5799055159509479,3.042106073781193 0.7483695969508517),(1.5145510415099104 1.9417958339603585,1 2.3437968749999993,0.49916424953825045 2.7350826306068425,0.376565054257604 2.8308651675322727,0.33014067808162784 2.8671349368006327),(1 0,1.32 0.384),(1 0,1.6820976351523418 0.8185171621828095),(1 0,1.7692307692307692 0.9230769230769231),(2.3207547169811322 1.5849056603773586,3.030733591393955 2.436880309672688,3.1739130434782608 2.608695652173913),(3.96875 3.5625,4.184712625258057 3.821655150309668,4.453608247422681 4.144329896907217,4.461538461538462 4.153846153846154,4.704060652458992 4.44487278295079),(5.493413900889959 5.392096681067951,5.863239160499081 5.835886992598898),(6.08107280245768 5.675708790169281,6.181818181818182 5.272727272727273),(6.48149684453794 4.074012621848242,6.570247933884298 3.7190082644628095,6.585246218925046 3.6590151242998155,6.5995854283831905 3.6016582864672375),(6.9375 2.25,7 2,6.851694915254237 2.1355932203389827),(6.594396750598089 2.3708372565960323,6.128394845228898 2.796896141505008),(5.467153284671533 3.4014598540145986,5.005671512443617 3.8233860457658357,4.976190476190477 3.850340136054422,4.787810383747178 4.022573363431151,4.595419847328245 4.198473282442748,4.503547393598493 4.282470954424235),(2.4636027452583242 6.147563204335246,2.2241035856573705 6.366533864541832,2.1741221724427535 6.412231156623768),(0.3943669747925682 8.039435908761082,0.20348293501690584 8.213958459413107),(-0.1752389675387337 5.161128725872514,0.14881901177715107 6.347806546715802),(0.20670833865183091 6.559793242463002,0.2867630190410645 6.8529479238357425),(0.6 8,0.6060238218140649 6.156811087286171,0.6079474591914528 5.568210163234189,0.614985277874548 3.4147551363801174,0.6156517714518788 3.210819228239097),(0.6246098681047852 0.4697911999691291,0.6419435163447376 -4.834015791493288),(3.281209938024379 -783.5596393894779,1.0290092830088593 -4.040530969832162,1.0156054490564213 0.5987291550334248),(1.0086593145109592 3.0028864381703197,1.0063480798617226 3.80283806286684,1.00626504485418 3.831577675788367,1.005845997485208 3.9766160100591605),(0.9967859042368499 5.9935718084737,0.6666666666666667 5.333333333333333,0.21087723180606543 4.4217544636123876),(0.20706121970032676 6.378816340898766,0.2284922020474155 6.314523393857754,0.9685212893551598 4.09443613193452,1 4),(2.0460878080557694 0.938549589258974,2.1914893617021276 0.7446808510638299,2.6052344828254053 0.19302068956612642,2.9014778325123154 -0.2019704433497537),(3.049839145194796 -0.39978552692628,5 -3),(6.3385518590998045 -4.784735812133072,6.562970132999667 -5.08396017733289),(8 -7,7.233062330623306 -2.16829268292683),(7.010274295409558 -0.7647280610802148,7 -0.7,6.9839616248860015 -0.6998503167840819),(6.581467724157925 -0.6960939149653118,5.027386389591995 -0.6815899586541239,5 -0.6813343664985977,3.0516129643768455 -0.6631504273357223),(2.678211929802206 -0.6596655439054776,0.22074060902229764 -0.6367304143985352),(5 0,5.024008414362973 0.019205963251847685),(6.38556086465178 1.1084043555472025,6.4066720887377855 1.1252926592838577,6.515996313447897 1.212748540816685,6.589763454480116 1.2717598931883658),(8.974375935866124 3.17937357374995,8.93904156611594 5.591578492976794,8.545456199729294 6.181897510654993),(6.571428571428571 5.857142857142858,6.218405777667094 5.574724622133675,5.5747237598811035 5.059779007904883),(5.084942084942085 4.667953667953668,5.068965517241379 4.655172413793103,5.001920672853931 4.601536538283145,4.771089625728822 4.416871700583058,4.445783132530121 4.156626506024097),(3 3,2.550910316925152 3.080917060013487),(2.386740331491712 3.110497237569061,1.7017543859649127 3.233918128654971,1.1674528301886793 3.330188679245283,0.8122406639004152 3.394190871369294,0.7393077198119982 3.4073319423762167,0.6221081321605393 3.428448985196299)))
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(
 ST_ASWKB(
@@ -2125,19 +2014,18 @@ ST_GEOMFROMWKB(
 ST_ASWKB(
 ST_GEOMFROMTEXT('LINESTRING(0 -5, 5 10.0002)')))));
 ERROR HY000: Inconsistent intersection points.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTIPOINT(1 1, 5 -3, 10.0002 1, -1032.34324 5, 9 1.1, 4.5 4, 5 0, -5.1 3),'
                         'MULTIPOINT(-1032.34324 5, 8 -1032.34324, -0.7654 3, -1032.34324 4, 1 1, 8 2),'
                         'POLYGON((7 2, 6.9 +.6, -0.7654 -.5, 2.4 7, 7 3, 7 2)))'),
-ST_GEOMFROMWKB(POLYGON(LINESTRING(POINT(7,9), POINT(7,3), POINT(7,6), POINT(0,6), POINT(7,9))))));
+ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(7,9), POINT(7,3), POINT(7,6), POINT(0,6), POINT(7,9)))))));
 ST_ASTEXT(ST_UNION(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTIPOINT(1 1, 5 -3, 10.0002 1, -1032.34324 5, 9 1.1, 4.5 4, 5 0, -5.1 3),'
                         'MULTIPOINT(-1032.34324 5, 8 -1032.34324, -0.7654 3, -1032.34324 4, 1 1
-GEOMETRYCOLLECTION(MULTIPOLYGON(((1.9779459488216204 6,-0.7654 -0.5,6.9 0.6,7 2,7 3,3.55 6,7 6,7 9,0 6,1.9779459488216204 6))),POINT(-1032.34324 4),POINT(-1032.34324 5),POINT(-5.1 3),POINT(-0.7654 3),POINT(5 -3),POINT(5 0),POINT(8 -1032.34324),POINT(8 2),POINT(9 1.1),POINT(10.0002 1))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+GEOMETRYCOLLECTION(MULTIPOLYGON(((1.9779459488216204 6,-0.7654 -0.5,6.9 0.6,7 2,7 3,7 9,0 6,1.9779459488216204 6),(7 3,3.55 6,7 6,7 3))),POINT(-1032.34324 4),POINT(-1032.34324 5),POINT(-5.1 3),POINT(-0.7654 3),POINT(5 -3),POINT(5 0),POINT(8 -1032.34324),POINT(8 2),POINT(9 1.1),POINT(10.0002 1))
 SELECT
 ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -2163,17 +2051,16 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((-.4 2, 2.232432 3, 6 9, 8 189.7654, -1032.34324 5.4, 2.232432 9),'
                                     '(-1032.34324 3, 8 -1.6),'
                                     '(0 -.2, 8 1, -.5 7, 6 +.2))'),
-ST_GEOMFROMWKB(MULTILINESTRING(
+ST_GEOMFROMWKB(ST_ASWKB(MULTILINESTRING(
 LINESTRING(POINT(-8,1), POINT(4.8,6), POINT(2,+.5)),
 LINESTRING(POINT(10.0002,2), POINT(9,-1032.34324), POINT(.3,8), POINT(0,5), POINT(8,1), POINT(4,.4), POINT(2,8)),
-LINESTRING(POINT(6,7), POINT(+.1,7), POINT(0,-.5))))));
+LINESTRING(POINT(6,7), POINT(+.1,7), POINT(0,-.5)))))));
 ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((-.4 2, 2.232432 3, 6 9, 8 189.7654, -1032.34324 5.4, 2.232432 9),'
                                     '(-1032.34324 3, 8 -1.6),'
                                     '(0 -.2, 8 1, -.5 7, 6 +.2)
 MULTILINESTRING((-0.4 2,2.232432 3,6 9,8 189.7654,-1032.34324 5.4,2.232432 9),(-1032.34324 3,8 -1.6),(0 -0.2,4 0.4),(8 1,-0.5 7,6 0.2),(-8 1,4.8 6,2 0.5),(10.0002 2,9 -1032.34324,0.3 8,0 5,8 1),(4 0.4,2 8),(6 7,0.1 7,0 -0.5))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(
 ST_ASWKB(
@@ -2214,7 +2101,7 @@ ST_GEOMFROMTEXT(
                     'POINT(5 -3),'
                     'POINT(189.7654 7),'
                     'LINESTRING(0 -5, 5 10.0002))')))));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_UNION(
 ST_GEOMFROMTEXT('MULTIPOLYGON(((10 0,-10 -3,-10 6,-10 7,4 6,6 1,-9 -8,10 0)))'),
@@ -2257,13 +2144,14 @@ ST_GEOMFROMTEXT('LINESTRING(3 8,-10 -5,3 5,-2 -9,6 2,-1 6,4 5,-3 3,-1 8,-2 -7,6 
 ST_GEOMFROMTEXT('MULTIPOLYGON(((-5 3,-10 -4,-6 9,7 1,8 -7,-4 -8,-10 3,-5 3)),'
                                
 GEOMETRYCOLLECTION(MULTIPOLYGON(((-5 3,-10 3,-4 -8,8 -7,7 1,-6 9,-10 -4,-5 3)),((8 -3,7 -9,-8 10,6 2,3 -5,-1 -3,6 -10,-7 -7,9 10,-9 9,-5 -6,8 -3)),((6 10,8 -3,4 7,-1 -5,9 -3,-6 10,8 -5,-2 7,6 -4,-7 -1,6 -8,-1 0,6 10))),POINT(-9 1),POINT(8 -6),POINT(9 8),POINT(10 5),MULTILINESTRING((0.2727272727272725 5.272727272727273,0.1904761904761907 5.190476190476191),(-0.3157894736842106 4.684210526315789,-0.6896551724137931 4.310344827586206,-2.264705882352941 2.735294117647059),(-6.2631578947368425 -1.2631578947368425,-6.35 -1.3499999999999996,-7.1764705882352935 -2.1764705882352944,-10 -5,-6.926108374384237 -2.6354679802955667),(-10 -5,-6.072340425531915 -1.9787234042553195),(-10 -5,-5.705882352941176 -1.6968325791855206),(-5.3076923076923075 -1.3905325443786982,-1.3879093198992436 1.6246851385390428,0.47761194029850706 3.0597014925373127),(0.96875 3.4375,1.2884012539184955 3.6833855799373048,1.8888888888888893 4.145299145299146,1.916666666666667 4.166666666666667,2.040983606557377 4.262295081967213),(2.6186440677966103 3.9322033898305087,2.5495495495495497 3.7387387387387387),(2.20863309352518 2.7841726618705036,2 2.2),(1.8323353293413174 1.7305389221556888,1.8007380073800738 1.6420664206642068,0.80327868852459 -1.1508196721311474),(-0.1578947368421053 -3.8421052631578947,-0.41013824884792616 -4.548387096774194,-0.5384615384615383 -4.907692307692308,-0.5628742514970053 -4.976047904191617,-1.5705521472392636 -7.7975460122699385,-1.720812182741117 -8.218274111675127),(-1.4730538922155691 -8.275449101796408,-1.096774193548388 -7.758064516129032),(1.4666666666666668 -4.233333333333333,2.028368794326241 -3.4609929078014185,2.2634730538922163 -3.1377245508982035,2.315457413249211 -3.066246056782334,3.8181818181818183 -1),(4.213592233009709 -0.4563106796116507,4.929368029739777 0.5278810408921935,5.806763285024155 1.7342995169082123,6 2),(6 2,3.0546448087431695 3.6830601092896176),(2.701923076923077 3.8846153846153846,2 4.285714285714286),(2.6842105263157894 5.2631578947368425,3.230769230769231 5.153846153846154),(3.054054054054054 4.72972972972973,2.125 4.464285714285714),(1.8333333333333335 4.380952380952381,1.6097560975609757 4.317073170731708),(0.23655913978494603 3.924731182795699,-0.21052631578947345 3.7969924812030076,-2.5705521472392636 3.1226993865030677),(-2.8230088495575223 3.442477876106195,-1.94 5.65),(-1.693069306930693 6.267326732673267,-1.6666666666666667 6.333333333333334,-1.6511627906976745 6.372093023255815),(-1.5945945945945945 6.513513513513514,-1.1284403669724772 6.073394495412844,-1.1330049261083743 6.004926108374384),(-1.1450381679389317 5.824427480916031,-1.1470588235294117 5.794117647058823),(-1.208888888888889 4.866666666666667,-1.4221311475409837 1.668032786885246),(-1.6188340807174888 -1.2825112107623315,-1.6818181818181817 -2.2272727272727275),(-1.7871287128712874 -3.806930693069307,-1.885416666666666 -5.28125,-2 -7,-1.1065989847715745 -5.101522842639594),(-2 -7,-0.7581227436823106 -4.3610108303249095),(-2 -7,-0.5454545454545454 -3.909090909090909),(-2 -7,-0.40000000000000036 -3.5999999999999996),(-0.2857142857142857 -3.357142857142857,0.05714285714285694 -2.6285714285714286,0.4918032786885247 -1.7049180327868851,0.7714987714987713 -1.1105651105651102,1.977653631284916 1.4525139664804474),(2.2105263157894735 1.9473684210526319,2.5236768802228413 2.6128133704735372,2.940350877192982 3.4982456140350875,3 3.625),(4.27027027027027 6.324324324324325,5.919463087248323 9.828859060402685,6 10,5.899521531100478 9.82775119617225),(6 10,4.101694915254237 6.745762711864407),(3.375 5.5,2.5 4,2.400943396226415 3.830188679245283),(1.4682080924855487 2.2312138728323703,1.384615384615385 2.0879120879120876,1.1095890410958908 1.6164383561643838,0.051118210862619584 -0.1980830670926519),(-1 -2,-1 -0.625),(-1 1.1333333333333333,-1 4.642857142857143),(-1 5.666666666666667,-1 5.8,-1 5.923076923076923,-1 6),(-1 9.444444444444445,-1 10),(5 -6,4.569832402234637 -5.921787709497207),(5 -6,4.108108108108108 -5.837837837837838),(1.333333333333333 -5.333333333333333,0.9019607843137258 -5.254901960784314,-0.593220338983051 -4.983050847457627),(-0.9647887323943662 -4.915492957746479,-4.442922374429223 -4.28310502283105),(-5.509554140127388 -4.0891719745222925,-6 -4,-5.5625 -3.890625),(-3.6153846153846154 -3.4038461538461537,-2.8780487804878048 -3.2195121951219514),(-0.2400000000000002 -2.56,0.04651162790697683 -2.488372093023256),(0.9743589743589745 -2.2564102564102564,1.5604395604395602 -2.10989010989011,2 -2,2.2439024390243905 -2.975609756097561),(2 -2,2.2857142857142856 -3.142857142857143),(2 -2,2.5 -4),(2.5636363636363635 -4.254545454545454,2.571428571428571 -4.285714285714286,2.7142857142857144 -4.857142857142858),(3.111111111111111 -6.444444444444445,3.333333333333333 -7.333333333333333,3.3469387755102042 -7.387755102040816,3.8775510204081636 -9.510204081632654),(4.18 -9.58,4.6 -8.6),(5.232876712328767 -7.123287671232877,5.333333333333333 -6.888888888888889,6.727272727272727 -3.6363636363636367),(6.773584905660377 -3.5283018867924527,6.8125 -3.4375),(7.387096774193548 -2.096774193548387,7.517241379310345 -1.7931034482758612,7.541666666666666 -1.7361111111111107,7.735849056603773 -1.2830188679245282),(6.923076923076923 4,5.2 4),(2.75 4,2.5 4,2.125 4),(0.18181818181818166 4,-0.40000000000000036 4,-3.2631578947368425 4),(-3.039840637450199 3.7171314741035855,0.07142857142857117 3.4948979591836737),(0.9746835443037973 3.430379746835443,1.3809523809523814 3.4013605442176873,1.634730538922156 3.3832335329341316,2.468208092485549 3.3236994219653173),(2.7007874015748037 3.3070866141732282,3.3232323232323235 3.2626262626262625,3.8571428571428577 3.2244897959183674),(5.5588235294117645 3.1029411764705883,7 3,6.125 1.6875),(7 3,6.054545454545455 1.5818181818181818),(5.4 0.5999999999999996,5.197183098591549 0.295774647887324),(4.305555555555555 -1.041666666666667,4.086956521739131 -1.3695652173913047,2.822222222222222 -3.2666666666666666),(2.090909090909091 -4.363636363636363,2.0769230769230766 -4.384615384615385,2 -4.5),(1.4000000000000004 -5.4,1.3396226415094343 -5.490566037735849,1 -6,1 -5.3076923076923075),(1 -6,1 -5),(1 -6,1 -4.615384615384615),(1 -6,1 -4.6),(1 -4,1 -2.8461538461538463,1 -2.2857142857142856,1.4736842105263157 -2,4.285714285714286 -2),(4.5 -1.5,3.3333333333333335 -0.3333333333333335,1.6470588235294117 1.3529411764705879,1.2424242424242422 1.7575757575757578),(-5 8,-5.287234042553192 6.5638297872340425),(-5 8,-6 3),(-6.388888888888889 1.0555555555555556,-6.6 0,-6.8088235294117645 -1.0441176470588243),(-6.819444444444445 -1.0972222222222214,-7 -2,-6.393782383419689 -1.3264248704663213),(-7 -2,-6.28 -1.2),(-6.254777070063694 -1.1719745222929936,-2.4859813084112146 3.0155763239875393,-1.0109090909090908 4.654545454545454),(-0.509615384615385 5.211538461538462,-0.49438202247191043 5.228464419475656,-0.2722772277227721 5.475247524752476,-0.2075471698113205 5.547169811320755),(2.2988505747126435 4.712643678160919,2.356164383561644 4.082191780821917,2.3777777777777778 3.844444444444444),(2.4507772020725387 3.0414507772020727,2.486842105263158 2.644736842105263),(2.661870503597122 0.7194244604316546,2.675324675324675 0.5714285714285712,3 -3,2.317073170731707 -3.0682926829268293),(3 -3,2.0697674418604652 -3.0930232558139537),(3 -3,1.735632183908046 -3.1264367816091956),(-0.30434782608695654 -3.3304347826086955,-0.33333333333333337 -3.3333333333333335),(-0.6363636363636367 -3.3636363636363633,-2.3012048192771086 -3.5301204819277108,-3.883116883116883 -3.688311688311688),(-5.571428571428571 -3.857142857142857,-6.224137931034482 -3.9224137931034484,-7 -4)))
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((-3 9,3 -4,7 9,4 5,2 -6,-2 -1,-6 2))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((-3 -8,0 -8,4 -8,0 -3,3 6,6 9,2 1,9 6,1 6,-8 -2,2 5,-1 5,-6 9,-3 -8)))')));
 ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTILINESTRING((-3 9,3 -4,7 9,4 5,2 -6,-2 -1,-6 2))'),
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((-3 -8,0 -8,4 -8,0 -3,3 6,6 9,2 1,9 6,1 6,-8 -2,2 5,-1 5,-6 9,-3 -8)))')))
-GEOMETRYCOLLECTION(POLYGON((-3 -8,0 -8,4 -8,0 -3,3 6,6 9,2 1,9 6,1 6,-8 -2,2 5,-1 5,-6 9,-3 -8)),MULTILINESTRING((-3 9,-1.2439024390243905 5.195121951219512),(-3 9,-1.2439024390243902 5.195121951219512),(1.0645161290322578 0.19354838709677447,1.064516129032258 0.19354838709677402,3 -4,5.253521126760564 3.323943661971831),(6.076923076923077 6,7 9,4.75 6),(3.4626865671641793 2.044776119402985,2.074074074074074 -5.592592592592593),(-4.6440677966101696 0.983050847457627,-6 2)))
+GEOMETRYCOLLECTION(POLYGON((-3 -8,0 -8,4 -8,0 -3,3 6,6 9,2 1,9 6,1 6,-8 -2,2 5,-1 5,-6 9,-3 -8)),MULTILINESTRING((-3 9,-1.2439024390243905 5.195121951219512),(-3 9,-1.2439024390243902 5.195121951219512),(-0.38372093023255793 3.3313953488372094,1.064516129032258 0.19354838709677402,3 -4,5.253521126760564 3.323943661971831),(6.076923076923077 6,7 9,4.75 6),(3.4626865671641793 2.044776119402985,2.074074074074074 -5.592592592592593),(-4.576271186440678 0.9322033898305084,-4.6440677966101696 0.9830508474576272,-6 2)))
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT('MULTIPOINT(10 -8,-2 6,-6 3,-3 7,7 -3,-8 -9,-3 9,-1 -7)'),
@@ -2284,21 +2172,19 @@ GEOMETRYCOLLECTION(POINT(-8 -9),POINT(-6 3),POINT(-3 7),POINT(-3 9),POINT(-2 6),
 # BUG#20462962 : ASSERTION `GEOMETRY::IS_VALID_GEOTYPE(GT)' FAILED
 ######################################################################################################
 SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(GEOMETRYCOLLECTION(
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
 MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6), POINT(.9,+.4), POINT(6,2.232432)),
 POLYGON(
 LINESTRING(POINT(8,6), POINT(-.4,3), POINT(-9.8,2.232432), POINT(-1032.34324,8), POINT(2.232432,.8), POINT(8,6))),
 POLYGON(
-LINESTRING(POINT(0,9), POINT(3,1), POINT(3,0), POINT(3,2), POINT(0,9))))),
+LINESTRING(POINT(0,9), POINT(3,1), POINT(3,0), POINT(3,2), POINT(0,9)))))),
 ST_GEOMFROMTEXT('MULTILINESTRING((-0.7654 2.232432, 7 2, -6 -1032.34324, 9 7, 2.8 4))')));
 ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMWKB(GEOMETRYCOLLECTION(
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
-MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6), POINT(
+MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6
 GEOMETRYCOLLECTION(MULTILINESTRING((-0.7654 2.232432,3.6737899158554317 2.099559283781633),(3.927301157948162 4.545468302232982,2.8 4)),POINT(3.927301157948163 4.545468302232982))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 ######################################################################################################
 # BUG#20408240 : ST_DIFFERENCE : ASSERTION `T1->RESULT_RANGE' FAILED
 ######################################################################################################
@@ -2444,38 +2330,34 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
 # BUG#20135389 : ST_MAKEENVELOPE() RETURNS SAME SET OF SRID VALUES IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Incorrect arguments to st_makeenvelope
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
 ######################################################################################################
 # BUG#20406722 : ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR SR001: There's no spatial reference system with SRID 1000.
 ######################################################################################################
 # BUG#20406850 : WL#8034 : CRASH WITH ST_ISVAID() IN ITEM_FUNC_ISVALID::VAL_INT FUNCTION
 ######################################################################################################
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 ######################################################################################################
 # BUG#20414966 : WL#8034 : CRASH WITH ST_VAIDATE() IN ITEM_FUNC_VALIDATE::VAL_STR
 ######################################################################################################
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 ######################################################################################################
 # BUG#20430521 : WL#8034 : CRASH WITH ST_SIMPLIFY() IN ITEM_FUNC_SIMPLIFY::VAL_STR
 ######################################################################################################
@@ -2555,12 +2437,12 @@ SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1)) > 0;
 ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1)) > 0
 1
 SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(1 1,1 1,1 1,1 1)'), 1)) > 0;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(1 1,1 1)'), 1))
 POLYGON((2 1,1.9808 1.1951,1.9239 1.3827,1.8315 1.5556,1.7071 1.7071,1.5556 1.8315,1.3827 1.9239,1.1951 1.9808,1 2,0.8049 1.9808,0.6173 1.9239,0.4444 1.8315,0.2929 1.7071,0.1685 1.5556,0.0761 1.3827,0.0192 1.1951,0 1,0.0192 0.8049,0.0761 0.6173,0.1685 0.4444,0.2929 0.2929,0.4444 0.1685,0.6173 0.0761,0.8049 0.0192,1 0,1.1951 0.0192,1.3827 0.0761,1.5556 0.1685,1.7071 0.2929,1.8315 0.4444,1.9239 0.6173,1.9808 0.8049,2 1))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON(1 1,1 1,1 1,1 1)'), 1));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 # Scenario 3
 SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0, 0 8, 8 8, 8 10, -10 10, -10 0, 0 0))'), 1)) > 0;
 ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0, 0 8, 8 8, 8 10, -10 10, -10 0, 0 0))'), 1)) > 0
@@ -2613,13 +2495,13 @@ POLYGON((-549 6536,-849 6527,-1156 6456,-1274 6445,-1304 6439,-1348 6425,-1518 6
 ######################################################################################################
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 ######################################################################################################
 # BUG#20517621 : ASSERTION `GEOMETRY::IS_VALID_GEOTYPE(GT)' FAILED
 ######################################################################################################
@@ -2637,19 +2519,19 @@ ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10)'), 20, ST_B
 POLYGON((-10 0,-14.1421 -4.1421,-4.1421 -14.1421,-1.1114 -16.6294,2.3463 -18.4776,6.0982 -19.6157,10 -20,13.9018 -19.6157,17.6537 -18.4776,21.1114 -16.6294,24.1421 -14.1421,26.6294 -11.1114,28.4776 -7.6537,29.6157 -3.9018,30 0,30 10,29.6157 13.9018,28.4776 17.6537,26.6294 21.1114,24.1421 24.1421,21.1114 26.6294,17.6537 28.4776,13.9018 29.6157,10 30,6.0982 29.6157,2.3463 28.4776,-1.1114 26.6294,-4.1421 24.1421,-14.1421 14.1421,-10 10,-10 0))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')))
-POLYGON((5 15,-25.3553 45.3553,-35.3553 35.3553,-5 5,-35.3553 -25.3553,-25.3553 -35.3553,5 -5,35.3553 -35.3553,45.3553 -25.3553,15 5,45.3553 35.3553,35.3553 45.3553,5 15))
+POLYGON((5.000000748969793 14.999999251030207,-25.35533905932737 45.35533905932737,-35.35533905932737 35.35533905932737,-4.999999251030204 4.999999251030204,-35.35533905932737 -25.35533905932737,-25.35533905932737 -35.35533905932737,4.999999251030207 -4.999999251030207,35.35533905932737 -35.35533905932737,45.35533905932737 -25.35533905932737,14.999999251030204 5.000000748969796,45.35533905932737 35.35533905932737,35.35533905932737 45.35533905932737,5.000000748969793 14.999999251030207))
 ######################################################################################################
 # BUG#20558350 : ST_BUFFER RETURNS INCORRECT RESULT WITH NEGATIVE DISTANCE AND POLYGON WITH HOLE
 ######################################################################################################
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -5));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -5))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -10));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -10))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0))'), -10));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,0 0))'), -10))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 ######################################################################################################
 # BUG#20594425 : WL#7929 : HANG/INFINITE LOOP WITH ST_BUFFER() FUNCTION
 ######################################################################################################
@@ -2674,7 +2556,7 @@ MULTIPOLYGON(((6 13,4.5 13.866,4.5 12.134,6 13)),((10 -10,8.5 -9.134,8.5 -10.866
 SELECT ST_DISJOINT(
 ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
 ST_GEOMFROMTEXT('MULTILINESTRING((20 100, 31 -97, -46 57, -20 -4),(-71,-4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISJOINT(
 ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
 ST_GEOMFROMTEXT('LINESTRING(20 100, 31 -97, -46 57, -20 -4)'));
@@ -6493,6 +6375,8 @@ Note	1051	Unknown table 'test.t'
 CREATE TABLE `t` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t values (st_geomfromtext(@geom1));
 DROP TABLE IF EXISTS `t1`;
 Warnings:
@@ -6500,6 +6384,8 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE `t1` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (st_geomfromtext(@geom2));
 select t1.geo from t,t1 where st_intersects(t1.geo, st_buffer(t.geo,50));
 geo
@@ -6662,7 +6548,7 @@ ERROR 22023: Invalid GIS data provided to function polygon.
 ######################################################################################################
 CREATE TABLE t(a INTEGER);
 SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 DROP TABLE t;
 ######################################################################################################
 # BUG#21397107: ASSERTION FAILED: K < STATIC_CAST<SIZE_T>(GET_DIMENSION())
@@ -6697,40 +6583,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((1 8,-17 -13,19
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((1 8,-17 -13,19
 -9,1 8))'), ST_GEOMFROMTEXT('POLYGON((8 6,5 7,-1 4,-8 -7,0 -17,8 6),(3 6,5
 5,0 -2,3 6))')))
-GEOMETRYCOLLECTION(MULTIPOLYGON(((3 6,3.25 5.875,3.076923076923077 6.038461538461538,3 6)),((6.792727272727273 2.5290909090909093,4.668246445497631 4.535545023696683,0 -2,3 6,-1 4,-8 -7,-4.326530612244898 -11.591836734693878,2.1306532663316586 -10.874371859296481,6.792727272727273 2.5290909090909093))),POINT(6.792727272727273 2.5290909090909075))
-#####################################################################################################
-# BUG#21893562 ASSERTION FAILED: IT->BOTH(OPERATION_UNION) || IT->BOTH(OPERATION_INTERSECTION)
-#####################################################################################################
-do st_symdifference(
-st_makeenvelope(point(1,2398046010000),point(30000,1)),
-st_convexhull(
-st_makeenvelope(point(120115188075850000,12000),point(8000,10000))
-)
-);
-ERROR HY000: Inconsistent intersection points.
-do st_symdifference(
-st_envelope(
-multipoint(
-point(-28011,4652.2100),
-point(2667,-32449)
-)
-),
-st_makeenvelope(
-point(-8560,2305843009213693948),
-point(-2087,68)
-)
-);
-ERROR HY000: Inconsistent intersection points.
-do st_symdifference(
-st_makeenvelope(point(2,28951),point(17237,5514.6191)),
-st_makeenvelope(point(11192,-20054) , point(8128,144115188075855874))
-);
-ERROR HY000: Inconsistent intersection points.
-do st_symdifference(
-st_makeenvelope(point(16781,8388611),point(-15032,-2251799813685244)),
-st_makeenvelope(point(-21087,31851),point(18514,20243))
-);
-ERROR HY000: Inconsistent intersection points.
+GEOMETRYCOLLECTION(MULTIPOLYGON(((6.792727272727273 2.5290909090909093,4.668246445497631 4.535545023696683,0 -2,3 6,-1 4,-8 -7,-4.326530612244898 -11.591836734693878,2.1306532663316586 -10.874371859296481,6.792727272727273 2.5290909090909093)),((3.0769230769230766 6.038461538461538,3 6,3.25 5.875,3.0769230769230766 6.038461538461538))),POINT(6.792727272727273 2.5290909090909075))
 #####################################################################################################
 # BUG#21890717 ASSERTION FAILED: GEOMETRY::LESS<SEGMENTPOINT>()(P0, P1)
 #####################################################################################################
@@ -6741,7 +6594,7 @@ multipoint( point(1,1),point(1,1),point(1,1),point(1,1), point(1,1),point(1,1),p
 st_intersection(
 multilinestring( linestring(point(2,4),point(10,1)) ),
 linestring(point(1,1),point(1e+308,1) ) )));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 #####################################################################################################
 # BUG#21872795 ST_OVERLAPS(POLYGON, POLYGON) RETURNS WRONG RESULT
 #####################################################################################################
@@ -6806,19 +6659,19 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0 -6,9
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0 -6,9
 -5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 14,-11
 18,-19 11,-3 1,0 8))')))
-MULTIPOLYGON(((7 3,0 10,0 8,0 -6,9 -5,7 7,7 3),(0 8,2 3,2 -2,0 8)),((0 8,-8 14,-11 18,-19 11,-3 1,0 8)))
+MULTIPOLYGON(((0 8,0 -6,9 -5,7 7,7 3,0 10,0 8),(0 8,2 3,2 -2,0 8)),((0 8,-8 14,-11 18,-19 11,-3 1,0 8)))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
 0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
 8))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
 0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
 8))')))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 8,0 0),(0 8,4 6,4 4,0 8)),((0 8,-8 8,-10 4,0 8)))
+MULTIPOLYGON(((0 8,0 0,10 0,10 10,0 10,0 8),(0 8,4 6,4 4,0 8)),((0 8,-8 8,-10 4,0 8)))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((5 0,15 18,-14 11,5
 0),(0 3,-1 4,5 0,0 3))'), ST_GEOMFROMTEXT('POLYGON((6 0,-5 0,-1 -12,6 0))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((5 0,15 18,-14 11,5
 0),(0 3,-1 4,5 0,0 3))'), ST_GEOMFROMTEXT('POLYGON((6 0,-5 0,-1 -12,6 0))')))
-MULTIPOLYGON(((5 0,15 18,-14 11,5 0),(0 3,-1 4,5 0,0 3)),((6 0,-5 0,-1 -12,6 0)))
+MULTIPOLYGON(((5 0,15 18,-14 11,5 0),(5 0,0 3,-1 4,5 0)),((5 0,-5 0,-1 -12,6 0,5 0)))
 #####################################################################################################
 # Bug#21964049 ST_UNION() RETURNS ERROR WITH VALID GEOMETRY INPUT
 #####################################################################################################

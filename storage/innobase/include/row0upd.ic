@@ -1,120 +1,109 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0upd.ic
-Update of a row
+/** @file include/row0upd.ic
+ Update of a row
 
-Created 12/27/1996 Heikki Tuuri
-*******************************************************/
+ Created 12/27/1996 Heikki Tuuri
+ *******************************************************/
 
 #include "mtr0log.h"
 #ifndef UNIV_HOTBACKUP
-# include "trx0trx.h"
-# include "trx0undo.h"
-# include "row0row.h"
-# include "lock0lock.h"
+#include "lock0lock.h"
+#include "row0row.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0zip.h"
 
-/*********************************************************************//**
-Creates an update vector object.
-@return own: update vector object */
+/** Creates an update vector object.
+ @return own: update vector object */
 UNIV_INLINE
-upd_t*
-upd_create(
-/*=======*/
-	ulint		n,	/*!< in: number of fields */
-	mem_heap_t*	heap)	/*!< in: heap from which memory allocated */
+upd_t *upd_create(ulint n,          /*!< in: number of fields */
+                  mem_heap_t *heap) /*!< in: heap from which memory allocated */
 {
-	upd_t*	update;
+  upd_t *update;
 
-	update = static_cast<upd_t*>(mem_heap_zalloc(
-			heap, sizeof(upd_t) + sizeof(upd_field_t) * n));
+  update = static_cast<upd_t *>(
+      mem_heap_zalloc(heap, sizeof(upd_t) + sizeof(upd_field_t) * n));
 
-	update->n_fields = n;
-	update->fields = reinterpret_cast<upd_field_t*>(&update[1]);
-	update->heap = heap;
+  update->n_fields = n;
+  update->fields = reinterpret_cast<upd_field_t *>(&update[1]);
+  update->heap = heap;
 
-	return(update);
+  return (update);
 }
 
-/*********************************************************************//**
-Returns the number of fields in the update vector == number of columns
-to be updated by an update vector.
-@return number of fields */
+/** Returns the number of fields in the update vector == number of columns
+ to be updated by an update vector.
+ @return number of fields */
 UNIV_INLINE
-ulint
-upd_get_n_fields(
-/*=============*/
-	const upd_t*	update)	/*!< in: update vector */
+ulint upd_get_n_fields(const upd_t *update) /*!< in: update vector */
 {
-	ut_ad(update);
+  ut_ad(update);
 
-	return(update->n_fields);
+  return (update->n_fields);
 }
 
 #ifdef UNIV_DEBUG
-/*********************************************************************//**
-Returns the nth field of an update vector.
-@return update vector field */
+/** Returns the nth field of an update vector.
+ @return update vector field */
 UNIV_INLINE
-upd_field_t*
-upd_get_nth_field(
-/*==============*/
-	const upd_t*	update,	/*!< in: update vector */
-	ulint		n)	/*!< in: field position in update vector */
+upd_field_t *upd_get_nth_field(
+    const upd_t *update, /*!< in: update vector */
+    ulint n)             /*!< in: field position in update vector */
 {
-	ut_ad(update);
-	ut_ad(n < update->n_fields);
+  ut_ad(update);
+  ut_ad(n < update->n_fields);
 
-	return((upd_field_t*) update->fields + n);
+  return ((upd_field_t *)update->fields + n);
 }
 #endif /* UNIV_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Sets an index field number to be updated by an update vector field. */
+/** Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
-void
-upd_field_set_field_no(
-/*===================*/
-	upd_field_t*	upd_field,	/*!< in: update vector field */
-	ulint		field_no,	/*!< in: field number in a clustered
-					index */
-	dict_index_t*	index,		/*!< in: index */
-	trx_t*		trx)		/*!< in: transaction */
+void upd_field_set_field_no(
+    upd_field_t *upd_field, /*!< in: update vector field */
+    ulint field_no,         /*!< in: field number in a clustered
+                            index */
+    dict_index_t *index,    /*!< in: index */
+    trx_t *trx)             /*!< in: transaction */
 {
-	upd_field->field_no = field_no;
-	upd_field->orig_len = 0;
+  upd_field->field_no = field_no;
+  upd_field->orig_len = 0;
 
-	if (field_no >= dict_index_get_n_fields(index)) {
-		ib::error()
-			<< " trying to access field " << field_no
-			<< " in " << index->name
-			<< " of table " << index->table->name
-			<< " which contains only " << index->n_fields
-			<< " fields";
-		ut_ad(0);
-	}
+  if (field_no >= dict_index_get_n_fields(index)) {
+    ib::error(ER_IB_MSG_628)
+        << " trying to access field " << field_no << " in " << index->name
+        << " of table " << index->table->name << " which contains only "
+        << index->n_fields << " fields";
+    ut_ad(0);
+  }
 
-	dict_col_copy_type(dict_index_get_nth_col(index, field_no),
-			   dfield_get_type(&upd_field->new_val));
+  index->get_col(field_no)->copy_type(dfield_get_type(&upd_field->new_val));
 }
 
 /** set field number to a update vector field, marks this field is updated.
@@ -122,102 +111,88 @@ upd_field_set_field_no(
 @param[in]	field_no	virtual column sequence num
 @param[in]	index		index */
 UNIV_INLINE
-void
-upd_field_set_v_field_no(
-	upd_field_t*	upd_field,
-	ulint		field_no,
-	dict_index_t*	index)
-{
-	upd_field->field_no = field_no;
-	upd_field->orig_len = 0;
+void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
+                              dict_index_t *index) {
+  upd_field->field_no = field_no;
+  upd_field->orig_len = 0;
 
-	if (field_no >= dict_table_get_n_v_cols(index->table)) {
-		ib::error()
-			<< " trying to access virtual field " << field_no
-			<< " in " << index->name
-			<< " of table " << index->table->name
-			<< " which contains only " << index->table->n_v_cols
-			<< " virutal columns";
-		ut_ad(0);
-	}
+  if (field_no >= dict_table_get_n_v_cols(index->table)) {
+    ib::error(ER_IB_MSG_629) << " trying to access virtual field " << field_no
+                             << " in " << index->name << " of table "
+                             << index->table->name << " which contains only "
+                             << index->table->n_v_cols << " virutal columns";
+    ut_ad(0);
+  }
 
-	dict_col_copy_type(&dict_table_get_nth_v_col(
-				index->table, field_no)->m_col,
-			   dfield_get_type(&upd_field->new_val));
+  dict_table_get_nth_v_col(index->table, field_no)
+      ->m_col.copy_type(dfield_get_type(&upd_field->new_val));
 }
 
-/*********************************************************************//**
-Returns a field of an update vector by field_no.
-@return update vector field, or NULL */
+/** Returns a field of an update vector by field_no.
+ @return update vector field, or NULL */
 UNIV_INLINE
-const upd_field_t*
-upd_get_field_by_field_no(
-/*======================*/
-	const upd_t*	update,	/*!< in: update vector */
-	ulint		no,	/*!< in: field_no */
-	bool		is_virtual) /*!< in: if it is virtual column */
+const upd_field_t *upd_get_field_by_field_no(
+    const upd_t *update, /*!< in: update vector */
+    ulint no,            /*!< in: field_no */
+    bool is_virtual)     /*!< in: if it is virtual column */
 {
-	ulint	i;
-	for (i = 0; i < upd_get_n_fields(update); i++) {
-		const upd_field_t*	uf = upd_get_nth_field(update, i);
+  ulint i;
+  for (i = 0; i < upd_get_n_fields(update); i++) {
+    const upd_field_t *uf = upd_get_nth_field(update, i);
 
-		/* matches only if the field matches that of is_virtual */
-		if ((!is_virtual) != (!upd_fld_is_virtual_col(uf))) {
-			continue;
-		}
+    /* matches only if the field matches that of is_virtual */
+    if ((!is_virtual) != (!upd_fld_is_virtual_col(uf))) {
+      continue;
+    }
 
-		if (uf->field_no == no) {
+    if (uf->field_no == no) {
+      return (uf);
+    }
+  }
 
-			return(uf);
-		}
-	}
-
-	return(NULL);
+  return (NULL);
 }
 
-/*********************************************************************//**
-Updates the trx id and roll ptr field in a clustered index record when
-a row is updated or marked deleted. */
+#ifndef UNIV_HOTBACKUP
+/** Updates the trx id and roll ptr field in a clustered index record when
+ a row is updated or marked deleted. */
 UNIV_INLINE
-void
-row_upd_rec_sys_fields(
-/*===================*/
-	rec_t*		rec,	/*!< in/out: record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const trx_t*	trx,	/*!< in: transaction */
-	roll_ptr_t	roll_ptr)/*!< in: roll ptr of the undo log record,
-				 can be 0 during IMPORT */
+void row_upd_rec_sys_fields(
+    rec_t *rec,                /*!< in/out: record */
+    page_zip_des_t *page_zip,  /*!< in/out: compressed page whose
+                              uncompressed part will be updated, or NULL */
+    const dict_index_t *index, /*!< in: clustered index */
+    const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
+    const trx_t *trx,          /*!< in: transaction */
+    roll_ptr_t roll_ptr)       /*!< in: roll ptr of the undo log record,
+                       can be 0 during IMPORT */
 {
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+  ut_ad(index->is_clustered());
+  ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (page_zip) {
-		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-		page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets,
-						   pos, trx->id, roll_ptr);
-	} else {
-		ulint	offset = index->trx_id_offset;
+  if (page_zip) {
+    ulint pos = index->get_sys_col_pos(DATA_TRX_ID);
+    page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets, pos, trx->id,
+                                       roll_ptr);
+  } else {
+    ulint offset = index->trx_id_offset;
 
-		if (!offset) {
-			offset = row_get_trx_id_offset(index, offsets);
-		}
+    if (!offset) {
+      offset = row_get_trx_id_offset(index, offsets);
+    }
 
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
-# error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
+#error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
 #endif
-		/* During IMPORT the trx id in the record can be in the
-		future, if the .ibd file is being imported from another
-		instance. During IMPORT roll_ptr will be 0. */
-		ut_ad(roll_ptr == 0
-		      || lock_check_trx_id_sanity(
-			      trx_read_trx_id(rec + offset),
-			      rec, index, offsets));
+    /* During IMPORT the trx id in the record can be in the
+    future, if the .ibd file is being imported from another
+    instance. During IMPORT roll_ptr will be 0. */
+    ut_ad(roll_ptr == 0 ||
+          lock_check_trx_id_sanity(trx_read_trx_id(rec + offset), rec, index,
+                                   offsets));
 
-		trx_write_trx_id(rec + offset, trx->id);
-		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
-	}
+    trx_write_trx_id(rec + offset, trx->id);
+    trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
+  }
 }
 #endif /* !UNIV_HOTBACKUP */

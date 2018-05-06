@@ -1,7 +1,4 @@
 --source include/have_debug.inc
-#
-# BUG#60111 storage type for table not saved in .frm
-#
 
 #
 # Check that the table options for TABLESPACE and STORAGE
@@ -88,36 +85,6 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
-#
-# Check that it's possible to read a .frm fle created
-# by MySQL Cluster 7.0(which introduced the new "format
-# section) with this statement:
-#
-# CREATE TABLE cluster_7022_table
-# (
-#   a int primary key,
-#   b int,
-#   c int STORAGE DISK,
-#   d int STORAGE MEMORY NOT NULL,
-#   e int COLUMN_FORMAT DYNAMIC,
-#   f int COLUMN_FORMAT FIXED,
-#   g int COLUMN_FORMAT DEFAULT,
-#   h int STORAGE DISK COLUMN_FORMAT DYNAMIC NOT NULL,
-#   i int STORAGE MEMORY COLUMN_FORMAT DYNAMIC,
-#   j int STORAGE DISK COLUMN_FORMAT FIXED,
-#   k int STORAGE MEMORY COLUMN_FORMAT FIXED
-# ) STORAGE DISK TABLESPACE the_tablespacename ENGINE=MyISAM;
-#
-
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-copy_file std_data/cluster_7022_table.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/cluster_7022_table.MYD $MYSQLD_DATADIR/test/t1.MYD;
-copy_file std_data/cluster_7022_table.MYI $MYSQLD_DATADIR/test/t1.MYI;
-
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-
 --echo #
 --echo # WL#3627 Add COLUMN_FORMAT and STORAGE for fields
 --echo #
@@ -200,3 +167,568 @@ SET SESSION debug="+d,out_of_tablespace_disk";
 CREATE TABLESPACE `ts6` ADD DATAFILE 'ts6.ibd' ENGINE=INNODB;
 SHOW WARNINGS;
 SET SESSION debug="-d,out_of_tablespace_disk";
+
+
+--echo #
+--echo # Additional coverage for WL#7743 "New data dictionary: changes
+--echo # to DDL-related parts of SE API".
+--echo #
+--echo # Check that limits on tablespace comment and datafile path lengths
+--echo # are enforced.
+--echo #
+--let $TOO_LONG_COMMENT= `SELECT REPEAT('a', 2049)`
+--replace_result $TOO_LONG_COMMENT TOO_LONG_COMMENT
+--error ER_TOO_LONG_TABLESPACE_COMMENT
+--eval CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="$TOO_LONG_COMMENT" ENGINE=InnoDB
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval CREATE TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH' ENGINE=InnoDB
+--echo # Also coverage for ALTER TABLESPACE case.
+--error ER_TABLESPACE_MISSING_WITH_NAME
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+--let $TOO_LONG_PATH= `SELECT CONCAT(REPEAT('a', 512),'.ibd')`
+--replace_result $TOO_LONG_PATH TOO_LONG_PATH
+--error ER_PATH_LENGTH
+--eval ALTER TABLESPACE ts ADD DATAFILE '$TOO_LONG_PATH'
+--error ER_MISSING_TABLESPACE_FILE
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
+DROP TABLESPACE ts;
+
+--disable_connect_log
+--echo #
+--echo # Validate tablespace names in the SE.
+--echo #
+--echo # 1. Tablespace DDL.
+--echo # 1.1 Create/drop predefined tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_system ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_temporary ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE mysql ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_system;
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE innodb_file_per_table;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_temporary;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE mysql;
+
+--echo # 1.2 Create/drop implicit tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE innodb_file_per_table_whatever;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP TABLESPACE innodb_file_per_table;
+
+--echo # 2. Non partitioned table DDL.
+--echo # 2.1 Create table.
+
+CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
+CREATE TABLE t2 (i INTEGER) TABLESPACE innodb_system ENGINE InnoDB;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_bad (i INTEGER) TABLESPACE `innodb_file_per_table.2` ENGINE InnoDB;
+
+--echo # 2.2 Alter table.
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
+--echo # This is valid since MyISAM does not care:
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
+SHOW CREATE TABLE t2;
+
+--echo # Table t1 is carried over to MyISAM using the dummy 'innodb_file_per_table':
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+
+--echo # Changing only engine back to InnoDB now will be rejected for t2:
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # For t1, changing engine back to InnoDB will re-establish usage of the implicit tablespace:
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+--echo # Changing both engine and tablespace works:
+ALTER TABLE t1 TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # Keeping a valid tablespace through ALTER TABLE:
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ALTER TABLE t1 TABLESPACE ts;
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts;
+
+--echo # 3. Partitioned table DDL.
+--echo # 3.1 Create table.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_part_bad (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100) TABLESPACE `innodb_file_per_table.2`,
+    PARTITION p1 VALUES LESS THAN(200));
+
+CREATE TABLE t_part (i INTEGER) TABLESPACE innodb_file_per_table PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100),
+    PARTITION p1 VALUES LESS THAN(200));
+SHOW CREATE TABLE t_part;
+
+CREATE TABLE t_subpart (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11));
+SHOW CREATE TABLE t_subpart;
+
+--echo # 2.3 Alter table.
+
+ALTER TABLE t_part TABLESPACE innodb_system;
+SHOW CREATE TABLE t_part;
+
+ALTER TABLE t_subpart TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_subpart;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
+  (PARTITION s11 TABLESPACE `innodb_file_per_table.2`);
+
+DROP TABLE t_part;
+DROP TABLE t_subpart;
+
+
+--echo #
+--echo # Tescases for wl#8972. Rename a general tablespace
+--echo #
+
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+CREATE TABLE t1(i INT) TABLESPACE ts;
+SHOW CREATE TABLE t1;
+
+--echo # Negative tests
+
+--error ER_TABLESPACE_EXISTS
+ALTER TABLESPACE ts RENAME TO innodb_system;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
+
+--error ER_TABLESPACE_EXISTS
+ALTER TABLESPACE ts RENAME TO innodb_temporary;
+
+--error ER_TABLESPACE_EXISTS
+ALTER TABLESPACE ts RENAME TO mysql;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE innodb_system RENAME TO ts3;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE innodb_temporary RENAME TO ts3;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE mysql RENAME TO ts3;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE ts RENAME TO `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table_whatever;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
+
+
+--echo #
+--echo # Test cases for Bug #26073851
+--echo # NO ERROR OR WARNING WHEN CREATING TABLES IN A RESERVED TABLESPACE
+--echo #
+CREATE TABLESPACE altering ADD DATAFILE 'altering.ibd' ENGINE InnoDB;
+CREATE TABLE altering_table (id int) TABLESPACE altering;
+
+--echo # Negative tests
+
+--echo # Altering tables in the mysql tablespace must be allowed
+--echo # because of the mysql upgrade client.
+ALTER TABLE mysql.user ENGINE InnoDB TABLESPACE mysql;
+
+--echo # An arbitrary table cannot be altered to be in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE altering_table TABLESPACE mysql;
+
+--echo # An arbitrary table cannot be created in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE foos (id int) TABLESPACE mysql;
+
+--echo # An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE mysql,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE mysql,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+
+--echo # An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test2 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+
+--echo # Create a partitioned table to be altered later.
+CREATE TABLE partition_test3 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE altering,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE altering);
+
+--echo # An arbitrary partitioned table cannot have new partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE partition_test3 ADD PARTITION
+(PARTITION p5 VALUES LESS THAN (500) TABLESPACE mysql);
+
+--echo # An arbitrary partitioned table cannot have partitions altered to be in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE partition_test3 REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (100) TABLESPACE `mysql`);
+
+--echo # An arbitrary partitioned table cannot have subpartitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test4 (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11 TABLESPACE mysql));
+
+--echo Clean up
+DROP TABLE altering_table;
+DROP TABLE partition_test3;
+DROP TABLESPACE altering;
+
+# Check that new name shows up in I_S
+SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
+
+ALTER TABLESPACE ts RENAME TO ts2;
+
+SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts2';
+SELECT (COUNT(*)=0) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
+
+--echo # Should display ts2 as tablespace name
+SHOW CREATE TABLE t1;
+
+--echo # Check that table in renamed tablespace is accessible
+SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN j VARCHAR(32);
+
+--echo # Should display ts2 as tablespace name, and new column
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (0,'0'),(1,'1'),(2,'2'),(3,'3');
+
+--echo # Check that a new table can be created in the renamed tablespace
+CREATE TABLE t2(j int) TABLESPACE ts2;
+SHOW CREATE TABLE t2;
+
+INSERT INTO t2 VALUES (0),(1),(2),(3);
+
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLESPACE ts2;
+
+--echo # 1. Verify that ENGINE attribute is not needed for ALTER and DROP
+--echo # TABLESPACE
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+
+let DEFAULT_STORAGE_ENGINE= `select @@default_storage_engine`;
+SET default_storage_engine=myisam;
+
+--echo # No need to add ENGINE - looked up in DD
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+
+--echo # Specifying correct ENGINE is allowed, but triggers deprecation
+--echo # warning
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
+
+--echo # Specifying a different ENGINE than the one stored in the DD is an
+--echo # error
+--error ER_TABLESPACE_ENGINE_MISMATCH
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;
+
+--eval SET default_storage_engine=$DEFAULT_STORAGE_ENGINE
+
+DROP TABLESPACE ts1;
+
+--echo # 2. Tablespace operations without required privileges are rejected
+
+--echo # Create user without any privileges.
+CREATE USER noprivs@localhost;
+REVOKE ALL ON *.* FROM noprivs@localhost;
+
+--echo # Connect as user noprivs@localhost;
+connect (con_no_tblspc,localhost,noprivs,,);
+
+--echo # Should fail due to missing privileges
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER TABLESPACE ts1 DROP DATAFILE 'df2.ibd';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER TABLESPACE ts1 RENAME TO ts2;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP TABLESPACE ts1;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP LOGFILE GROUP lg1;
+
+disconnect con_no_tblspc;
+
+connection default;
+DROP USER noprivs@localhost;
+
+--echo # Tablespace operations are autocommited
+SET AUTOCOMMIT=OFF;
+BEGIN WORK;
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ROLLBACK WORK;
+
+BEGIN WORK;
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ROLLBACK WORK;
+
+BEGIN WORK;
+DROP TABLESPACE ts2;
+ROLLBACK WORK;
+
+SET AUTOCOMMIT=ON;
+
+
+--echo #
+--echo # Additional test cases requested by QA
+--echo #
+
+--echo # Test ALTER TABLESPACE RENAME with partition tables
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
+
+--disable_query_log
+--eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
+--enable_query_log
+
+CREATE TABLE tab (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE=ts2,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+
+INSERT INTO tab VALUES(99,99);
+
+INSERT INTO tab VALUES(199,199);
+
+INSERT INTO tab VALUES(299,299);
+
+INSERT INTO tab VALUES(399,399);
+
+SHOW CREATE TABLE tab;
+
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+
+ALTER TABLESPACE ts2 RENAME TO ts22 ;
+
+SHOW CREATE TABLE tab;
+
+DELETE FROM tab;
+
+SELECT COUNT(*) FROM tab;
+
+ALTER TABLE tab ADD PARTITION (PARTITION p5 VALUES LESS THAN (500) TABLESPACE ts22);
+
+INSERT INTO tab VALUES(99,99);
+
+INSERT INTO tab VALUES(199,199);
+
+INSERT INTO tab VALUES(299,299);
+
+INSERT INTO tab VALUES(399,399);
+
+INSERT INTO tab VALUES(499,499);
+
+SELECT COUNT(*) FROM tab;
+
+SHOW CREATE TABLE tab;
+
+ALTER TABLE tab ROW_FORMAT=COMPACT;
+
+ALTER TABLESPACE ts11 RENAME TO ts1 ;
+
+ALTER TABLESPACE ts22 RENAME TO ts2 ;
+
+SHOW CREATE TABLE tab;
+
+ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+
+SHOW CREATE TABLE tab;
+
+--echo # failed: 1478:  Tablespace `ts1` cannot contain a COMPRESSED table
+#ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+
+SHOW CREATE TABLE tab;
+
+DROP TABLE tab;
+
+DROP TABLESPACE ts1;
+
+DROP TABLESPACE ts2;
+
+
+--echo # Check ALTER TABLESPACE RENAME with STORED PROCEDURE
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+
+--disable_query_log
+--eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
+--enable_query_log
+
+CREATE TABLE tab1(c1 int) ENGINE=InnoDB TABLESPACE=ts1;
+
+CREATE TABLE tab2(c1 int) ENGINE=InnoDB TABLESPACE=ts2;
+
+delimiter |;
+
+CREATE PROCEDURE proc_alter()
+BEGIN
+
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+
+INSERT INTO tab1 VALUES(1);
+
+ALTER TABLESPACE ts2 RENAME TO ts22 ;
+
+INSERT INTO tab2 VALUES(1);
+
+END|
+delimiter ;|
+
+CALL proc_alter();
+
+SELECT COUNT(*) FROM tab1;
+
+SELECT COUNT(*) FROM tab2;
+
+SHOW CREATE TABLE tab1;
+
+SHOW CREATE TABLE tab2;
+
+DROP PROCEDURE proc_alter;
+
+DROP TABLE tab1,tab2;
+
+DROP TABLESPACE ts11;
+
+DROP TABLESPACE ts22;
+
+
+--echo #
+--echo # Bug#26428558: INNODB: ASSERTION FAILURE:
+--echo # HA_INNOPART.CC:2431:PART_ELEM->TABLESPACE_NAME == __N
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+CREATE TABLE tab (a INT, b INT) ENGINE=InnoDB #ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1);
+
+SHOW CREATE TABLE tab;
+ALTER TABLESPACE ts1 RENAME TO ts11 ;
+
+--echo # Crash
+SHOW CREATE TABLE tab;
+
+DROP TABLE tab;
+DROP TABLESPACE ts11;
+
+
+--echo #
+--echo # Bug#26435800: DD::PROPERTIES_IMPL::GET_UINT64 (THIS=0X7FAC6822B0A0,
+--echo # KEY=...,PROPERTIES_IMPL.H:
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1;
+ALTER TABLESPACE ts1 RENAME TO ts11;
+
+TRUNCATE TABLE t1; 
+DROP TABLE t1;
+DROP TABLESPACE ts11;

@@ -2,9 +2,6 @@
 # BUG#20125349 - PERSISTANT STATS IS NOT UPDATED WHEN TTS IS IMPORTED.
 #
 
---source include/not_embedded.inc
---source include/have_innodb.inc
-
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
 
@@ -14,15 +11,17 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE t1 (
 	col_1 CHAR (255),
 	col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 INSERT INTO t1  VALUES ("col1_00001", "col2_00001"), ("col1_00002", "col2_00002");
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 ANALYZE TABLE t1;
@@ -30,7 +29,7 @@ SHOW INDEXES FROM t1;
 
 FLUSH TABLES t1 FOR EXPORT;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
 
@@ -41,15 +40,17 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 	col_1 CHAR (255),
 	col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 INSERT INTO t1  VALUES ("col1_00001", "col2_00001");
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 ANALYZE TABLE t1;
@@ -58,13 +59,14 @@ SHOW INDEXES FROM t1;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 
+ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
 ANALYZE TABLE t1;

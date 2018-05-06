@@ -1,13 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-
-# Presence of the query cache changes query stages,
-# causing noise in the test output
---source include/have_query_cache_disabled.inc
 
 # Setup
 
@@ -23,6 +17,8 @@ drop table if exists t1;
 create table t1(a int) engine = myisam;
 
 insert into t1 values (1), (2), (3), (4), (5);
+# Dummy alter to make sure the DD cache is populated
+alter table t1 force;
 
 --connection default
 

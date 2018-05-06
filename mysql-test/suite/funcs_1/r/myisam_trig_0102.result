@@ -1,6 +1,4 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 USE test;
 drop table if exists tb3;
 create table tb3 (
@@ -56,14 +54,18 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = <engine_to_be_used>;
+) charset latin1 engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.1.1:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use test;
 Create trigger trg1_1 BEFORE INSERT
 on tb3 for each row set @test_before = 2, new.f142 = @test_before;
@@ -134,16 +136,24 @@ drop trigger trg1_4;
 drop trigger trg1_5;
 drop trigger trg1_6;
 delete from tb3 where f121='Test 3.5.1.1';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.1.2:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Create trigger trg_1 after insert
 on tb3 for each statement set @x= 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'statement set @x= 1' at line 2
 drop trigger trg_1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.3:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TRIGGER trg3_1 on tb3 BEFORE INSERT for each row set new.f120 = 't';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on tb3 BEFORE INSERT for each row set new.f120 = 't'' at line 1
 CREATE trg3_2 TRIGGER AFTER INSERT on tb3 for each row set new.f120 = 's';
@@ -159,9 +169,13 @@ drop trigger trg3_2;
 drop trigger trg3_3;
 drop trigger trg3_4;
 drop trigger trg3_5;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.1.5:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TRIGGER trg4_1 AFTER on tb3 for each row set new.f120 = 'e';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on tb3 for each row set new.f120 = 'e'' at line 1
 CREATE TRIGGER trg4_2 INSERT on tb3 for each set row  new.f120 = 'f';
@@ -180,12 +194,20 @@ drop trigger trg4_3;
 drop trigger trg4_4;
 drop trigger trg4_5;
 drop trigger trg4_6;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.6: - Need to fix
 -------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.7: - need to fix
 -------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
@@ -206,7 +228,7 @@ select * from t1;
 f1	f2	f3
 NULL	update 3.5.1.7	42
 select trigger_name from information_schema.triggers where trigger_schema != 'sys' order by trigger_name;
-trigger_name
+TRIGGER_NAME
 gs_insert
 trg5_1
 trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
@@ -248,19 +270,31 @@ use test;
 drop database trig_db;
 drop trigger trg6_1;
 drop trigger trg6_3;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.9:(cannot be inplemented at this point)
 ------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.10:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TRIGGER trg7_1 BEFORE UPDATE on tb3 for each row set new.f120 ='X';
 CREATE TRIGGER trg7_1 AFTER INSERT on tb3 for each row set @x ='Y';
 ERROR HY000: Trigger already exists
 drop trigger trg7_1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.?:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists t1;
 drop table if exists t2;
 create table t1 (f1 char(50), f2 integer) engine = <engine_to_be_used>;
@@ -286,9 +320,13 @@ update to t1	2
 drop table t1;
 drop table t2;
 drop trigger trig;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.1.11:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop database if exists trig_db1;
 drop database if exists trig_db2;
 drop database if exists trig_db3;
@@ -334,9 +372,13 @@ use test;
 drop database trig_db1;
 drop database trig_db2;
 drop database trig_db3;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.2.1/2/3:
 ---------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop database if exists trig_db1;
 drop database if exists trig_db2;
 create database trig_db1;
@@ -354,7 +396,7 @@ select trigger_schema, trigger_name, event_object_table
 from information_schema.triggers
 where trigger_schema like 'trig_db%'
         order by trigger_name;
-trigger_schema	trigger_name	event_object_table
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_TABLE
 trig_db1	trig1_a	t1
 trig_db1	trig1_b	t1
 trig_db2	trig2	t1

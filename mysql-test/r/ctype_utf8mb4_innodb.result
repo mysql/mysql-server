@@ -1,6 +1,3 @@
-set global innodb_large_prefix=off;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 drop table if exists t1,t2;
 #
 # Start of 5.5 tests
@@ -80,16 +77,16 @@ CONVERT(_koi8r'????' USING utf8mb4) LIKE CONVERT(_koi8r'????' USING utf8mb4)
 1
 SELECT 'a' = 'a ';
 'a' = 'a '
-1
+0
 SELECT 'a\0' < 'a';
 'a\0' < 'a'
-1
+0
 SELECT 'a\0' < 'a ';
 'a\0' < 'a '
 1
 SELECT 'a\t' < 'a';
 'a\t' < 'a'
-1
+0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
 1
@@ -112,10 +109,10 @@ CREATE TABLE t1 (a char(10) character set utf8mb4 not null) ENGINE InnoDB;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
-61	0	0
-61	0	0
-6100	-1	-1
-6109	-1	-1
+61	0	-1
+61	0	-1
+6100	0	-1
+6109	1	-1
 DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
@@ -130,8 +127,8 @@ create table t1 ENGINE InnoDB select date_format("2004-01-19 10:10:10", "%Y-%m-%
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
 2004-01-19
@@ -159,8 +156,6 @@ F0CFCEC5C4C5CCD8CEC9CB	Понедельник
 drop table t1;
 set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set names koi8r;
 create table t1 (s1 char(1) character set utf8mb4) engine InnoDB;
 insert into t1 values (_koi8r'��');
@@ -250,8 +245,8 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a text character set utf8mb4, primary key(a(371))) engine InnoDB;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+create table t1 (a text character set utf8mb4, primary key(a(371))) engine InnoDB ROW_FORMAT=COMPACT;
+Got one of the listed errors
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8mb4 ENGINE InnoDB;
 INSERT INTO t1 VALUES ( 'test' );
 SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
@@ -286,9 +281,9 @@ select null, null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL,
-  `s2` varchar(64) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=latin1
+  `s1` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -303,7 +298,6 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
@@ -319,31 +313,32 @@ s1 regexp s2
 NULL
 NULL
 NULL
-NULL
+SELECT 'ghi' REGEXP 'ghi[';
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 set names utf8mb4;
 set names utf8mb4;
+# Not supported by ICU
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
-'вася'  rlike '[[:<:]]вася[[:>:]]'
-1
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select  'вася ' rlike '[[:<:]]вася[[:>:]]';
-'вася ' rlike '[[:<:]]вася[[:>:]]'
-1
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select ' вася'  rlike '[[:<:]]вася[[:>:]]';
-' вася'  rlike '[[:<:]]вася[[:>:]]'
-1
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select ' вася ' rlike '[[:<:]]вася[[:>:]]';
-' вася ' rlike '[[:<:]]вася[[:>:]]'
-1
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select  'васяz' rlike '[[:<:]]вася[[:>:]]';
-'васяz' rlike '[[:<:]]вася[[:>:]]'
-0
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
-'zвася'  rlike '[[:<:]]вася[[:>:]]'
-0
+ERROR HY000: Illegal argument to a regular expression.
+# Not supported by ICU
 select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
-'zвасяz' rlike '[[:<:]]вася[[:>:]]'
-0
+ERROR HY000: Illegal argument to a regular expression.
 CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8mb4_unicode_ci) ENGINE InnoDB;
 ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;
@@ -352,8 +347,8 @@ create table t1 (a enum('aaaa','проба') character set utf8mb4) engine InnoD
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('aaaa','проба') CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` enum('aaaa','проба') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('проба');
 select * from t1;
 a
@@ -362,8 +357,8 @@ create table t2 engine InnoDB select ifnull(a,a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ifnull(a,a)` varchar(5) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `ifnull(a,a)` varchar(5) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t2;
 ifnull(a,a)
 проба
@@ -485,12 +480,14 @@ create table t1 (
 c char(10) character set utf8mb4,
 unique key a using hash (c(1))
 ) engine=InnoDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8mb4 DEFAULT NULL,
-  UNIQUE KEY `a` (`c`(1)) USING HASH
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  UNIQUE KEY `a` (`c`(1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -524,9 +521,9 @@ unique key a using btree (c(1))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8mb4 DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -643,12 +640,14 @@ create table t1 (
 c char(10) character set utf8mb4 collate utf8mb4_bin,
 unique key a using hash (c(1))
 ) engine=InnoDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  UNIQUE KEY `a` (`c`(1)) USING HASH
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  UNIQUE KEY `a` (`c`(1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -684,7 +683,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -775,6 +774,8 @@ create table t1 (
 str varchar(255) character set utf8mb4 not null,
 key str using hash (str(2))
 ) engine=InnoDB;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -886,9 +887,9 @@ create table t2 engine InnoDB select concat(a,_utf8mb4'') as a, concat(b,_utf8mb
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(5) CHARACTER SET utf8mb4 DEFAULT NULL,
-  `b` varchar(15) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` varchar(5) DEFAULT NULL,
+  `b` varchar(15) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 drop table t1;
 select 'c' like '\_' as want0;
@@ -1150,16 +1151,15 @@ id	city
 2	Durban
 select * from t1 where city = 'Durban ';
 id	city
-2	Durban
 drop table t1;
 create table t1 (x set('A', 'B') default 0) character set utf8mb4 engine InnoDB;
 ERROR 42000: Invalid default value for 'x'
 create table t1 (x enum('A', 'B') default 0) character set utf8mb4 engine InnoDB;
 ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
 `country` varchar(100) NOT NULL default '',
@@ -1195,8 +1195,6 @@ ERR Имри.Афимим.Аеимимримдмримрмрирор имрим�
 DROP TABLE t1,t2;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a char(20) character set utf8mb4) engine InnoDB;
 insert into t1 values ('123456'),('андрей');
 alter table t1 modify a char(2) character set utf8mb4;
@@ -1253,14 +1251,11 @@ a
 abcd
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC
+DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
 insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
 select hex(a) from t1;
@@ -1293,26 +1288,23 @@ DROP TABLE t2;
 DROP TABLE t1;
 CREATE TABLE t1 (item varchar(255)) default character set utf8mb4 ENGINE InnoDB;
 INSERT INTO t1 VALUES (N'\\');
+Warnings:
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8mb4'\\');
 INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+Warnings:
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8mb4'Cote d\'Ivoire');
 SELECT item FROM t1 ORDER BY item;
 item
-Cote d'Ivoire
-Cote d'Ivoire
 \
 \
+Cote d'Ivoire
+Cote d'Ivoire
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES utf8mb4;
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4;
 INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t1 VALUES('uu');
 check table t1;
@@ -1620,7 +1612,7 @@ COUNT(*)
 1
 explain select a from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(*) FROM (SELECT a FROM t1 GROUP BY a) AS t2;
@@ -1642,15 +1634,6 @@ substr(z.a,-1)	a
 6	456
 drop table t1;
 SET CHARACTER SET utf8mb4;
-SHOW VARIABLES LIKE 'character\_set\_%';
-Variable_name	Value
-character_set_client	utf8mb4
-character_set_connection	latin1
-character_set_database	latin1
-character_set_filesystem	binary
-character_set_results	utf8mb4
-character_set_server	latin1
-character_set_system	utf8
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4 ENGINE InnoDB;
@@ -1658,8 +1641,8 @@ INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 crash
 35
-36
 37
+36
 INSERT INTO crashtest VALUES ('-1000');
 EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1670,8 +1653,8 @@ SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 crash
 -1000
 35
-36
 37
+36
 Warnings:
 Warning	1300	Invalid utf8mb4 character string: 'FFFFFC'
 DROP TABLE crashtest;
@@ -1698,8 +1681,6 @@ xxx
 yyy
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (
 a varchar(26) not null
 ) default character set utf8mb4 ENGINE InnoDB;
@@ -1842,7 +1823,7 @@ insert into t1 values('t1_val');
 create view v1 as select 'v1_val' as col1;
 select coercibility(col1), collation(col1) from v1;
 coercibility(col1)	collation(col1)
-4	utf8mb4_general_ci
+4	utf8mb4_0900_ai_ci
 create view v2 as select col1 from v1 union select col1 from t1;
 select coercibility(col1), collation(col1)from v2;
 coercibility(col1)	collation(col1)
@@ -1866,6 +1847,9 @@ insert into t1 values ('a',1);
 select concat(a, if(b>10, N'x', N'y')) from t1;
 concat(a, if(b>10, N'x', N'y'))
 ay
+Warnings:
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, N'æ', N'ß')) from t1;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
@@ -1876,7 +1860,7 @@ select concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y')) from t1;
 concat(a, if(b>10, _utf8mb4'x', _utf8mb4'y'))
 ay
 select concat(a, if(b>10, _utf8mb4'æ', _utf8mb4'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
@@ -1885,7 +1869,7 @@ select concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79)) from t1;
 concat(a, if(b>10, _utf8mb4 0x78, _utf8mb4 0x79))
 ay
 select concat(a, if(b>10, _utf8mb4 0xC3A6, _utf8mb4 0xC3AF)) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 set names utf8mb4;
 create table t1 (a varchar(10) character set latin1, b int) engine InnoDB;
@@ -1894,7 +1878,7 @@ select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
 concat(a, if(b>10, 'x' 'x', 'y' 'y'))
 ayy
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 CREATE TABLE t1 (
 colA int(11) NOT NULL,
@@ -2195,14 +2179,12 @@ set max_sort_length=default;
 # Bug#26180: Can't add columns to tables created with utf8mb4 text indexes
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 clipid INT NOT NULL,
 Tape TINYTEXT,
 PRIMARY KEY (clipid),
 KEY tape(Tape(255))
-) CHARACTER SET=utf8mb4 ENGINE InnoDB;
+) CHARACTER SET=utf8mb4 ROW_FORMAT=DYNAMIC ENGINE=InnoDB;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 255 bytes
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
@@ -2214,7 +2196,7 @@ t1	CREATE TABLE `t1` (
   `Tape` tinytext,
   PRIMARY KEY (`clipid`),
   KEY `tape` (`Tape`(63))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET sql_mode = default;
 #
@@ -2263,7 +2245,7 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
 table_name= 't1' AND column_name= 'utf8mb4_encoding';
-character_maximum_length	character_octet_length
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
 10	40
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (
@@ -2277,7 +2259,7 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb3_encoding' at row 1
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
 table_name= 't2' AND column_name= 'utf8mb3_encoding';
-character_maximum_length	character_octet_length
+CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
 10	30
 UPDATE IGNORE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
 Warnings:
@@ -2297,6 +2279,8 @@ F09D9C9FEA9DA8
 F09D9E9FEA9DA8
 F3A087AFEA9DA8
 F48FBFBFEA9DA8
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
 SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
 HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding))
 
@@ -2338,10 +2322,8 @@ F48FBFBFEFB9AB
 SELECT count(*) FROM t1, t2
 WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
 count(*)
-33
+23
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2370,7 +2352,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int(11) NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 1114111	
@@ -2393,7 +2375,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int(11) NOT NULL,
-  `utf8mb4_encoding` varchar(10) DEFAULT NULL
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
@@ -2414,7 +2396,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int(11) NOT NULL,
-  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
@@ -2435,7 +2417,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int(11) NOT NULL,
-  `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+  `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
@@ -2447,6 +2429,8 @@ CREATE TABLE t3 (
 u_decimal int NOT NULL,
 utf8mb3_encoding VARCHAR(10) NOT NULL
 ) CHARACTER SET utf8 ENGINE InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t3 SELECT * FROM t1;
 DROP TABLE IF EXISTS t4;
 CREATE TABLE t4 (
@@ -2464,10 +2448,14 @@ DROP TABLE t4;
 SELECT CHARSET(CONCAT(_utf8mb4'a',_utf8'b'));
 CHARSET(CONCAT(_utf8mb4'a',_utf8'b'))
 utf8mb4
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4 NOT NULL) ENGINE InnoDB;
 INSERT INTO t1 VALUES (x'ea9da8'),(x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8 x'ea9da8') FROM t1 LIMIT 0;
 CONCAT(utf8mb4, _utf8 x'ea9da8')
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (utf8mb3 VARCHAR(10) CHARACTER SET utf8mb3 NOT NULL) ENGINE InnoDB;
 INSERT INTO t2 VALUES (x'ea9da8');
 SELECT HEX(CONCAT(utf8mb4, utf8mb3)) FROM t1,t2 ORDER BY 1;
@@ -2481,10 +2469,10 @@ CREATE TEMPORARY TABLE t3 ENGINE InnoDB AS SELECT *, concat(utf8mb4,utf8mb3) FRO
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `utf8mb4` varchar(10) CHARACTER SET utf8mb4 NOT NULL,
-  `utf8mb3` varchar(10) CHARACTER SET utf8 NOT NULL,
-  `concat(utf8mb4,utf8mb3)` varchar(20) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `utf8mb4` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `utf8mb3` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `concat(utf8mb4,utf8mb3)` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t3;
 SELECT * FROM t1, t2 WHERE t1.utf8mb4 > t2.utf8mb3;
 utf8mb4	utf8mb3
@@ -2502,9 +2490,9 @@ DROP TABLE t2;
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4) ENGINE InnoDB;
 INSERT INTO t1 VALUES (x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 SELECT CONCAT('a', _utf8 '�') FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,COERCIBLE) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 DROP TABLE t1;
 #
 # End of 5.5 tests
@@ -2512,6 +2500,3 @@ DROP TABLE t1;
 #
 # End of tests
 #
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

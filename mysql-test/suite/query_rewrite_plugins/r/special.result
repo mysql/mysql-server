@@ -9,17 +9,11 @@ INSERT INTO t1 VALUES ( 1, 'd', 'a' ),
 ( 5, 'f', 'c' ),
 ( 8, 'd', 'a' ),
 ( 7, 'e', 'b' );
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1, c2 FROM test.t1 ORDER BY ?',
 'SELECT c1, c2 FROM test.t1 ORDER BY 2, ? DESC' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Should be rewritten.
 SELECT c1, c2 FROM test.t1 ORDER BY 1;
 c1	c2
@@ -143,37 +137,37 @@ CALL query_rewrite.flush_rewrite_rules();
 # Should be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3;
 SUM( c1 )	c2	c3
-4	a	a
-2	b	c
-3	c	b
 9	d	a
+3	c	b
+2	b	c
+4	a	a
 6	d	b
-7	e	b
 5	f	c
+7	e	b
 Warnings:
 Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 2, 3' by a query rewrite plugin
 # Should be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2;
 SUM( c1 )	c2	c3
-4	a	a
 9	d	a
 3	c	b
-6	d	b
-7	e	b
 2	b	c
+4	a	a
+6	d	b
 5	f	c
+7	e	b
 Warnings:
 Note	1105	Query 'SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' rewritten to 'SELECT SUM( c1 ), c2, c3 FROM test.t1 GROUP BY 3, 2' by a query rewrite plugin
 # Should not be rewritten.
 SELECT COUNT( c1 ), c2, c3 FROM test.t1 GROUP BY c2, c3;
 COUNT( c1 )	c2	c3
-1	a	a
-1	b	c
-1	c	b
 2	d	a
+1	c	b
+1	b	c
+1	a	a
 1	d	b
-1	e	b
 1	f	c
+1	e	b
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?',
 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c < ?'
@@ -181,23 +175,23 @@ VALUES ( 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY ?, ? HAVING c > ?'
 CALL query_rewrite.flush_rewrite_rules();
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2;
 c	c2	c3
-1	a	a
-1	b	c
 1	c	b
+1	b	c
+1	a	a
 1	d	b
-1	e	b
 1	f	c
+1	e	b
 Warnings:
 Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c > 2' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 2, 3 HAVING c < 2' by a query rewrite plugin
 SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3;
 c	c2	c3
-1	a	a
 2	d	a
 1	c	b
-1	d	b
-1	e	b
 1	b	c
+1	a	a
+1	d	b
 1	f	c
+1	e	b
 Warnings:
 Note	1105	Query 'SELECT COUNT( c1 ) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c > 3' rewritten to 'SELECT COUNT(c1) as c, c2, c3 FROM test.t1 GROUP BY 3, 2 HAVING c < 3' by a query rewrite plugin
 CREATE TABLE t2 ( c1 INTEGER, c2 CHAR ( 1 ), c3 CHAR ( 1 ) );
@@ -231,8 +225,6 @@ c1
 Warnings:
 Note	1105	Query 'SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=3 ) c' rewritten to 'SELECT c1 FROM test.t1 WHERE c1=3' by a query rewrite plugin
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1,c2,c3 FROM test.t1 WHERE c1=? ' ||
 'UNION ' ||

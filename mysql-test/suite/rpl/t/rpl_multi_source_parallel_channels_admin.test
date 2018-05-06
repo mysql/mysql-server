@@ -14,6 +14,8 @@
 --source include/not_group_replication_plugin.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --let $rpl_skip_start_slave= 1
 --let $rpl_extra_connections_per_server= 2
 --source include/master-slave.inc
@@ -28,16 +30,16 @@
 --enable_warnings
 
 # Start both threads of only one of the channels
---let $rpl_channel_name= ch1
+--let $rpl_channel_name= 'ch1'
 --source include/start_slave.inc
 # Start only the SQL thread for the other channel
---let $rpl_channel_name= ch2
+--let $rpl_channel_name= 'ch2'
 --source include/start_slave_sql.inc
 
 # Create a table on the master
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
---let $rpl_channel_name= ch1
+--let $rpl_channel_name= 'ch1'
 --source include/sync_slave_sql_with_master.inc
 
 # To block ch1 SQL thread
@@ -64,15 +66,15 @@ INSERT INTO t1 VALUES (1);
 --let $cond1 = "System lock"
 # This is the expected state with a MTS slave.
 --let $cond2 = "Waiting for workers to exit"
-# This is the expected state when server query_cache_type option is set.
---let $cond3 = "invalidating query cache entries (table)"
---let $assert_cond= [ SELECT "$ch1_sql_status" = $cond1 OR "$ch1_sql_status" = $cond2 OR "$ch1_sql_status" = $cond3 ]
---let $assert_text= SQL thread for ch1 running state is $cond1 or $cond2 or $cond3
+# This is the state that the thread has while applying RBR events
+--let $cond4 = "Applying batch of row changes (write)"
+--let $assert_cond= [ SELECT "$ch1_sql_status" = $cond1 OR "$ch1_sql_status" = $cond2 OR "$ch1_sql_status" = $cond4 ]
+--let $assert_text= SQL thread for ch1 running state is $cond1 or $cond2 or $cond4
 --source include/assert.inc
 
 --echo Stop ch2 SQL thread while stopping ch1 SQL thread
 STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
---let $rpl_channel_name= ch2
+--let $rpl_channel_name= 'ch2'
 --source include/wait_for_slave_sql_to_stop.inc
 
 --let $ch1_sql_running=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running, 1)
@@ -86,7 +88,7 @@ ROLLBACK;
 
 --source include/rpl_connection_slave.inc
 --reap
---let $rpl_channel_name= ch1
+--let $rpl_channel_name= 'ch1'
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Cleanup

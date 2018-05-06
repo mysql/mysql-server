@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
@@ -30,13 +29,13 @@ DROP TABLE t1;
 
 --echo # Bug#15863023 - case1
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254)) ENGINE = Innodb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE = Innodb;
 INSERT IGNORE INTO t1 (b) VALUES (repeat('a',254)),(repeat('b',254)),(repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
 SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2';
---send ALTER TABLE t1 CHANGE b b varchar(255);
+--send ALTER TABLE t1 CHANGE b b varchar(255) charset latin1;
 connection default;
 # DML no go through in paralle as whole operation happen during
 # commit_inplace_alter_table, under an exclusive MDL
@@ -73,13 +72,13 @@ DROP TABLE t1;
 
 --echo # Bug#15863023 - case2 . enlarge varchar with add.drop index/column
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT , b VARCHAR(254)) ENGINE=Innodb;
+CREATE TABLE t1 (a INT , b VARCHAR(254) charset latin1) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
---send ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) ,ALGORITHM=INPLACE;
+--send ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(255) charset latin1 ,ALGORITHM=INPLACE;
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';
@@ -169,17 +168,17 @@ DROP TABLE t1;
 --echo # Bug#15863023 - case6 enlarge varchar other
 --echo # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
-CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) ) ENGINE=Innodb;
-CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t2 CHANGE b2 b2 varchar(255),DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
+ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
---send ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) ,ALGORITHM=INPLACE;
+--send ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;
 connection default;
 # DML go through
 SET DEBUG_SYNC='now WAIT_FOR s1';

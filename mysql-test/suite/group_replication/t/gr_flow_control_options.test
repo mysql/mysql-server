@@ -1,0 +1,515 @@
+################################################################################
+# Verify that group_replication_flow_control options do behave as expected.
+# 1. Test group_replication_flow_control_mode option.
+# 2. Test group_replication_flow_control_certifier_threshold
+#    option.
+# 3. Test group_replication_flow_control_applier_threshold
+#    option.
+# 4. Change all group_replication_flow_control options while
+#    Group Replication is running.
+# 5. Clean up.
+################################################################################
+--source include/have_debug.inc
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+SET @group_replication_flow_control_mode_save= @@GLOBAL.group_replication_flow_control_mode;
+SET @group_replication_flow_control_certifier_threshold_save= @@GLOBAL.group_replication_flow_control_certifier_threshold;
+SET @group_replication_flow_control_applier_threshold_save= @@GLOBAL.group_replication_flow_control_applier_threshold;
+
+SET @group_replication_flow_control_min_quota_save= @@GLOBAL.group_replication_flow_control_min_quota;
+SET @group_replication_flow_control_min_recovery_quota_save= @@GLOBAL.group_replication_flow_control_min_recovery_quota;
+SET @group_replication_flow_control_max_quota_save= @@GLOBAL.group_replication_flow_control_max_quota;
+SET @group_replication_flow_control_member_quota_percent_save= @@GLOBAL.group_replication_flow_control_member_quota_percent;
+SET @group_replication_flow_control_period_save= @@GLOBAL.group_replication_flow_control_period;
+SET @group_replication_flow_control_hold_percent_save= @@GLOBAL.group_replication_flow_control_hold_percent;
+SET @group_replication_flow_control_release_percent_save= @@GLOBAL.group_replication_flow_control_release_percent;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,flow_control_simulate_delayed_members';
+
+set session sql_log_bin=0;
+CALL mtr.add_suppression("group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota");
+set session sql_log_bin=1;
+
+--echo
+--echo ############################################################
+--echo # 1. Test group_replication_flow_control_mode option.
+# Invalid values
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_flow_control_mode= "";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_flow_control_mode= "XXX";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_flow_control_mode= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_flow_control_mode= 2;
+
+# Valid values
+SET GLOBAL group_replication_flow_control_mode= DISABLED;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= QUOTA;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= 0;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= 1;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Test group_replication_flow_control_certifier_threshold
+--echo #    option.
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_certifier_threshold= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_certifier_threshold= -1;
+--let $assert_text= group_replication_flow_control_certifier_threshold is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_certifier_threshold= 2147483648;
+--let $assert_text= group_replication_flow_control_certifier_threshold is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 2147483647
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_certifier_threshold= 1;
+--let $assert_text= group_replication_flow_control_certifier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_certifier_threshold= 2147483647;
+--let $assert_text= group_replication_flow_control_certifier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 2147483647
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Test group_replication_flow_control_applier_threshold
+--echo #    option.
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_applier_threshold= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_applier_threshold= -1;
+--let $assert_text= group_replication_flow_control_applier_threshold is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_applier_threshold] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_applier_threshold= 2147483648;
+--let $assert_text= group_replication_flow_control_applier_threshold is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_applier_threshold] = 2147483647
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_applier_threshold= 1;
+--let $assert_text= group_replication_flow_control_applier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_applier_threshold] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_applier_threshold= 2147483647;
+--let $assert_text= group_replication_flow_control_applier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_applier_threshold] = 2147483647
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Test group_replication_flow_control_min_quota
+--echo #    option.
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_min_quota= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_min_quota= -1;
+--let $assert_text= group_replication_flow_control_min_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_quota= 2147483648;
+--let $assert_text= group_replication_flow_control_min_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 2147483647
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_min_quota= 1;
+--let $assert_text= group_replication_flow_control_min_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_quota= 2147483647;
+--let $assert_text= group_replication_flow_control_min_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 2147483647
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_quota= 0;
+
+--echo
+--echo ############################################################
+--echo # 5. Test group_replication_flow_control_min_recovery_quota
+--echo #    option.
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_min_recovery_quota= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_min_recovery_quota= -1;
+--let $assert_text= group_replication_flow_control_min_recovery_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 2147483648;
+--let $assert_text= group_replication_flow_control_min_recovery_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 2147483647
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 1;
+--let $assert_text= group_replication_flow_control_min_recovery_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 2147483647;
+--let $assert_text= group_replication_flow_control_min_recovery_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 2147483647
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 0;
+
+--echo
+--echo ############################################################
+--echo # 6. Test group_replication_flow_control_max_quota
+--echo #    option.
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_max_quota= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_max_quota= -1;
+--let $assert_text= group_replication_flow_control_max_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_max_quota= 2147483648;
+--let $assert_text= group_replication_flow_control_max_quota is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 2147483647
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_max_quota= 1;
+--let $assert_text= group_replication_flow_control_max_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_max_quota= 2147483647;
+--let $assert_text= group_replication_flow_control_max_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 2147483647
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_max_quota= 0;
+
+--echo
+--echo ############################################################
+--echo # 7. Test group_replication_flow_control_member_quota_percent
+--echo #    option.
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_member_quota_percent= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_member_quota_percent= -1;
+--let $assert_text= group_replication_flow_control_member_quota_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_member_quota_percent] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_member_quota_percent= 101;
+--let $assert_text= group_replication_flow_control_member_quota_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_member_quota_percent] = 100
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_member_quota_percent= 1;
+--let $assert_text= group_replication_flow_control_member_quota_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_member_quota_percent] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_member_quota_percent= 100;
+--let $assert_text= group_replication_flow_control_member_quota_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_member_quota_percent] = 100
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 8. Test group_replication_flow_control_period option.
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_period= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_period= 0;
+--let $assert_text= group_replication_flow_control_period is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_period] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_period= 61;
+--let $assert_text= group_replication_flow_control_period is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_period] = 60
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_period= 1;
+--let $assert_text= group_replication_flow_control_period is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_period] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_period= 60;
+--let $assert_text= group_replication_flow_control_period is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_period] = 60
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 9. Test group_replication_flow_control_hold_percent
+--echo #    option.
+--echo
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_hold_percent= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_hold_percent= -1;
+--let $assert_text= group_replication_flow_control_hold_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_hold_percent] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_hold_percent= 101;
+--let $assert_text= group_replication_flow_control_hold_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_hold_percent] = 100
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_hold_percent= 1;
+--let $assert_text= group_replication_flow_control_hold_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_hold_percent] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_hold_percent= 100;
+--let $assert_text= group_replication_flow_control_hold_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_hold_percent] = 100
+--source include/assert.inc
+
+--echo ############################################################
+--echo # 10. Test group_replication_flow_control_release_percent
+--echo #    option.
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_flow_control_release_percent= "";
+
+# Truncates values
+SET GLOBAL group_replication_flow_control_release_percent= -1;
+--let $assert_text= group_replication_flow_control_release_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_release_percent] = 0
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_release_percent= 1001;
+--let $assert_text= group_replication_flow_control_release_percent is truncated
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_release_percent] = 1000
+--source include/assert.inc
+
+# Valid values
+SET GLOBAL group_replication_flow_control_release_percent= 1;
+--let $assert_text= group_replication_flow_control_release_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_release_percent] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_release_percent= 1000;
+--let $assert_text= group_replication_flow_control_release_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_release_percent] = 1000
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 11. Test group_replication_flow_control_max_quota
+--echo #     option.
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 10;
+SET GLOBAL group_replication_flow_control_min_quota= 10;
+SET GLOBAL group_replication_flow_control_max_quota= 100;
+
+--error 1231
+SET GLOBAL group_replication_flow_control_min_quota= 1000;
+--let $assert_text= group_replication_flow_control_min_quota cannot be larger than max_quota
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 10
+--source include/assert.inc
+
+--error 1231
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 1000;
+--let $assert_text= group_replication_flow_control_min_recovery_quota cannot be larger than max_quota
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 10
+--source include/assert.inc
+
+--error 1231
+SET GLOBAL group_replication_flow_control_max_quota= 1;
+--let $assert_text= group_replication_flow_control_max_quota cannot be lower than min_quota or min_recovery_quota
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 100
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 0;
+SET GLOBAL group_replication_flow_control_min_quota= 0;
+SET GLOBAL group_replication_flow_control_max_quota= 0;
+
+--echo
+--echo ############################################################
+--echo # 12. Change all group_replication_flow_control options while
+--echo #    Group Replication is running.
+--source include/start_and_bootstrap_group_replication.inc
+
+SET GLOBAL group_replication_flow_control_mode= DISABLED;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_mode= QUOTA;
+--let $assert_text= group_replication_flow_control_mode is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "QUOTA"
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
+--let $assert_text= group_replication_flow_control_certifier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_certifier_threshold] = 1000
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_applier_threshold= 1000;
+--let $assert_text= group_replication_flow_control_applier_threshold is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_applier_threshold] = 1000
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_quota= 1000;
+--let $assert_text= group_replication_flow_control_min_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_quota] = 1000
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 1000;
+--let $assert_text= group_replication_flow_control_min_recovery_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_min_recovery_quota] = 1000
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_max_quota= 2000;
+--let $assert_text= group_replication_flow_control_max_quota is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_max_quota] = 2000
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_member_quota_percent= 50;
+--let $assert_text= group_replication_flow_control_member_quota_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_member_quota_percent] = 50
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_period= 10;
+--let $assert_text= group_replication_flow_control_period is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_period] = 10
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_hold_percent= 15;
+--let $assert_text= group_replication_flow_control_hold_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_hold_percent] = 15
+--source include/assert.inc
+
+SET GLOBAL group_replication_flow_control_release_percent= 150;
+--let $assert_text= group_replication_flow_control_release_percent is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_flow_control_release_percent] = 150
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 13. Set group_replication_flow_control options on command
+--echo #    line during server start and then start Group
+--echo #    Replication.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+set session sql_log_bin=0;
+CALL mtr.add_suppression("group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota");
+set session sql_log_bin=1;
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_flow_control_max_quota=10 --group_replication_flow_control_min_quota=20
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_flow_control_min_quota=20 --group_replication_flow_control_max_quota=10
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_flow_control_min_recovery_quota=20 --group_replication_flow_control_max_quota=10
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo
+--echo ############################################################
+--echo # Clean up.
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;
+SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;
+SET GLOBAL group_replication_flow_control_applier_threshold= @group_replication_flow_control_applier_threshold_save;
+
+SET GLOBAL group_replication_flow_control_min_quota=@group_replication_flow_control_min_quota_save;
+SET GLOBAL group_replication_flow_control_min_recovery_quota=@group_replication_flow_control_min_recovery_quota_save;
+SET GLOBAL group_replication_flow_control_max_quota=@group_replication_flow_control_max_quota_save;
+SET GLOBAL group_replication_flow_control_member_quota_percent=@group_replication_flow_control_member_quota_percent_save;
+SET GLOBAL group_replication_flow_control_period=@group_replication_flow_control_period_save;
+SET GLOBAL group_replication_flow_control_hold_percent=@group_replication_flow_control_hold_percent_save;
+SET GLOBAL group_replication_flow_control_release_percent=@group_replication_flow_control_release_percent_save;
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+--source include/group_replication_end.inc

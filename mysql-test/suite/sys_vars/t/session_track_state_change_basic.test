@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo #
 --echo # Variable name : session_track_state_change
@@ -11,14 +10,14 @@ SELECT @@global.session_track_state_change;
 SELECT @@session.session_track_state_change;
 --echo
 
---echo # via INFORMATION_SCHEMA.GLOBAL_VARIABLES
+--echo # via performance_schema.global_variables
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE '%track_state_change%';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE '%track_state_change%';
 --enable_warnings
 
---echo # via INFORMATION_SCHEMA.SESSION_VARIABLES
+--echo # via performance_schema.session_variables
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE '%track_state_change%';
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE '%track_state_change%';
 --enable_warnings
 
 # Save the global value to be used to restore the original value.

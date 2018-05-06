@@ -24,8 +24,10 @@ INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
 SELECT * FROM t1;
 INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a);
 SELECT *, VALUES(a) FROM t1;
-explain extended SELECT *, VALUES(a) FROM t1;
-explain extended select * from t1 where values(a);
+analyze table t1;
+--replace_regex /[56]/#/
+explain SELECT *, VALUES(a) FROM t1;
+explain select * from t1 where values(a);
 DROP TABLE t1;
 
 #
@@ -465,3 +467,186 @@ DROP TABLE t_latin1;
 DROP TABLE t_gb2312;
 DROP TABLE t_utf8;
 SET SQL_MODE=DEFAULT;
+
+--echo # WL#5094: Refactor DML statements
+--echo # Semantic changes in INSERT ... ON DUPLICATE KEY
+
+CREATE TABLE t0 (k INTEGER PRIMARY KEY);
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (3);
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+--echo # Allowed: Reference column from a single table
+INSERT INTO t0
+SELECT a FROM t1
+ON DUPLICATE KEY UPDATE k= a + t1.a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+--echo # Allowed: Reference column from a join over multiple tables
+INSERT INTO t0
+SELECT t1.a FROM t1 JOIN t2 ON t1.a=t2.a
+ON DUPLICATE KEY UPDATE k= t1.a + t2.a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+INSERT INTO t0
+SELECT a FROM t1 JOIN t2 USING (a)
+ON DUPLICATE KEY UPDATE k= t1.a + t2.a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+INSERT INTO t0
+SELECT a FROM t1 LEFT JOIN t2 USING (a)
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+INSERT INTO t0
+SELECT DISTINCT a FROM t1
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+--echo # Allowed: Wrap a distinct query in a derived table
+
+INSERT INTO t0
+SELECT a FROM (SELECT DISTINCT a FROM t1) AS dt
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+--echo # Not allowed: Reference column from an explicitly grouped query
+
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t0
+SELECT a FROM t1 GROUP BY a
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+--echo # Not allowed: Reference column from an implicitly grouped query
+
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t0
+SELECT SUM(a) FROM t1
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+--echo # Allowed: Wrap a grouped query in a derived table
+
+INSERT INTO t0
+SELECT a FROM (SELECT a FROM t1 GROUP BY a) AS dt
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+--echo # Not allowed: Reference column from a UNION query
+
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t0
+SELECT a FROM t1 UNION SELECT a FROM t2
+ON DUPLICATE KEY UPDATE k= a + 10;
+
+--echo # Allowed:: Wrap a UNION query in a derived table
+
+INSERT INTO t0
+SELECT a
+FROM (SELECT a, COUNT(*) AS c FROM t1 GROUP BY a
+      UNION
+      SELECT a, COUNT(*) AS c FROM t2 GROUP BY a) AS dt
+ON DUPLICATE KEY UPDATE k= dt.a + dt.c + 10;
+
+SELECT * FROM t0;
+
+DELETE FROM t0;
+INSERT INTO t0 SELECT a FROM t1 UNION SELECT a FROM t2;
+
+DROP TABLE t0, t1, t2;
+
+--echo # Bug#25526439: Assertion failed: is_fixed_or_outer_ref(this)
+
+CREATE TABLE t1 (
+  a INTEGER NOT NULL
+);
+INSERT INTO t1 VALUES(0);
+
+CREATE TABLE t2 (
+  d INTEGER
+);
+
+--echo # Query from bug report
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+
+SELECT * FROM t1;
+
+--echo # Similar query with a simple query block
+INSERT INTO t1(a) SELECT 1
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+
+SELECT * FROM t1;
+
+--echo # Similar query with a UNION
+INSERT INTO t1(a) SELECT 1 UNION SELECT 2
+ON DUPLICATE KEY UPDATE a= (SELECT d FROM t2 GROUP BY 1);
+
+SELECT * FROM t1;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#25071305: Assertion failed: first_execution ||
+--echo #               !tl->is_view_or_derived() || tl->is_merged()
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES (1),(1);
+INSERT INTO t1(a) VALUES (1)
+ON DUPLICATE KEY UPDATE a= (SELECT b FROM (SELECT b FROM t2) AS w);
+DROP TABLE t1, t2;
+
+--echo # Bug#24716127: Incorrect behavior by insert statement with
+--echo #               "on duplicate key update"
+
+CREATE TABLE t1(a INTEGER, b INTEGER, PRIMARY KEY(a,b));
+CREATE TABLE t2(c2 INTEGER NOT NULL PRIMARY KEY);
+CREATE TABLE t3(c3 INTEGER NOT NULL PRIMARY KEY);
+
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1), (2);
+
+INSERT INTO t1 VALUES (1,1)
+ON DUPLICATE KEY UPDATE a= (SELECT c2
+                            FROM t2 JOIN t3 ON c3 = c2
+                            WHERE c2 = 1);
+
+SELECT * FROM t1;
+
+INSERT INTO t1
+SELECT 1, 1 FROM t2
+ON DUPLICATE KEY UPDATE a= t2.c2 + 100, b= t2.c2 + 100;
+
+SELECT * FROM t1;
+
+DROP TABLE t1, t2, t3;

@@ -123,7 +123,7 @@ f1
 1
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION bug27563;
-CREATE TABLE t2 (f2 INT);
+CREATE TABLE t2 (f2 INT) engine myisam;
 CREATE TRIGGER trg27563 BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLSTATE '70100' SET @a:= 'killed';
@@ -145,11 +145,12 @@ f2
 0
 SET DEBUG_SYNC = 'RESET';
 DROP TABLE t1, t2;
-SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync';
+SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync WAIT_FOR continue';
 PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,t32,t33,t34,t35,t36,t37,t38,t39,t40 WHERE a1=a2 AND a2=a3 AND a3=a4 AND a4=a5 AND a5=a6 AND a6=a7 AND a7=a8 AND a8=a9 AND a9=a10 AND a10=a11 AND a11=a12 AND a12=a13 AND a13=a14 AND a14=a15 AND a15=a16 AND a16=a17 AND a17=a18 AND a18=a19 AND a19=a20 AND a20=a21 AND a21=a22 AND a22=a23 AND a23=a24 AND a24=a25 AND a25=a26 AND a26=a27 AND a27=a28 AND a28=a29 AND a29=a30 AND a30=a31 AND a31=a32 AND a32=a33 AND a33=a34 AND a34=a35 AND a35=a36 AND a36=a37 AND a37=a38 AND a38=a39 AND a39=a40  ';
 EXECUTE stmt;
 SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
 KILL QUERY @id;
+SET DEBUG_SYNC= 'now SIGNAL continue';
 ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC = 'RESET';
 #
@@ -181,7 +182,7 @@ SET DEBUG_SYNC = 'RESET';
 # ALTER and other statements under LOCK TABLES).
 #
 drop tables if exists t1, t2, t3;
-create table t1 (i int primary key);
+create table t1 (i int primary key) engine myisam;
 # Test for RENAME TABLE
 # Switching to connection 'blocker'
 lock table t1 read;

@@ -22,8 +22,10 @@ eval CREATE $TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUND
 DROP TABLE t1;
 --echo
 
+if ($TEMPORARY != 'TEMPORARY') {
 eval CREATE $TEMPORARY TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 --source suite/innodb/include/default_row_format_show.inc
 DROP TABLE t1;
+}
 --echo

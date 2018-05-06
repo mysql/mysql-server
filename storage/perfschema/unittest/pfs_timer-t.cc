@@ -1,26 +1,32 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
 #include <my_thread.h>
 #include <pfs_timer.h>
-#include "my_sys.h"
 #include <tap.h>
 
-void test_timers()
-{
+#include "my_sys.h"
+
+void test_timers() {
   ulonglong t1_a;
   ulonglong t2_a;
   ulonglong t3_a;
@@ -34,26 +40,26 @@ void test_timers()
 
   init_timers();
 
-  t1_a= get_timer_pico_value(TIMER_NAME_CYCLE);
+  t1_a = get_timer_pico_value(TIMER_NAME_CYCLE);
   /* Wait 5 seconds */
   my_sleep(5000000);
-  t1_b= get_timer_pico_value(TIMER_NAME_CYCLE);
+  t1_b = get_timer_pico_value(TIMER_NAME_CYCLE);
 
-  t2_a= get_timer_pico_value(TIMER_NAME_NANOSEC);
+  t2_a = get_timer_pico_value(TIMER_NAME_NANOSEC);
   my_sleep(5000000);
-  t2_b= get_timer_pico_value(TIMER_NAME_NANOSEC);
+  t2_b = get_timer_pico_value(TIMER_NAME_NANOSEC);
 
-  t3_a= get_timer_pico_value(TIMER_NAME_MICROSEC);
+  t3_a = get_timer_pico_value(TIMER_NAME_MICROSEC);
   my_sleep(5000000);
-  t3_b= get_timer_pico_value(TIMER_NAME_MICROSEC);
+  t3_b = get_timer_pico_value(TIMER_NAME_MICROSEC);
 
-  t4_a= get_timer_pico_value(TIMER_NAME_MILLISEC);
+  t4_a = get_timer_pico_value(TIMER_NAME_MILLISEC);
   my_sleep(5000000);
-  t4_b= get_timer_pico_value(TIMER_NAME_MILLISEC);
+  t4_b = get_timer_pico_value(TIMER_NAME_MILLISEC);
 
-  t5_a= get_timer_pico_value(TIMER_NAME_TICK);
+  t5_a = get_timer_pico_value(TIMER_NAME_TICK);
   my_sleep(5000000);
-  t5_b= get_timer_pico_value(TIMER_NAME_TICK);
+  t5_b = get_timer_pico_value(TIMER_NAME_TICK);
 
   /*
     Print the timer values, for manual inspection by a human.
@@ -71,11 +77,11 @@ void test_timers()
   diag("milli b: %13llu", t4_b);
   diag("tick b: %13llu", t5_b);
 
-  diag("cycle b-a: %13llu", t1_b-t1_a);
-  diag("nano b-a: %13llu", t2_b-t2_a);
-  diag("micro b-a: %13llu", t3_b-t3_a);
-  diag("milli b-a: %13llu", t4_b-t4_a);
-  diag("tick b-a: %13llu", t5_b-t5_a);
+  diag("cycle b-a: %13llu", t1_b - t1_a);
+  diag("nano b-a: %13llu", t2_b - t2_a);
+  diag("micro b-a: %13llu", t3_b - t3_a);
+  diag("milli b-a: %13llu", t4_b - t4_a);
+  diag("tick b-a: %13llu", t5_b - t5_a);
 
   if ((t1_a == 0) && (t1_b == 0))
     skip(1, "cycle timer not implemented");
@@ -103,20 +109,11 @@ void test_timers()
     ok(t5_b > t5_a, "tick timer ascending");
 }
 
-void do_all_tests()
-{
-  PFS_atomic::init();
+void do_all_tests() { test_timers(); }
 
-  test_timers();
-
-  PFS_atomic::cleanup();
-}
-
-int main(int, char **)
-{
+int main(int, char **) {
   plan(5);
   MY_INIT("pfs_timer-t");
   do_all_tests();
   return (exit_status());
 }
-

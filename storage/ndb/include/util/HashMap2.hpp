@@ -1,18 +1,26 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_HASHMAP2_HPP
 #define NDB_HASHMAP2_HPP
@@ -85,20 +93,20 @@ public:
  */
 struct StandardAllocator
 {
-  static void* alloc(void* ignore, size_t bytes)
+  static void* alloc(void*, size_t bytes)
   {
     return ::malloc(bytes);
-  };
+  }
 
-  static void* mem_calloc(void* ignore, size_t nelem, size_t bytes)
+  static void* mem_calloc(void*, size_t nelem, size_t bytes)
   {
     return ::calloc(nelem, bytes);
   }
 
-  static void mem_free(void* ignore, void* mem)
+  static void mem_free(void*, void* mem)
   {
     ::free(mem);
-  };
+  }
 };
 
 /**

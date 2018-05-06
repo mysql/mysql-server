@@ -11,7 +11,7 @@ CREATE TABLESPACE s_2 ADD DATAFILE 's_2.ibd' ENGINE InnoDB;
 CREATE TABLE t1 (a int) ENGINE=innodb TABLESPACE=s_1;
 CREATE TABLE t2 (a int) ENGINE=innodb TABLESPACE=s_1;
 # Check tablespace on master
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_1	161	4	Dynamic	0	General
 test/t2	s_1	161	4	Dynamic	0	General
@@ -26,7 +26,7 @@ a
 include/sync_slave_sql_with_master.inc
 # connection slave
 # Check tablespace on slave
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s_1	161	4	Dynamic	0	General
 test/t2	s_1	161	4	Dynamic	0	General
@@ -39,19 +39,19 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # connection master
 USE test;
 DROP TABLE t1,t2;
 DROP TABLESPACE s_1;
 include/sync_slave_sql_with_master.inc
 # connection slave
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # connection master
 USE test;

@@ -1,27 +1,36 @@
 #ifndef SQL_RECORDS_H
-#define SQL_RECORDS_H 
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+#define SQL_RECORDS_H
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>                /* for uint typedefs */
+#include <sys/types.h>
+
 #include "my_base.h"
+#include "my_inttypes.h"
 
+struct IO_CACHE;
 class QEP_TAB;
-class handler;
-struct TABLE;
 class THD;
+struct TABLE;
 
 /**
   A context for reading through a single table using a chosen access method:
@@ -31,7 +40,7 @@ class THD;
 @code
   READ_RECORD read_record;
   if (init_read_record(&read_record, ...))
-    return TRUE;
+    return true;
   while (read_record.read_record())
   {
     ...
@@ -42,42 +51,44 @@ class THD;
 
 class QUICK_SELECT_I;
 
-struct READ_RECORD
-{
-  typedef int (*Read_func)(READ_RECORD*);
+struct READ_RECORD {
+  typedef int (*Read_func)(READ_RECORD *);
   typedef void (*Unlock_row_func)(QEP_TAB *);
-  typedef int (*Setup_func)(QEP_TAB*);
+  typedef int (*Setup_func)(QEP_TAB *);
+  typedef void (*Cleanup_func)(READ_RECORD *);
 
-  TABLE *table;                                 /* Head-form */
-  TABLE **forms;                                /* head and ref forms */
-  Unlock_row_func unlock_row;
-  Read_func read_record;
-  THD *thd;
-  QUICK_SELECT_I *quick;
-  uint cache_records;
-  uint ref_length,struct_length,reclength,rec_cache_size,error_offset;
+  TABLE *table{nullptr};  /* Head-form */
+  TABLE **forms{nullptr}; /* head and ref forms */
+  Unlock_row_func unlock_row{nullptr};
+  Read_func read_record{nullptr};
+  Cleanup_func cleanup{nullptr};
+  THD *thd{nullptr};
+  QUICK_SELECT_I *quick{nullptr};
+  uint cache_records{0};
+  uint ref_length{0}, struct_length{0}, reclength{0}, rec_cache_size{0},
+      error_offset{0};
 
   /**
     Counting records when reading result from filesort().
     Used when filesort leaves the result in the filesort buffer.
    */
-  ha_rows unpack_counter;
+  ha_rows unpack_counter{0};
 
-  uchar *ref_pos;				/* pointer to form->refpos */
-  uchar *record;
-  uchar *rec_buf;                /* to read field values  after filesort */
-  uchar	*cache,*cache_pos,*cache_end,*read_positions;
-  struct st_io_cache *io_cache;
-  bool print_error, ignore_not_found_rows;
+  uchar *ref_pos{nullptr}; /* pointer to form->refpos */
+  uchar *record{nullptr};
+  uchar *rec_buf{nullptr}; /* to read field values  after filesort */
+  uchar *cache{nullptr}, *cache_pos{nullptr}, *cache_end{nullptr},
+      *read_positions{nullptr};
+  IO_CACHE *io_cache{nullptr};
+  bool print_error{false}, ignore_not_found_rows{false};
 
-public:
+ public:
   READ_RECORD() {}
 };
 
-bool init_read_record(READ_RECORD *info, THD *thd,
-                      TABLE *table, QEP_TAB *qep_tab,
-		      int use_record_cache,
-                      bool print_errors, bool disable_rr_cache);
+bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
+                      QEP_TAB *qep_tab, int use_record_cache, bool print_errors,
+                      bool disable_rr_cache);
 bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx, bool reverse);
 void end_read_record(READ_RECORD *info);

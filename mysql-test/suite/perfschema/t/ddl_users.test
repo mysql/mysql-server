@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.users
   add column foo integer;
@@ -15,3 +12,6 @@ ALTER TABLE performance_schema.users ADD INDEX test_index(CURRENT_CONNECTIONS);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.users(CURRENT_CONNECTIONS);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `USER`
+  ON performance_schema.users;

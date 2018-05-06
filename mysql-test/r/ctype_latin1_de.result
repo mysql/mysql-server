@@ -1,10 +1,11 @@
 set names latin1;
+ALTER SCHEMA test COLLATE latin1_german2_ci;
 set @@collation_connection=latin1_german2_ci;
 select @@collation_connection;
 @@collation_connection
 latin1_german2_ci
 drop table if exists t1;
-create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
+create table t1 (a char (20) not null, b int not null primary key auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
 insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
@@ -13,88 +14,88 @@ insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
 insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É'),('a');
 select a,b from t1 order by a,b;
 a	b
-a	1
-a	2
-ac	1
-ad	1
+a	35
+a	40
+ac	2
+ad	4
 ä	1
-ae	2
-ää	1
-aeae	2
-ääa	1
-aeb	1
-Äc	1
-é	1
-É	2
-eä	1
-o	1
-oc	1
-od	1
-ö	1
-oe	2
-Öa	1
-oeb	1
-Öc	1
-öo	1
-q	1
-s	1
-ss	1
-ß	2
-ssa	1
-ßa	2
-ßb	1
-ssc	1
-u	1
-uc	1
-ud	1
-ue	1
-Ü	2
-ueb	1
-üc	1
-uf	1
-uü	1
+ae	3
+ää	31
+aeae	33
+ääa	32
+aeb	6
+Äc	5
+é	38
+É	39
+eä	28
+o	37
+oc	15
+od	18
+ö	14
+oe	17
+Öa	16
+oeb	20
+Öc	19
+öo	30
+q	34
+s	21
+ss	22
+ß	23
+ssa	25
+ßa	27
+ßb	24
+ssc	26
+u	36
+uc	8
+ud	10
+ue	9
+Ü	11
+ueb	12
+üc	7
+uf	13
+uü	29
 select a,b from t1 order by upper(a),b;
 a	b
-a	1
-a	2
-ac	1
-ad	1
+a	35
+a	40
+ac	2
+ad	4
 ä	1
-ae	2
-ää	1
-aeae	2
-ääa	1
-aeb	1
-Äc	1
-é	1
-É	2
-eä	1
-o	1
-oc	1
-od	1
-ö	1
-oe	2
-Öa	1
-oeb	1
-Öc	1
-öo	1
-q	1
-s	1
-ss	1
-ß	2
-ssa	1
-ßa	2
-ßb	1
-ssc	1
-u	1
-uc	1
-ud	1
-ue	1
-Ü	2
-ueb	1
-üc	1
-uf	1
-uü	1
+ae	3
+ää	31
+aeae	33
+ääa	32
+aeb	6
+Äc	5
+é	38
+É	39
+eä	28
+o	37
+oc	15
+od	18
+ö	14
+oe	17
+Öa	16
+oeb	20
+Öc	19
+öo	30
+q	34
+s	21
+ss	22
+ß	23
+ssa	25
+ßa	27
+ßb	24
+ssc	26
+u	36
+uc	8
+ud	10
+ue	9
+Ü	11
+ueb	12
+üc	7
+uf	13
+uü	29
 select a from t1 order by a desc;
 a
 uü
@@ -142,40 +143,40 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 select * from t1 where a like "ö%";
 a	b
-ö	1
-Öa	1
-Öc	1
-öo	1
+ö	14
+Öa	16
+Öc	19
+öo	30
 select * from t1 where a like binary "%É%";
 a	b
-É	2
+É	39
 select * from t1 where a like "%Á%";
 a	b
-a	1
-a	2
-ac	1
-ad	1
-ae	2
-aeae	2
-ääa	1
-aeb	1
-Öa	1
-ssa	1
-ßa	2
+a	35
+a	40
+ac	2
+ad	4
+ae	3
+aeae	33
+ääa	32
+aeb	6
+Öa	16
+ssa	25
+ßa	27
 select * from t1 where a like "%U%";
 a	b
-u	1
-uc	1
-ud	1
-ue	1
-ueb	1
-uf	1
-uü	1
+u	36
+uc	8
+ud	10
+ue	9
+ueb	12
+uf	13
+uü	29
 select * from t1 where a like "%ss%";
 a	b
-ss	1
-ssa	1
-ssc	1
+ss	22
+ssa	25
+ssc	26
 drop table t1;
 select strcmp('ä','ae'),strcmp('ae','ä'),strcmp('aeq','äq'),strcmp('äq','aeq');
 strcmp('ä','ae')	strcmp('ae','ä')	strcmp('aeq','äq')	strcmp('äq','aeq')
@@ -204,7 +205,7 @@ strcmp('u','öa')	strcmp('u','ö')
 select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
 strcmp('sä', 'ßa')	strcmp('aä', 'äx')
 -1	-1
-create table t1 (a varchar(10), key(a), fulltext (a));
+create table t1 (a varchar(10), key(a), fulltext (a)) engine=myisam;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
 a
@@ -227,7 +228,7 @@ t1	CREATE TABLE `t1` (
   `word` varchar(255) COLLATE latin1_german2_ci NOT NULL,
   `word2` varchar(255) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
   KEY `word` (`word`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
 insert into t1 (word) values ('ss'),(0xDF),(0xE4),('ae');
 update t1 set word2=word;
 select word, word=binary 0xdf as t from t1 having t > 0;
@@ -299,8 +300,8 @@ s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` char(5) COLLATE latin1_german2_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+  `s1` char(5) CHARACTER SET latin1 COLLATE latin1_german2_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
 INSERT INTO t1 VALUES ('Ü');
 INSERT INTO t1 VALUES ('ue');
 SELECT DISTINCT s1 FROM t1;
@@ -592,36 +593,6 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 80808020202020202020202020202020202020202020202020
-select @@collation_connection;
-@@collation_connection
-latin1_german2_ci
-select hex(weight_string('a' LEVEL 1));
-hex(weight_string('a' LEVEL 1))
-41
-select hex(weight_string('A' LEVEL 1));
-hex(weight_string('A' LEVEL 1))
-41
-select hex(weight_string('abc' LEVEL 1));
-hex(weight_string('abc' LEVEL 1))
-414243
-select hex(weight_string('abc' as char(2) LEVEL 1));
-hex(weight_string('abc' as char(2) LEVEL 1))
-4142
-select hex(weight_string('abc' as char(3) LEVEL 1));
-hex(weight_string('abc' as char(3) LEVEL 1))
-414243
-select hex(weight_string('abc' as char(5) LEVEL 1));
-hex(weight_string('abc' as char(5) LEVEL 1))
-4142432020
-select hex(weight_string('abc' as char(5) LEVEL 1 REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 REVERSE))
-2020434241
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC))
-BEBDBCDFDF
-select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
-hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
-DFDFBCBDBE
 select hex(weight_string('Ä'));
 hex(weight_string('Ä'))
 4145
@@ -651,28 +622,29 @@ hex(weight_string('ß'))
 5353
 select hex(weight_string('ä' as char(1)));
 hex(weight_string('ä' as char(1)))
-41
+4145
 select hex(weight_string('ö' as char(1)));
 hex(weight_string('ö' as char(1)))
-4F
+4F45
 select hex(weight_string('ü' as char(1)));
 hex(weight_string('ü' as char(1)))
-55
+5545
 select hex(weight_string('ß' as char(1)));
 hex(weight_string('ß' as char(1)))
-53
+5353
 select hex(weight_string('xä' as char(2)));
 hex(weight_string('xä' as char(2)))
-5841
+584145
 select hex(weight_string('xö' as char(2)));
 hex(weight_string('xö' as char(2)))
-584F
+584F45
 select hex(weight_string('xü' as char(2)));
 hex(weight_string('xü' as char(2)))
-5855
+585545
 select hex(weight_string('xß' as char(2)));
 hex(weight_string('xß' as char(2)))
-5853
+585353
 #
 # End of 5.6 tests
 #
+ALTER SCHEMA test COLLATE utf8mb4_0900_ai_ci;

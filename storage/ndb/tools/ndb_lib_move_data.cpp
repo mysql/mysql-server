@@ -1,17 +1,24 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 #include <NdbOut.hpp>
@@ -685,6 +692,7 @@ Ndb_move_data::copy_blob_to_array(const Attr& attr1, const Attr& attr2)
     {
       char* data1 = &op.buf1[0];
       Uint32 length1 = attr2.data_size;
+      require(length1 <= (unsigned)op.buflen); // avoid buffer overflow
       CHK2(bh1->readData(data1, length1) == 0, (bh1->getNdbError()));
       // pass also real length to detect truncation
       CHK1(copy_data_to_array(data1, attr2, length1, data_length) == 0);
@@ -1048,7 +1056,7 @@ Ndb_move_data::set_error_code(int code, const char* fmt, ...)
   require(code != 0);
   Error& e = m_error;
   e.code = code;
-  my_vsnprintf(e.message, sizeof(e.message), fmt, ap);
+  vsnprintf(e.message, sizeof(e.message), fmt, ap);
   va_end(ap);
 }
 

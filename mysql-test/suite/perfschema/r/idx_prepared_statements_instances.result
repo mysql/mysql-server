@@ -1,0 +1,312 @@
+create procedure proc1(a int, b int)
+BEGIN
+prepare st1 from 'SELECT SQRT(POW(?,2) + POW(?,2)) AS hypotenuse';
+execute st1 using @a, @b;
+END //
+SET @a = 3;
+SET @b = 4;
+call proc1(@a, @b);
+hypotenuse
+5
+select OBJECT_INSTANCE_BEGIN, STATEMENT_ID, STATEMENT_NAME,
+OWNER_THREAD_ID, OWNER_EVENT_ID,
+OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME
+from performance_schema.prepared_statements_instances
+limit 1
+into @oib, @stmt_id, @stmt_name, @o_tid, @o_eid,
+@o_otype, @o_oschema, @o_oname;
+
+====================================================================
+Testing index for columns OBJECT_INSTANCE_BEGIN
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_ERRORS 
+from performance_schema.prepared_statements_instances 
+where OBJECT_INSTANCE_BEGIN = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OBJECT_INSTANCE_BEGIN > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OBJECT_INSTANCE_BEGIN < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	const	PRIMARY	PRIMARY	8	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
+SUM_ERRORS
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns STATEMENT_ID
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_ERRORS 
+from performance_schema.prepared_statements_instances 
+where STATEMENT_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_ID	STATEMENT_ID	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_ID = @stmt_id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_ID	STATEMENT_ID	8	const	#	100.00	Using where
+############# Explain End #########################################
+flush status;
+select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_ID = @stmt_id;
+SUM_ERRORS
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns STATEMENT_NAME
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_ERRORS 
+from performance_schema.prepared_statements_instances 
+where STATEMENT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_NAME	STATEMENT_NAME	259	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_NAME	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_NAME	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_NAME = @stmt_name;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	STATEMENT_NAME	STATEMENT_NAME	259	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where STATEMENT_NAME = @stmt_name;
+SUM_ERRORS
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns OWNER_THREAD_ID, OWNER_EVENT_ID
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = "impossible"
+    and OWNER_EVENT_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid
+and OWNER_EVENT_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid
+and OWNER_EVENT_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid
+and OWNER_EVENT_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid
+and OWNER_EVENT_ID = @o_eid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	const	OWNER_THREAD_ID	OWNER_THREAD_ID	16	const,const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_THREAD_ID = @o_tid
+and OWNER_EVENT_ID = @o_eid;
+SUM_ERRORS
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME
+====================================================================
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	2	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_OBJECT_TYPE	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_OBJECT_TYPE	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	2	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = "impossible"
+    and OWNER_OBJECT_SCHEMA = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	2	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	2	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = "impossible"
+    and OWNER_OBJECT_SCHEMA = "impossible"
+    and OWNER_OBJECT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	520	const,const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema
+and OWNER_OBJECT_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	520	const,const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema
+and OWNER_OBJECT_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema
+and OWNER_OBJECT_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema
+and OWNER_OBJECT_NAME = @o_oname;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	520	const,const,const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SUM_ERRORS
+from performance_schema.prepared_statements_instances
+where OWNER_OBJECT_TYPE = @o_otype
+and OWNER_OBJECT_SCHEMA = @o_oschema
+and OWNER_OBJECT_NAME = @o_oname;
+SUM_ERRORS
+#
+OK: handler_read_key incremented
+deallocate prepare st1;
+drop procedure proc1;

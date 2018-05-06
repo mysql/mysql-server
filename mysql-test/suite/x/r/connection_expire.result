@@ -1,0 +1,222 @@
+SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='x_root';
+create user foo@localhost;
+alter user foo@localhost password expire;
+create user xplugin@localhost identified by 'xplugin';
+grant all on *.* to xplugin@localhost;
+alter user xplugin@localhost password expire;
+
+Test: Expired password with no support for sandbox mode (should fail)
+Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+ok
+
+Test: Expired password with support for sandbox mode (should succeed)
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+NOTICE: Account password expired
+Login OK
+ok
+Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
+alter user x_root@localhost password expire;
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+not ok
+Test: try connecting with Expired password using x_root user and expect password expire notice
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+NOTICE: Account password expired
+Login OK
+ok
+Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+NOTICE: Account password expired
+Login OK
+ok
+Test: try connecting with x_root user whose password expired with wrong password and expect invalid user or password error
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+Got expected error: Invalid user or password (code 1045)
+ok
+set password for x_root@localhost = '';
+# restart: --disconnect_on_expired_password=off
+Test: expect expired Notice for connection
+NOTICE: Account password expired
+RUN select user(),current_user()
+While executing select user(),current_user():
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+set password for x_root@localhost = '';
+# restart: --skip-disconnect_on_expired_password
+Test: expect expired Notice for connection
+NOTICE: Account password expired
+RUN select user(),current_user()
+While executing select user(),current_user():
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+NOTICE: Account password expired
+RUN select user(),current_user();
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN create database xplugin;
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN set password = 'xplugin'
+
+0 rows affected
+RUN create database xplugin
+
+1 rows affected
+RUN drop database xplugin
+
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+xplugin@localhost	xplugin@localhost
+0 rows affected
+RUN alter user xplugin@localhost password expire
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# restart: --disconnect_on_expired_password
+NOTICE: Account password expired
+RUN select user(),current_user();
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN create database xplugin;
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN set password = 'xplugin'
+
+0 rows affected
+RUN create database xplugin
+
+1 rows affected
+RUN drop database xplugin
+
+0 rows affected
+RUN select user(),current_user()
+user()	current_user()
+xplugin@localhost	xplugin@localhost
+0 rows affected
+RUN alter user xplugin@localhost password expire
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+connecting...
+Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+ok
+NOTICE: Account password expired
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create database xplugin;"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1820
+  msg: "You must reset your password using ALTER USER statement before executing this statement."
+  sql_state: "HY000"
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugin"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+drop user foo@localhost;
+drop user xplugin@localhost;
+update mysql.user set password_last_changed = @passwordchanged where host = 'localhost' and user='x_root';
+flush privileges;

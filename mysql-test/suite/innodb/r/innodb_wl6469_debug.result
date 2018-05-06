@@ -3,7 +3,7 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
 create temporary table t1

@@ -1,14 +1,21 @@
 /* 
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -63,14 +70,25 @@ void Win32AsyncFile::openReq(Request* request)
   DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
   Uint32 flags = request->par.open.flags;
 
-    // Convert file open flags from Solaris to Windows
-  if ((flags & FsOpenReq::OM_CREATE) && (flags & FsOpenReq::OM_TRUNCATE)){
+  // Convert file open flags from Solaris to Windows
+  if ((flags & FsOpenReq::OM_CREATE) && (flags & FsOpenReq::OM_TRUNCATE))
+  {
     dwCreationDisposition = CREATE_ALWAYS;
-  } else if (flags & FsOpenReq::OM_TRUNCATE){
+  }
+  else if (flags & FsOpenReq::OM_TRUNCATE)
+  {
     dwCreationDisposition = TRUNCATE_EXISTING;
-  } else if (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE)){
+  }
+  else if (flags & (FsOpenReq::OM_CREATE_IF_NONE))
+  {
     dwCreationDisposition = CREATE_NEW;
-  } else {
+  }
+  else if (flags & FsOpenReq::OM_CREATE)
+  {
+    dwCreationDisposition = OPEN_ALWAYS;
+  }
+  else
+  {
     dwCreationDisposition = OPEN_EXISTING;
   }
 
@@ -99,16 +117,23 @@ void Win32AsyncFile::openReq(Request* request)
   hFile = CreateFile(theFileName.c_str(), dwDesiredAccess, dwShareMode,
                      0, dwCreationDisposition, dwFlagsAndAttributes, 0);
 
-  if(INVALID_HANDLE_VALUE == hFile) {
+  if(INVALID_HANDLE_VALUE == hFile)
+  {
     request->error = GetLastError();
-  
-    if((ERROR_FILE_EXISTS == request->error) && (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
+
+    if (ERROR_FILE_EXISTS == request->error)
+    {
+      if (!(flags & FsOpenReq::OM_CREATE_IF_NONE))
+        abort();
       request->error = FsRef::fsErrFileExists;
+      (void)CloseHandle(hFile);
       return;
     }
 
-    if(((ERROR_PATH_NOT_FOUND == request->error) || (ERROR_INVALID_NAME == request->error))
-		&& (flags & (FsOpenReq::OM_CREATE|FsOpenReq::OM_CREATE_IF_NONE))) {
+    if (((ERROR_PATH_NOT_FOUND == request->error) ||
+        (ERROR_INVALID_NAME == request->error)) &&
+        (flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE)))
+    {
       createDirectories();
       hFile = CreateFile(theFileName.c_str(), dwDesiredAccess, dwShareMode,
                          0, dwCreationDisposition, dwFlagsAndAttributes, 0);
@@ -119,8 +144,27 @@ void Win32AsyncFile::openReq(Request* request)
         request->error = 0;
     }
   }
-  else {
+  else
+  {
     request->error = 0;
+  }
+
+  if (flags & FsOpenReq::OM_CHECK_SIZE)
+  {
+    LARGE_INTEGER size;
+    BOOL ret_code = GetFileSizeEx(hFile, &size);
+    if (!ret_code)
+    {
+      request->error = GetLastError();
+      (void)CloseHandle(hFile);
+      return;
+    }
+    if (Uint64(size.QuadPart) != request->par.open.file_size)
+    {
+      request->error = FsRef::fsErrInvalidFileSize;
+      (void)CloseHandle(hFile);
+      return;
+    }
   }
 
   if (flags & FsOpenReq::OM_INIT)
@@ -137,6 +181,8 @@ void Win32AsyncFile::openReq(Request* request)
       if(r==0)
       {
         request->error= GetLastError();
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
         return;
       }
       DWORD dwWritten;
@@ -144,6 +190,9 @@ void Win32AsyncFile::openReq(Request* request)
       if(!bWrite || dwWritten!=sizeof(buf))
       {
         request->error= GetLastError();
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
+        return;
       }
       off.QuadPart+=sizeof(buf);
     }
@@ -152,6 +201,8 @@ void Win32AsyncFile::openReq(Request* request)
     if(r==0)
     {
       request->error= GetLastError();
+      (void)CloseHandle(hFile);
+      (void)DeleteFile(theFileName.c_str());
       return;
     }
 
@@ -174,10 +225,10 @@ void Win32AsyncFile::openReq(Request* request)
       req->varIndex = index++;
       req->data.pageData[0] = m_page_ptr.i;
 
-      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1,
-                          instance // wl4391_todo This EXECUTE_DIRECT is thread safe
-                          );
+      m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
+			     FsReadWriteReq::FixedLength + 1,
+                             instance // wl4391_todo This EXECUTE_DIRECT is thread safe
+                            );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       DWORD dwWritten;
@@ -186,6 +237,9 @@ void Win32AsyncFile::openReq(Request* request)
 	if(!bWrite || dwWritten!=size)
 	{
 	  request->error= GetLastError();
+          (void)CloseHandle(hFile);
+          (void)DeleteFile(theFileName.c_str());
+          return;
 	}
 	size -= dwWritten;
 	buf += dwWritten;
@@ -193,9 +247,9 @@ void Win32AsyncFile::openReq(Request* request)
       if(size != 0)
       {
 	int err = errno;
-	/*	close(theFd);
-		unlink(theFileName.c_str());*/
 	request->error = err;
+        (void)CloseHandle(hFile);
+        (void)DeleteFile(theFileName.c_str());
 	return;
       }
       off.QuadPart += request->par.open.page_size;
@@ -206,8 +260,23 @@ void Win32AsyncFile::openReq(Request* request)
     if(r==0)
     {
       request->error= GetLastError();
+      (void)CloseHandle(hFile);
+      (void)DeleteFile(theFileName.c_str());
       return;
     }
+  }
+  if (flags & FsOpenReq::OM_READ_SIZE)
+  {
+    LARGE_INTEGER size;
+    BOOL ret_code = GetFileSizeEx(hFile, &size);
+    if (ret_code)
+    {
+      request->error = GetLastError();
+      (void)CloseHandle(hFile);
+      return;
+    }
+    request->m_file_size_hi = Uint32(Uint64(size.QuadPart) >> 32);
+    request->m_file_size_lo = Uint32(Uint64(size.QuadPart) & 0xFFFFFFFF);
   }
 
   return;
@@ -332,9 +401,11 @@ bool Win32AsyncFile::isOpen(){
 void
 Win32AsyncFile::syncReq(Request * request)
 {
-  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
-      m_always_sync)
+  if (m_write_wo_sync == 0)
   {
+    /**
+     * No need to call fsync when nothing to write.
+     */
     return;
   }
   if(!FlushFileBuffers(hFile)) {

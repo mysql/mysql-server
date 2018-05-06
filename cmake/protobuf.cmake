@@ -1,17 +1,24 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #
 # Usage:
@@ -21,27 +28,6 @@
 #  Default is "bundled"
 #  Other values will be ignored, and we fall back to "bundled"
 #
-
-MACRO(RESET_PROTOBUF_VARIABLES)
-  UNSET(PROTOBUF_INCLUDE_DIR CACHE)
-  UNSET(PROTOBUF_INCLUDE_DIR)
-  UNSET(PROTOBUF_INCLUDE_DIRS CACHE)
-  UNSET(PROTOBUF_INCLUDE_DIRS)
-  UNSET(PROTOBUF_LIBRARIES CACHE)
-  UNSET(PROTOBUF_LIBRARIES)
-  UNSET(PROTOBUF_LIBRARY CACHE)
-  UNSET(PROTOBUF_LIBRARY)
-  UNSET(PROTOBUF_LIBRARY_DEBUG CACHE)
-  UNSET(PROTOBUF_LIBRARY_DEBUG)
-  UNSET(PROTOBUF_LITE_LIBRARY CACHE)
-  UNSET(PROTOBUF_LITE_LIBRARY)
-  UNSET(PROTOBUF_LITE_LIBRARY_DEBUG CACHE)
-  UNSET(PROTOBUF_LITE_LIBRARY_DEBUG)
-  UNSET(PROTOBUF_PROTOC_EXECUTABLE CACHE)
-  UNSET(PROTOBUF_PROTOC_EXECUTABLE)
-  UNSET(PROTOBUF_PROTOC_LIBRARY_DEBUG CACHE)
-  UNSET(PROTOBUF_PROTOC_LIBRARY_DEBUG)
-ENDMACRO()
 
 MACRO(ECHO_PROTOBUF_VARIABLES)
   MESSAGE(STATUS "PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIR}")
@@ -61,9 +47,24 @@ ENDMACRO()
 SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-2.6.1/src)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
-  SET(WITH_PROTOBUF "bundled" CACHE INTERNAL
+  SET(WITH_PROTOBUF "bundled" CACHE STRING
     "Bundled protoc and protobuf library")
-  # Set the same variables as FindProtobuf.cmake
+  # Set the same variables as FindProtobuf.cmake (First reset all)
+  FOREACH(protovar
+      INCLUDE_DIR
+      LIBRARY_DEBUG
+      LIBRARY_RELEASE
+      LITE_LIBRARY_DEBUG
+      LITE_LIBRARY_RELEASE
+      PROTOC_EXECUTABLE
+      PROTOC_LIBRARY_DEBUG
+      PROTOC_LIBRARY_RELEASE)
+    UNSET(Protobuf_${protovar})
+    UNSET(Protobuf_${protovar} CACHE)
+  ENDFOREACH()
+  UNSET(FIND_PACKAGE_MESSAGE_DETAILS_Protobuf)
+  UNSET(FIND_PACKAGE_MESSAGE_DETAILS_Protobuf CACHE)
+
   SET(PROTOBUF_FOUND 1 CACHE INTERNAL "")
   SET(PROTOBUF_INCLUDE_DIR ${BUNDLED_PROTO_SRCDIR} CACHE INTERNAL "")
   SET(PROTOBUF_INCLUDE_DIRS ${BUNDLED_PROTO_SRCDIR} CACHE INTERNAL "")
@@ -113,7 +114,7 @@ MACRO(MYSQL_CHECK_PROTOBUF)
       PROTOBUF_MINOR_VERSION "${PROTOBUF_VERSION_NUMBER}")
 
     MESSAGE(STATUS
-      "protobuf version is ${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}")
+      "PROTOBUF_VERSION_NUMBER is ${PROTOBUF_VERSION_NUMBER}")
 
     IF("${PROTOBUF_MAJOR_VERSION}.${PROTOBUF_MINOR_VERSION}" VERSION_LESS "2.5")
       COULD_NOT_FIND_PROTOBUF()

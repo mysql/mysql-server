@@ -1,27 +1,31 @@
-############## mysql-test\t\myisam_sort_buffer_size_basic.test ###############
-#                                                                             #
-# Variable Name: myisam_sort_buffer_size                                     #
-# Scope: GLOBAL | SESSION                                                     #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                        #
-# Default Value:                                                              #
-# Range:                                                                      #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Rizwan                                                     #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable myisam_sort_buffer_size #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+############### mysql-test\t\myisam_sort_buffer_size_basic.test #################
+#                                                                               #
+# Variable Name: myisam_sort_buffer_size                                        #
+# Scope: GLOBAL | SESSION                                                       #
+# Access Type: Dynamic                                                          #
+# Data Type: numeric                                                            #
+# Default Value: 8388608                                                        #
+# Range: 4096 - 4294967295/18446744073709551615                                 #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-02-07                                                     #
+# Author:  Rizwan                                                               #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable myisam_sort_buffer_size    #
+#              that checks the behavior of this variable in the following ways  #
+#              * Default Value                                                  #
+#              * Valid & Invalid values                                         #
+#              * Scope & Access method                                          #
+#              * Data Integrity                                                 #
+#                                                                               #
+# Modified:    Pavan Naik, 2015-11-24                                           #
+#              Added boundary value test cases according to the type of the     #
+#              server binary.                                                   #
+#                                                                               #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                            #
+#            server-system-variables.html                                       #
+#                                                                               #
+#################################################################################
 
 --source include/load_sysvars.inc
 
@@ -71,7 +75,7 @@ SELECT @@session.myisam_sort_buffer_size   = 8388608;
 # Change the value of myisam_sort_buffer_size   to a valid value for GLOBAL Scope #
 ##################################################################################
 
-SET @@global.myisam_sort_buffer_size   = 4;
+SET @@global.myisam_sort_buffer_size   = 4096;
 SELECT @@global.myisam_sort_buffer_size  ;
 
 SET @@global.myisam_sort_buffer_size   = 4294967295;
@@ -80,13 +84,19 @@ SELECT @@global.myisam_sort_buffer_size  ;
 SET @@global.myisam_sort_buffer_size   = 655354;
 SELECT @@global.myisam_sort_buffer_size  ;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  SET @@global.myisam_sort_buffer_size = 18446744073709551615;
+  SELECT @@global.myisam_sort_buffer_size;
+}
 
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ###################################################################################
 # Change the value of myisam_sort_buffer_size   to a valid value for SESSION Scope #
 ###################################################################################
  
-SET @@session.myisam_sort_buffer_size   = 4;
+SET @@session.myisam_sort_buffer_size   = 4096;
 SELECT @@session.myisam_sort_buffer_size  ;
 
 SET @@session.myisam_sort_buffer_size   = 4294967295;
@@ -95,23 +105,26 @@ SELECT @@session.myisam_sort_buffer_size  ;
 SET @@session.myisam_sort_buffer_size   = 655345;
 SELECT @@session.myisam_sort_buffer_size  ;
 
-
-
+# Test cases for 64-bit machines
+if($mach64)
+{
+  SET @@session.myisam_sort_buffer_size = 18446744073709551615;
+  SELECT @@session.myisam_sort_buffer_size;
+}
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
 ####################################################################
 # Change the value of myisam_sort_buffer_size   to an invalid value #
 ####################################################################
 
+SET @@global.myisam_sort_buffer_size   = 4095;
+SELECT @@global.myisam_sort_buffer_size  ;
+
 SET @@global.myisam_sort_buffer_size   = 0;
 SELECT @@global.myisam_sort_buffer_size  ;
 
 SET @@global.myisam_sort_buffer_size   = -1024;
 SELECT @@global.myisam_sort_buffer_size  ;
-
-SET @@global.myisam_sort_buffer_size   = 429496729533;
-SELECT @@global.myisam_sort_buffer_size  ;
-
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_sort_buffer_size   = 65530.34;
@@ -134,6 +147,9 @@ SET @@global.myisam_sort_buffer_size   = ON;
 SELECT @@global.myisam_sort_buffer_size  ;
 
 
+SET @@session.myisam_sort_buffer_size   = 4095;
+SELECT @@session.myisam_sort_buffer_size  ;
+
 SET @@session.myisam_sort_buffer_size   = 0;
 SELECT @@session.myisam_sort_buffer_size  ;
 
@@ -153,6 +169,21 @@ SELECT @@session.myisam_sort_buffer_size  ;
 SET @@session.myisam_sort_buffer_size   = "test";
 SELECT @@session.myisam_sort_buffer_size  ;
 
+if($mach32)
+{
+  SET @@global.myisam_sort_buffer_size = 4294967296;
+  SELECT @@global.myisam_sort_buffer_size;
+
+  SET @@global.myisam_sort_buffer_size = 42949672950;
+  SELECT @@global.myisam_sort_buffer_size;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.myisam_sort_buffer_size = 18446744073709551616;
+  SELECT @@global.myisam_sort_buffer_size;
+}
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
@@ -161,8 +192,8 @@ SELECT @@session.myisam_sort_buffer_size  ;
 
 --disable_warnings
 SELECT @@global.myisam_sort_buffer_size   = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
-WHERE VARIABLE_NAME='myisam_sort_buffer_size  ';
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='myisam_sort_buffer_size';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -172,8 +203,8 @@ WHERE VARIABLE_NAME='myisam_sort_buffer_size  ';
 
 --disable_warnings
 SELECT @@session.myisam_sort_buffer_size   = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
-WHERE VARIABLE_NAME='myisam_sort_buffer_size  ';
+FROM performance_schema.session_variables 
+WHERE VARIABLE_NAME='myisam_sort_buffer_size';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_08-----------------------#'

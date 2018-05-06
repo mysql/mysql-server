@@ -1,3 +1,4 @@
+create function fn16456_1() returns int  return 1;
 set global log_bin_trust_function_creators=0;
 set binlog_format=STATEMENT;
 create function fn16456()
@@ -6,6 +7,11 @@ begin
 return unix_timestamp();
 end|
 ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+alter function fn16456_1 comment "fails" contains SQL;
+ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+alter function fn16456_1 MODIFIES SQL DATA;
+ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+drop function fn16456_1;
 set global log_bin_trust_function_creators=1;
 create function fn16456()
 returns int
@@ -13,7 +19,7 @@ begin
 return unix_timestamp();
 end|
 set global log_bin_trust_function_creators=0;
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -27,7 +33,7 @@ returns int deterministic
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -42,7 +48,7 @@ returns int no sql
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -57,7 +63,7 @@ returns int reads sql data
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp

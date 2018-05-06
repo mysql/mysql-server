@@ -5,15 +5,15 @@
 -- source include/have_debug.inc
 
 --disable_warnings
-drop procedure if exists empty;
+drop procedure if exists `empty`;
 drop procedure if exists code_sample;
 --enable_warnings
 
-create procedure empty()
+create procedure `empty`()
 begin
 end;
-show procedure code empty;
-drop procedure empty;
+show procedure code `empty`;
+drop procedure `empty`;
 
 create function almost_empty()
     returns int
@@ -78,20 +78,20 @@ begin
 
   create temporary table sudoku_work
   (
-    row smallint not null,
+    `row` smallint not null,
     col smallint not null,
     dig smallint not null,
     cnt smallint,
     key using btree (cnt),
-    key using btree (row),
+    key using btree (`row`),
     key using btree (col),
-    unique key using hash (row,col)
+    unique key using hash (`row`,col)
   );
 
   create temporary table sudoku_schedule
   (
     idx int not null auto_increment primary key,
-    row smallint not null,
+    `row` smallint not null,
     col smallint not null
   );
 
@@ -102,8 +102,8 @@ begin
   else
     call sudoku_count();
   end if;
-  insert into sudoku_schedule (row,col)
-    select row,col from sudoku_work where cnt is not null order by cnt desc;
+  insert into sudoku_schedule (`row`,col)
+    select `row`,col from sudoku_work where cnt is not null order by cnt desc;
 
   begin
     declare v_scounter bigint default 0;
@@ -123,20 +123,20 @@ begin
       begin
         declare v_row, v_col smallint;
 
-        select row,col into v_row,v_col from sudoku_schedule where v_i = idx;
+        select `row`,col into v_row,v_col from sudoku_schedule where v_i = idx;
 
         select dig into v_dig from sudoku_work
-          where v_row = row and v_col = col;
+          where v_row = `row` and v_col = col;
 
         case v_dig
         when 0 then
           set v_dig = 1;
           update sudoku_work set dig = 1
-            where v_row = row and v_col = col;
+            where v_row = `row` and v_col = col;
         when 9 then
           if v_i > 0 then
             update sudoku_work set dig = 0
-              where v_row = row and v_col = col;
+              where v_row = `row` and v_col = col;
             set v_i = v_i - 1;
             iterate sched;
           else
@@ -146,7 +146,7 @@ begin
         else
           set v_dig = v_dig + 1;
           update sudoku_work set dig = v_dig
-            where v_row = row and v_col = col;
+            where v_row = `row` and v_col = col;
         end case;
 
         set v_tcounter = v_tcounter + 1;

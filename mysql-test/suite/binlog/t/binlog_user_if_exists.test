@@ -1,15 +1,17 @@
---source include/not_embedded.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
-
 --source include/master-slave.inc
 --connection master
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
 
 --echo #
 --echo # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
 --echo #
+
 CREATE USER u1@localhost;
 CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
 ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
@@ -19,131 +21,26 @@ DROP USER IF EXISTS u2@localhost;
 --echo #
 --echo # Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
 --echo #
+
+
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
 ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
 ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
 DROP USER b21807286@localhost;
 
---source include/sync_slave_sql_with_master.inc
---echo [On Slave]
---source include/show_binlog_events.inc
-
---echo #
---echo # Bug #25813089: "CREATE USER IF NOT EXISTS SHOULD ALWAYS
---echo #                 BE WRITTEN TO THE BINLOGS"
---echo #
-
-# Scenario 1: Create/Alter user executed on a single user
-
---echo # ------
---echo "Scenario 1: CREATE/ALTER USER IF[NOT]EXISTS FOR A SINGLE USER"
---echo # ------
---connection master
-# Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
---let $binlog_start= $saved_master_pos
-
-CREATE USER u1@localhost IDENTIFIED BY 'pass1';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass2';
-ALTER USER u1@localhost IDENTIFIED BY 'pass3';
-ALTER USER IF EXISTS u1@localhost IDENTIFIED BY 'pass4';
-ALTER USER IF EXISTS u1_not_exists@localhost IDENTIFIED BY 'pass5';
-DROP USER u1@localhost;
-
---echo [On Master]
---source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
+--let $mask_user_password_events=1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events=0
 
---echo "Creating a user only on slave"
-CREATE USER IF NOT EXISTS slave_user@localhost IDENTIFIED BY 'slave_pass';
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
 
-# Scenario 2: Create/Alter user executed on multiple users
-# irrespective of whether they are present on master or not
-
---echo # ------
---echo "Scenario 2: CREATE/ALTER USER IF[NOT]EXISTS FOR MULTIPLE USERS"
---echo # ------
---connection master
-# Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
---let $binlog_start= $saved_master_pos
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass1',
-                          u2@localhost IDENTIFIED BY 'pass2';
-
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass1',
-                          u2@localhost IDENTIFIED BY 'pass2',
-                          u3@localhost IDENTIFIED BY 'pass3';
-
-ALTER USER IF EXISTS u1@localhost IDENTIFIED BY 'pass4',
-                          u2@localhost IDENTIFIED BY 'pass5',
-                          u3@localhost IDENTIFIED BY 'pass6',
-                          u4_not_exists@localhost IDENTIFIED BY 'pass7',
-                          slave_user@localhost IDENTIFIED BY 'pass8';
-DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localhost;
-
---echo [On Master]
---source include/show_binlog_events.inc
-
---source include/sync_slave_sql_with_master.inc
---echo [On Slave]
---source include/show_binlog_events.inc
---source include/stop_slave_io.inc
-
-# Scenario 3: Make sure that the default authentication plugin is not used
-# when the plugin is specified explicitly while creating or altering users.
-
---echo # ------
---echo "Scenario 3: CREATE/ALTER USER IF[NOT]EXISTS WITH"
---echo "AUTHENTICATION PLUGIN PROVIDED EXPLICITLY"
---echo # ------
---connection master
---let $rpl_server_number= 1
---let $rpl_server_parameters= --default_authentication_plugin=sha256_password
---source include/rpl_restart_server.inc
-
---connection slave
---source include/start_slave_io.inc
-
---connection master
---disable_warnings
---source include/rpl_reset.inc
---enable_warnings
-
-# Save master position
---let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
---let $binlog_start= $saved_master_pos
-
-SHOW VARIABLES LIKE 'default_authentication_plugin';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH mysql_native_password by 'pass_native';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH mysql_native_password by 'pass_native2';
-ALTER USER IF EXISTS u1@localhost IDENTIFIED WITH mysql_native_password BY 'pass_native3';
-ALTER USER IF EXISTS u2_not_exists@localhost IDENTIFIED WITH mysql_native_password BY 'pass_native4';
-SELECT user,authentication_string FROM mysql.user WHERE user='u1';
-DROP USER u1@localhost;
-
---echo [On Master]
---source include/show_binlog_events.inc
-
---source include/sync_slave_sql_with_master.inc
---echo [On Slave]
---source include/show_binlog_events.inc
-
-# Search for the warnings in the server log
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_FILE= $server_log;
---echo # Search warnings in the server log
-
---let SEARCH_PATTERN= Following users were specified in CREATE USER IF NOT EXISTS
---source include/search_pattern_in_file.inc
-
---let SEARCH_PATTERN= Following users were specified in ALTER USER IF EXISTS
---source include/search_pattern_in_file.inc
-
-#Clean up
 --source include/rpl_end.inc
 
 --echo

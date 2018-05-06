@@ -6,7 +6,7 @@
 # 1) Reset the master and set max_binlog_size to a smaller value 4KB.
 # 2) Start a XA transaction which is more than max_binlog_size (4KB).
 # 3) Prepare the XA trx.
-#    (trx content will be written to master-bin.000001 and the binlog
+#    (trx content will be written to binlog.000001 and the binlog
 #      will be rotated because of the size limit).
 # 4) Commit the XA trx (commit will be written to binlog2).
 # 5) Save the binlog dump for the reapply purpose.
@@ -36,20 +36,20 @@ XA END 'xa1';
 
 --echo #
 --echo # 3) Prepare the XA trx.
---echo #    (trx content will be written to master-bin.000001 and the binlog
+--echo #    (trx content will be written to binlog.000001 and the binlog
 --echo #     will be rotated because of the size limit).
 XA PREPARE 'xa1';
 
 --echo #
---echo # 4) Commit the XA trx (commit will be written to master-bin.000002).
+--echo # 4) Commit the XA trx (commit will be written to binlog.000002).
 --echo #
 XA COMMIT 'xa1';
 
 --echo #
 --echo # 5) Save the binlog dump for the reapply purpose.
 --echo #
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/xa_trx_part1.sql
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000002 > $MYSQLTEST_VARDIR/tmp/xa_trx_part2.sql
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/xa_trx_part1.sql
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000002 > $MYSQLTEST_VARDIR/tmp/xa_trx_part2.sql
 
 --echo #
 --echo # 6) Cleanup the server and make it ready to apply the binlog dump.

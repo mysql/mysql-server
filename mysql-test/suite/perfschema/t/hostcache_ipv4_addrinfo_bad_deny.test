@@ -6,9 +6,7 @@
 # - IP --> HOST --> IP returns no match
 # - reported in COUNT_FCRDNS_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # [Warning] Hostname 'santa.claus.ipv4.example.com' does not resolve to '192.0.2.4'.
 # [Note] Hostname 'santa.claus.ipv4.example.com' has the following IP addresses:

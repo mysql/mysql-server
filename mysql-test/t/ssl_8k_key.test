@@ -1,10 +1,10 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
 #
 # Bug#29784 YaSSL assertion failure when reading 8k key.
 #
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 
 ##  This test file is for testing encrypted communication only, not other

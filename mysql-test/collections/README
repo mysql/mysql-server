@@ -67,3 +67,11 @@ writing or editing such files as they are specific to that setup.
    lower setting for cluster). Most hosts use 8. It does not hurt to
    add --parallel=auto but this will only have effect should we have
    forgotten to set a parallel setting for a host.
+
+There are some files called disabled-*.list which are referenced in the
+commands in the default.* files to explicitly disable some tests.
+
+disabled-asan.list contains a list of tests to be disabled for asan
+test runs. This is done automatically by the test framework. A similar
+test list may be added for valgrind, which will then be disabled in
+valgrind tests.

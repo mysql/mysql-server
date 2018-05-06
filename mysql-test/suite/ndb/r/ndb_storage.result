@@ -1,0 +1,96 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=ndb;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 10M
+ENGINE ndb;
+CREATE TABLE t5 (a int PRIMARY KEY, t5b int, t5c int)
+ENGINE ndb;
+INSERT INTO t5 VALUES (1, 1, 1);
+ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk TABLESPACE ts1;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed due to change in table storage media. Try ALGORITHM=COPY.
+ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE=ndb;
+ERROR HY000: Failed to alter:  DROP DATAFILE
+ALTER TABLE t5 STORAGE memory;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE=ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+SELECT * FROM t5;
+a	t5b	t5c
+1	1	1
+DROP TABLE t5;
+DROP TABLESPACE ts1 ENGINE ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 10M
+ENGINE ndb;
+CREATE TABLE t5 (a int PRIMARY KEY, t5b int, t5c int)
+ENGINE ndb;
+INSERT INTO t5 VALUES (1, 1, 1);
+ALTER TABLE t5 CHANGE t5b t5b int STORAGE disk, TABLESPACE ts1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE ndb;
+ERROR HY000: Failed to alter:  DROP DATAFILE
+ALTER TABLE t5 CHANGE t5b t5b int STORAGE memory;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+SELECT * FROM t5;
+a	t5b	t5c
+1	1	1
+DROP TABLE t5;
+DROP TABLESPACE ts1 ENGINE ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 10M
+ENGINE ndb;
+CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
+t5c tinytext, t5d int unique key STORAGE disk)
+TABLESPACE ts1 ENGINE ndb;
+ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+Error	1112	Table 't5' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
+t5c tinytext, t5d int STORAGE disk)
+TABLESPACE ts1 ENGINE ndb;
+CREATE INDEX 5d_i ON t5(t5d);
+ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+ALTER TABLE t5 ADD INDEX 5d_i (t5d);
+ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+DROP TABLE t5;
+CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
+t5c tinytext, t5d int)
+STORAGE disk TABLESPACE ts1 ENGINE ndb;
+CREATE INDEX 5d_i ON t5(t5d);
+DROP INDEX 5d_i on t5;
+ALTER TABLE t5 ADD INDEX 5d_i(t5d);
+DROP TABLE t5;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE=ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE ts1 ENGINE=ndb;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP LOGFILE GROUP lg1 ENGINE=ndb;

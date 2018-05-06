@@ -19,7 +19,7 @@
 SELECT character_maximum_length INTO @CML
   FROM information_schema.columns
  WHERE table_schema = 'information_schema'
-   AND table_name   = 'columns'
+   AND table_name   = 'COLUMNS'
    AND column_name  = 'table_catalog';
 
 let $bug_12777_0512= `SELECT @CML =  512`;
@@ -74,7 +74,7 @@ let $engine_ndb= 0;
 --disable_warnings
 DROP DATABASE IF EXISTS test1;
 --enable_warnings
-CREATE DATABASE test1;
+CREATE DATABASE test1 charset latin1;
 USE test;
 
 if ($engine_innodb)

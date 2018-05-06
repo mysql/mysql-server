@@ -194,8 +194,6 @@ a
 42
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a tinyint not null auto_increment primary key) engine=myisam;
 insert into t1 values(103);
 set auto_increment_increment=11;
@@ -252,14 +250,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 include/rpl_reset.inc
 DROP TABLE IF EXISTS t1;
@@ -267,8 +265,6 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t2 VALUES(NULL);
 SELECT * FROM t1;

@@ -9,12 +9,12 @@ relay_log_info_file	relay-log.info
 show session variables like 'relay_log_info_file';
 Variable_name	Value
 relay_log_info_file	relay-log.info
-select * from information_schema.global_variables where variable_name='relay_log_info_file';
+select * from performance_schema.global_variables where variable_name='relay_log_info_file';
 VARIABLE_NAME	VARIABLE_VALUE
-RELAY_LOG_INFO_FILE	relay-log.info
-select * from information_schema.session_variables where variable_name='relay_log_info_file';
+relay_log_info_file	relay-log.info
+select * from performance_schema.session_variables where variable_name='relay_log_info_file';
 VARIABLE_NAME	VARIABLE_VALUE
-RELAY_LOG_INFO_FILE	relay-log.info
+relay_log_info_file	relay-log.info
 set global relay_log_info_file=1;
 ERROR HY000: Variable 'relay_log_info_file' is a read only variable
 set session relay_log_info_file=1;

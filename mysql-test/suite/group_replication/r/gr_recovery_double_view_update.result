@@ -1,0 +1,68 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Start group replication on server 1
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+#
+# Set server 2 options to fail on recovery
+#
+server2
+SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @debug_save_ret_count= @@GLOBAL.group_replication_recovery_retry_count;
+CHANGE MASTER TO MASTER_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
+SET GLOBAL group_replication_recovery_reconnect_interval= 10 # seconds;
+SET GLOBAL group_replication_recovery_retry_count= 2;
+#
+# Set server 2 making sure 2 views are received when recovery fails
+#
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.*");
+set session sql_log_bin=1;
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_cleanup';
+SET GLOBAL group_replication_group_name= "6749cab0-93ae-11e5-a837-0800200c9a66";
+START GROUP_REPLICATION;
+#
+# Give time for server 2 to fail the connection once
+# Stop recovery on the donor (server1)
+#
+server1
+include/stop_group_replication.inc
+#
+# Watch server 2 enter an error state.
+#
+server2
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end_end";
+SET @@GLOBAL.DEBUG= @debug_save;
+include/gr_wait_for_member_state.inc
+#
+# Check all is fine
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+server2
+include/stop_group_replication.inc
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+include/assert.inc [The table should contain 1 elements]
+DROP TABLE t1;
+#
+# Cleanup
+#
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
+SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_ret_count;
+include/group_replication_end.inc

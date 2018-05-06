@@ -10,11 +10,12 @@
 # There's some format specifics through show_binlog_events,
 # but MIXED is chosen rather to optimize.
 --source include/have_binlog_format_mixed.inc
+--source include/linux.inc
+
 #
 # Crash-safe testing is difficult on other than Linux.
 # TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
 #
---source include/linux.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

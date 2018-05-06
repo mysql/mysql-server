@@ -1,0 +1,141 @@
+include/save_binlog_position.inc
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS');
+# -----------------------------------------------------------------------
+# Begin : Tests for ALTER USER
+CREATE USER userX, userY, userZ;
+include/save_binlog_position.inc
+SELECT user, authentication_string FROM mysql.user;
+user	authentication_string
+userX	
+userY	
+userZ	
+mysql.infoschema	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+root	
+# Case 1 : Modify multiple users
+ALTER USER userX IDENTIFIED BY 'abcd',
+userY IDENTIFIED BY 'efgh',
+userZ IDENTIFIED BY 'ijkl';
+# This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userX@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userY@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userZ@%
+# Case 2 : Try to modify property of an non-existing user
+ALTER USER userW IDENTIFIED BY 'haha',
+userX IDENTIFIED BY '',
+userV IDENTIFIED BY 'haha';
+ERROR HY000: Operation ALTER USER failed for 'userW'@'%','userV'@'%'
+# This event sequence pattern MUST NOT be present in binlog: !Q(ALTER USER.*userW.*userX.*userV.*)
+include/assert_binlog_events.inc
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userX@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userY@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userZ@%
+# Case 3 : Remove one of the entries from mysql.user but don't flush privileges.
+DELETE FROM mysql.user WHERE user LIKE 'userX';
+include/save_binlog_position.inc
+ALTER USER userY IDENTIFIED BY '',
+userX IDENTIFIED BY 'haha';
+ERROR HY000: Operation ALTER USER failed for 'userX'@'%'
+# Check binlog : Must not have any entry
+# This event sequence pattern MUST NOT be present in binlog: !Q(ALTER USER.*userY.*userX.*)
+include/assert_binlog_events.inc
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userY@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userZ@%
+# Case 4 : Try to expire own password in a failing DDL. We update
+# current session's state as well. However, since DDL is going fail,
+# session's state must not be altered and user should be able to
+# execute other statements without any need to change password.
+ALTER USER root@localhost, userW PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'userW'@'%'
+# Must succeed
+SELECT user FROM mysql.user;
+user
+userY
+userZ
+mysql.infoschema
+mysql.session
+mysql.sys
+root
+# This event sequence pattern MUST NOT be present in binlog: !Q(ALTER USER.*root.*userW.*)
+include/assert_binlog_events.inc
+DROP USER userY, userZ;
+include/save_binlog_position.inc
+# End : Tests for ALTER USER
+# -----------------------------------------------------------------------
+# Begin : Tests for ALTER USER IF EXISTS
+CALL mtr.add_suppression("Following users were specified in ALTER USER IF NOT EXISTS but they do not exist.");
+CREATE USER userX, userY;
+include/save_binlog_position.inc
+# Case 1 : Must throw warning for userW and userZ
+ALTER USER IF EXISTS userW IDENTIFIED BY 'abcd',
+userX IDENTIFIED BY 'efgh',
+userY IDENTIFIED BY 'ijkl',
+userZ IDENTIFIED BY 'mnop';
+Warnings:
+Note	3162	Authorization ID 'userW'@'%' does not exist.
+Note	3162	Authorization ID 'userZ'@'%' does not exist.
+# This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userW.*userX.*userY.*userZ.*)
+include/assert_binlog_events.inc
+include/save_binlog_position.inc
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userX@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+userY@%
+# Case 2 : Remove one of the user from mysql.user table
+DELETE FROM mysql.user WHERE user LIKE 'userX';
+include/save_binlog_position.inc
+# Must throw warning for userX
+ALTER USER IF EXISTS userX IDENTIFIED BY 'abcd',
+userY IDENTIFIED BY '';
+Warnings:
+Note	3162	Authorization ID 'userX'@'%' does not exist.
+# This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*)
+include/assert_binlog_events.inc
+FLUSH PRIVILEGES;
+include/save_binlog_position.inc
+# Case 3 : Current session's password must be expired
+GRANT ALL ON *.* TO userY;
+ALTER USER IF EXISTS userY, userW PASSWORD EXPIRE;
+SELECT user FROM mysql.user;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+include/save_binlog_position.inc
+# Must throw warning
+ALTER USER IF EXISTS userY IDENTIFIED BY 'abcd', userW IDENTIFIED BY 'haha';
+Warnings:
+Note	3162	Authorization ID 'userW'@'%' does not exist.
+SELECT user FROM mysql.user;
+user
+userY
+mysql.infoschema
+mysql.session
+mysql.sys
+root
+# This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userY.*userW.*)
+include/assert_binlog_events.inc
+DROP USER userY;
+include/save_binlog_position.inc
+# End : Tests for ALTER USER IF EXISTS
+# -----------------------------------------------------------------------

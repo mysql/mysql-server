@@ -21,7 +21,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/not_threadpool.inc
 
 SET @start_value= @@global.wait_timeout;
@@ -57,9 +56,9 @@ eval SET @@session.wait_timeout = $session_value - 1;
 connection default;
 
 --echo wait until connections ready
-let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist;
+let $wait_condition= SELECT COUNT(*) = 2 FROM information_schema.processlist;
 --source include/wait_condition.inc
-SELECT info FROM information_schema.processlist;
+SELECT info FROM information_schema.processlist ORDER BY info;
 
 --echo '#--------------------FN_DYNVARS_186_03-------------------------#'
 #######################################################################
@@ -88,9 +87,9 @@ connection default;
 # established because both have already executed a SET @@session.wait_timeout.
 # This means they are or at least were visible within the processlist.
 # Therefore we can now simply wait till both disappear from the processlist.
-let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist;
+let $wait_condition= SELECT COUNT(*) = 2 FROM information_schema.processlist;
 --source include/wait_condition.inc
-SELECT info FROM information_schema.processlist;
+SELECT info FROM information_schema.processlist  ORDER BY info;
 
 --replace_result $global_value <global_value> $session_value <session_value>;
 eval SELECT UNIX_TIMESTAMP() - @start_time >= $global_value + $session_value;

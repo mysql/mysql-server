@@ -1,13 +1,20 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
@@ -15,6 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _mysql_sql_command_h
 #define _mysql_sql_command_h
+
+/**
+  @file include/my_sqlcommand.h
+*/
 
 /*
   @enum  enum_sql_command
@@ -160,7 +171,6 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_EVENT,
   SQLCOM_SHOW_EVENTS,
   SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE,
   SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL,
@@ -171,7 +181,27 @@ enum enum_sql_command {
   SQLCOM_EXPLAIN_OTHER,
   SQLCOM_SHOW_CREATE_USER,
   SQLCOM_SHUTDOWN,
+  SQLCOM_SET_PASSWORD,
   SQLCOM_ALTER_INSTANCE,
+  SQLCOM_INSTALL_COMPONENT,
+  SQLCOM_UNINSTALL_COMPONENT,
+  SQLCOM_CREATE_ROLE,
+  SQLCOM_DROP_ROLE,
+  SQLCOM_SET_ROLE,
+  SQLCOM_GRANT_ROLE,
+  SQLCOM_REVOKE_ROLE,
+  SQLCOM_ALTER_USER_DEFAULT_ROLE,
+  SQLCOM_IMPORT,
+  SQLCOM_CREATE_RESOURCE_GROUP,
+  SQLCOM_ALTER_RESOURCE_GROUP,
+  SQLCOM_DROP_RESOURCE_GROUP,
+  SQLCOM_SET_RESOURCE_GROUP,
+  SQLCOM_CLONE,
+  SQLCOM_LOCK_INSTANCE,
+  SQLCOM_UNLOCK_INSTANCE,
+  SQLCOM_RESTART_SERVER,
+  SQLCOM_CREATE_SRS,
+  SQLCOM_DROP_SRS,
   /* This should be the last !!! */
   SQLCOM_END
 };

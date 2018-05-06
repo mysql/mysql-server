@@ -1,6 +1,7 @@
-# We do not support --embedded-server at this point; see WL#7766.
---source include/not_embedded.inc
---source include/have_query_cache.inc
+# Skipping the test temporarily when log-bin is enabled as the test contains a
+# statement accessing mysql.general_log in an trxn. The trxn status tracker
+# (@@session_track_transaction_info) marks it unsafe only when logbin is on
+--source include/not_log_bin.inc
 
 --echo #
 --echo # WL#6631: Detect transaction boundaries
@@ -34,7 +35,7 @@
 #      (if neither was given in the statement, we won't flag either,
 #      so the default will be used -- it's up to the client to
 #      replicate that setting from SET TRANSACTION (i.e. GLOBAL and
-#      SESSION tx_isolation / tx_read_only) as needed!
+#      SESSION transaction_isolation / transaction_read_only) as needed!
 #
 #    - was "SET TRANSACTION ISOLATION LEVEL" one-shot set for this
 #      transaction?
@@ -70,8 +71,8 @@
 SET autocommit=1;
 --echo # if we track CHARACTERISTICS, we must also track the tx_* sysvars!
 SELECT @@session.session_track_system_variables INTO @old_track_list;
-SET @track_list= CONCAT(@old_track_list,
-                        ",transaction_read_only,transaction_isolation ");
+SET @track_list= CONCAT(@old_track_list, ",transaction_isolation,
+                                           transaction_read_only");
 SET SESSION session_track_system_variables=@track_list;
 
 SELECT @@session.session_track_state_change INTO @old_track_enable;
@@ -79,9 +80,6 @@ SET SESSION session_track_state_change=TRUE;
 
 SELECT @@session.session_track_transaction_info INTO @old_track_tx;
 
-# Do not use query cache at this point; we'll enable it later when we
-# test the interaction of query cache and transaction tracking.
-SET SESSION query_cache_type = 0;
 FLUSH STATUS;
 
 
@@ -352,7 +350,7 @@ COMMIT;
 
 # Show how the characteristics one-shots interact with the session values:
 
-SET SESSION tx_read_only=0;
+SET SESSION transaction_read_only=0;
 --echo # one-shot (different from session default)
 SET TRANSACTION READ ONLY;
 START TRANSACTION;
@@ -374,7 +372,7 @@ SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --echo # "read-only" one-shot is set, and added to chistics tracker (=> 2 items)
 SET TRANSACTION READ ONLY;
 --echo # setting the session default:
---echo # - we receive "changed variable" for @@session.tx_read_only
+--echo # - we receive "changed variable" for @@session.transaction_read_only
 --echo # - "read-only" one-shot is cleared, disappears from chistics tracker
 --echo # - "isolation" one-shot remains set, and remains in chistics tracker
 SET SESSION TRANSACTION READ ONLY;
@@ -843,58 +841,6 @@ SET session_track_transaction_info="STATE";
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-
-
---echo ########################################################################
---echo #
---echo # query cache
---echo #
-
-# turn on, tune in, ...
-SELECT @@global.query_cache_size INTO @old_qc_size;
-SET GLOBAL  query_cache_size = 999424;
-SET SESSION query_cache_type = 1;
-SELECT @@global.query_cache_size;
-SELECT @@session.query_cache_type;
-
-CREATE TABLE t1 (f1 INT) ENGINE="MyISAM";
-
-INSERT INTO t1 VALUES (1), (2), (3);
-
-# ... burn out:
---echo # show we can't add queries to the cache while tracking:
-BEGIN;
-# This query has new state (trx read, result set) and can't be added:
-SELECT     f1 FROM t1 WHERE f1 > 1;
-# This query has no new state/tracker item, and still can't be added:
-SELECT f1 FROM t1 WHERE f1 > 1;
-COMMIT;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-
-# Temporarily stop tracking ...
-SET SESSION session_track_transaction_info="OFF";
-# ... so we can add a query to the cache:
-SELECT f1 FROM t1 WHERE f1 > 1;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-# Satisfy query from cache:
-SELECT f1 FROM t1 WHERE f1 > 1;
-SHOW STATUS LIKE 'Qcache_hits';
-# Turn tracking back on:
-SET SESSION session_track_transaction_info="STATE";
-# Query is still in cache ...
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-# ... but we can no longer access it:
-SELECT f1 FROM t1 WHERE f1 > 1;
-SHOW STATUS LIKE 'Qcache_hits';
-
-RESET QUERY CACHE;
-FLUSH STATUS;
-
-DROP TABLE t1;
-
-SET SESSION query_cache_type = 0;
-SET GLOBAL  query_cache_size = @old_qc_size;
 
 
 

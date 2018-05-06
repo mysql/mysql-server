@@ -13,6 +13,8 @@
 #
 
 --source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/only_mts_slave_parallel_workers.inc
 
 --echo # Create channel_1 to server_1 from server_2(slave)
@@ -30,7 +32,7 @@ CREATE TABLE t1( a int unique);
 --echo # sync data to the slave
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -80,7 +82,7 @@ ROLLBACK;
 --echo # Now sync with master on channel_1
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -91,7 +93,7 @@ SELECT * FROM t1;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 DROP TABLE t1;
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 

@@ -1,11 +1,11 @@
 SET default_storage_engine=InnoDB;
 # Test 1) Show the page size from Information Schema
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 8192
 # Test 2) The number of buffer pool pages is dependent upon the page size.
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
 {checked_valid}
@@ -14,34 +14,13 @@ variable_value
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 i.name index_name, i.page_no root_page, i.type,
 i.n_fields, i.merge_threshold
-FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
-	ORDER BY t.name, i.index_id;
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index' 
+ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-mysql/engine_cost	9	33	PRIMARY	3	3	3	50
-mysql/gtid_executed	6	33	PRIMARY	3	3	2	50
-mysql/help_category	7	33	PRIMARY	3	3	1	50
-mysql/help_category	7	33	name	4	2	1	50
-mysql/help_keyword	5	33	PRIMARY	3	3	1	50
-mysql/help_keyword	5	33	name	4	2	1	50
-mysql/help_relation	5	33	PRIMARY	3	3	2	50
-mysql/help_topic	9	33	PRIMARY	3	3	1	50
-mysql/help_topic	9	33	name	4	2	1	50
-mysql/innodb_index_stats	11	33	PRIMARY	3	3	4	50
-mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
-mysql/plugin	5	33	PRIMARY	3	3	1	50
-mysql/servers	12	33	PRIMARY	3	3	1	50
-mysql/server_cost	7	33	PRIMARY	3	3	1	50
-mysql/slave_master_info	28	33	PRIMARY	3	3	1	50
-mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
-mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
-mysql/time_zone	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_leap_second	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_name	5	33	PRIMARY	3	3	1	50
-mysql/time_zone_transition	6	33	PRIMARY	3	3	2	50
-mysql/time_zone_transition_type	8	33	PRIMARY	3	3	2	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
@@ -49,17 +28,17 @@ CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 i.name index_name, i.page_no root_page, i.type,
 i.n_fields, i.merge_threshold
-FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-test/t1	5	0	PRIMARY	3	3	1	50
-test/t2	5	1	PRIMARY	3	3	1	50
-test/t3	5	39	PRIMARY	3	3	1	50
-test/t4	5	33	PRIMARY	3	3	1	50
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+test/t1	5	0	PRIMARY	4	3	4	50
+test/t2	5	1	PRIMARY	4	3	4	50
+test/t3	5	39	PRIMARY	4	3	4	50
+test/t4	5	33	PRIMARY	4	3	4	50
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
 test/t2	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2.ibd
@@ -67,10 +46,10 @@ test/t3	Single	DEFAULT	4096	Compressed	MYSQLD_DATADIR/test/t3.ibd
 test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1.ibd
-test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
-test/t4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQLD_DATADIR/test/t1.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQLD_DATADIR/test/t2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQLD_DATADIR/test/t3.ibd
+test/t4	TABLESPACE	InnoDB	NORMAL	test/t4	MYSQLD_DATADIR/test/t4.ibd
 DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 4027, Compact: 4030.
@@ -90,7 +69,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(156)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -104,7 +83,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -118,7 +97,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(106)
-) ROW_FORMAT=compressed;
+) charset latin1 ROW_FORMAT=compressed;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -132,20 +111,27 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
-) ROW_FORMAT=dynamic;
+) charset latin1 ROW_FORMAT=dynamic;
 ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (a varchar(128) character set utf8,
 b varchar(128) character set utf8,
 c varchar(128) character set utf8,
 d varchar(128) character set utf8,
 PRIMARY KEY (a,b,c,d))
+charset latin1
 ENGINE=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 CREATE TABLE t1 (a varchar(128) character set utf8,
 b varchar(128) character set utf8,
 c varchar(128) character set utf8,
 d varchar(129) character set utf8,
 PRIMARY KEY (a,b,c,d))
+charset latin1
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 1536 bytes
 CREATE TABLE t1 (a varchar(128) character set utf8,
@@ -154,7 +140,14 @@ c varchar(128) character set utf8,
 d varchar(128) character set utf8,
 e varchar(128) character set utf8,
 PRIMARY KEY (a), KEY (b,c,d,e))
+charset latin1
 ENGINE=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 CREATE TABLE t1 (a varchar(128) character set utf8,
 b varchar(128) character set utf8,
@@ -162,6 +155,7 @@ c varchar(128) character set utf8,
 d varchar(128) character set utf8,
 e varchar(129) character set utf8,
 PRIMARY KEY (a), KEY (b,c,d,e))
+charset latin1
 ENGINE=innodb;
 ERROR 42000: Specified key was too long; max key length is 1536 bytes
 # Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all
@@ -179,35 +173,35 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
 ALTER TABLE t1 KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
 ALTER TABLE t1 KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
@@ -219,15 +213,15 @@ Level	Code	Message
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
-t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=16
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
+t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=8
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
@@ -235,28 +229,28 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=4
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=2
 ALTER TABLE t1 KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED KEY_BLOCK_SIZE=1
 ALTER TABLE t1 KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 Level	Code	Message
 SELECT table_name, row_format, create_options
 FROM information_schema.tables WHERE table_name = 't1';
-table_name	row_format	create_options
+TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
 t1	Compressed	row_format=COMPRESSED
 DROP TABLE t1;
 # Test 6) Make sure that KEY_BLOCK_SIZE = 8 and 16
@@ -280,25 +274,16 @@ Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1031	Table storage engine for 't4' doesn't have this option
+DROP TABLE t4;
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Error	1031	Table storage engine for 't5' doesn't have this option
-SET GLOBAL innodb_file_format = `Barracuda`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 # Test 7) Not included here; 16k only
 # Test 8) Test creating a table that could lead to undo log overflow.
 CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,
@@ -377,7 +362,7 @@ t1	CREATE TABLE `t1` (
   KEY `t1i` (`i`(767)),
   KEY `t1k` (`j`(767)),
   KEY `t1j` (`j`(500))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
 CREATE TABLE t1(
@@ -393,6 +378,7 @@ PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
 pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
 KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
 sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+charset latin1
 ROW_FORMAT=Redundant ENGINE=InnoDB;
 SET @r = repeat('a', 96);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
@@ -424,6 +410,7 @@ PRIMARY KEY pk(pk01,pk02,pk03,pk04,pk05,pk06,pk07,pk08,
 pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
 KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
 sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+charset latin1
 ROW_FORMAT=Compressed KEY_BLOCK_SIZE=8 ENGINE=InnoDB;
 SET @r = repeat('a', 96);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,

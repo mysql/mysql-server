@@ -21,15 +21,16 @@
 # In the test cases, we setup two slave workers. So it initializes two databases.
 # in each test case, it will use two transactions. They operate on different
 # databases. For databases MTS, it works. For logic clock MTS, the caller should
-# call below DEBUG instruction before this include file. So the two transactions
-# can be paralleled on slave.
-# SET DEBUG = "d,set_commit_parent_100";
+# do --let $set_commit_parent_100=1 before this include file. So the two
+# transactions can be paralleled on slave.
 ################################################################################
 --echo #
 --echo # Initialization the test
 --echo #
 
-# Create two database to support mts of db parallel
+# Create two database to support database MTS.
+# For logical clock MTS the below DDLs and inserts should
+# be run on slave in their original order.
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE TABLE db1.t1(c1 INT PRIMARY KEY, c2 VARCHAR(4096)) ENGINE=InnoDB;
@@ -43,7 +44,7 @@ INSERT INTO db2.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 --source include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression("Slave SQL for channel '':.*Lock wait timeout exceeded.*");
 CALL mtr.add_suppression("Slave SQL for channel '': Worker . failed executing transaction.*");
-CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: 1756");
+CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: MY-001756");
 CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction.*");
 
 # Backup the original value of the variables
@@ -77,6 +78,11 @@ BEGIN;
 SELECT c1 FROM db1.t1 FOR UPDATE;
 
 --source include/rpl_connection_master.inc
+if ($set_commit_parent_100)
+{
+# Let the two inserts and later transactions run in parallel on slave.
+  SET DEBUG = "+d,set_commit_parent_100";
+}
 INSERT INTO db1.t1 VALUES(2, NULL);
 INSERT INTO db2.t1 VALUES(2, NULL);
 --source include/save_master_pos.inc
@@ -131,7 +137,7 @@ ROLLBACK;
 --echo # Case 3: Slave worker will not stop after retring a transaction
 --echo #         sucessfully.
 --echo #
---let $retried_trans= query_get_value(SHOW STATUS LIKE 'slave_retried_transactions', Value, 1)
+--let $retried_trans= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1)
 SET GLOBAL slave_transaction_retries = 10;
 --source include/start_slave_sql.inc
 --source include/sync_slave_sql.inc
@@ -161,12 +167,12 @@ INSERT INTO db2.t1 VALUES(30, NULL);
 --source include/save_master_pos.inc
 
 --source include/rpl_connection_slave.inc
---let $status_var_comparsion= >=
---let $status_type= GLOBAL
---let $status_var= slave_retried_transactions
---let $status_var_value= $retried_trans+2
+--let $status_col_comparsion= >=
+--let $status_col= count_transactions_retries
+--let $table=replication_applier_status
+--let $status_col_value= $retried_trans+2
 --let $status_fail_query= SELECT GLOBAL.slave_retried_transactions
---source include/wait_for_status_var.inc
+--source include/wait_for_rpl_pfs_status.inc
 
 #
 # It is for verifying the fix of Bug#19282301
@@ -198,7 +204,7 @@ INSERT INTO db2.t1 VALUES(40, NULL);
 --echo #
 --echo # Case 4: Non-temporary error will stop slave workers without retrying
 --echo #
---let $retried_trans= query_get_value(SHOW STATUS LIKE 'slave_retried_transactions', Value, 1)
+--let $retried_trans= query_get_value(select count_transactions_retries from performance_schema.replication_applier_status, count_transactions_retries, 1)
 INSERT INTO db1.t1 VALUES(50, NULL);
 
 --source include/rpl_connection_master.inc
@@ -209,10 +215,10 @@ INSERT INTO db1.t1 VALUES(50, NULL);
 --let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 --source include/wait_for_slave_sql_error.inc
 
---let $assert_text= slave_retried_transactions should not increase
---let $assert_status_name= slave_retried_transactions
+--let $assert_text= count_transactions_retries should not increase
+--let $assert_status_name= count_transactions_retries
 --let $assert_status_value= $retried_trans
---source include/assert_status.inc
+--source include/rpl_pfs_assert_status.inc
 
 DELETE FROM db1.t1 WHERE c1 = 50;
 
@@ -232,5 +238,9 @@ SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 --source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc
+if ($set_commit_parent_100)
+{
+  SET DEBUG = "-d,set_commit_parent_100";
+}
 DROP DATABASE db1;
 DROP DATABASE db2;

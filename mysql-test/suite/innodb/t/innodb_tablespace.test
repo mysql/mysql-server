@@ -4,8 +4,6 @@
 # partition related tests with remote tablespaces.
 # See innodb.innodb-restart for tablespace migration tests.
 #
---source include/have_innodb.inc
---source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 
 --echo #
@@ -126,6 +124,10 @@ SELECT * FROM t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
+
+--replace_regex /[1-9].[0-9].[0-9]+/X.Y.Z/
+SELECT name, server_version, space_version FROM information_schema.innodb_tablespaces where name="mysql";
+
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -421,4 +423,3 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
-

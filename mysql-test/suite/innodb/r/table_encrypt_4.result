@@ -10,7 +10,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -52,7 +52,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 SELECT * FROM test.t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -146,6 +146,6 @@ CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ALTER TABLE test.t1 DISCARD TABLESPACE;
 SET SESSION DEBUG="+d, fsp_header_rotate_encryption_failure";
 ALTER TABLE test.t1 IMPORT TABLESPACE;
-ERROR HY000: Got error 168 from storage engine
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
 Warnings:
 Note	1051	Unknown table 'test.t1'

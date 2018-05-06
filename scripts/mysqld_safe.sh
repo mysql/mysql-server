@@ -195,6 +195,7 @@ eval_log_error () {
   esac
 
   #echo "Running mysqld: [$cmd]"
+  cmd="env MYSQLD_PARENT_PID=$$ $cmd"
   eval "$cmd"
 }
 
@@ -609,6 +610,32 @@ then
     err_log_append="$err_log"
     case "$err_log" in
       /* ) ;;
+      ./*|../*)
+          # Preparing absolute path from the relative path value specified for the
+          # --log-error argument.
+          #
+          # Absolute path will be prepared for the value of following form
+          #    ./bar/foo OR
+          #   ../old_bar/foo
+          # for --log-error argument.
+          #
+          # Note: If directory of log file name does not exists or
+          #       if write or execute permissions are missing on directory then
+          #       --log-error is set  $DATADIR/`@HOSTNAME@`.err
+
+          log_dir_name="$(dirname "$err_log")";
+          if [ ! -d "$log_dir_name" ]
+          then
+            log_notice "Directory "$log_dir_name" does not exists.";
+            err_log=$DATADIR/`@HOSTNAME@`.err
+          elif [ ! -x "$log_dir_name" -o ! -w "$log_dir_name" ]
+          then
+            log_notice "Do not have Execute or Write permissions on directory "$log_dir_name".";
+            err_log=$DATADIR/`@HOSTNAME@`.err
+          else
+            err_log=$(cd $log_dir_name && pwd -P)/$(basename "$err_log")
+          fi
+          ;;
       * ) err_log="$DATADIR/$err_log" ;;
     esac
   else
@@ -875,12 +902,16 @@ fast_restart=0
 max_fast_restarts=5
 # flag whether a usable sleep command exists
 have_sleep=1
-
 while true
 do
   start_time=`date +%M%S`
-
   eval_log_error "$cmd"
+  if [ $? -eq 16 ] ; then
+    dont_restart_mysqld=false
+    echo "Restarting mysqld..."
+  else
+    dont_restart_mysqld=true
+  fi
 
   # hypothetical: log was renamed but not
   # flushed yet. we'd recreate it with
@@ -910,15 +941,17 @@ do
 
   end_time=`date +%M%S`
 
-  if test ! -f "$pid_file"		# This is removed if normal shutdown
-  then
-    break
-  else                                  # self's mysqld crashed or other's mysqld running
-    PID=`cat "$pid_file"`
-    if @CHECK_PID@
-    then                                # true when above pid belongs to a running mysqld process
-      log_error "A mysqld process with pid=$PID is already running. Aborting!!"
-      exit 1
+  if $dont_restart_mysqld; then
+    if test ! -f "$pid_file"		# This is removed if normal shutdown
+    then
+      break
+    else                                  # self's mysqld crashed or other's mysqld running
+        PID=`cat "$pid_file"`
+        if @CHECK_PID@
+        then                                # true when above pid belongs to a running mysqld process
+          log_error "A mysqld process with pid=$PID is already running. Aborting!!"
+          exit 1
+        fi
     fi
   fi
 

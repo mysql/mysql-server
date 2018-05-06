@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo #
 --echo # BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
@@ -6,7 +5,7 @@
 --echo #
 
 # Results differ between storage engines.
-# See multi_update.test for the MyISAM variant of this test
+# See multi_update_myisam.test for the MyISAM variant of this test
 CREATE TABLE t1(
   pk INT,
   a INT,

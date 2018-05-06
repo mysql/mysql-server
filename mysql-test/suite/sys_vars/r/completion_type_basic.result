@@ -87,12 +87,12 @@ SET @@session.completion_type = ON;
 ERROR 42000: Variable 'completion_type' can't be set to the value of 'ON'
 '#------------------FN_DYNVARS_017_06-----------------------#'
 SELECT @@global.completion_type = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='completion_type';
 @@global.completion_type = VARIABLE_VALUE
 1
 SELECT @@session.completion_type = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='completion_type';
 @@session.completion_type = VARIABLE_VALUE
 1
@@ -137,5 +137,3 @@ SELECT @@session.completion_type;
 @@session.completion_type
 NO_CHAIN
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

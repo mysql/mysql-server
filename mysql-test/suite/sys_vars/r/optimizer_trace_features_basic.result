@@ -14,12 +14,12 @@ optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,re
 show session variables like 'optimizer_trace_features';
 Variable_name	Value
 optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
-select * from information_schema.global_variables where variable_name='optimizer_trace_features';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_features';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_FEATURES	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
-select * from information_schema.session_variables where variable_name='optimizer_trace_features';
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+select * from performance_schema.session_variables where variable_name='optimizer_trace_features';
 VARIABLE_NAME	VARIABLE_VALUE
-OPTIMIZER_TRACE_FEATURES	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
+optimizer_trace_features	greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 set global optimizer_trace_features=2;
 select @@global.optimizer_trace_features;
 @@global.optimizer_trace_features

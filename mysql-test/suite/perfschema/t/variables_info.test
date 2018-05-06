@@ -1,0 +1,338 @@
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_warnings
+drop table if exists test.marker;
+--enable_warnings
+
+create table test.marker(before_marker timestamp, after_marker timestamp);
+
+--echo # Test explicitly set options using defaults-file
+
+# mtr invokes server with --defaults-file option. All options
+# set as part of this file should be shown by below select
+# as EXPLICIT
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'EXPLICIT' AND
+  VARIABLE_NAME LIKE 'performance%'
+  order by VARIABLE_NAME;
+
+--echo # Test command line options
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'COMMAND_LINE' AND
+  (VARIABLE_NAME = 'max_connections' OR
+  VARIABLE_NAME = 'skip_networking')
+  order by VARIABLE_NAME;
+
+--echo # Restart server with command line option
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--max_connections=55 --skip-networking" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'COMMAND_LINE' AND
+  (VARIABLE_NAME = 'max_connections' OR
+  VARIABLE_NAME = 'skip_networking')
+  order by VARIABLE_NAME;
+
+--echo # Test persisted variables
+
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST innodb_default_row_format=COMPACT;
+SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'PERSISTED'
+  order by VARIABLE_NAME;
+
+--echo # Restart server with some persisted variables
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'PERSISTED'
+  order by VARIABLE_NAME;
+
+--echo # Change persisted variables to dynamic
+
+SELECT now() into @before_timestamp;
+
+--echo Sleep 1 second
+sleep 1;
+
+SET GLOBAL sort_buffer_size=256000;
+SET GLOBAL max_heap_table_size=999424, slave_net_timeout=124;
+SET @@global.max_execution_time=440000, @@global.max_user_connections=30;
+SET GLOBAL innodb_default_row_format=DEFAULT;
+
+--echo Sleep 1 second
+sleep 1;
+
+SELECT now() into @after_timestamp;
+
+truncate table test.marker;
+insert into test.marker values (@before_timestamp, @after_timestamp);
+
+# return 0 rows
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_SOURCE = 'PERSISTED'
+  order by VARIABLE_NAME;
+
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME in
+    ('sort_buffer_size',
+     'max_heap_table_size',
+     'slave_net_timeout',
+     'max_execution_time',
+     'max_user_connections',
+     'innodb_default_row_format')
+  order by VARIABLE_NAME;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+#
+# Bug24567960: P_S.VARIABLES_INFO.VARIABLE_SOURCE INACCURATE FOR
+#              INNODB_FILE_PER_TABLE
+#
+
+select VARIABLE_NAME, VARIABLE_SOURCE
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'innodb_fast_shutdown' OR
+  VARIABLE_NAME = 'innodb_file_per_table';
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--innodb_fast_shutdown=1 --innodb_file_per_table" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'innodb_fast_shutdown' OR
+  VARIABLE_NAME = 'innodb_file_per_table';
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # WL#9720: SET PERSIST capture user + timestamp
+--echo #
+
+CREATE USER WL9720@localhost;
+GRANT ALL ON *.* to WL9720@localhost;
+
+--connect(con1, localhost, WL9720)
+
+SELECT now() into @before_timestamp;
+
+--echo Sleep 1 second
+sleep 1;
+
+SET SESSION max_heap_table_size=999424;
+
+--echo Sleep 1 second
+sleep 1;
+
+SELECT now() into @after_timestamp;
+
+truncate table test.marker;
+insert into test.marker values (@before_timestamp, @after_timestamp);
+
+--echo # user must be WL9720
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'max_heap_table_size';
+
+disconnect con1;
+connection default;
+
+# This is a different connection, retrieve timestamps
+
+select before_marker, after_marker into @before_timestamp, @after_timestamp
+  from test.marker;
+
+--echo # user must be root
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'max_heap_table_size';
+
+--echo # user must be root
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+--connect(con1, localhost, WL9720)
+
+SELECT now() into @before_timestamp;
+
+--echo Sleep 1 second
+sleep 1;
+
+SET GLOBAL session_track_system_variables=DEFAULT;
+
+--echo Sleep 1 second
+sleep 1;
+
+SELECT now() into @after_timestamp;
+
+truncate table test.marker;
+insert into test.marker values (@before_timestamp, @after_timestamp);
+
+--echo # user must be WL9720
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+disconnect con1;
+connection default;
+
+select before_marker, after_marker into @before_timestamp, @after_timestamp
+  from test.marker;
+
+--echo # user must be WL9720 since variable was changed globally by wl9720 user
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # user must be root
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+#Clean up
+DROP USER WL9720@localhost;
+
+--echo # check timestamp column values
+select SET_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_auto_is_null';
+
+--echo Sleep 1 second
+sleep 1;
+
+SET SESSION sql_auto_is_null= 1;
+
+select SET_TIME is not null as CHECK_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_auto_is_null';
+
+select SET_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sort_buffer_size';
+
+--echo Sleep 1 second
+sleep 1;
+
+SET GLOBAL sort_buffer_size= 256000;
+
+select SET_TIME is not null as CHECK_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sort_buffer_size';
+
+# foreign_key_checks is a Sys_var_bit,
+# which can NOT be set on the command line
+# It shows as DYNAMIC, with a SET_TIME
+
+select SET_TIME is not null as CHECK_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'foreign_key_checks';
+
+SELECT now() into @before_timestamp;
+
+--echo Sleep 1 second
+sleep 1;
+
+SET PERSIST foreign_key_checks = 0;
+
+--echo Sleep 1 second
+sleep 1;
+
+SELECT now() into @after_timestamp;
+
+select VARIABLE_NAME, VARIABLE_SOURCE,
+  if (SET_TIME >= @before_timestamp, "pass", "fail") as SET_TIME_BEFORE_CHECK,
+  if (SET_TIME <= @after_timestamp, "pass", "fail") as SET_TIME_AFTER_CHECK,
+  SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'foreign_key_checks';
+
+select SET_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_log_bin';
+
+--echo Sleep 1 second
+sleep 1;
+
+--echo # since SET statement fails there should be no change in timestamp
+--error ER_LOCAL_VARIABLE
+SET @@persist.sql_log_bin=0;
+
+select SET_TIME
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_log_bin';
+
+#Cleanup
+SET GLOBAL sort_buffer_size= DEFAULT;
+SET PERSIST foreign_key_checks = DEFAULT;
+RESET PERSIST;
+
+drop table test.marker;
+
+SELECT 'END OF TEST';

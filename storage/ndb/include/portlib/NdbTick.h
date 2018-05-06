@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -220,26 +227,34 @@ Uint64 NdbDuration::milliSec() const
   return ((t*1000) / tick_frequency);
 }
 
+/**
+ * To avoid overflow in intermediate results when
+ * multiplying 'tick' (t) with micro- or nanoScale
+ * factor below, we handle the tick conversion in a
+ * 'second' and a 'fraction' (of seconds) part.
+ */
 inline
 Uint64 NdbDuration::microSec() const
 {
-  assert(t < (UINT_MAX64 / (1000*1000))); //Overflow?
-  return ((t*1000*1000) / tick_frequency);
+  static const Uint64 microScale = 1000*1000;
+
+  const Uint64 seconds  = (t / tick_frequency);
+  const Uint64 fraction = (t % tick_frequency);
+  const Uint64 microsec =  ((fraction*microScale) / tick_frequency);
+
+  return microsec + (seconds*microScale);
 }
 
-/**
- * If 'tick_frequency' is nanosecs (~2^30), multiplying
- * with 'nanoScale' (2^30) leaves only 4 bits for seconds 
- * before we would overflow if calculated as above.
- * Thus we do the nanoSec calculation in an upper and lower
- * Uint64 part which effectively gives 96 bit precision.
- */
 inline
 Uint64 NdbDuration::nanoSec() const
 {
   static const Uint64 nanoScale = 1000*1000*1000;
-  return ((((t >> 32)        * nanoScale) / tick_frequency) << 32) +
-          (((t & 0xFFFFFFFF) * nanoScale) / tick_frequency);
+
+  const Uint64 seconds  = (t / tick_frequency);
+  const Uint64 fraction = (t % tick_frequency);
+  const Uint64 nanosec =  ((fraction*nanoScale) / tick_frequency);
+
+  return nanosec + (seconds*nanoScale);
 }
 
 #endif

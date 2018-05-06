@@ -69,16 +69,18 @@ select * from t1 where a in (b,c);
 select * from t1 where 'a' in (a,b,c);
 select * from t1 where 'a' in (a);
 select * from t1 where a in ('a');
+set names latin1;
 select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
 select * from t1 where 'a' collate latin1_bin in (a,b,c);
 select * from t1 where 'a' in (a,b,c collate latin1_bin);
-explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
+explain select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
+set names utf8mb4;
 
 set names utf8;
 create table t1 (a char(10) character set utf8 not null);
-insert into t1 values ('bbbb'),(_koi8r'√√√√'),(_latin1'ƒƒƒƒ');
-select a from t1 where a in ('bbbb',_koi8r'√√√√',_latin1'ƒƒƒƒ') order by a;
+insert into t1 values ('bbbb'),(_koi8r x'C3C3C3C3'),(_latin1 x'C4C4C4C4');
+select a from t1 where a in ('bbbb',_koi8r x'C3C3C3C3',_latin1 x'C4C4C4C4') order by a;
 drop table t1;
 # Bug#7834 Illegal mix of collations in IN operator
 create table t1 (a char(10) character set latin1 not null);
@@ -199,6 +201,8 @@ insert into t2 select 'bazbazbaz', 'no' from t1 A, t1 B;
 insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'), 
   ('barbas','1'), ('bazbazbay', '1'),('zz','1');
 
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 13
 explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
 
 drop table t2;
@@ -393,10 +397,16 @@ select f1 from t1 where f1 in ('a',1);
 select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
 create index t1f1_idx on t1(f1);
 select f1 from t1 where f1 in ('a',1);
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in ('a',1);
 select f1 from t1 where f1 in ('a','b');
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in ('a','b');
 select f1 from t1 where f1 in (2,1);
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 2
 explain select f1 from t1 where f1 in (2,1);
 create table t2(f2 int, index t2f2(f2));
 insert into t2 values(0),(1),(2);
@@ -474,7 +484,7 @@ CREATE TABLE t1 (
   c_timestamp TIMESTAMP NOT NULL,
   c_time TIME NOT NULL,
   c_year YEAR NOT NULL,
-  c_char CHAR(10) NOT NULL,
+  c_char CHAR(10) character set utf8mb4 NOT NULL,
   INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
   INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
   INDEX(c_char));
@@ -615,7 +625,7 @@ DROP TABLE t1;
 --echo # Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
 --echo #
 
-SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
 
 --echo # End of test BUG#11764651-57510
 

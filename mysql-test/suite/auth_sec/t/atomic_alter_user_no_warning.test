@@ -1,0 +1,34 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # -----------------------------------------------------------------------
+
+--echo # Begin : Tests for ALTER USER
+
+CREATE USER userX, userY, userZ;
+--source include/save_binlog_position.inc
+
+# This should not produce any warning in server log because none of the
+# non-existing users are using default authentication plugin.
+# We have not added mtr.add_suppression() call for such a warning. So,
+# if below mentioned DDL logs a warning, mtr would complain.
+
+ALTER USER IF EXISTS userX, userY, userZ,
+                    userW IDENTIFIED WITH 'mysql_native_password' BY 'abcd'
+                    ACCOUNT LOCK;
+
+--let $event= !Q(ALTER USER.*userX.*userY.*userZ.*userW.*ACCOUNT LOCK.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+DROP USER userX, userY, userZ;
+
+--echo # End : Tests for ALTER USER IF EXISTS
+
+--echo # -----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

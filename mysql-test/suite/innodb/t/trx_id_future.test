@@ -4,8 +4,6 @@
 --echo #
 
 --source include/have_nodebug.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 let PAGE_SIZE=`select @@innodb_page_size`;
 
@@ -28,14 +26,14 @@ open(FILE, "+<", $file) || die "Unable to open $file";
 #And offset to the next record is present 2 bytes prior to
 #infimum record
 
-seek(FILE, 3*$page_size+101-2, 0) || die "Unable to seek $file";
+seek(FILE, 4*$page_size+101-2, 0) || die "Unable to seek $file";
 die unless read(FILE, $_, 2) == 2;
 my $record_offset  =  unpack("n*", $_);
 
 #In this case the first record should be at offset 135
 die unless $record_offset == 135;
 
-my $trx_id_of_rec = 3*$page_size + $record_offset + 6;
+my $trx_id_of_rec = 4*$page_size + $record_offset + 6;
 
 # Modify DB_TRX_ID of the record to a value which is greater than
 # max_trx_id
@@ -46,10 +44,10 @@ syswrite(FILE, $corrupted_trx_id) || die "Unable to write";
 
 #Modify the checksums of the page
 
-seek(FILE, 3*$page_size, 0) || die "Unable to seek $file";
+seek(FILE, 4*$page_size, 0) || die "Unable to seek $file";
 syswrite(FILE, pack("H*","deadbeef",4)) || die "Unable to write";
 
-seek(FILE, 4*$page_size-8, 0) || die "Unable to seek $file";
+seek(FILE, 5*$page_size-8, 0) || die "Unable to seek $file";
 syswrite(FILE, pack("H*","deadbeef",4)) || die "Unable to write";
 
 close(FILE)
@@ -58,9 +56,8 @@ EOF
 --source include/start_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: A transaction id in a record of table `\.\.*`\.`\.\.*` is newer than the system-wide maximum.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A transaction id in a record of table `\.\.*`\.`\.\.*` is newer than the system-wide maximum.");
 --enable_query_log
 
 SELECT * FROM t1;
 DROP TABLE t1;
-

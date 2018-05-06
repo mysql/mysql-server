@@ -3,18 +3,12 @@
 #
 CREATE TABLE t1 ( a INTEGER, b CHAR(1) );
 INSERT INTO t1 VALUES ( 1, 'a' ), ( 2, 'b' ), ( 3, 'c' );
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT a FROM test.t1 WHERE a = ?',
 'SELECT b FROM test.t1 WHERE a = ?' ),
 ( 'SELECT 1, ?', 'SELECT "rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT a FROM test.t1 WHERE a = 1;
 b
 a

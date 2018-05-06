@@ -1,0 +1,60 @@
+## Simple list objects with case insensitive table names
+
+--source include/have_case_insensitive_file_system.inc
+
+--let $expect_case_sensitive_variant= 2
+if (`SELECT CONVERT(@@version_compile_os USING LATIN1) RLIKE '^(osx|macos)'`)
+{
+--let $expect_case_sensitive_variant= 1
+}
+
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=$expect_case_sensitive_variant --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--echo # First start the server with --initialize.
+--exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+
+--echo # Restart the server against DDIR.
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=$expect_case_sensitive_variant --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--source include/xplugin_preamble.inc
+
+--echo # Run the single test.
+--let $expect_table_error= ER_TABLE_EXISTS_ERROR
+--let $expect_db_error= ER_DB_CREATE_EXISTS
+--let $result_filter=/XTEST/xtest/ /xTeSt/xtest/ /FRUIT/fruit/ /FrUiT/fruit/
+--source ../include/admin_list_objects_table_names.inc
+
+--echo # Shutdown server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Cleanup.
+--echo #   Delete \$DDIR.
+--force-rmdir $DDIR
+--echo #   Delete sql files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+--echo #   Delete log files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+--echo #   Delete expect files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect
+
+--echo # Restart server without --lower-case-table-names.
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

@@ -70,5 +70,5 @@ ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on chan
 # and number of channels configured must be 2
 include/assert.inc [there shall be only two rows representing 2 channels.]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

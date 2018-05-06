@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -168,49 +175,18 @@ bool check_version_new(Uint32 curr, ...)
   return false;
 }
 
-static inline void
-test_check_version_new(void)
-{
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,5),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,8),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,2,3),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,3),
-                           NDB_MAKE_VERSION(7,2,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(5,5,6),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-}
-
-#define SET_ERROR(h, e, s) setError((h), (e), __LINE__, (s))
 
 static
 void
-setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
+setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
+ ATTRIBUTE_FORMAT(printf, 4, 5);
 
-  h->last_error = error;  \
+static
+void
+setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
+{
+
+  h->last_error = error;
   h->last_error_line = error_line;
 
   va_list ap;
@@ -218,6 +194,8 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
   BaseString::vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
   va_end(ap);
 }
+
+#define SET_ERROR(h, e, s) setError((h), (e), __LINE__, "%s", (s))
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) {   \
@@ -266,7 +244,7 @@ ndb_mgm_create_handle()
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
-  my_socket_invalidate(&(h->socket));
+  ndb_socket_invalidate(&(h->socket));
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
@@ -298,6 +276,13 @@ ndb_mgm_set_name(NdbMgmHandle handle, const char *name)
 {
   free(handle->m_name);
   handle->m_name= strdup(name);
+}
+
+extern "C"
+const char *
+ndb_mgm_get_name(const NdbMgmHandle handle)
+{
+  return handle->m_name;
 }
 
 extern "C"
@@ -637,7 +622,7 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
     if(Ndb_check_socket_hup(handle->socket))
     {
       handle->connected= 0;
-      NDB_CLOSE_SOCKET(handle->socket);
+      ndb_socket_close(handle->socket);
     }
   }
   return handle->connected;
@@ -730,9 +715,9 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    */
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd;
-  my_socket_invalidate(&sockfd);
+  ndb_socket_invalidate(&sockfd);
   Uint32 i;
-  while (!my_socket_valid(sockfd))
+  while (!ndb_socket_valid(sockfd))
   {
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
@@ -792,10 +777,10 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
         }
       }
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
-      if (my_socket_valid(sockfd))
+      if (ndb_socket_valid(sockfd))
 	break;
     }
-    if (my_socket_valid(sockfd))
+    if (ndb_socket_valid(sockfd))
       break;
 #ifndef DBUG_OFF
     {
@@ -868,20 +853,12 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
  * Never to be used by end user.
  * Or anybody who doesn't know exactly what they're doing.
  */
-#ifdef NDB_WIN
-SOCKET
-ndb_mgm_get_fd(NdbMgmHandle handle)
-{
-  return handle->socket.s;
-}
-#else
 extern "C"
-int
+ndb_native_socket_t
 ndb_mgm_get_fd(NdbMgmHandle handle)
 {
-  return handle->socket.fd;
+  return ndb_socket_get_native(handle->socket);
 }
-#endif
 
 /**
  * Disconnect from mgm server without error checking
@@ -892,8 +869,8 @@ extern "C"
 int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
-  NDB_CLOSE_SOCKET(handle->socket);
-  my_socket_invalidate(&(handle->socket));
+  ndb_socket_close(handle->socket);
+  ndb_socket_invalidate(&(handle->socket));
   handle->connected = 0;
 
   return 0;
@@ -1691,6 +1668,7 @@ ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
   for(unsigned int i=0; i < severity_size; i++) {
     reply->get(clusterlog_severity_names[severity[i].category], &severity[i].value);
   }
+  delete reply;
   DBUG_RETURN(severity_size);
 }
 
@@ -1724,6 +1702,7 @@ ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle)
   for(int i=0; i < (int)NDB_MGM_EVENT_SEVERITY_ALL; i++) {
     reply->get(clusterlog_severity_names[i], &enabled[i]);
   }
+  delete reply;
   DBUG_RETURN(enabled);
 }
 
@@ -1854,6 +1833,7 @@ ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[loglevel[i].category], &loglevel[i].value);
   }
+  delete reply;
   DBUG_RETURN(loglevel_count);
 }
 
@@ -1892,6 +1872,7 @@ ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle)
   for(int i=0; i < loglevel_count; i++) {
     reply->get(clusterlog_names[i], &loglevel[i]);
   }
+  delete reply;
   DBUG_RETURN(loglevel);
 }
 
@@ -2016,7 +1997,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     }
   }
   const NDB_SOCKET_TYPE sockfd = s.connect(hostname, port);
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to");
@@ -2044,7 +2025,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   handle->socket = tmp;
 
   if(reply == NULL) {
-    my_socket_close(sockfd);
+    ndb_socket_close(sockfd);
     CHECK_REPLY(handle, reply, -1);
   }
   delete reply;
@@ -2059,21 +2040,13 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   applications.
  */
 extern "C"
-#ifdef NDB_WIN
-SOCKET
-#else
-int
-#endif
+ndb_native_socket_t
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
   NDB_SOCKET_TYPE s;
   if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
-    my_socket_invalidate(&s);
-#ifdef NDB_WIN
-  return s.s;
-#else
-  return s.fd;
-#endif
+    ndb_socket_invalidate(&s);
+  return ndb_socket_get_native(s);
 }
 
 extern "C"
@@ -2802,12 +2775,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
     {
       const char *hostname= ndb_mgm_get_connected_host(handle);
       unsigned port=  ndb_mgm_get_connected_port(handle);
-      BaseString err;
       Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
-      err.assfmt("Could not alloc node id at %s port %d: %s",
-		 hostname, port, buf);
       prop->get("error_code", &error_code);
-      setError(handle, error_code, __LINE__, err.c_str());
+      setError(handle, error_code, __LINE__,
+              "Could not alloc node id at %s port %d: %s",
+               hostname, port, buf);
       break;
     }
     Uint32 _nodeid;
@@ -3132,14 +3104,14 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
   if(handle == 0)
   {
     SET_ERROR(*handle, NDB_MGM_ILLEGAL_SERVER_HANDLE, "");
-    my_socket_invalidate(&s);
+    ndb_socket_invalidate(&s);
     DBUG_RETURN(s);
   }
 
   if ((*handle)->connected != 1)
   {
     SET_ERROR(*handle, NDB_MGM_SERVER_NOT_CONNECTED , "");
-    my_socket_invalidate(&s);
+    ndb_socket_invalidate(&s);
     DBUG_RETURN(s);
   }
 
@@ -3488,7 +3460,7 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
     res = -1;
     Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
     prop->get("error_code", &err);
-    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+    setError(handle, err, __LINE__, "%s", buf ? buf : "Illegal reply");
   }
   else if (!prop->get("ng",(Uint32*)ng))
   {
@@ -3532,7 +3504,7 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
     res = -1;
     Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
     prop->get("error_code", &err);
-    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+    setError(handle, err, __LINE__, "%s", buf ? buf : "Illegal reply");
   }
 
   delete prop;

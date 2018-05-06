@@ -2,11 +2,10 @@
 # BUG#21245805 HA_INNOBASE::RECORDS_IN_RANGE() RETURNS CONSTANT FOR SPATIAL INDEXES
 #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 CREATE TABLE t1 (
-  g GEOMETRY NOT NULL
+  g GEOMETRY NOT NULL SRID 0
 ) ENGINE=InnoDB;
 
 ALTER TABLE t1 ADD SPATIAL(g);

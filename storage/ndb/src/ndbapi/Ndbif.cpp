@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -101,6 +108,12 @@ Ndb::init(int aMaxNoOfTransactions)
   {
     connected(Uint32(tRef));
   }
+
+  /* Now that we have this block open, set the first transid for
+   * this block from ndb_cluster_connection
+   */
+  theFirstTransId |= theImpl->m_ndb_cluster_connection.
+    get_next_transid(theNdbBlockNumber);
 
   /* Init cached min node version */
   theFacade->lock_poll_mutex();
@@ -492,7 +505,6 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
         }
         else
         {
-          assert(type != NdbReceiver::NDB_QUERY_OPERATION);
           DBUG_EXECUTE_IF("ndb_delay_transid_ai",
             {
               fprintf(stderr,
@@ -503,8 +515,24 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
               fprintf(stderr, "NdbImpl::trp_deliver_signal() resuming\n");
             });
 
-          com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+          /**
+           * Note that prior to V7.6.2 we assumed that all 'QUERY'
+           * results were returned as 'long' signals. The version
+           * check ndbd_spj_api_support_short_TRANSID_AI() function
+           * has been added to allow the sender to check if the 
+           * QUERY-receiver support short (and 'packed') TRANSID_AI.
+           */
+          if (type == NdbReceiver::NDB_QUERY_OPERATION)
+          {
+            NdbQueryOperationImpl* impl_owner = (NdbQueryOperationImpl*)owner;
+            com = impl_owner->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+                                             tLen - TransIdAI::HeaderLength);
+          }
+          else
+          {
+            com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
                                        tLen - TransIdAI::HeaderLength);
+          }
         }
         {
           BlockReference ref = aSignal->theSendersBlockRef;
@@ -864,8 +892,6 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       goto InvalidSignal;
     }
     tCon = void2con(tFirstDataPtr);
-    assert(tFirstDataPtr != 0 && 
-           void2con(tFirstDataPtr)->checkMagicNumber() == 0);
     if (tCon->checkMagicNumber() == 0)
     {
       tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
@@ -1113,16 +1139,28 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   case GSN_SUB_STOP_CONF:
   case GSN_SUB_STOP_REF:
   {
+    const Uint64 latestGCI = myNdb->getLatestGCI();
     NdbDictInterface::execSignal(&myNdb->theDictionary->m_receiver,
 				 aSignal,
                                  ptr);
+    if (tWaitState == WAIT_EVENT && myNdb->getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
   }
   case GSN_SUB_GCP_COMPLETE_REP:
   {
+    const Uint64 latestGCI = myNdb->getLatestGCI();
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
     myNdb->theEventBuffer->execSUB_GCP_COMPLETE_REP(rep, tLen);
+    if (tWaitState == WAIT_EVENT && myNdb->getLatestGCI() != latestGCI)
+    {
+      tNewState = NO_WAIT;
+      break;
+    }
     return;
   }
   case GSN_SUB_TABLE_DATA:
@@ -1459,7 +1497,7 @@ Remark: Send a batch of transactions prepared for sending to the NDB kernel.
 void
 Ndb::sendPrepTrans(int forceSend)
 {
-  // Always called when holding mutex on TransporterFacade
+  // Always called when holding the trp_client::lock()
   /*
      We will send a list of transactions to the NDB kernel. Before
      sending we check the following.
@@ -1580,7 +1618,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
-    const int maxsleep = waitTime > 10 ? 10 : waitTime;
+    int maxsleep = waitTime;
+#ifndef DBUG_OFF
+    if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+    {
+      maxsleep = waitTime > 10 ? 10 : waitTime;
+    }
+#endif
     poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;

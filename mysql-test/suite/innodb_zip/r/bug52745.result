@@ -1,7 +1,5 @@
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,
@@ -60,9 +58,14 @@ col89 float unsigned zerofill DEFAULT NULL,
 col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
-SET sql_mode = default;
+SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',
 col51=16547,
@@ -99,7 +102,6 @@ col88=16894,
 col89=6161,
 col90=repeat('gale',48);
 Warnings:
-Warning	1264	Out of range value for column 'col40' at row 1
 Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1
@@ -115,7 +117,6 @@ Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1264	Out of range value for column 'col40' at row 1
 Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1
@@ -129,5 +130,6 @@ Warning	1264	Out of range value for column 'col70' at row 1
 Warning	1264	Out of range value for column 'col78' at row 1
 Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
+SET sql_mode = default;
 DROP TABLE bug52745;
 SET GLOBAL innodb_file_per_table=1;

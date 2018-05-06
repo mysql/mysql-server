@@ -5,22 +5,10 @@
 # "create table tab1 (a bigint primary key, b varchar(2048)) engine=InnoDB;"
 #
 
---source include/have_innodb.inc
---source include/have_debug.inc
---source include/have_innodb_16k.inc
-
-# turn on flags
---disable_query_log
-SET GLOBAL innodb_monitor_enable=index_page_merge_attempts;
-SET GLOBAL innodb_monitor_reset=index_page_merge_attempts;
-SET GLOBAL innodb_monitor_enable=index_page_merge_successful;
-SET GLOBAL innodb_monitor_reset=index_page_merge_successful;
---enable_query_log
-
 --echo # check MERGE_THRESHOLD
 select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
-from INFORMATION_SCHEMA.INNODB_SYS_TABLES t, INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
-where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%';
+from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
+where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
@@ -41,10 +29,19 @@ insert into tab1 values (14, repeat('a',2048));
 # | 1,..,7 | 8,..,14 |
 
 select PAGE_NUMBER, NUMBER_RECORDS
-from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES s1,
-INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
-where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
+from INFORMATION_SCHEMA.INNODB_TABLESPACES s1,
+INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2,
+INFORMATION_SCHEMA.INNODB_TABLES s3
+where s1.SPACE = s2.SPACE AND s1.SPACE = s3.SPACE AND s3.NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
+
+# turn on flags
+--disable_query_log
+SET GLOBAL innodb_monitor_enable=index_page_merge_attempts;
+SET GLOBAL innodb_monitor_reset=index_page_merge_attempts;
+SET GLOBAL innodb_monitor_enable=index_page_merge_successful;
+SET GLOBAL innodb_monitor_reset=index_page_merge_successful;
+--enable_query_log
 
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
@@ -61,11 +58,11 @@ SELECT name,count_reset FROM information_schema.innodb_metrics
 WHERE name like 'index_page_merge_%';
 
 select PAGE_NUMBER, NUMBER_RECORDS
-from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES s1,
-INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
-where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
+from INFORMATION_SCHEMA.INNODB_TABLESPACES s1,
+INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2,
+INFORMATION_SCHEMA.INNODB_TABLES s3
+where s1.SPACE = s2.SPACE AND s1.SPACE = s3.SPACE AND s3.NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
-
 
 update tab1 set b='' where a = 11;
 

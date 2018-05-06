@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ###############################################
 # Purpose: To test advance DD and replication #
 ###############################################
@@ -10,7 +5,6 @@
 #### Include Section ####
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/not_embedded.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 ######################################################
@@ -42,8 +36,7 @@ ENGINE=NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE 8M 
-ENGINE=NDB;
+INITIAL_SIZE 8M;
 
 CREATE TABLE t1
   (c1 INT NOT NULL PRIMARY KEY, 
@@ -98,13 +91,17 @@ ALTER TABLE t1 ADD c4 TIMESTAMP;
 # Save the TIMESTAMP value of c4 for later masking of .result file
 let $c4_timestamp_value=`select c4 FROM t1 WHERE c1 = 1`;
 ALTER TABLE t1 ADD c5 DOUBLE;
-ALTER TABLE t1 ADD INDEX (c5);  
+ALTER TABLE t1 ADD INDEX (c5);
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --echo **** Show first set of ALTERs on SLAVE ****
 --sync_slave_with_master
 connection slave;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --echo **** Second set of alters test 1 ****
 ############################################
@@ -128,12 +125,16 @@ ALTER TABLE t2 RENAME t1;
 
 --echo **** Show second set of ALTERs on MASTER ****
 
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --echo **** Show second set of ALTERs on SLAVE ****
 --sync_slave_with_master
 connection slave;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --echo **** Third and last set of alters for test1  ****
 #########################################################
@@ -159,15 +160,19 @@ UPDATE t1 SET c3=@b1 where c1 = 2;
  
 --echo **** Show last set of ALTERs on MASTER ****
 
+--disable_warnings
 SHOW CREATE TABLE t1;
 --replace_result $c4_timestamp_value <c4_timestamp_value>
+--enable_warnings
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
 --echo **** Show last set of ALTERs on SLAVE ****
 --sync_slave_with_master
 connection slave;
+--disable_warnings
 SHOW CREATE TABLE t1;
 --replace_result $c4_timestamp_value <c4_timestamp_value>
+--enable_warnings
 # Bug 18094
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 SELECT * FROM t1 where c1 = 1;
@@ -202,8 +207,7 @@ ENGINE=NDB;
 
 ALTER TABLESPACE ts2
 ADD DATAFILE 'datafile04.dat'
-INITIAL_SIZE 18M
-ENGINE=NDB;
+INITIAL_SIZE 18M;
 
 let engine_type=NDBCLUSTER;
 let table_space=ts2;
@@ -251,24 +255,20 @@ DROP TABLE IF EXISTS tpcb.history;
 DROP DATABASE tpcb;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile02.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 ENGINE=NDB;
-
-ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile03.dat'
-ENGINE=NDB;
+DROP TABLESPACE ts1;
 
 ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile04.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile03.dat';
 
-DROP TABLESPACE ts2 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat';
+
+DROP TABLESPACE ts2;
 
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 
@@ -322,7 +322,7 @@ while ($j)
 --echo ***** Finsh the slave sync process *******
 --disable_query_log
 # 1. 2. 3.
---source include/ndb_setup_slave.inc
+--source suite/ndb_rpl/ndb_setup_slave.inc
 --enable_query_log
 
 # 4.
@@ -373,24 +373,20 @@ DROP TABLE tpcb.history;
 DROP DATABASE tpcb;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile02.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 ENGINE=NDB;
-
-ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile03.dat'
-ENGINE=NDB;
+DROP TABLESPACE ts1;
 
 ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile04.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile03.dat';
 
-DROP TABLESPACE ts2 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat';
+
+DROP TABLESPACE ts2;
 
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 

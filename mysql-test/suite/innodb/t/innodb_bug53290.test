@@ -1,5 +1,4 @@
 -- source include/big_test.inc
--- source include/have_innodb.inc
 
 create table bug53290 (x bigint) engine=innodb;
 

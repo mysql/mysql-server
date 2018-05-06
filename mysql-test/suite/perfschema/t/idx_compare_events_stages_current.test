@@ -1,0 +1,34 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+## FIXME DISABLED
+
+let $table = "events_stages_current";
+let $key_group = 1;
+let $target_event_name = stage/sql/executing;
+
+--echo TABLE: $table
+--echo INDEXES: PK (THREAD_ID, EVENT_ID)
+
+truncate table performance_schema.events_stages_current;
+
+--source ../include/idx_compare_setup.inc
+
+# DEBUG select * from performance_schema.events_stages_current;
+--disable_query_log
+--disable_result_log
+let $get_target_data= SELECT THREAD_ID, EVENT_NAME INTO @target_thread_id, @target_event_name FROM performance_schema.events_stages_current LIMIT 1;
+eval $get_target_data;
+let $target_thread_id = `SELECT @target_thread_id`;
+let $target_event_name = `SELECT @target_event_name`;
+--enable_result_log
+--enable_query_log
+
+#--echo ## TARGET THREAD ID $target_thread_id
+#--echo ## TARGET EVENT_NAME $target_event_name
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

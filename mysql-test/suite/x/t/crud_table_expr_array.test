@@ -1,0 +1,550 @@
+## Using Mysqlx::Expr::OBJECT in collection
+
+########### ../t/crud_table_expr_array.test            ###########
+###                                                              #
+### This test runs aims to run ARRAY expresion statement         #
+### variant with mysqlxtest client.                              #
+### Test covers                                                  #
+###  - INSERT statements                                         #
+###  - FIND statements                                           #
+###  - UPDATE statements                                         #
+###                                                              #
+##################################################################
+#
+
+--echo =============================================
+--echo     CRUD TABLE ARRAY EXPRESIONS SCENARIOS
+--echo =============================================
+--echo 
+
+--echo ================================================================================
+--echo PREAMBLE
+--echo ================================================================================
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--echo ================================================================================
+--echo TEST START
+--echo ================================================================================
+--write_file $MYSQL_TMP_DIR/crud_table_expr_array.tmp
+## Test data
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (xfield JSON);
+-->endsql
+
+-->echo Inserting array into table
+Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  projection { name: "xfield" }
+  data_model: TABLE
+  row {
+    field {
+      type: OBJECT object {
+        fld {
+          key: "first"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"ten"} } }
+        }
+        fld {
+          key: "second"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"twenty"} } }
+        }
+        fld {
+          key: "third"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"thirty"} } }
+        }
+        fld {
+          key: "units"
+          value {
+            type: ARRAY array {
+              value {type: LITERAL literal { type: V_SINT v_signed_int: 1 } }
+              value {type: LITERAL literal { type: V_SINT v_signed_int: 2 } }
+              value {type: LITERAL literal { type: V_SINT v_signed_int: 3 } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Inserting array into collection with all the datatypes
+Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  projection { name: "xfield" }
+  data_model: TABLE
+  row {
+    field {
+      type: OBJECT object {
+        fld {
+          key: "first"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"ten again"} } }
+        }
+        fld {
+          key: "second"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"twenty again"} } }
+        }
+        fld {
+          key: "third"
+          value { type: LITERAL literal { type: V_OCTETS v_octets {value:"thirty again"} } }
+        }
+        fld {
+          key: "units"
+          value {
+            type: ARRAY array {
+              value {type: LITERAL literal { type: V_SINT v_signed_int: 1 } }
+              value {type: LITERAL literal { type: V_UINT v_unsigned_int: 2 } }
+              value {type: LITERAL literal { type: V_DOUBLE v_double: 3.13 } }
+              value {type: LITERAL literal { type: V_FLOAT v_float: 4.34 } }
+              value {type: LITERAL literal { type: V_BOOL v_bool: false } }
+              value {type: LITERAL literal { type: V_NULL } }
+              value {type: LITERAL literal { type: V_STRING v_string: { value: "extrainfo"} } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Selecting array from table
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: OBJECT object {
+        fld {
+          key: "dozens"
+          value {
+            type: ARRAY array {
+              value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+              value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "second" } } }
+              value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "third" } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Selecting array from table
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: OBJECT object {
+        fld {
+          key: "UnitArray"
+          value {
+            type: ARRAY array {
+              value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "units" } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Selecting a value not available from table to get null values
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: OBJECT object {
+        fld {
+          key: "UnitArray"
+          value {
+            type: ARRAY array {
+              value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "notavailable" } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Selecting only array from table
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "second" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "third" } } }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->echo Selecting only array with sub-array from table
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+        value { 
+          type: ARRAY array {
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 0 } 
+              }
+            }
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 2 } 
+              }
+            }
+          }
+        }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "third" } } }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Selecting only array with sub-array including null values from table with alias
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "Array_SubArray_Null"
+    source {
+      type: ARRAY array {
+        value { 
+          type: ARRAY array {
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 1 } 
+              }
+            }
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 5 } 
+              }
+            }
+          }
+        }
+        value { 
+          type: ARRAY array {
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 2 } 
+              }
+            }
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 5 } 
+              }
+            }
+          }
+        }
+        value { 
+          type: ARRAY array {
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 3 } 
+              }
+            }
+            value { 
+              type: IDENT identifier { 
+                name: "xfield" 
+                document_path { type: MEMBER value: "units" } 
+                document_path { type: ARRAY_INDEX index: 5 } 
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Updating table by array
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "xfield"
+      document_path { type: MEMBER value: "dozens" }
+    }
+    operation: ITEM_SET
+    value {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "second" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "third" } } }
+      }
+    }
+  }
+}
+  
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Updating table by array with null values
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "xfield"
+      document_path { type: MEMBER value: "NewArray" }
+    }
+    operation: ITEM_SET
+    value {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "units" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "dozens" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Updating table by array in a current member value
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "xfield"
+      document_path { type: MEMBER value: "second" }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "units" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "dozens" } } }
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "first" } } }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Updating table by appending an array in a current array member value
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "xfield"
+      document_path { type: MEMBER value: "second" }
+    }
+    operation: ARRAY_APPEND
+    value {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "units" } } }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Updating table by inserting an array in a current array member
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "xfield"
+      document_path { type: MEMBER value: "second" }
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: ARRAY array {
+        value { type: IDENT identifier { name: "xfield" document_path { type: MEMBER value: "units" } } }
+      }
+    }
+  }
+}
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+-->echo Inserting (directly) array into table with all data types
+Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  projection { name: "xfield" }
+  data_model: TABLE
+  row {
+    field {
+      type: ARRAY array {
+        value {type: LITERAL literal { type: V_SINT v_signed_int: -10 } }
+        value {type: LITERAL literal { type: V_UINT v_unsigned_int: 2 } }
+        value {type: LITERAL literal { type: V_DOUBLE v_double: 3.13 } }
+        value {type: LITERAL literal { type: V_FLOAT v_float: 4.34 } }
+        value {type: LITERAL literal { type: V_BOOL v_bool: false } }
+        value {type: LITERAL literal { type: V_NULL } }
+        value {type: LITERAL literal { type: V_STRING v_string: { value: "extrainfo"} } }
+      }
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+-->echo NOT Error: empty array
+Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    alias: "result"
+    source {
+      type: ARRAY array { }
+    }
+  }
+}
+  
+-->recvresult
+
+
+## Cleanup
+-->echo ================================================================================
+-->echo CLEAN UP
+-->echo ================================================================================
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_table_expr_array.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/crud_table_expr_array.tmp
+--source include/xplugin_drop_user.inc

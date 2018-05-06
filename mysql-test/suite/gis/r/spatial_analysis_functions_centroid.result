@@ -117,7 +117,7 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POINT(9.333108739249747 15.167565043001009)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POINT(2.5 2.5)
@@ -314,29 +314,25 @@ POINT(15.265664160401002 10.463659147869674)
 # ST_CENTROID(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)))
-POINT(15 10)
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points,-1)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points,-1)))
-POINT(15 8.75)
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)))
 POINT(15 17.5)
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)))
 POINT(7.5 18.75)
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,0)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,0)))
 POINT(14.768115942028986 10.797101449275363)
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,0)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,0)))
 POINT(15 10)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)))
-POINT(15.64459161147903 10.20971302428256)
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)))
-POINT(15.265664160401002 10.463659147869674)
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -346,53 +342,53 @@ SELECT ST_ASTEXT(ST_CENTROID(NULL));
 ST_ASTEXT(ST_CENTROID(NULL))
 NULL
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('LINESTRING()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON(())')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOINT()')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING(())')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON((()))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(a 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(! 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT('!' 0)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(12,34 0)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(0x000000000200000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_ASTEXT(ST_CENTROID(0x010100000001000000010100000000000000000000));
@@ -421,3 +417,23 @@ LineString(Point(1, 1), Point(2, 2), Point(3, 3))
 )
 );
 ERROR 22023: Invalid GIS data provided to function polygon.
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 0)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 0)))
+POINT(0 0)
+# Projected SRS (should pass)
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)))
+POINT(0 0)
+# Geographic SRS (should fail)
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
+ERROR 22S00: st_centroid(POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CENTROID(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

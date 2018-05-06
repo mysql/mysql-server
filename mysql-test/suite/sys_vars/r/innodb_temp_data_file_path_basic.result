@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.innodb_temp_data_file_path)
 1 Expected
 '#---------------------BS_STVARS_024_03----------------------#'
 SELECT @@GLOBAL.innodb_temp_data_file_path = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_temp_data_file_path';
 @@GLOBAL.innodb_temp_data_file_path = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.innodb_temp_data_file_path)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_temp_data_file_path';
 COUNT(VARIABLE_VALUE)
 1

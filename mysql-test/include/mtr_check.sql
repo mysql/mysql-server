@@ -1,17 +1,24 @@
--- Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+-- GNU General Public License, version 2.0, for more details.
 --
 -- You should have received a copy of the GNU General Public License
--- along with this program; if not, write to the Free Software Foundation,
--- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 delimiter ||;
 
@@ -60,20 +67,24 @@ BEGIN
 
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
-  SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  SELECT * FROM performance_schema.global_variables
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
-                                'innodb_file_format_max',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name')
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
-  SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
+  SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
+
+  -- Dump all tablespaces, there should be none
+  SELECT * FROM INFORMATION_SCHEMA.FILES WHERE 
+    FILE_TYPE !='TEMPORARY' AND TABLE_SCHEMA='test' ORDER BY FILE_ID;
 
   -- The test database should not contain any tables
   SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
-    WHERE table_schema='test';
+    WHERE table_schema='test'
+    ORDER BY TABLE_NAME;
 
   -- Show "mysql" database, tables and columns
   SELECT CONCAT(table_schema, '.', table_name) AS tables_in_mysql
@@ -87,7 +98,7 @@ BEGIN
          collation_name, column_type, column_key, extra, column_comment
     FROM INFORMATION_SCHEMA.COLUMNS
       WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
-        ORDER BY columns_in_mysql;
+        ORDER BY columns_in_mysql, column_name;
 
   -- Dump all events, there should be none
   SELECT * FROM INFORMATION_SCHEMA.EVENTS;
@@ -107,9 +118,10 @@ BEGIN
          DTD_IDENTIFIER,ROUTINE_BODY,ROUTINE_DEFINITION,EXTERNAL_NAME,EXTERNAL_LANGUAGE,PARAMETER_STYLE,
          IS_DETERMINISTIC,SQL_DATA_ACCESS,SQL_PATH,SECURITY_TYPE,SQL_MODE,ROUTINE_COMMENT,DEFINER,
          CHARACTER_SET_CLIENT,COLLATION_CONNECTION,DATABASE_COLLATION
-    FROM INFORMATION_SCHEMA.ROUTINES;
+    FROM INFORMATION_SCHEMA.ROUTINES ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE;
   -- Dump all views, only those in the sys schema should exist
-  SELECT * FROM INFORMATION_SCHEMA.VIEWS;
+  SELECT * FROM INFORMATION_SCHEMA.VIEWS
+    ORDER BY TABLE_SCHEMA, TABLE_NAME;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
@@ -132,7 +144,8 @@ BEGIN
     mysql.time_zone_name,
     mysql.time_zone_transition,
     mysql.time_zone_transition_type,
-    mysql.user;
+    mysql.user,
+    mysql.global_grants;
 
 END||
 

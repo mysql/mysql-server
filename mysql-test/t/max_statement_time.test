@@ -1,15 +1,10 @@
 # WL#6936 - Implementation of server-side statement timeout
 
---source include/not_embedded.inc
 --source include/have_statement_timeout.inc
---source include/have_query_cache.inc
 --source include/have_debug.inc
---source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
-
-SET SESSION query_cache_type= 0;
 
 --echo #
 --echo # 1. Test MAX_EXECUTION_TIME option syntax.
@@ -323,11 +318,11 @@ SET @@SESSION.max_execution_time= 0;
 # Case 9.1 Check MAX_EXECUTION_TIME_SET and MAX_EXECUTION_TIME_EXCEEDED status.
 --disable_warnings
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET';
 
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED';
 --enable_warnings
 
@@ -339,11 +334,11 @@ SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 --echo # are incremented.
 
 --disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT 1 AS STATUS FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
 
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT 1 AS STATUS FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
 --enable_warnings
@@ -353,7 +348,7 @@ connect(con1, localhost, root,,);
 
 --disable_warnings
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 --enable_warnings
 
@@ -362,20 +357,20 @@ SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SET DEBUG= '-d,thd_timer_create_failure';
 
 --disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT 1 AS STATUS FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 
 # Case 9.3 Check MAX_EXECUTION_TIME_FAILED status on timer set failure.
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 
 SET DEBUG= '+d,thd_timer_set_failure';
 SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SET DEBUG= '-d,thd_timer_set_failure';
 
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT 1 AS STATUS FROM performance_schema.global_status
   WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 --enable_warnings
@@ -383,92 +378,7 @@ SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
 connection default;
 disconnect con1;
 
---echo # 
---echo # 10. Test Query cache behavior with max_execution_time.
---echo #
-SET SESSION query_cache_type= 1;
 SET @@SESSION.max_execution_time= 0;
-
-CREATE TABLE t1 (fld1 int);
-INSERT INTO t1 VALUES (1), (2), (3);
-INSERT INTO t1 SELECT * FROM t1;
-
-FLUSH QUERY CACHE; 
-
-# Check Query Cache status
---disable_warnings
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT * FROM t1;
-
-#Check whether query result is cached or not.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
---enable_warnings
-
-SELECT * FROM t1;
-
-#Since both the queries are identical, results is taken from cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-
-#Get current query cache status.        
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t1;
-#Though query is symatically identical to cached SELECT but textually not. So
-#result is not read from the cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-#It is cached in another block.
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
-
-#Get current query cache status.        
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_inserts
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_inserts';
-SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @qc_hits
-  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-    WHERE VARIABLE_NAME= 'Qcache_hits';
---enable_warnings
-
-SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t1;
-#Since, SELECT is idetical to 2ns cached SELECT, result is taken from cache.
---disable_warnings
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_hits'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_hits;
-#No changes in Qcache_insert here.
-SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-  WHERE VARIABLE_NAME= 'Qcache_inserts'
-        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @qc_inserts;
---enable_warnings
-
-FLUSH QUERY CACHE; 
-DROP TABLE t1;
-
-SET @@SESSION.max_execution_time= 0;
-
 # Check that all connections opened by test cases in this file are really gone
 # so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

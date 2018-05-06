@@ -23,6 +23,7 @@
 # [--let $rpl_only_current_connection= 1]
 # [--let $extra_debug_info= some text]
 # [--let $extra_debug_eval= expression parsable by include/eval.inc]
+# [--let $extra_debug_table= DB.TABLE]
 # --source include/show_rpl_debug_info.inc
 #
 # Parameters:
@@ -38,6 +39,10 @@
 #   $extra_debug_eval
 #     Expression in the form expected by include/eval.inc, which will
 #     be evaluated and printed to the output.
+#
+#   $extra_debug_table
+#     Fully qualified table name. The script will run SELECT * FROM $table
+#     on this table, if given.
 #
 # ==== Side effects ====
 #
@@ -92,7 +97,7 @@ while ($_rpl_server)
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical
@@ -160,6 +165,14 @@ while ($_rpl_server)
   --echo
   --echo **** mysql.gtid_executed on $CURRENT_CONNECTION ****
   SELECT * FROM mysql.gtid_executed;
+
+  if ($extra_debug_table)
+  {
+    --echo
+    --echo **** $extra_debug_table ****
+    eval SHOW CREATE TABLE $extra_debug_table;
+    eval SELECT * FROM $extra_debug_table;
+  }
 
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server

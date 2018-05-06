@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1(a varchar(40000))ENGINE=INNODB;
+CREATE TABLE t1(a varchar(40000))ENGINE=INNODB CHARACTER SET latin1;
 INSERT INTO t1 VALUES (REPEAT('a',37000));
 INSERT INTO t1 VALUES (REPEAT('b',32543));
 include/sync_slave_sql_with_master.inc

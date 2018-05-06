@@ -1,0 +1,13 @@
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE VIEW v_12 AS SELECT t1.a AS a, t2.a AS b FROM t1,t2;
+CREATE TEMPORARY TABLE tmp (a INT) ENGINE=innodb;
+SET DEBUG_SYNC= 'action_after_write_bin_log WAIT_FOR continue';
+ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+DROP TABLE t1,t2;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+include/save_binlog_position.inc
+DELETE FROM tmp;
+include/assert_binlog_events.inc
+DROP VIEW v_12;

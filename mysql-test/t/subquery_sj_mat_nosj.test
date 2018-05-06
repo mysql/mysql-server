@@ -1,13 +1,13 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
+--source include/no_valgrind_without_big.inc
 --source include/force_myisam_default.inc
 
 # 
 # Run subquery_sj.inc with subquery materialization and without semijoin
 #
 
---source include/have_materialization.inc
 set optimizer_switch='materialization=on';
 
 --disable_query_log

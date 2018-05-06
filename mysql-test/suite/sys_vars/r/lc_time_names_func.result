@@ -20,6 +20,8 @@ en_IN
 '#--------------------FN_DYNVARS_060_02-------------------------#'
 'connection default'
 SET NAMES 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.lc_time_names = 'en_US';
 SELECT DATE_FORMAT('2010-01-01','%W %a %M %b'), DAYNAME('2010-05-05'),MONTHNAME('2010-12-12');
 DATE_FORMAT('2010-01-01','%W %a %M %b')	DAYNAME('2010-05-05')	MONTHNAME('2010-12-12')

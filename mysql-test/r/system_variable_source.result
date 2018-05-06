@@ -1,0 +1,40 @@
+CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+# Install test component
+INSTALL COMPONENT "file://component_test_system_variable_source";
+# Un-Install test component
+UNINSTALL COMPONENT "file://component_test_system_variable_source";
+# Print source value of innodb_buffer_pool_size
+test_system_variable_source_init start:
+Source of innodb_buffer_pool_size :  EXPLICIT.
+test_system_variable_source_init end:
+
+# restart: --innodb_dedicated_server=OFF --innodb_buffer_pool_size=24M --skip-mysqlx
+# Install test component
+INSTALL COMPONENT "file://component_test_system_variable_source";
+# Un-Install test component
+UNINSTALL COMPONENT "file://component_test_system_variable_source";
+# Print source value of innodb_buffer_pool_size
+test_system_variable_source_init start:
+Source of innodb_buffer_pool_size :  COMMAND_LINE.
+test_system_variable_source_init end:
+
+SET GLOBAL innodb_buffer_pool_size=134217728;
+# Install test component
+INSTALL COMPONENT "file://component_test_system_variable_source";
+# Un-Install test component
+UNINSTALL COMPONENT "file://component_test_system_variable_source";
+# Print source value of innodb_buffer_pool_size
+test_system_variable_source_init start:
+Source of innodb_buffer_pool_size :  DYNAMIC.
+test_system_variable_source_init end:
+
+# Restart server with --no-defaults
+# Install test component
+INSTALL COMPONENT "file://component_test_system_variable_source";
+# Un-Install test component
+UNINSTALL COMPONENT "file://component_test_system_variable_source";
+# Print source value of innodb_buffer_pool_size
+test_system_variable_source_init start:
+Source of innodb_buffer_pool_size :  COMPILED.
+test_system_variable_source_init end:
+

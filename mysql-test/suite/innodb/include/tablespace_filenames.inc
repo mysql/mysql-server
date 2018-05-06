@@ -61,12 +61,12 @@ CREATE TABLESPACE ibport_s16 ADD DATAFILE '..\\\\\\data\\\\test\\\\\\..\\\\ibpor
 
 --replace_result  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT s.space_type 'Type', s.name 'Space Name', d.path 'Path'
-	FROM information_schema.innodb_sys_tablespaces s, information_schema.innodb_sys_datafiles d
+	FROM information_schema.innodb_tablespaces s, information_schema.innodb_datafiles d
 	WHERE s.name like '%ibport%' AND s.space = d.space ORDER BY s.space;
 
 --replace_result  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT s.space_type 'Type', s.name 'Space Name', f.file_name 'Path'
-	FROM information_schema.innodb_sys_tablespaces s, information_schema.files f
+	FROM information_schema.innodb_tablespaces s, information_schema.files f
 	WHERE s.name like '%ibport%' AND s.space = f.file_id ORDER BY s.space;
 
 DROP TABLESPACE ibport_s01;
@@ -81,3 +81,6 @@ DROP TABLESPACE ibport_s14;
 DROP TABLESPACE ibport_s15;
 DROP TABLESPACE ibport_s16;
 
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number [0-9]* in a file operation");
+--enable_query_log

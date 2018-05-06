@@ -5,13 +5,6 @@
 --disable_warnings ONCE
 drop table if exists t1, t2;
 
-# Backup the mysql.proc table
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval SELECT * FROM mysql.proc INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/proc.txt';
-
-# Make sure we don't have any procedures left.
-delete from mysql.proc;
-
 delimiter |;
 
 # This should give three syntax errors (sometimes crashed; bug #643)
@@ -386,8 +379,7 @@ drop procedure p|
 
 
 #
-# Let us test that we can access mysql.proc table for routines
-# definitions lookup without locking it explicitly.
+# Let us test that we can access routines definitions in LOCK TABLE mode.
 #
 create procedure p() begin end|
 lock table t1 read|
@@ -395,17 +387,6 @@ lock table t1 read|
 call p()|
 unlock tables|
 drop procedure p|
-# Let us check restrictions which this ability puts on mysql.proc locking.
---error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-lock tables t1 read, mysql.proc write|
---error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-lock tables mysql.proc write, mysql.user write|
-# Locking for read should be OK
-lock tables t1 read, mysql.proc read|
-unlock tables|
-# You also should be able lock only mysql.proc for write
-lock tables mysql.proc write|
-unlock tables|
 
 
 #
@@ -697,28 +678,6 @@ create procedure bug6600()
 create procedure bug6600()
   unlock table t1|
 
-#
-# BUG#9566: explicit LOCK TABLE and store procedures result in illegal state
-#
-# We should not think that mysql.proc table does not exist if we are unable
-# to open it under LOCK TABLE or in prelocked mode.
-#
---disable_warnings ONCE
-drop procedure if exists bug9566|
-create procedure bug9566()
-begin
-  select * from t1;
-end|
-lock table t1 read|
-# This should fail since we forgot to lock mysql.proc for writing
-# explicitly, and we can't open mysql.proc for _writing_ if there
-# are locked tables.
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter procedure bug9566 comment 'Some comment'|
-unlock tables|
-# This should succeed
-drop procedure bug9566|
-
 
 #
 # BUG#7299: Stored procedures: exception handler catches not-found conditions
@@ -890,9 +849,6 @@ begin
   return 5;
 end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function bug8409() returns int begin reset query cache;
-return 1; end|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409() returns int begin reset master;
 return 1; end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -915,9 +871,6 @@ create function bug8409() returns int begin flush logs;
 return 1; end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409() returns int begin flush status;
-return 1; end|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function bug8409() returns int begin flush des_key_file;
 return 1; end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409() returns int begin flush user_resources;
@@ -1532,7 +1485,7 @@ create procedure mysqltest2.p1() select version();
 create procedure p2() select version();
 use mysqltest2;
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show procedure status;
+show procedure status like 'p1';
 drop database mysqltest2;
 use test;
 
@@ -1647,7 +1600,7 @@ create procedure `x `.bug15658() select 1;
 create procedure ` bug15658`() select 1;
 call ` bug15658`();
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show procedure status;
+show procedure status like '%bug15658';
 drop procedure ` bug15658`;
 
 
@@ -1760,9 +1713,6 @@ CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
 --error ER_VIEW_SELECT_CLAUSE
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
---error ER_VIEW_SELECT_CLAUSE
-CREATE PROCEDURE bug20953()
-  CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 FROM (SELECT 1) AS d1;
 DROP PROCEDURE bug20953;
 --error ER_VIEW_SELECT_VARIABLE
@@ -2081,33 +2031,6 @@ delimiter ;//
 
 
 #
-# Bug#28360 (RENAME DATABASE destroys routines)
-#
-
---disable_warnings
-drop procedure if exists proc_28360;
-drop function if exists func_28360;
---enable_warnings
-
-delimiter //;
-
---error ER_SP_NO_DROP_SP
-CREATE PROCEDURE proc_28360()
-BEGIN
-  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-END//
-
---error ER_SP_NO_DROP_SP
-CREATE FUNCTION func_28360() RETURNS int
-BEGIN
-  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-  RETURN 0;
-END//
-
-delimiter ;//
-
-
-#
 # Bug#29223 declare cursor c for SHOW .....
 #
 
@@ -2416,11 +2339,6 @@ drop procedure p1;
 #create procedure bugNNNN...
 #create function bugNNNN...
 
-#
-# CLEANUP and RESTORE
-#
-LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
-remove_file $MYSQLTEST_VARDIR/tmp/proc.txt;
 
 #
 # Bug #38159: Function parsing problem generates misleading error message
@@ -3837,4 +3755,118 @@ drop function f11111111112222222222333333333344444444445555555555666666666677777
 drop function test.f111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjjkk;
 --error ER_WRONG_DB_NAME 
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
+
+--echo #
+--echo # WL#7897 -- Use DD API for Stored Routines.
+--echo # Test cases to verify error scenarios.
+--echo #
+
+--disable_query_log
+
+SET @orig_character_set_client = @@character_set_client;
+SET character_set_client = utf8;
+
+--echo # Case 1. Test case to verify length of stored routine name length.
+let $object_name_64= oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo;
+let $object_name_65= ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo;
+--echo #         STORED PROCEDURE -- name with maximum length
+eval CREATE PROCEDURE $object_name_64() SELECT 1 AS my_column;
+eval ALTER PROCEDURE $object_name_64 COMMENT 'Changed';
+eval CALL $object_name_64();
+eval DROP PROCEDURE $object_name_64;
+--echo #         STORED PROCEDURE -- name with maximum length + 1 --> expect a fail
+--error ER_TOO_LONG_IDENT
+eval CREATE PROCEDURE $object_name_65() SELECT 1 AS my_column;
+--error ER_TOO_LONG_IDENT
+eval ALTER PROCEDURE $object_name_65 COMMENT 'Changed';
+--error ER_TOO_LONG_IDENT
+eval CALL $object_name_65();
+--error ER_TOO_LONG_IDENT
+eval DROP PROCEDURE $object_name_65;
+#
+--echo #         STORED FUNCTION -- name with maximum length
+eval CREATE FUNCTION $object_name_64() RETURNS INT RETURN 1;
+eval ALTER FUNCTION $object_name_64 COMMENT 'Changed';
+eval SELECT $object_name_64() AS my_column;
+eval DROP FUNCTION $object_name_64;
+--echo #         STORED FUNCTION -- name with maximum length + 1 --> expect a fail
+--error ER_TOO_LONG_IDENT
+eval CREATE FUNCTION $object_name_65() RETURNS INT RETURN 1;
+--error ER_TOO_LONG_IDENT
+eval ALTER FUNCTION $object_name_65 COMMENT 'Changed';
+--error ER_TOO_LONG_IDENT
+eval SELECT $object_name_65() AS my_column;
+--error ER_TOO_LONG_IDENT
+eval DROP FUNCTION $object_name_65;
+
+--echo # Case 2: Test case to validate stored routine name.
+--error ER_INVALID_CHARACTER_STRING
+CREATE PROCEDURE test𝌆() SELECT 1;
+--error ER_INVALID_CHARACTER_STRING
+CREATE FUNCTION test𝌆() RETURNS INT RETURN 1;
+
+--echo # Case 3: Test case to verify routine's parameter length.
+eval CREATE PROCEDURE p(IN $object_name_64 INT) SELECT 1 AS my_column;
+DROP PROCEDURE p;
+--error ER_TOO_LONG_IDENT
+eval CREATE PROCEDURE p(IN $object_name_65 INT) SELECT 1 AS my_column;
+#
+eval CREATE FUNCTION f($object_name_64 INT) RETURNS INT RETURN 1;
+DROP FUNCTION f;
+--error ER_TOO_LONG_IDENT
+eval CREATE FUNCTION f($object_name_65 INT) RETURNS INT RETURN 1;
+
+--echo # Case 4: Test case to validate routine's parameter name.
+--error ER_INVALID_CHARACTER_STRING
+CREATE PROCEDURE p(IN test𝌆 INT) SELECT 1;
+--error ER_INVALID_CHARACTER_STRING
+CREATE FUNCTION f(test𝌆 INT) RETURNS INT RETURN 1;
+
+--echo # Case 5: Test case to verify comment string length.
+let $string_65535= `SELECT REPEAT('n', 65535)`;
+let $string_65536= `SELECT REPEAT('n', 65536)`;
+eval CREATE PROCEDURE p1() COMMENT '$string_65535' SELECT 1;
+DROP PROCEDURE p1;
+--error ER_TOO_LONG_ROUTINE_COMMENT
+eval CREATE PROCEDURE p1() COMMENT '$string_65536' SELECT 1;
+#
+eval CREATE FUNCTION f1() RETURNS INT COMMENT '$string_65535' RETURN 1;
+DROP FUNCTION f1;
+--error ER_TOO_LONG_ROUTINE_COMMENT
+eval CREATE FUNCTION f1() RETURNS INT COMMENT '$string_65536' RETURN 1;
+
+CREATE PROCEDURE p1() SELECT 1;
+eval ALTER PROCEDURE p1 COMMENT '$string_65535';
+--error ER_TOO_LONG_ROUTINE_COMMENT
+eval ALTER PROCEDURE p1 COMMENT '$string_65536';
+DROP PROCEDURE p1;
+#
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+eval ALTER FUNCTION f1 COMMENT '$string_65535';
+--error ER_TOO_LONG_ROUTINE_COMMENT
+eval ALTER FUNCTION f1 COMMENT '$string_65536';
+DROP FUNCTION f1;
+
+--echo # Case 6: Test case to validate comment string.
+--error ER_INVALID_CHARACTER_STRING
+CREATE PROCEDURE p2() COMMENT 'test𝌆' SELECT 1;
+#
+--error ER_INVALID_CHARACTER_STRING
+CREATE FUNCTION f2() RETURNS INT COMMENT 'test𝌆' RETURN 1;
+
+
+CREATE PROCEDURE p2() SELECT 1;
+--error ER_INVALID_CHARACTER_STRING
+ALTER PROCEDURE p2 COMMENT 'test𝌆';
+DROP PROCEDURE p2;
+#
+CREATE FUNCTION f2() RETURNS INT RETURN 1;
+--error ER_INVALID_CHARACTER_STRING
+ALTER FUNCTION f2 COMMENT 'test𝌆';
+DROP FUNCTION f2;
+
+--echo # Cleanup
+SET character_set_client = @orig_character_set_client;
+
+--enable_query_log
 

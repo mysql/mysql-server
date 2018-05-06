@@ -1,68 +1,61 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file mysys_ssl/my_sha2.cc
   A compatibility layer to our built-in SSL implementation, to mimic the
   oft-used external library, OpenSSL.
 */
 
-#include <my_global.h>
-#include <sha2.h>
+#include "sha2.h"
 
-#ifdef HAVE_YASSL
+/*  Low level digest API's are not allowed to access when FIPS mode is ON. This
+ * wrapper will allow to call different sha256 methods directly.*/
+#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                          \
+  unsigned char *SHA_EVP##size(const unsigned char *input_ptr,     \
+                               size_t input_length,                \
+                               char unsigned *output_ptr) {        \
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();                      \
+    EVP_DigestInit_ex(md_ctx, EVP_sha##size(), NULL);              \
+    EVP_DigestUpdate(md_ctx, input_ptr, input_length);             \
+    EVP_DigestFinal_ex(md_ctx, (unsigned char *)output_ptr, NULL); \
+    EVP_MD_CTX_destroy(md_ctx);                                    \
+    return (output_ptr);                                           \
+  }
 
 /*
-  If TaoCrypt::SHA512 or ::SHA384 are not defined (but ::SHA256 is), it's
-  probably that neither of config.h's SIZEOF_LONG or SIZEOF_LONG_LONG are
-  64 bits long.  At present, both OpenSSL and YaSSL require 64-bit integers
-  for SHA-512.  (The SIZEOF_* definitions come from autoconf's config.h .)
+  @fn SHA_EVP512
+  @fn SHA_EVP384
+  @fn SHA_EVP256
+  @fn SHA_EVP224
 */
 
-#  define GEN_YASSL_SHA2_BRIDGE(size) \
-unsigned char* SHA##size(const unsigned char *input_ptr, size_t input_length, \
-               char unsigned *output_ptr) {                         \
-  TaoCrypt::SHA##size hasher;                                       \
-                                                                    \
-  hasher.Update(input_ptr, input_length);                           \
-  hasher.Final(output_ptr);                                         \
-  return(output_ptr);                                               \
-}
-
-
-/**
-  @fn SHA512
-  @fn SHA384
-  @fn SHA256
-  @fn SHA224
-
-  Instantiate an hash object, fill in the cleartext value, compute the digest,
-  and extract the result from the object.
-  
-  (Generate the functions.  See similar .h code for the prototypes.)
-*/
-#  ifndef OPENSSL_NO_SHA512
-GEN_YASSL_SHA2_BRIDGE(512);
-GEN_YASSL_SHA2_BRIDGE(384);
-#  else
-#    warning Some SHA2 functionality is missing.  See OPENSSL_NO_SHA512.
-#  endif
-GEN_YASSL_SHA2_BRIDGE(256);
-GEN_YASSL_SHA2_BRIDGE(224);
-
-#  undef GEN_YASSL_SHA2_BRIDGE
-
-#endif /* HAVE_YASSL */
+GEN_OPENSSL_EVP_SHA2_BRIDGE(512)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(384)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
+#undef GEN_OPENSSL_EVP_SHA2_BRIDGE

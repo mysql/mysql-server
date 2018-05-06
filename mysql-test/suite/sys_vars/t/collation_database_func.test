@@ -89,9 +89,13 @@ USE test;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 
 
+--character_set latin1
+set names latin1;
 --echo 'fill table with some test data';
 CREATE TABLE t1(a CHAR(20))CHARACTER SET=latin1;
 INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');
+--character_set utf8mb4
+set names utf8mb4;
 
 #==============================================================================
 --echo '---check if collation_database effects results sort order---'

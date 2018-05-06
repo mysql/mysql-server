@@ -7,13 +7,14 @@ CREATE DATABASE testdb_wl6445;
 case # 1
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -36,7 +37,7 @@ i	LEFT(j,20)
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -49,14 +50,14 @@ DROP DATABASE testdb_wl6445;
 case # 2
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
-CREATE TABLE t2 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t2 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 i	LEFT(j,20)
@@ -77,6 +78,7 @@ i	LEFT(j,20)
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 i	LEFT(j,20)
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -103,7 +105,7 @@ i	LEFT(j,20)
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 ERROR 42S01: Table 't2' already exists
 CREATE TABLE t3 ( i int , j blob) ENGINE = Innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 UPDATE t1 SET i = i+1;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
@@ -115,5 +117,6 @@ case # 3
 #    Try to restart the server without --innodb-read-only after removing
 #    write permissions of system tablespace. Server should not start.
 #    This confirms server is not automatically started in read-only mode.
+Pattern "The innodb_system data file 'ibdata1' must be writable" found
 # restart
 DROP DATABASE testdb_wl6445;

@@ -10,7 +10,7 @@ insert into t1 values (2);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 10
 delete from t1 where a=4;
@@ -19,7 +19,7 @@ set global innodb_purge_run_now=ON;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 8
 delete from t1 where a=5;
@@ -28,7 +28,7 @@ set global innodb_purge_run_now=ON;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 5
 set global innodb_limit_optimistic_insert_debug = 0;
@@ -38,7 +38,7 @@ set global innodb_purge_run_now=ON;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 3
 insert into t1 values (2);
@@ -48,7 +48,7 @@ set global innodb_purge_run_now=ON;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 2
 insert into t1 values (2);
@@ -58,7 +58,7 @@ set global innodb_purge_run_now=ON;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+select CLUST_INDEX_SIZE from information_schema.INNODB_TABLESTATS where NAME = 'test/t1';
 CLUST_INDEX_SIZE
 1
 drop table t1;

@@ -1,6 +1,6 @@
---source include/have_innodb.inc
---source include/have_numa.inc
+--source include/linux.inc
 --source include/have_64bit.inc
+--source include/have_numa.inc
 
 SELECT @@GLOBAL.innodb_numa_interleave;
 
@@ -11,3 +11,4 @@ SELECT @@GLOBAL.innodb_numa_interleave;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.innodb_numa_interleave;
+

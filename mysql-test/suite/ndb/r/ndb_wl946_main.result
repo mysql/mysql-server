@@ -43,7 +43,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -117,6 +117,8 @@ sum(cnt)	sum(crc32(concat(cnt,crc)))
 69971	828138701178
 # check results via myisam
 alter table t1 engine=myisam;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -126,13 +128,13 @@ t1	CREATE TABLE `t1` (
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
   `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
-  PRIMARY KEY (`a`) USING HASH,
+  PRIMARY KEY (`a`),
   KEY `bx` (`b`),
   KEY `cx` (`c`),
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1099869477618
@@ -186,7 +188,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -260,6 +262,8 @@ sum(cnt)	sum(crc32(concat(cnt,crc)))
 69575	874482681592
 # check results via myisam
 alter table t1 engine=myisam;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -269,13 +273,13 @@ t1	CREATE TABLE `t1` (
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
   `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
-  PRIMARY KEY (`a`) USING HASH,
+  PRIMARY KEY (`a`),
   KEY `bx` (`b`),
   KEY `cx` (`c`),
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1091780159996
@@ -330,7 +334,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -366,7 +370,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -417,7 +421,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -453,7 +457,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -515,7 +519,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -566,7 +570,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000

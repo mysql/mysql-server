@@ -2,9 +2,7 @@
 # Test for starting mysqld using --daemonize option.
 #
 
---source include/not_embedded.inc
 --source include/not_windows.inc
---source include/not_valgrind.inc
 
 # Set valiables to be used in parameters of mysqld.
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
@@ -37,7 +35,7 @@ let $other_page_size_nk= `SELECT CONCAT($other_page_size_k,'k')`;
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "SHOW DATABASES" 2>&1
 
 #  Shutdown mysqld with mysqladmin
---exec $MYSQLADMIN -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
+--exec $MYSQLADMIN --no-defaults -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
 
 # Delay introduced - mysqld_safe takes some time to restart mysqld
 --source include/wait_until_disconnected.inc

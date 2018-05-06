@@ -1,5 +1,3 @@
-# We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 # shut server down
 # Server is down
 #
@@ -21,6 +19,8 @@ PLUGIN_STATUS
 ACTIVE
 # must work as the plugin must be loaded at startup
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # shut server down
 # Server is down
 # close the test connection

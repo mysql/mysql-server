@@ -1,0 +1,7 @@
+# Tests in this file are disabled for ASAN runs in pushbuild.
+# This is in addition to tests disabled by normal disabled.def files
+innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
+main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
+binlog.binlog_check_flush_log_assertion      : Bug#22732184 2017-03-10 edahl
+innodb.virtual_basic                         : Bug#25431979 2017-03-27 edahl
+main.mysqlpump_partial_bkp                   : Bug#26199978 2017-11-13 shisjais

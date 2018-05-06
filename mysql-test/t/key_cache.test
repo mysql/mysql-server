@@ -48,7 +48,7 @@ SET @@global.key_buffer_size=@save_key_buffer;
 
 --error 1064
 SELECT @@default.key_buffer_size;
---error 1272
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 SELECT @@skr.default_storage_engine="test";
 
 select @@keycache1.key_cache_block_size;
@@ -114,6 +114,8 @@ explain select p from t2;
 select p from t2;
 explain select i from t2;
 select i from t2;
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 11
 explain select a from t2;
 select a from t2;
 
@@ -138,6 +140,8 @@ select * from t2;
 select p from t2;
 explain select i from t2;
 select i from t2;
+# Ignore possible changes in key_len for different character sets
+--replace_column 8 11
 explain select a from t2;
 select a from t2;
 
@@ -223,7 +227,7 @@ DROP TABLE t1,t2;
 set global key_cache_block_size= @my_key_cache_block_size;
 
 #
-# Bug#10473 - Can't set 'key_buffer_size' system variable to ZERO
+# Bug#10473 - Cannot set 'key_buffer_size' system variable to ZERO
 # (One cannot drop the default key cache.)
 #
 --error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
@@ -237,11 +241,11 @@ SET @bug28478_key_cache_block_size= @@global.key_cache_block_size;
 SET GLOBAL key_cache_block_size= 1536;
 CREATE TABLE t1 (
   id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  c1 CHAR(150),
-  c2 CHAR(150),
-  c3 CHAR(150),
+  c1 CHAR(83),
+  c2 CHAR(83),
+  c3 CHAR(83),
   KEY(c1, c2, c3)
-  ) ENGINE= MyISAM;
+  ) ENGINE= MyISAM DEFAULT CHARSET utf8mb4;
 INSERT INTO t1 (c1, c2, c3) VALUES
   ('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'),
   ('e', 'f', 'g'), ('f', 'g', 'h'), ('g', 'h', 'i'), ('h', 'i', 'j'),

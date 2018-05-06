@@ -67,29 +67,29 @@ stat_description	Number of pages in the index
 SELECT index_name, seq_in_index, column_name, cardinality
 FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
 ORDER BY index_name, seq_in_index;
-index_name	idx
-seq_in_index	1
-column_name	c
-cardinality	0
-index_name	idx
-seq_in_index	2
-column_name	d
-cardinality	0
-index_name	PRIMARY
-seq_in_index	1
-column_name	a
-cardinality	0
-index_name	PRIMARY
-seq_in_index	2
-column_name	b
-cardinality	0
+INDEX_NAME	idx
+SEQ_IN_INDEX	1
+COLUMN_NAME	c
+CARDINALITY	0
+INDEX_NAME	idx
+SEQ_IN_INDEX	2
+COLUMN_NAME	d
+CARDINALITY	0
+INDEX_NAME	PRIMARY
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+CARDINALITY	0
+INDEX_NAME	PRIMARY
+SEQ_IN_INDEX	2
+COLUMN_NAME	b
+CARDINALITY	0
 SELECT
 table_rows, avg_row_length, max_data_length, index_length
 FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
-table_rows	0
-avg_row_length	0
-max_data_length	0
-index_length	16384
+TABLE_ROWS	0
+AVG_ROW_LENGTH	0
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	16384
 UPDATE mysql.innodb_table_stats SET
 n_rows = 1000,
 clustered_index_size = 5
@@ -120,26 +120,28 @@ table_name = 'test_ps_fetch' AND
 index_name = 'idx' AND
 stat_name = 'n_diff_pfx02';
 FLUSH TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=0;
 SELECT seq_in_index, column_name, cardinality
 FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
 ORDER BY index_name, seq_in_index;
-seq_in_index	1
-column_name	c
-cardinality	3
-seq_in_index	2
-column_name	d
-cardinality	11
-seq_in_index	1
-column_name	a
-cardinality	20
-seq_in_index	2
-column_name	b
-cardinality	90
+SEQ_IN_INDEX	1
+COLUMN_NAME	c
+CARDINALITY	3
+SEQ_IN_INDEX	2
+COLUMN_NAME	d
+CARDINALITY	11
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+CARDINALITY	20
+SEQ_IN_INDEX	2
+COLUMN_NAME	b
+CARDINALITY	90
 SELECT
 table_rows, avg_row_length, max_data_length, index_length
 FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
-table_rows	1000
-avg_row_length	81
-max_data_length	0
-index_length	16384
+TABLE_ROWS	1000
+AVG_ROW_LENGTH	81
+MAX_DATA_LENGTH	0
+INDEX_LENGTH	16384
 DROP TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=default;

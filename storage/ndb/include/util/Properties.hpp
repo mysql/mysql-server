@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -82,6 +88,7 @@ public:
   bool put64(const char * name, Uint64 value, bool replace = false);
   bool put(const char * name, const char * value, bool replace = false);
   bool put(const char * name, const Properties * value, bool replace = false);
+  bool append(const char * name, const char * value);
 
   /**
    * Same as put above,
@@ -144,8 +151,6 @@ public:
   friend class Properties::Iterator;
 
   Uint32 getPackedSize() const;
-  bool pack(Uint32 * buf) const;
-  bool pack(UtilBuffer &buf) const;
   bool unpack(const Uint32 * buf, Uint32 bufLen);
   bool unpack(UtilBuffer &buf);
   
@@ -234,19 +239,5 @@ inline bool
 Properties::unpack(UtilBuffer &buf) {
   return unpack((const Uint32 *)buf.get_data(), buf.length());
 }
-
-inline bool
-Properties::pack(UtilBuffer &buf) const {
-  Uint32 size = getPackedSize();
-  void *tmp_buf = buf.append(size);
-  if(tmp_buf == 0)
-    return false;
-  bool ret = pack((Uint32 *)tmp_buf);
-  if(ret == false)
-    return false;
-  return true;
-}
-
-
 
 #endif

@@ -1,8 +1,6 @@
 # Save the initial number of concurrent sessions
 --disable_ps_protocol
---source include/not_embedded.inc
 --source include/count_sessions.inc
---source include/have_perfschema.inc
 
 --echo # Check if the plugin is present
 if ( !$VERSION_TOKEN ) {

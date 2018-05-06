@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET @old_debug= @@global.debug;
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
 create table t1 (f1 int);
 include/sync_slave_sql_with_master.inc
@@ -22,7 +21,7 @@ unlock tables;
 drop table t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
-SET GLOBAL DEBUG= '+d,dec_event_time_by_1_hour';
+# Adding debug point 'dec_event_time_by_1_hour' to @@GLOBAL.debug
 CREATE TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Seconds_Behind_Master must be 0]
@@ -30,7 +29,23 @@ LOCK TABLE t1 WRITE;
 INSERT INTO t1 VALUES (3);
 include/assert.inc [Seconds_Behind_Master must be greater or equal than 'lower_bound']
 UNLOCK TABLES;
+# Removing debug point 'dec_event_time_by_1_hour' from @@GLOBAL.debug
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY= 10;
+[connection master]
+INSERT INTO t1 VALUES (47);
+[connection slave]
+LOCK TABLE t1 WRITE;
+include/start_slave.inc
+include/assert.inc [Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound']
+UNLOCK TABLES;
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+include/start_slave.inc
+[connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-SET @@global.debug= @old_debug;
 include/rpl_end.inc

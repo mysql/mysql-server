@@ -1,10 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
 #
 # Testing the MySQL command line client(mysql)
 #
@@ -366,13 +359,6 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --echo End of 5.0 tests
 
 #
-# Bug #29903: The CMake build method does not produce the embedded library.
-#
---disable_query_log
---exec $MYSQL --server-arg=no-defaults test -e "quit"
---enable_query_log
-
-#
 # Bug#26780: patch to add auto vertical output option to the cli.
 #
 # Make this wide enough that it will wrap almost everywhere.
@@ -632,21 +618,17 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/WL6797_cleanup.sql
 
 
-# Specifying an empty port option should only give a warning in 5.7
-# We only need to check that the client accepts it, not actually connect,
-# so we use --help and pass stdout to a temporary file so only the warning
-# is left (and connecting was failing on Windows).
 --echo #
 --echo # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
---echo # Bug #23023457: DEBIAN/UBUNTU PACKAGES FAIL TO INSTALL BECAUSE OF EMPTY CONFIG VALUES
 --echo #
---replace_regex /mysql: .Warning. [^ ]*: Empty value for 'port' specified. Will throw an error in future versions/mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions/
---exec $MYSQL --port= --help 2>&1 > $MYSQLTEST_VARDIR/tmp/bug23023457.out
---remove_file $MYSQLTEST_VARDIR/tmp/bug23023457.out
 
---replace_regex /mysql: .Warning. [^ ]*: Empty value for 'port' specified. Will throw an error in future versions/mysql: [Warning] mysql: Empty value for 'port' specified. Will throw an error in future versions/
---exec $MYSQL -P "" --help 2>&1 > $MYSQLTEST_VARDIR/tmp/bug23023457.out
---remove_file $MYSQLTEST_VARDIR/tmp/bug23023457.out
+--replace_regex /mysql: .ERROR. [^ ]*: Empty value for 'port' specified/mysql: [ERROR] mysql: Empty value for 'port' specified/
+--error 5
+--exec $MYSQL --port= -e "SELECT 1" 2>&1
+
+--replace_regex /mysql: .ERROR. [^ ]*: Empty value for 'port' specified/mysql: [ERROR] mysql: Empty value for 'port' specified/
+--error 5
+--exec $MYSQL -P "" -e "SELECT 1" 2>&1
 
 --echo #
 --echo # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS

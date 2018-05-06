@@ -238,11 +238,11 @@ INSERT INTO tstmt(text) VALUES (@@local.lc_time_names);
 
 # enum
 SET @@global.sql_mode = '';
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+SET @@local.sql_mode = 'IGNORE_SPACE';
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
-SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
+SET @@local.sql_mode = '';
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 
@@ -341,11 +341,11 @@ BEGIN
 
   # enum
   SET @@global.sql_mode = '';
-  SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+  SET @@local.sql_mode = 'IGNORE_SPACE';
   INSERT INTO tproc(text) VALUES (@@global.sql_mode);
   INSERT INTO tproc(text) VALUES (@@local.sql_mode);
   SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
-  SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
+  SET @@local.sql_mode = '';
   INSERT INTO tproc(text) VALUES (@@global.sql_mode);
   INSERT INTO tproc(text) VALUES (@@local.sql_mode);
 
@@ -450,11 +450,11 @@ BEGIN
 
   # enum
   SET @@global.sql_mode = '';
-  SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+  SET @@local.sql_mode = 'IGNORE_SPACE';
   INSERT INTO tfunc(text) VALUES (@@global.sql_mode);
   INSERT INTO tfunc(text) VALUES (@@local.sql_mode);
   SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
-  SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
+  SET @@local.sql_mode = '';
   INSERT INTO tfunc(text) VALUES (@@global.sql_mode);
   INSERT INTO tfunc(text) VALUES (@@local.sql_mode);
 
@@ -561,11 +561,11 @@ BEGIN
 
   # enum
   SET @@global.sql_mode = '';
-  SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+  SET @@local.sql_mode = 'IGNORE_SPACE';
   INSERT INTO ttrig(text) VALUES (@@global.sql_mode);
   INSERT INTO ttrig(text) VALUES (@@local.sql_mode);
   SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
-  SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
+  SET @@local.sql_mode = '';
   INSERT INTO ttrig(text) VALUES (@@global.sql_mode);
   INSERT INTO ttrig(text) VALUES (@@local.sql_mode);
 
@@ -664,11 +664,11 @@ PREPARE p48 FROM 'INSERT INTO tprep(text) VALUES (@@local.lc_time_names)';
 
 # enum
 PREPARE p49 FROM 'SET @@global.sql_mode = \'\'';
-PREPARE p50 FROM 'SET @@local.sql_mode = \'IGNORE_SPACE,NO_AUTO_CREATE_USER\'';
+PREPARE p50 FROM 'SET @@local.sql_mode = \'IGNORE_SPACE\'';
 PREPARE p51 FROM 'INSERT INTO tprep(text) VALUES (@@global.sql_mode)';
 PREPARE p52 FROM 'INSERT INTO tprep(text) VALUES (@@local.sql_mode)';
 PREPARE p53 FROM 'SET @@global.sql_mode = \'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION\'';
-PREPARE p54 FROM 'SET @@local.sql_mode = \'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS\'';
+PREPARE p54 FROM 'SET @@local.sql_mode = \'\'';
 PREPARE p55 FROM 'INSERT INTO tprep(text) VALUES (@@global.sql_mode)';
 PREPARE p56 FROM 'INSERT INTO tprep(text) VALUES (@@local.sql_mode)';
 

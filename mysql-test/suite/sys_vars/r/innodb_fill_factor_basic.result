@@ -9,12 +9,12 @@ innodb_fill_factor	100
 show session variables like 'innodb_fill_factor';
 Variable_name	Value
 innodb_fill_factor	100
-select * from information_schema.global_variables where variable_name='innodb_fill_factor';
+select * from performance_schema.global_variables where variable_name='innodb_fill_factor';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FILL_FACTOR	100
-select * from information_schema.session_variables where variable_name='innodb_fill_factor';
+innodb_fill_factor	100
+select * from performance_schema.session_variables where variable_name='innodb_fill_factor';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FILL_FACTOR	100
+innodb_fill_factor	100
 set global innodb_fill_factor=9;
 Warnings:
 Warning	1292	Truncated incorrect innodb_fill_factor value: '9'

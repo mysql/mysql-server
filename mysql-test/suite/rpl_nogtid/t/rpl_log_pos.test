@@ -1,0 +1,50 @@
+##########
+# Change Author: JBM
+# Change Date: 2006-01-16
+# Change: Added Order by for NDB
+##########
+
+#
+# Testing of setting slave to wrong log position with master_log_pos
+#
+
+# Passes with rbr no problem, removed statement include [jbm]
+
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+call mtr.add_suppression ("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary");
+source include/show_master_status.inc;
+--source include/sync_slave_sql_with_master.inc
+source include/stop_slave.inc;
+
+--replace_result 75 MASTER_LOG_POS
+change master to master_log_pos=75;
+let $status_items= Read_Master_Log_Pos;
+source include/show_slave_status.inc;
+start slave;
+let $slave_io_errno= 13114;
+--let $show_slave_io_error= 1
+# Mask line numbers
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+source include/wait_for_slave_io_error.inc;
+source include/stop_slave_sql.inc;
+
+connection master;
+source include/show_master_status.inc;
+create table if not exists t1 (n int);
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (1),(2),(3);
+save_master_pos;
+connection slave;
+--replace_result 4 MASTER_LOG_POS
+change master to master_log_pos=4;
+start slave;
+sync_with_master;
+select * from t1 ORDER BY n;
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo End of 5.0 tests
+--source include/rpl_end.inc

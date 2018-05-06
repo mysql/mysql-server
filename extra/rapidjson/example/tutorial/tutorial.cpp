@@ -3,7 +3,6 @@
 
 #include "rapidjson/document.h"     // rapidjson's DOM-style API
 #include "rapidjson/prettywriter.h" // for stringify JSON
-#include "rapidjson/filestream.h"   // wrapper of C stream for prettywriter as output
 #include <cstdio>
 
 using namespace rapidjson;
@@ -24,12 +23,10 @@ int main(int, char*[]) {
         return 1;
 #else
     // In-situ parsing, decode strings directly in the source string. Source must be string.
-    {
-        char buffer[sizeof(json)];
-        memcpy(buffer, json, sizeof(json));
-        if (document.ParseInsitu(buffer).HasParseError())
-            return 1;
-    }
+    char buffer[sizeof(json)];
+    memcpy(buffer, json, sizeof(json));
+    if (document.ParseInsitu(buffer).HasParseError())
+        return 1;
 #endif
 
     printf("\nParsing to document succeeded.\n");
@@ -124,17 +121,17 @@ int main(int, char*[]) {
     // This version of SetString() needs an allocator, which means it will allocate a new buffer and copy the the string into the buffer.
     Value author;
     {
-        char buffer[10];
-        int len = sprintf(buffer, "%s %s", "Milo", "Yip");  // synthetic example of dynamically created string.
+        char buffer2[10];
+        int len = sprintf(buffer2, "%s %s", "Milo", "Yip");  // synthetic example of dynamically created string.
 
-        author.SetString(buffer, static_cast<size_t>(len), document.GetAllocator());
+        author.SetString(buffer2, static_cast<SizeType>(len), document.GetAllocator());
         // Shorter but slower version:
         // document["hello"].SetString(buffer, document.GetAllocator());
 
         // Constructor version: 
         // Value author(buffer, len, document.GetAllocator());
         // Value author(buffer, document.GetAllocator());
-        memset(buffer, 0, sizeof(buffer)); // For demonstration purpose.
+        memset(buffer2, 0, sizeof(buffer2)); // For demonstration purpose.
     }
     // Variable 'buffer' is unusable now but 'author' has already made a copy.
     document.AddMember("author", author, document.GetAllocator());
@@ -145,9 +142,10 @@ int main(int, char*[]) {
     // 4. Stringify JSON
 
     printf("\nModified JSON with reformatting:\n");
-    FileStream f(stdout);
-    PrettyWriter<FileStream> writer(f);
+    StringBuffer sb;
+    PrettyWriter<StringBuffer> writer(sb);
     document.Accept(writer);    // Accept() traverses the DOM and generates Handler events.
+    puts(sb.GetString());
 
     return 0;
 }

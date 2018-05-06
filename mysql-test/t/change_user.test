@@ -8,33 +8,25 @@ create user test_newpw identified by "newpw";
 grant select on test.* to test_newpw;
 
 select user(), current_user(), database();
-#
-# massaging the data for tests to pass in the embedded server,
-# that has authentication completely disabled.
-#
-
---replace_result "<skip-grants user@skip-grants host>" <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
    
 
 change_user test_nopw;
---replace_result "<skip-grants user@skip-grants host>" <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
 change_user test_newpw, newpw;
---replace_result "<skip-grants user@skip-grants host>" <test_newpw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
 change_user root;
---replace_result "<skip-grants user@skip-grants host>" <root@localhost> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 
 change_user test_nopw,,test;
---replace_result "<skip-grants user@skip-grants host>" <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
 change_user test_newpw,newpw,test;
---replace_result "<skip-grants user@skip-grants host>" <test_newpw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
 change_user root,,test;
---replace_result "<skip-grants user@skip-grants host>" <root@localhost> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 
 drop user test_nopw;

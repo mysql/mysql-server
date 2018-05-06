@@ -1,0 +1,61 @@
+############################################################
+# WL#9426: Single Primary Mode in Group Replication
+#
+# This test case verifies if overwriting `super_read_only`
+# system variable on PRIMARY node doesn't crashes the server
+# (BUG#22857926).
+#
+############################################################
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo # CONFIGURE SERVER 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--let $primary_server_uuid= `SELECT @@server_uuid`
+
+--let $group_replication_expected_uuid= $primary_server_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo # CONFIGURE SERVER 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $group_replication_expected_uuid= $primary_server_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+
+--source include/rpl_sync.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SELECT * FROM first;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $wait_condition= SELECT @@super_read_only = 0
+--source include/wait_condition_or_abort.inc
+# This crashes the server
+# Fix for this problem is going to be a part of
+# BUG#22857926 : ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE FOR MANY RPL CMDS
+# Uncomment line bellow to trigger the fault
+# SET GLOBAL super_read_only=1;
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--echo # CLEANUP
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE first;
+--source include/group_replication_end.inc

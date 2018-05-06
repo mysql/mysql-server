@@ -22,7 +22,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_undo_log_truncate;
 SELECT @start_global_value;
@@ -60,7 +59,7 @@ SELECT @@global.innodb_undo_log_truncate;
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_undo_log_truncate,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_log_truncate';
 --echo 1 Expected
 
@@ -68,7 +67,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_log_truncate);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_log_truncate';
 --echo 1 Expected
 --enable_warnings

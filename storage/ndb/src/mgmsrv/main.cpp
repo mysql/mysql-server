@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,6 +28,7 @@
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
 #include "Config.hpp"
+#include "my_alloc.h"
 
 #include <version.h>
 #include <kernel_types.h>
@@ -173,19 +181,9 @@ static void short_usage_sub(void)
   ndb_service_print_options("ndb_mgmd");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
-static char **defaults_argv;
-
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
-
-  /* Free memory allocated by 'load_defaults' */
-  ndb_free_defaults(defaults_argv);
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
@@ -196,14 +194,10 @@ static void mgmd_exit(int result)
 
 static int mgmd_main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  Ndb_opts ndb_opts(argc, argv, my_long_options, load_default_groups);
+  ndb_opts.set_usage_funcs(short_usage_sub);
 
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
-  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -211,8 +205,7 @@ static int mgmd_main(int argc, char** argv)
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-                               ndb_std_get_one_option)))
+  if ((ho_error=ndb_opts.handle_options()))
     mgmd_exit(ho_error);
 
   if (opts.interactive ||
@@ -262,7 +255,7 @@ static int mgmd_main(int argc, char** argv)
      Install signal handler for SIGPIPE
      Done in TransporterFacade as well.. what about Configretriever?
    */
-#if !defined NDB_WIN32
+#ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -271,6 +264,7 @@ static int mgmd_main(int argc, char** argv)
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+      fprintf(stderr, "CRITICAL: Out of memory, couldn't create MgmtSrvr\n");
       mgmd_exit(1);
     }
 
@@ -292,6 +286,7 @@ static int mgmd_main(int argc, char** argv)
       NodeId localNodeId= mgm->getOwnNodeId();
       if (localNodeId == 0) {
         g_eventLogger->error("Couldn't get own node id");
+        fprintf(stderr, "ERROR: Couldn't get own node id\n");
         delete mgm;
         mgmd_exit(1);
       }
@@ -302,6 +297,8 @@ static int mgmd_main(int argc, char** argv)
       {
         g_eventLogger->error("Couldn't start as daemon, error: '%s'",
                              ndb_daemon_error);
+        fprintf(stderr, "Couldn't start as daemon, error: '%s' \n",
+                ndb_daemon_error);
         mgmd_exit(1);
       }
     }
@@ -319,7 +316,7 @@ static int mgmd_main(int argc, char** argv)
         con_str.appfmt("host=%s:%d", opts.bind_address, port);
       else
         con_str.appfmt("localhost:%d", port);
-      Ndb_mgmclient com(con_str.c_str(), 1);
+      Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
       while(!g_StopServer){
         if (!read_and_execute(&com, "ndb_mgm> ", 1))
           g_StopServer = true;

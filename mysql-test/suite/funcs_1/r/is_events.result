@@ -28,84 +28,59 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.EVENTS;
 Field	Type	Null	Key	Default	Extra
-EVENT_CATALOG	varchar(64)	NO			
-EVENT_SCHEMA	varchar(64)	NO			
-EVENT_NAME	varchar(64)	NO			
-DEFINER	varchar(93)	NO			
-TIME_ZONE	varchar(64)	NO			
-EVENT_BODY	varchar(8)	NO			
+EVENT_CATALOG	varchar(64)	NO		NULL	
+EVENT_SCHEMA	varchar(64)	NO		NULL	
+EVENT_NAME	varchar(64)	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+TIME_ZONE	varchar(64)	NO		NULL	
+EVENT_BODY	varchar(3)	NO			
 EVENT_DEFINITION	longtext	NO		NULL	
 EVENT_TYPE	varchar(9)	NO			
 EXECUTE_AT	datetime	YES		NULL	
-INTERVAL_VALUE	varchar(256)	YES		NULL	
-INTERVAL_FIELD	varchar(18)	YES		NULL	
-SQL_MODE	varchar(8192)	NO			
+INTERVAL_VALUE	int(11)	YES		NULL	
+INTERVAL_FIELD	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')	YES		NULL	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
 STARTS	datetime	YES		NULL	
 ENDS	datetime	YES		NULL	
-STATUS	varchar(18)	NO			
+STATUS	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')	NO		NULL	
 ON_COMPLETION	varchar(12)	NO			
-CREATED	datetime	NO		0000-00-00 00:00:00	
-LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
+CREATED	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+LAST_ALTERED	timestamp	NO		CURRENT_TIMESTAMP	
 LAST_EXECUTED	datetime	YES		NULL	
-EVENT_COMMENT	varchar(64)	NO			
-ORIGINATOR	bigint(10)	NO		0	
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
-DATABASE_COLLATION	varchar(32)	NO			
+EVENT_COMMENT	varchar(2048)	NO		NULL	
+ORIGINATOR	int(10) unsigned	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
 SHOW CREATE TABLE information_schema.EVENTS;
-Table	Create Table
-EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
-  `EVENT_CATALOG` varchar(64) NOT NULL DEFAULT '',
-  `EVENT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `EVENT_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFINER` varchar(93) NOT NULL DEFAULT '',
-  `TIME_ZONE` varchar(64) NOT NULL DEFAULT '',
-  `EVENT_BODY` varchar(8) NOT NULL DEFAULT '',
-  `EVENT_DEFINITION` longtext NOT NULL,
-  `EVENT_TYPE` varchar(9) NOT NULL DEFAULT '',
-  `EXECUTE_AT` datetime DEFAULT NULL,
-  `INTERVAL_VALUE` varchar(256) DEFAULT NULL,
-  `INTERVAL_FIELD` varchar(18) DEFAULT NULL,
-  `SQL_MODE` varchar(8192) NOT NULL DEFAULT '',
-  `STARTS` datetime DEFAULT NULL,
-  `ENDS` datetime DEFAULT NULL,
-  `STATUS` varchar(18) NOT NULL DEFAULT '',
-  `ON_COMPLETION` varchar(12) NOT NULL DEFAULT '',
-  `CREATED` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `LAST_ALTERED` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `LAST_EXECUTED` datetime DEFAULT NULL,
-  `EVENT_COMMENT` varchar(64) NOT NULL DEFAULT '',
-  `ORIGINATOR` bigint(10) NOT NULL DEFAULT '0',
-  `CHARACTER_SET_CLIENT` varchar(32) NOT NULL DEFAULT '',
-  `COLLATION_CONNECTION` varchar(32) NOT NULL DEFAULT '',
-  `DATABASE_COLLATION` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+EVENTS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`EVENTS` AS select `cat`.`name` AS `EVENT_CATALOG`,`sch`.`name` AS `EVENT_SCHEMA`,`evt`.`name` AS `EVENT_NAME`,`evt`.`definer` AS `DEFINER`,`evt`.`time_zone` AS `TIME_ZONE`,'SQL' AS `EVENT_BODY`,`evt`.`definition_utf8` AS `EVENT_DEFINITION`,if(isnull(`evt`.`interval_value`),'ONE TIME','RECURRING') AS `EVENT_TYPE`,convert_tz(`evt`.`execute_at`,'+00:00',`evt`.`time_zone`) AS `EXECUTE_AT`,`evt`.`interval_value` AS `INTERVAL_VALUE`,`evt`.`interval_field` AS `INTERVAL_FIELD`,`evt`.`sql_mode` AS `SQL_MODE`,convert_tz(`evt`.`starts`,'+00:00',`evt`.`time_zone`) AS `STARTS`,convert_tz(`evt`.`ends`,'+00:00',`evt`.`time_zone`) AS `ENDS`,`evt`.`status` AS `STATUS`,if((`evt`.`on_completion` = 'DROP'),'NOT PRESERVE','PRESERVE') AS `ON_COMPLETION`,`evt`.`created` AS `CREATED`,`evt`.`last_altered` AS `LAST_ALTERED`,`evt`.`last_executed` AS `LAST_EXECUTED`,`evt`.`comment` AS `EVENT_COMMENT`,`evt`.`originator` AS `ORIGINATOR`,`cs_client`.`name` AS `CHARACTER_SET_CLIENT`,`coll_conn`.`name` AS `COLLATION_CONNECTION`,`coll_db`.`name` AS `DATABASE_COLLATION` from ((((((`mysql`.`events` `evt` join `mysql`.`schemata` `sch` on((`evt`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll_client` on((`coll_client`.`id` = `evt`.`client_collation_id`))) join `mysql`.`character_sets` `cs_client` on((`cs_client`.`id` = `coll_client`.`character_set_id`))) join `mysql`.`collations` `coll_conn` on((`coll_conn`.`id` = `evt`.`connection_collation_id`))) join `mysql`.`collations` `coll_db` on((`coll_db`.`id` = `evt`.`schema_collation_id`))) where can_access_event(`sch`.`name`)	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.EVENTS;
 Field	Type	Null	Key	Default	Extra
-EVENT_CATALOG	varchar(64)	NO			
-EVENT_SCHEMA	varchar(64)	NO			
-EVENT_NAME	varchar(64)	NO			
-DEFINER	varchar(93)	NO			
-TIME_ZONE	varchar(64)	NO			
-EVENT_BODY	varchar(8)	NO			
+EVENT_CATALOG	varchar(64)	NO		NULL	
+EVENT_SCHEMA	varchar(64)	NO		NULL	
+EVENT_NAME	varchar(64)	NO		NULL	
+DEFINER	varchar(93)	NO		NULL	
+TIME_ZONE	varchar(64)	NO		NULL	
+EVENT_BODY	varchar(3)	NO			
 EVENT_DEFINITION	longtext	NO		NULL	
 EVENT_TYPE	varchar(9)	NO			
 EXECUTE_AT	datetime	YES		NULL	
-INTERVAL_VALUE	varchar(256)	YES		NULL	
-INTERVAL_FIELD	varchar(18)	YES		NULL	
-SQL_MODE	varchar(8192)	NO			
+INTERVAL_VALUE	int(11)	YES		NULL	
+INTERVAL_FIELD	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')	YES		NULL	
+SQL_MODE	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')	NO		NULL	
 STARTS	datetime	YES		NULL	
 ENDS	datetime	YES		NULL	
-STATUS	varchar(18)	NO			
+STATUS	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')	NO		NULL	
 ON_COMPLETION	varchar(12)	NO			
-CREATED	datetime	NO		0000-00-00 00:00:00	
-LAST_ALTERED	datetime	NO		0000-00-00 00:00:00	
+CREATED	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+LAST_ALTERED	timestamp	NO		CURRENT_TIMESTAMP	
 LAST_EXECUTED	datetime	YES		NULL	
-EVENT_COMMENT	varchar(64)	NO			
-ORIGINATOR	bigint(10)	NO		0	
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
-DATABASE_COLLATION	varchar(32)	NO			
+EVENT_COMMENT	varchar(2048)	NO		NULL	
+ORIGINATOR	int(10) unsigned	NO		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
+DATABASE_COLLATION	varchar(64)	NO		NULL	
 SELECT event_catalog, event_name, event_body, event_type, event_type,
 status, on_completion
 FROM information_schema.events
@@ -114,7 +89,7 @@ event_body NOT IN ('SQL') or
 event_type NOT IN ('ONE TIME','RECURRING') or
 status NOT IN ('ENABLED','DISABLED','SLAVESIDE_DISABLED') or
 on_completion NOT IN ('PRESERVE','NOT PRESERVE');
-event_catalog	event_name	event_body	event_type	event_type	status	on_completion
+EVENT_CATALOG	EVENT_NAME	EVENT_BODY	EVENT_TYPE	EVENT_TYPE	STATUS	ON_COMPLETION
 ########################################################################
 # Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
 #           DDL on INFORMATION_SCHEMA tables are not supported

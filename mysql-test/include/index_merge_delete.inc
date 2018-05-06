@@ -55,6 +55,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 --let $query = FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6)
+--replace_result "i4,i1,i3" "i4,i1" "4,4,4" "4,4" "union(i4,intersect(i1,i3))" "union(i4,i1)"
 --replace_column 10 #
 --eval EXPLAIN DELETE $query
 --eval SELECT COUNT(*) $query
@@ -183,8 +184,22 @@ SELECT COUNT(*) FROM t1;
 
 INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
 --let $query = FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7)
---replace_column 10 #
+# Disabling binary logging temporarily as optimized delete is not used when log-bin is enabled in row mode
+--disable_query_log
+SET @save_log_bin= @@sql_log_bin;
+SET SQL_LOG_BIN=0;
+--enable_query_log
+# Not stable across platforms. Plan needs to have index-merge access method.
+# But only on solaris debug builds optimizer chooses a table_scan.  Hence
+# masking the output for now.
+--replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 --eval EXPLAIN DELETE $query
+
+--disable_query_log
+SET @save_log_bin= @@sql_log_bin;
+SET SQL_LOG_BIN=0;
+--enable_query_log
+
 --eval SELECT COUNT(*) $query
 --eval DELETE $query
 --eval SELECT COUNT(*) $query

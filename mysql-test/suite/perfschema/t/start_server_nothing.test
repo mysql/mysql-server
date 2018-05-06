@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
 show global variables like "performance_schema%";
@@ -12,7 +9,6 @@ select * from performance_schema.setup_instruments
   order by name;
 select TIMER_NAME from performance_schema.performance_timers;
 select * from performance_schema.setup_consumers;
-select NAME from performance_schema.setup_timers;
 
 # All empty
 select * from performance_schema.accounts;

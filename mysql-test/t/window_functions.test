@@ -1,0 +1,4161 @@
+--echo # Test of SQL window functions.
+--echo # ----------------------------------------------------------------------
+
+SET NAMES utf8;
+
+--echo
+--echo Flag unsupported aggregates as window functions
+--echo
+
+--error ER_NOT_SUPPORTED_YET
+select json_objectagg('a','3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select json_arrayagg('3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select group_concat('3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_or(3) over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_and(3) over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_xor(3) over ();
+
+--echo Single window function (plus ORDER BY).
+CREATE TABLE t(i INT, j INT);
+INSERT INTO t VALUES (1,1);
+INSERT INTO t VALUES (1,4);
+INSERT INTO t VALUES (1,2);
+INSERT INTO t VALUES (1,4);
+ANALYZE TABLE t;
+
+--echo Single partition, no sorting
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t;
+SELECT i, j, SUM(i+j) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) foo FROM t;
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+--echo Check that we eliminate redundant sorting in ORDER BY even with wfs
+--echo Also check that EXPLAIN prints the right number of "using_temporary_table"
+let $query=
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY NULL DESC;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+
+# From then on, we'll be counting row reads.
+
+--echo With LIMIT
+SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC LIMIT 3;
+--echo With LIMIT when last tmp file step is optimized away
+CREATE TABLE t1 (i INT) ;
+INSERT INTO t1 (i) VALUES (1);
+INSERT INTO t1 (i) VALUES (2);
+INSERT INTO t1 (i) VALUES (3);
+INSERT INTO t1 (i) VALUES (4);
+INSERT INTO t1 (i) VALUES (5);
+SELECT i, SUM(i) OVER (ORDER BY i ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) FROM t1 LIMIT 3;
+DROP TABLE t1;
+
+--echo Single ordered partition
+#V...
+SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t;
+SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
+--error ER_BAD_FIELD_ERROR
+SELECT i, j, SUM(i+j) OVER (ORDER BY jj DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
+
+--echo View with window function
+CREATE VIEW v AS
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t;
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
+SELECT i, j, SUM(i+j) OVER (ORDER BY j DESC ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC;
+
+TRUNCATE TABLE t;
+--echo Check my_decimal bug: no warning if c=a+b and c is one of a,b... just fails over 9 digits
+INSERT INTO t VALUES (999961560, DEFAULT);
+INSERT INTO t VALUES (44721, DEFAULT);
+SELECT SUM(i) OVER () FROM t;
+#...V
+
+DROP TABLE t;
+
+CREATE TABLE t(i INT, j INT, k INT);
+INSERT INTO t VALUES (1,1,1);
+INSERT INTO t VALUES (1,4,1);
+INSERT INTO t VALUES (1,2,1);
+INSERT INTO t VALUES (1,4,1);
+INSERT INTO t VALUES (1,1,2);
+INSERT INTO t VALUES (1,4,2);
+INSERT INTO t VALUES (1,2,2);
+INSERT INTO t VALUES (1,4,2);
+INSERT INTO t VALUES (1,1,3);
+INSERT INTO t VALUES (1,4,3);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t VALUES (1,4,3);
+INSERT INTO t VALUES (1,1,4);
+INSERT INTO t VALUES (1,4,4);
+INSERT INTO t VALUES (1,2,4);
+INSERT INTO t VALUES (1,4,4);
+
+--echo ----------------------------------------------------------------------
+--echo -    Combination with GROUP BY
+--echo ----------------------------------------------------------------------
+
+--echo Show difference in binding of colums
+CREATE TABLE tb(a INT, b INT);
+
+--echo Grouping version of SUM can refer to ungrouped column
+SELECT a, SUM(b) FROM tb GROUP BY a;
+
+--echo Windowing version of SUM cannot refer to ungrouped column since the
+--echo grouping has already happened by the the the windowing starts
+--echo and each row now represents multiple aggregated values of b
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a, SUM(b) OVER () FROM tb GROUP BY a; # illegal b reference
+DROP TABLE tb;
+
+SELECT k, SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t; # simple
+SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t GROUP BY (k); # combined with single tmp file GROUP BY
+SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t GROUP BY (k) ORDER BY wf DESC; # combined final ORDER BY
+
+SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); # combined with two tmp files GROUP BY
+SELECT k, AVG(DISTINCT j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); #
+SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k+1) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k); # expression argument to SUM
+       SELECT k, GROUP_CONCAT(j ORDER BY j), SUM(k+1) OVER (ORDER BY k DESC ROWS UNBOUNDED PRECEDING) foo FROM t GROUP BY (k);
+
+--error ER_WRONG_GROUP_FIELD
+SELECT i/SUM(j) OVER (PARTITION BY k) AS x FROM t GROUP BY x;
+--error ER_BAD_FIELD_ERROR
+SELECT i/SUM(j) OVER (PARTITION BY kk) AS x FROM t;
+--error ER_WINDOW_ILLEGAL_ORDER_BY
+SELECT i/SUM(j) OVER (PARTITION BY 1) AS x FROM t;
+
+CREATE TABLE t1 (id INTEGER, sex CHAR(1));
+INSERT INTO t1 VALUES (1, 'M');
+INSERT INTO t1 VALUES (2, 'F');
+INSERT INTO t1 VALUES (3, 'F');
+INSERT INTO t1 VALUES (4, 'F');
+INSERT INTO t1 VALUES (5, 'M');
+INSERT INTO t1 VALUES (10, NULL);
+INSERT INTO t1 VALUES (11, NULL);
+
+CREATE TABLE ss(c CHAR(1));
+INSERT INTO ss VALUES ('M');
+
+--error ER_WINDOW_NO_GROUP_ORDER
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+    GROUP BY sex ASC
+    WINDOW w AS () ORDER BY sex DESC;
+
+--echo This is grouped aggregate in conjunction with a streaming wfs
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+    GROUP BY sex
+    WINDOW w AS () ORDER BY sex DESC;
+SELECT sex, AVG(id), SUM(AVG(id)) OVER w FROM t1
+    GROUP BY sex
+    WINDOW w AS (ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC;
+
+--echo This is grouped aggregate with HAVING in conjunction with a streaming wf
+--echo which will initially adds a dummy window. However, the HAVING is pushed
+--echo to a table condition: This exercises the try_remove_dummy_windowing_step
+--echo which gets called from make_tmp_table_info, so make sure it works on
+--echo second execution since we change initial windowing decision made in
+--echo setup_windows only during prepare.
+PREPARE p FROM "SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+    GROUP BY sex HAVING sex='M' OR sex IS NULL
+    WINDOW w AS () ORDER BY sex DESC";
+
+EXECUTE p;
+EXECUTE p;
+DROP PREPARE p;
+
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+    GROUP BY sex HAVING sex='M' OR sex IS NULL
+    WINDOW w AS () ORDER BY sex DESC;
+
+SELECT sex, AVG(id), SUM(AVG(id)) OVER w FROM t1
+    GROUP BY sex HAVING sex='M' OR sex='F' OR sex IS NULL
+    WINDOW w AS (ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC;
+
+--echo Ditto, but HAVING using subquery
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+    GROUP BY sex HAVING sex=(SELECT c FROM ss LIMIT 1) OR sex IS NULL
+    WINDOW w AS () ORDER BY sex DESC;
+
+SELECT sex, AVG(id), SUM(AVG(id)) OVER w FROM t1
+    GROUP BY sex HAVING sex=(SELECT c FROM ss LIMIT 1) OR sex='F' OR sex IS NULL
+    WINDOW w AS (ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC;
+
+--echo This is a grouped aggregate in conjunction with a buffered wf
+--echo which generates an extra tmp file step
+SELECT sex, AVG(id), NTILE(2) OVER w FROM t1
+    GROUP BY sex
+    WINDOW w AS (ORDER BY sex) ORDER BY sex DESC;
+
+SELECT sex, AVG(id), SUM(AVG(id)) OVER w, NTILE(2) OVER w FROM t1
+    GROUP BY sex
+    WINDOW w AS (ORDER BY sex ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC;
+
+--echo This is a grouped aggregate with HAVING in conjunction with a buffered wf
+--echo which generates an extra tmp file step
+SELECT sex, AVG(id), NTILE(2) OVER w FROM t1
+    GROUP BY sex HAVING sex=(SELECT c FROM ss LIMIT 1) OR sex IS NULL
+    WINDOW w AS (ORDER BY sex) ORDER BY sex DESC;
+SELECT sex, AVG(id), SUM(AVG(id)) OVER w, NTILE(2) OVER w FROM t1
+    GROUP BY sex HAVING sex=(SELECT c FROM ss LIMIT 1) OR sex='F' OR sex IS NULL
+    WINDOW w AS (ORDER BY sex ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC;
+
+--echo Pure HAVING: In absence of filtering in the grouping sort step,
+--echo make sure we filter before windowing steps
+SELECT sex, NTILE(2) OVER w, SUM(ASCII(sex)) OVER w s FROM t1
+   HAVING sex=(SELECT c FROM ss LIMIT 1)
+   WINDOW w AS (ORDER BY sex ROWS UNBOUNDED PRECEDING);
+
+--echo Bug fix for prepared statements
+PREPARE p FROM "SELECT sex, AVG(id), SUM(AVG(id)) OVER w, NTILE(2) OVER w FROM t1
+    GROUP BY sex HAVING sex=(SELECT c FROM ss LIMIT 1) OR sex='F' OR sex IS NULL
+    WINDOW w AS (ORDER BY sex ROWS UNBOUNDED PRECEDING) ORDER BY sex DESC";
+EXECUTE p;
+EXECUTE p; # The second execute used to fail
+
+DROP PREPARE p;
+
+--echo Tests with ROLLUP
+SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
+  GROUP BY (k) WITH ROLLUP;
+SELECT    MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
+  GROUP BY (k) WITH ROLLUP;
+
+--error ER_WRONG_USAGE
+SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
+GROUP BY (k) WITH ROLLUP ORDER BY wf DESC;
+
+SELECT k, MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
+GROUP BY k,j WITH ROLLUP;
+SELECT    MIN(i), SUM(j), SUM(k) OVER (ROWS UNBOUNDED PRECEDING) wf FROM t
+GROUP BY k,j WITH ROLLUP;
+
+#This gives correct results, but test is not stable because we cannot give
+#order by at the end
+#SELECT k, MIN(i), SUM(j), SUM(k) OVER (ORDER BY j) wf FROM t
+#GROUP BY k,j WITH ROLLUP;
+
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+GROUP BY sex WITH ROLLUP WINDOW w AS ();
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+GROUP BY sex WITH ROLLUP HAVING sex='M' OR sex IS NULL
+WINDOW w AS ();
+
+SELECT sex, AVG(id) FROM t1
+   GROUP BY sex ASC WITH ROLLUP
+   HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0;
+
+SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
+   GROUP BY sex WITH ROLLUP
+   HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0
+   WINDOW w AS ();
+
+--echo
+--echo Bug#25756549
+--echo
+SELECT id, FIRST_VALUE(id) OVER w first, LAST_VALUE(id) OVER w last, sex FROM t1
+   WINDOW w AS (PARTITION BY sex
+                ORDER BY id ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+SELECT id, FIRST_VALUE(id) OVER w first, LAST_VALUE(id) OVER w last, sex FROM t1
+   WINDOW w AS (PARTITION BY sex
+                ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+--echo Subquery which causes reuse of window requiring state reset,
+--echo cf. Window::reset_round.
+CREATE TABLE t_a (a INT, b INT);
+INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
+CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
+SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
+DROP TABLE t_a, t_b;
+
+--echo ----------------------------------------------------------------------
+--echo Test of legal frame border value, including prepared statement and dynamic ?
+--echo parameters
+--echo ----------------------------------------------------------------------
+
+--echo Static version of checking is caught at parsing time, unless we have INTERVAL.
+--echo For subquery in border, cf. test cases in Bug#25907777
+
+--error ER_PARSE_ERROR
+SELECT sex, COUNT(id) OVER (ORDER BY id RANGE -1 PRECEDING) FROM t1;
+--error ER_PARSE_ERROR
+SELECT sex, COUNT(id) OVER (ORDER BY id RANGE BETWEEN -1 PRECEDING and 2 PRECEDING) FROM t1;
+--error ER_PARSE_ERROR
+SELECT sex, COUNT(id) OVER (ORDER BY id RANGE BETWEEN 1 PRECEDING and -1 PRECEDING) FROM t1;
+--echo OK, even if empty frame
+SELECT sex, COUNT(id) OVER (ORDER BY id RANGE BETWEEN 1 PRECEDING and 2 PRECEDING) FROM t1;
+
+CREATE TABLE t_time(t TIME, ts TIMESTAMP);
+INSERT INTO t_time VALUES ('12:30', '2016-07-05 08:30:42');
+
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t ) FROM t_time;
+--echo coverage for ::get_time
+SELECT ADDTIME(FIRST_VALUE(time'18:00:00') OVER (ORDER BY NULL), '01:00:00');
+SELECT ADDTIME(NTH_VALUE(time'18:00:00', 1) OVER (ORDER BY NULL), '01:00:00');
+
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL -1 HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL NULL HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL -1 HOUR PRECEDING AND INTERVAL 2 HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL -2 HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL '-2:2' HOUR_MINUTE PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL NULL HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL NULL HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING) FROM t_time;
+
+
+--echo Dynamic ? parameter checking
+
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? PRECEDING and ? PRECEDING) FROM t1";
+SET @p1= 1;
+SET @p2= 2;
+--echo Empty frame is legal according to standard
+EXECUTE p USING @p1, @p2;
+--echo OK, not empty frame
+EXECUTE p USING @p2, @p1;
+DROP PREPARE p;
+
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? FOLLOWING and ? FOLLOWING) FROM t1";
+SET @p1= 1;
+SET @p2= 2;
+--echo Empty frame is legal according to standard
+EXECUTE p USING @p2, @p1;
+--echo OK, not empty frame
+EXECUTE p USING @p1, @p2;
+DROP PREPARE p;
+
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? FOLLOWING and ? FOLLOWING) FROM t1";
+SET @p1= -1;
+SET @p2= 2;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p2, @p1;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1, @p2;
+DROP PREPARE p;
+
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS ? PRECEDING) FROM t1";
+SET @p1= -1;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1;
+DROP PREPARE p;
+
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND ? FOLLOWING) FROM t1";
+SET @p1= -1;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1;
+DROP PREPARE p;
+
+
+PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL ? HOUR PRECEDING) FROM t_time";
+SET @p1= -1;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1;
+
+PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR PRECEDING) FROM t_time";
+SET @p2= 2;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p1, @p2;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p2, @p1;
+SET @p1= NULL;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p2, @p1;
+
+PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR_MINUTE PRECEDING) FROM t_time";
+SET @p1= '-2:2';
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE p USING @p2, @p1;
+SET @p1= '2:2';
+EXECUTE p USING @p2, @p1;
+
+DROP TABLE t, t1, ss, t_time;
+
+--echo ----------------------------------------------------------------------
+--echo -    Some RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST tests
+--echo ----------------------------------------------------------------------
+CREATE TABLE t1 (id INTEGER, sex CHAR(1));
+INSERT INTO t1 VALUES (1, 'M');
+INSERT INTO t1 VALUES (2, 'F');
+INSERT INTO t1 VALUES (3, 'F');
+INSERT INTO t1 VALUES (4, 'F');
+INSERT INTO t1 VALUES (5, 'M');
+CREATE TABLE t2 (user_id INTEGER NOT NULL, date DATE);
+INSERT INTO t2 VALUES (1, '2002-06-09');
+INSERT INTO t2 VALUES (2, '2002-06-09');
+INSERT INTO t2 VALUES (1, '2002-06-09');
+INSERT INTO t2 VALUES (3, '2002-06-09');
+INSERT INTO t2 VALUES (4, '2002-06-09');
+INSERT INTO t2 VALUES (4, '2002-06-09');
+INSERT INTO t2 VALUES (5, '2002-06-09');
+
+SELECT RANK() OVER (ORDER BY user_id) r FROM t2;
+SELECT DENSE_RANK() OVER (ORDER BY user_id) r FROM t2;
+SELECT PERCENT_RANK() OVER (ORDER BY user_id) r FROM t2;
+SELECT CUME_DIST() OVER (ORDER BY user_id) cd FROM t2;
+
+# Same, without ORDER BY
+SELECT RANK() OVER () r FROM t2;
+SELECT DENSE_RANK() OVER () r FROM t2;
+SELECT PERCENT_RANK() OVER () r FROM t2;
+SELECT CUME_DIST() OVER () cd FROM t2;
+
+SELECT sex, SUM(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY uids;
+
+#V...
+SELECT id, sex, RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+SELECT id, sex, DENSE_RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+SELECT id, sex, PERCENT_RANK() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+SELECT id, sex, CUME_DIST() OVER (ORDER BY sex) FROM t1 ORDER BY id;
+#...V
+
+SELECT sex, RANK() OVER (ORDER BY sex DESC) `rank`, AVG(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY sex;
+SELECT sex, PERCENT_RANK() OVER (ORDER BY sex DESC) `rank`, AVG(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY sex;
+SELECT sex, CUME_DIST() OVER (ORDER BY sex DESC) `cume_dist`, AVG(DISTINCT id) AS uids FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex ORDER BY sex;
+
+--echo Explicit window definition, WINDOW DESC ordering by GROUP BY
+SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id));
+SELECT  sex, AVG(id) AS uids, PERCENT_RANK() OVER w `p_rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id));
+SELECT  sex, AVG(id) AS uids, CUME_DIST() OVER w `c_dist` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id));
+
+--echo Explicit window definition, window ordering by DISTINCT GROUP BY
+SELECT  sex, AVG(DISTINCT id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(DISTINCT id) DESC) ORDER BY sex;
+SELECT  sex, AVG(DISTINCT id) AS uids, PERCENT_RANK() OVER w `p_rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(DISTINCT id) DESC) ORDER BY sex;
+SELECT  sex, AVG(DISTINCT id) AS uids, CUME_DIST() OVER w `c_dist` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(DISTINCT id) DESC) ORDER BY sex;
+
+--echo Explicit window definition, window ordering by GROUP BY, final ORDER BY
+SELECT  sex, AVG(id) AS uids, RANK() OVER w `rank` FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id) DESC)
+   ORDER BY `rank` DESC;
+--sorted_result
+SELECT  sex, AVG(id) AS uids, PERCENT_RANK() OVER w `p_rank`, CUME_DIST() OVER w `c_dist`
+   FROM t1 u, t2
+   WHERE t2.user_id = u.id GROUP BY sex
+   WINDOW w AS (ORDER BY AVG(id) DESC)
+   ORDER BY `p_rank` DESC;
+
+--echo With NULLs
+INSERT INTO t1 VALUES (10, NULL);
+INSERT INTO t1 VALUES (11, NULL);
+#V...
+SELECT id, sex, RANK() OVER w, DENSE_RANK() OVER w FROM t1
+   WINDOW w AS (ORDER BY sex) ORDER BY id;
+SELECT id, sex, PERCENT_RANK() OVER w, CUME_DIST() OVER w FROM t1
+   WINDOW w AS (ORDER BY sex) ORDER BY id;
+SELECT id, sex, RANK() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
+SELECT id, sex, PERCENT_RANK() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
+SELECT id, sex, CUME_DIST() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
+#...V
+
+SELECT id value,
+       SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
+       FROM t1 u, t2 WHERE t2.user_id = u.id;
+
+--echo Aggregate with GROUP BY arguments to window function
+SELECT AVG(id) average,
+       SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+       FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
+
+--echo Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in
+--echo SELECT list or not.
+#V...
+SELECT sex, AVG(id), RANK() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+#...V
+SELECT sex, PERCENT_RANK() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+SELECT sex, CUME_DIST() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+SELECT sex, RANK() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+SELECT sex, CUME_DIST() OVER (ORDER BY AVG(id) DESC) FROM t1 GROUP BY sex ORDER BY sex;
+
+--echo Implicit group aggregate arguments to window function and in
+--echo window's ORDER BY clause
+#V...
+SELECT          RANK() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT          PERCENT_RANK() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT          CUME_DIST() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT AVG(id), RANK() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT AVG(id), PERCENT_RANK() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT AVG(id), CUME_DIST() OVER (ORDER BY AVG(id)) FROM t1;
+SELECT AVG(id), SUM(AVG(id)) OVER (ORDER BY AVG(id) ROWS UNBOUNDED PRECEDING) FROM t1;
+
+--echo Several partitions, several window functions over the same window
+SELECT sex, id, RANK() OVER (PARTITION BY sex ORDER BY id DESC) FROM t1;
+SELECT sex, id, PERCENT_RANK() OVER (PARTITION BY sex ORDER BY id DESC) FROM t1;
+SELECT sex, id, CUME_DIST() OVER (PARTITION BY sex ORDER BY id DESC) FROM t1;
+SELECT sex, id, RANK() OVER (PARTITION BY sex ORDER BY id ASC) FROM t1;
+SELECT sex, id, PERCENT_RANK() OVER (PARTITION BY sex ORDER BY id ASC) FROM t1;
+SELECT sex, id, CUME_DIST() OVER (PARTITION BY sex ORDER BY id ASC) FROM t1;
+#...V
+
+SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING);
+SELECT sex, id, SUM(id) OVER w summ, PERCENT_RANK() OVER w `p_rank`,
+       CUME_DIST() OVER w `c_dist` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING);
+SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING) ORDER BY summ;
+SELECT sex, id, SUM(id) OVER w summ, PERCENT_RANK() OVER w `p_rank`,
+       CUME_DIST() OVER w `c_dist` FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING) ORDER BY summ;
+
+--echo SQL 2011 7.11 <window clause>, SR 4. Window specification's ORDER BY or
+--echo PARTITION BY cannot reference SELECT list aliases
+
+--error ER_BAD_FIELD_ERROR
+SELECT  sex, AVG(DISTINCT id),
+             RANK() OVER w `uids`
+    FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex
+    WINDOW w AS (ORDER BY uids DESC) ORDER BY sex;
+
+--error ER_BAD_FIELD_ERROR
+SELECT  sex, AVG(DISTINCT id),
+             RANK() OVER (ORDER BY uids DESC) `uids`
+    FROM t1 u, t2 WHERE t2.user_id = u.id
+    GROUP BY sex  ORDER BY sex;
+
+
+CREATE TABLE t(d decimal(10,2), date DATE);
+
+INSERT INTO t values (10.4, '2002-06-09');
+INSERT INTO t values (20.5, '2002-06-09');
+INSERT INTO t values (10.4, '2002-06-10');
+INSERT INTO t values (3,    '2002-06-09');
+INSERT INTO t values (40.2, '2015-08-01');
+INSERT INTO t values (40.2, '2002-06-09');
+INSERT INTO t values (5,    '2015-08-01');
+
+SELECT * FROM (SELECT  RANK() OVER (ORDER BY d) AS `rank`, d, date FROM t) alias ORDER BY `rank`, d, date;
+SELECT * FROM (SELECT  PERCENT_RANK() OVER (ORDER BY d) AS `p_rank`, d, date FROM t) alias ORDER BY `p_rank`, d, date;
+SELECT * FROM (SELECT  CUME_DIST() OVER (ORDER BY d) AS `c_dist`, d, date FROM t) alias ORDER BY `c_dist`, d, date;
+SELECT * FROM (SELECT RANK() OVER (ORDER BY date) AS `rank`, date, d FROM t) alias ORDER BY `rank`, d DESC;
+SELECT * FROM (SELECT PERCENT_RANK() OVER (ORDER BY date) AS `p_rank`, date, d FROM t) alias ORDER BY `p_rank`, d DESC;
+SELECT * FROM (SELECT CUME_DIST() OVER (ORDER BY date) AS `c_dist`, date, d FROM t) alias ORDER BY `c_dist`, d DESC;
+DROP TABLE t;
+
+--echo Check that SUM stays that same when it sees NULL values
+
+CREATE TABLE t(i INT, j INT);
+INSERT INTO t VALUES (1,NULL);
+INSERT INTO t VALUES (1,NULL);
+INSERT INTO t VALUES (1,1);
+INSERT INTO t VALUES (1,NULL);
+INSERT INTO t VALUES (1,2);
+INSERT INTO t VALUES (2,1);
+INSERT INTO t VALUES (2,2);
+INSERT INTO t VALUES (2,NULL);
+INSERT INTO t VALUES (2,NULL);
+SELECT i, j, SUM(j) OVER (PARTITION BY i  ORDER BY j ROWS UNBOUNDED PRECEDING) FROM t;
+
+SELECT SUM(id), SUM(SUM(id)) OVER (ORDER BY sex ROWS UNBOUNDED PRECEDING) FROM t1,t2 WHERE t1.id=t2.user_id GROUP BY sex;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT id, SUM(SUM(id)) OVER (ORDER BY sex ROWS UNBOUNDED PRECEDING) FROM t1,t2 WHERE t1.id=t2.user_id GROUP BY sex;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT SUM(id) OVER (ORDER BY sex ROWS UNBOUNDED PRECEDING) FROM t1,t2 WHERE t1.id=t2.user_id GROUP BY sex;
+
+SELECT RANK() OVER w FROM t1,t2 WHERE t1.id=t2.user_id WINDOW w AS (PARTITION BY id ORDER BY sex);
+SELECT PERCENT_RANK() OVER w FROM t1,t2 WHERE t1.id=t2.user_id WINDOW w AS (PARTITION BY id ORDER BY sex);
+SELECT CUME_DIST() OVER w FROM t1,t2 WHERE t1.id=t2.user_id WINDOW w AS (PARTITION BY id ORDER BY sex);
+SELECT RANK() OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t WINDOW w AS (PARTITION BY id ORDER BY sex);
+SELECT PERCENT_RANK() OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t WINDOW w AS (PARTITION BY id ORDER BY sex);
+SELECT CUME_DIST() OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t WINDOW w AS (PARTITION BY id ORDER BY sex);
+--echo Two more tests related to fix_fields on arguments and frame clause
+--echo in prepared statements.
+--error ER_WRONG_ARGUMENTS
+SELECT NTH_VALUE(id, id) OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t WINDOW w AS (PARTITION BY id ORDER BY sex);
+--error ER_PARSE_ERROR
+SELECT SUM(1) OVER w FROM (SELECT * FROM t1,t2 WHERE t1.id=t2.user_id) t
+WINDOW w AS (PARTITION BY id ORDER BY sex ROWS id PRECEDING);
+
+--echo Check that aggregate window functions that reference columns not in the SELECT list work
+SELECT  SUM(id) OVER (PARTITION BY sex ORDER BY id ROWS UNBOUNDED PRECEDING) summ, sex FROM t1;
+
+CREATE TABLE t3(t3_id INT, k INT);
+INSERT INTO t3 VALUES (0, 0);
+INSERT INTO t3 VALUES (0, 0);
+INSERT INTO t3 VALUES (2, 0);
+INSERT INTO t3 VALUES (2, 0);
+INSERT INTO t3 VALUES (4, 0);
+INSERT INTO t3 VALUES (4, 0);
+INSERT INTO t3 VALUES (6, 0);
+INSERT INTO t3 VALUES (6, 0);
+INSERT INTO t3 VALUES (8, 0);
+INSERT INTO t3 VALUES (8, 0);
+INSERT INTO t3 VALUES (1, 1);
+INSERT INTO t3 VALUES (1, 1);
+INSERT INTO t3 VALUES (3, 1);
+INSERT INTO t3 VALUES (3, 1);
+INSERT INTO t3 VALUES (5, 1);
+INSERT INTO t3 VALUES (5, 1);
+INSERT INTO t3 VALUES (7, 1);
+INSERT INTO t3 VALUES (7, 1);
+INSERT INTO t3 VALUES (9, 1);
+INSERT INTO t3 VALUES (9, 1);
+
+--echo Broke initial CUME_DIST frame buffer positioning locality (DBUG assert)
+SELECT t3_id, AVG(t3_id) OVER w,
+              CUME_DIST() OVER w,
+              k FROM t3
+       WINDOW w AS (PARTITION BY k ORDER BY t3_id
+                    RANGE BETWEEN 4 PRECEDING AND 2 PRECEDING);
+
+--echo Reuse of already evaluated peer of current row due to dynamic_aggregate present
+SELECT t3_id, SUM(t3_id) OVER w,
+              CUME_DIST() OVER w,
+              LEAD(t3_id, 2) OVER w `lead2`,
+              NTH_VALUE(t3_id, 3) OVER w `nth`,
+              k FROM t3
+       WINDOW w AS (PARTITION BY k ORDER BY t3_id);
+
+--echo Same semantics without reuse p.t.
+SELECT t3_id, SUM(t3_id) OVER w,
+              CUME_DIST() OVER w,
+              LEAD(t3_id, 2) OVER w `lead2`,
+              NTH_VALUE(t3_id, 3) OVER w `nth`,
+              k FROM t3
+       WINDOW w AS (PARTITION BY k ORDER BY t3_id RANGE UNBOUNDED PRECEDING);
+
+--echo Followup to Bug#25756549
+SELECT t3_id, LAST_VALUE(t3_id) OVER w, k FROM t3
+       WINDOW w AS (PARTITION BY k ORDER BY t3_id RANGE UNBOUNDED PRECEDING);
+
+SELECT t3_id, LAST_VALUE(t3_id) OVER w, k FROM t3
+       WINDOW w AS (PARTITION BY k ORDER BY t3_id RANGE 2 PRECEDING);
+
+DROP TABLE t3;
+
+--echo ----------------------------------------------------------------------
+--echo -    Some ROW_NUMBER tests
+--echo ----------------------------------------------------------------------
+SELECT user_id, ROW_NUMBER() OVER (PARTITION BY user_id) FROM t2 t1;
+
+SELECT * FROM t1,t2 WHERE t1.id=t2.user_id;
+
+SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY id ORDER BY sex);
+
+SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY date ORDER BY id);
+
+--echo Coverage for ::val_str
+SELECT CONCAT(ROW_NUMBER() OVER (), 1);
+SELECT CONCAT(RANK() OVER (ORDER BY NULL), 1);
+SELECT CONCAT(CUME_DIST() OVER (ORDER BY NULL), 1);
+SELECT CONCAT(PERCENT_RANK() OVER (ORDER BY NULL), 1);
+SELECT CONCAT(NTILE(3) OVER (ORDER BY NULL), 1);
+
+--echo ----------------------------------------------------------------------
+--echo -    Window function in subquery
+--echo ----------------------------------------------------------------------
+               SELECT  date,id, RANK() OVER w AS `rank` FROM t1,t2 WINDOW w AS (PARTITION BY date ORDER BY id);
+SELECT * from (SELECT  date,id, RANK() OVER w AS `rank` FROM t1,t2 WINDOW w AS (PARTITION BY date ORDER BY id)) t;
+SELECT * from (SELECT  date,id, PERCENT_RANK() OVER w AS `p_rank`, CUME_DIST() OVER w as `c_dist` FROM t1,t2 WINDOW w AS (PARTITION BY date ORDER BY id)) t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Window function in parent and subquery
+--echo ----------------------------------------------------------------------
+
+SELECT t.*, SUM(t.`rank`) OVER (ROWS UNBOUNDED PRECEDING) FROM
+   (SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY date ORDER BY id)
+   ) AS t;
+
+SELECT t.*, SUM(t.`p_rank`) OVER (ROWS UNBOUNDED PRECEDING) FROM
+   (SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, PERCENT_RANK() OVER w AS `p_rank`,
+       CUME_DIST() OVER w as `c_dist` FROM t1,t2
+       WHERE t1.id=t2.user_id
+       WINDOW w AS (PARTITION BY date ORDER BY id)
+   ) AS t;
+--echo ----------------------------------------------------------------------
+--echo -    Multiple windows
+--echo ----------------------------------------------------------------------
+SELECT t1.*, RANK() OVER (ORDER BY sex), SUM(id) OVER (ORDER BY sex,id ROWS UNBOUNDED PRECEDING) FROM t1;
+SELECT t1.*, PERCENT_RANK() OVER (ORDER BY sex), SUM(id) OVER (ORDER BY sex,id ROWS UNBOUNDED PRECEDING) FROM t1;
+SELECT t1.*, CUME_DIST() OVER (ORDER BY sex), SUM(id) OVER (ORDER BY sex,id ROWS UNBOUNDED PRECEDING) FROM t1;
+SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), RANK() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
+SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), PERCENT_RANK() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
+SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), CUME_DIST() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
+
+SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
+             RANK() OVER (ORDER BY sex,id),
+             ROW_NUMBER() OVER (ORDER BY sex,id)
+             FROM t1;
+
+SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
+             PERCENT_RANK() OVER (ORDER BY sex,id),
+             CUME_DIST() OVER (ORDER BY sex,id),
+             ROW_NUMBER() OVER (ORDER BY sex,id)
+             FROM t1;
+
+--echo a little more windows + subquery
+SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       RANK() OVER (ORDER BY sex, id) AS r00,
+       RANK() OVER (ORDER BY sex, id DESC) AS r01,
+       RANK() OVER (ORDER BY sex, id DESC) AS r02,
+       RANK() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       RANK() OVER (ORDER BY sex,id) AS r04,
+       RANK() OVER (ORDER BY sex,id) AS r05,
+       RANK() OVER (ORDER BY sex, id) AS r06,
+       RANK() OVER (ORDER BY sex, id) AS r07,
+       RANK() OVER (ORDER BY sex, id) AS r08,
+       RANK() OVER (ORDER BY sex, id) AS r09,
+       RANK() OVER (ORDER BY sex, id) AS r10,
+       RANK() OVER (ORDER BY sex, id) AS r11,
+       RANK() OVER (ORDER BY sex, id) AS r12,
+       RANK() OVER (ORDER BY sex, id) AS r13,
+       RANK() OVER (ORDER BY sex, id) AS r14
+       FROM t1) t;
+
+--echo With LIMIT
+SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       RANK() OVER (ORDER BY sex, id) AS r00,
+       RANK() OVER (ORDER BY sex DESC, id) AS r01,
+       RANK() OVER (ORDER BY sex, id DESC) AS r02,
+       RANK() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       RANK() OVER (ORDER BY sex, id) AS r04,
+       RANK() OVER (ORDER BY sex, id) AS r05,
+       RANK() OVER (ORDER BY sex, id) AS r06,
+       RANK() OVER (ORDER BY sex, id) AS r07,
+       RANK() OVER (ORDER BY sex, id) AS r08,
+       RANK() OVER (ORDER BY sex, id) AS r09,
+       RANK() OVER (ORDER BY sex, id) AS r10,
+       RANK() OVER (ORDER BY sex, id) AS r11,
+       RANK() OVER (ORDER BY sex, id) AS r12,
+       RANK() OVER (ORDER BY sex, id) AS r13,
+       RANK() OVER (ORDER BY sex, id) AS r14
+       FROM t1 LIMIT 4) t;
+
+SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r00,
+       PERCENT_RANK() OVER (ORDER BY sex DESC, id) AS r01,
+       PERCENT_RANK() OVER (ORDER BY sex, id DESC) AS r02,
+       PERCENT_RANK() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r04,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r05,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r06,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r07,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r08,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r09,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r10,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r11,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r12,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r13,
+       PERCENT_RANK() OVER (ORDER BY sex, id) AS r14
+       FROM t1) t;
+
+SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r00,
+       CUME_DIST() OVER (ORDER BY sex DESC, id) AS r01,
+       CUME_DIST() OVER (ORDER BY sex, id DESC) AS r02,
+       CUME_DIST() OVER (PARTITION BY id ORDER BY sex) AS r03,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r04,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r05,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r06,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r07,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r08,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r09,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r10,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r11,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r12,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r13,
+       CUME_DIST() OVER (ORDER BY sex, id) AS r14
+       FROM t1) t;
+
+let $query=
+SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s FROM (
+   SELECT t1.*,
+       RANK() OVER w00 AS r00,
+       RANK() OVER w01 AS r01,
+       RANK() OVER w02 AS r02,
+       RANK() OVER w03 AS r03,
+       RANK() OVER w04 AS r04,
+       RANK() OVER w05 AS r05,
+       RANK() OVER w06 AS r06,
+       RANK() OVER w07 AS r07,
+       RANK() OVER w08 AS r08,
+       RANK() OVER w09 AS r09,
+       RANK() OVER w10 AS r10,
+       RANK() OVER w11 AS r11,
+       RANK() OVER w12 AS r12,
+       RANK() OVER w13 AS r13,
+       RANK() OVER w14 AS r14
+       FROM t1
+       WINDOW w00 AS (ORDER BY sex),
+              w01 AS (ORDER BY sex DESC),
+              w02 AS (ORDER BY sex, id DESC),
+              w03 AS (PARTITION BY id ORDER BY sex),
+              w04 AS (ORDER BY sex),
+              w05 AS (ORDER BY sex),
+              w06 AS (ORDER BY sex),
+              w07 AS (ORDER BY sex),
+              w08 AS (ORDER BY sex),
+              w09 AS (ORDER BY sex),
+              w10 AS (ORDER BY sex),
+              w11 AS (ORDER BY sex),
+              w12 AS (ORDER BY sex),
+              w13 AS (ORDER BY sex),
+              w14 AS (ORDER BY sex)) t;
+
+#--echo # Before we flush status, let's display how many rows we read/write
+#--echo # (from real tables, from frame buffer...) in this big set of tests.
+#--echo # It will help spot any increase caused by future code changes.
+#SHOW STATUS LIKE 'Handler_read%';
+#SHOW STATUS LIKE 'Handler_write%';
+#SHOW STATUS LIKE 'Created_tmp_tables';
+# ^ this is disabled because it varies by a few units depending on if
+# test is run alone
+
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+
+--echo Show sort elimination for the above
+eval EXPLAIN FORMAT=JSON $query;
+
+
+--echo ----------------------------------------------------------------------
+--echo -    SUM, AVG, COUNT with frames
+--echo ----------------------------------------------------------------------
+
+SELECT SUM(id) OVER w * 2, AVG(id) OVER w, COUNT(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex);
+
+SELECT * FROM (
+SELECT id, SUM(id) OVER w, COUNT(*) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex)
+       ) alias ORDER BY id;
+
+SELECT SUM(id) OVER w FROM t1 WINDOW w AS (PARTITION BY sex);
+
+SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+--echo try the same as a view
+CREATE VIEW v AS
+SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+SELECT SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+SELECT id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+SELECT SUM(id) OVER w, COUNT(*) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+SELECT id, AVG(id) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+
+SELECT id, AVG(id) OVER w, COUNT(id) OVER w FROM t1
+       WINDOW w AS (ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+--echo AVG, SUM with double type
+CREATE TABLE td(d DOUBLE);
+INSERT INTO td VALUES (2);
+INSERT INTO td VALUES (2);
+INSERT INTO td VALUES (3);
+INSERT INTO td VALUES (1);
+INSERT INTO td VALUES (1.2);
+INSERT INTO td VALUES (NULL);
+SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER (ORDER BY d) FROM td;
+SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER () FROM td;
+SELECT d, SUM(d) OVER (ORDER BY d), AVG(d) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM td;
+
+--echo Check system variable "windowing_use_high_precision"
+TRUNCATE td;
+INSERT INTO td VALUES (1.7976931348623157E+307);
+INSERT INTO td VALUES (1);
+
+--echo should be default off:
+SHOW VARIABLES LIKE 'windowing_use_high_precision';
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+
+--echo allow unsafe optimization: result changes
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT d, SUM(d) OVER (ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) FROM td;
+SET SESSION windowing_use_high_precision=TRUE; # BACK TO DEFAULT
+
+--echo bugfix: AVG for moving range frame
+TRUNCATE td;
+INSERT INTO td VALUES (10);
+INSERT INTO td VALUES (1);
+INSERT INTO td VALUES (2);
+INSERT INTO td VALUES (3);
+INSERT INTO td VALUES (4);
+INSERT INTO td VALUES (5);
+INSERT INTO td VALUES (6);
+INSERT INTO td VALUES (7);
+INSERT INTO td VALUES (8);
+INSERT INTO td VALUES (9);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=TRUE; # back to default
+
+INSERT INTO td SELECT * FROM td; # get more duplicates and hence peer sets
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND CURRENT ROW);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+SELECT d, SUM(d) OVER w, AVG(d) OVER w FROM td
+  WINDOW w AS (ORDER BY d RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING);
+SET SESSION windowing_use_high_precision=TRUE; # back to default
+
+DROP TABLE td;
+
+--echo ----------------------------------------------------------------------
+--echo -    NTILE (requires two passes over partition).
+--echo -    Currently suboptimal in that it causes N*N reads of tmp buffer
+--echo ----------------------------------------------------------------------
+
+--error ER_WRONG_ARGUMENTS
+SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
+SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS ();
+SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS ();
+SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+SELECT id, NTILE(2) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+SELECT id, NTILE(11) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+--echo combo with frame
+SELECT id, ROW_NUMBER() OVER w, NTILE(4) OVER w, SUM(id) OVER w FROM t1
+    WINDOW w AS (ORDER BY id ROWS 1 PRECEDING);
+--echo Try one where there are no extras
+DELETE FROM t1 WHERE id=11;
+SELECT id, NTILE(3) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+INSERT INTO t1 VALUES (11, NULL);
+
+PREPARE p FROM "SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)";
+SET @p1= 3;
+EXECUTE p USING @p1;
+SET @p1= '1';
+--error ER_WRONG_ARGUMENTS
+EXECUTE p USING @p1;
+SET @p1= NULL;
+EXECUTE p USING @p1;
+DROP PREPARE p;
+
+--echo Simulated NTILE via other SQL window functions. Exercises an
+--echo an expression containing window functions defined on different
+--echo windows
+SELECT (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS cnt
+    FROM t1 WINDOW w1 AS (ORDER BY id ASC),
+                   w2 AS ();
+
+SELECT  (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS ntile_manually,
+        COUNT(*) OVER w3
+    FROM t1 WINDOW w1 AS (ORDER BY id ASC),
+                   w2 AS (), w3 AS ();
+
+--echo NTILE in combination with a frame that doesn't cover current row (was bug)
+SELECT id, ROW_NUMBER() OVER w, SUM(id) OVER w, NTILE(5) OVER w FROM t1
+    WINDOW w AS (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING);
+
+--echo ----------------------------------------------------------------------
+--echo -    SUM with frames in combination with non-framing window functions
+--echo -    ROW_NUMBER and RANK
+--echo ----------------------------------------------------------------------
+
+SELECT ROW_NUMBER() OVER w, id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+
+SELECT ROW_NUMBER() OVER w, SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+INSERT INTO t1 VALUES (10, NULL);
+
+SELECT RANK() OVER w, id, SUM(id) OVER w, sex FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id);
+
+SELECT RANK() OVER w, SUM(id) OVER w FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id
+                    ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+
+SELECT id, sex, SUM(id) OVER w,
+                ROW_NUMBER() OVER w,
+                RANK() OVER w  FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+SELECT id, sex, SUM(id) OVER w,
+                ROW_NUMBER() OVER w,
+                CUME_DIST() OVER w  FROM t1
+       WINDOW w AS (PARTITION BY sex ORDER BY id ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+--echo Bug: if we have *any* window frame buffers, we need to add any fields
+--echo only referenced in expressions to the select list, so they get stored and
+--echo restored to/from the window frame buffer; which only uses copy_field.
+--echo Unfortunately, we don't know whther we have frame buffer at the time of
+--echo setup_fields so we must presume they are always used.
+--echo
+
+--echo Used to work (no frame buffer)
+SELECT id+2, ROW_NUMBER() OVER () FROM t1;
+--echo Used to work
+SELECT id+2, FIRST_VALUE(sex) OVER (ORDER BY sex ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t1;
+
+--echo Used to fail
+SELECT id+2, NTILE(2) OVER (ORDER BY sex) FROM t1;
+SELECT NTILE(2) OVER (ORDER BY sex) FROM t1 ORDER BY id+2 DESC;
+
+--echo ----------------------------------------------------------------------
+--echo -    FIRST_VALUE
+--echo ----------------------------------------------------------------------
+INSERT INTO t1 VALUES (NULL, 'M');
+
+
+SELECT FIRST_VALUE(6) OVER ();
+SELECT FIRST_VALUE(6.0) OVER ();
+SELECT FIRST_VALUE(CAST(6.0 AS DECIMAL(4,2))) OVER ();
+SELECT FIRST_VALUE('6') OVER ();
+SELECT FIRST_VALUE(NULL) OVER ();
+SELECT FIRST_VALUE(6)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT FIRST_VALUE(NULL) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+SELECT LAST_VALUE(6)    OVER ();
+SELECT LAST_VALUE(NULL) OVER ();
+SELECT LAST_VALUE(6)    OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT LAST_VALUE(NULL) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS ();
+select id, FIRST_VALUE(id) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (PARTITION BY sex ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id DESC);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+
+CREATE TABLE td1 (id DOUBLE, sex CHAR(1));
+INSERT INTO td1 SELECT * FROM t1;
+
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS ();
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (PARTITION BY sex ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id DESC);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w, CUME_DIST() OVER w FROM td1 WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w, CUME_DIST() OVER w FROM td1 WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+
+DROP TABLE td1;
+
+CREATE TABLE td_dec (id DECIMAL(10,2), sex CHAR(1));
+INSERT INTO td_dec SELECT * FROM t1;
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS ();
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (PARTITION BY sex ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id DESC);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_dec WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+DROP TABLE td_dec;
+
+CREATE TABLE td_str (id VARCHAR(20), sex CHAR(1));
+INSERT INTO td_str SELECT * FROM t1;
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS ();
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (PARTITION BY sex ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id DESC);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE 2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT id, FIRST_VALUE(id) OVER w FROM td_str WINDOW w AS (ORDER BY id RANGE BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+DROP TABLE td_str;
+
+CREATE TABLE t_date(id DATE);
+INSERT INTO t_date VALUES ('2002-06-09');
+INSERT INTO t_date VALUES ('2002-06-09');
+INSERT INTO t_date VALUES ('2002-06-10');
+INSERT INTO t_date VALUES ('2002-06-09');
+INSERT INTO t_date VALUES ('2015-08-01');
+INSERT INTO t_date VALUES ('2002-06-09');
+INSERT INTO t_date VALUES ('2015-08-01');
+
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS ();
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id DESC);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  2 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE INTERVAL 2 DAY PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
+
+CREATE VIEW v AS
+SELECT id, FIRST_VALUE(id) OVER w FROM t_date WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL 2 DAY FOLLOWING AND INTERVAL 3 DAY FOLLOWING);
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+DROP TABLE t_date;
+
+CREATE TABLE t_time(t TIME, ts TIMESTAMP);
+INSERT INTO t_time VALUES ('12:30', '2016-07-05 08:30:42');
+INSERT INTO t_time VALUES ('22:30', '2015-07-05 08:30:43');
+INSERT INTO t_time VALUES ('13:30', '2014-07-05 08:30:44');
+INSERT INTO t_time VALUES ('01:30', '2013-07-05 08:30:45');
+INSERT INTO t_time VALUES ('15:30', '2016-08-05 08:31:42');
+INSERT INTO t_time VALUES ('20:30', '2016-09-05 08:32:42');
+INSERT INTO t_time VALUES ('04:30', '2016-10-05 08:33:42');
+INSERT INTO t_time VALUES ('06:30', '2016-11-05 08:34:42');
+INSERT INTO t_time VALUES ('18:30', '2016-07-05 09:30:42');
+INSERT INTO t_time VALUES ('21:30', '2016-07-06 10:30:42');
+INSERT INTO t_time VALUES ('00:30', '2016-07-07 11:30:42');
+INSERT INTO t_time VALUES ('00:31', '2016-07-08 12:30:42');
+
+CREATE TABLE t_time2(t TIME, ts TIMESTAMP, p INTEGER DEFAULT 1);
+INSERT INTO t_time2(t, ts) SELECT * FROM t_time;
+UPDATE t_time2 SET p=p+1;
+INSERT INTO t_time2(t, ts) SELECT * FROM t_time;
+
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS ();
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t DESC);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  2 PRECEDING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE INTERVAL 2 HOUR PRECEDING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
+
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p );
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t DESC);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  2 PRECEDING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE INTERVAL 2 HOUR PRECEDING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN 2 PRECEDING AND 1 PRECEDING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
+SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
+
+DROP TABLE t_time, t_time2;
+
+
+--echo ----------------------------------------------------------------------
+--echo -    Aggregates with RANGE frame specification
+--echo ----------------------------------------------------------------------
+SELECT * FROM t1;
+
+--echo Make t11 a clone of t1 but with an extra partitioning column, but other values
+--echo repeated, so we can test it the same frames work on more than one partition
+CREATE TABLE t11 (id INTEGER, sex CHAR(1), p INTEGER DEFAULT 1);
+INSERT INTO t11(id, sex) SELECT * FROM t1;
+UPDATE t11 SET p=p+1;
+INSERT INTO t11(id, sex) SELECT * FROM t1;
+--echo Make t22 a clone of t2 but with an extra partitioning column, but other values
+--echo repeated, so we can test it the same frames work on more than one partition
+CREATE TABLE t22 (user_id INTEGER NOT NULL, date DATE, p INTEGER DEFAULT 1);
+INSERT INTO t22(user_id, date) SELECT * FROM t2;
+UPDATE t22 SET p=p+1;
+INSERT INTO t22(user_id, date) SELECT * FROM t2;
+
+
+#V...
+SELECT id, SUM(id) OVER (ORDER BY id RANGE 2 PRECEDING) FROM t1 ORDER BY id;
+SELECT id, SUM(id) OVER (ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t1 ORDER BY id;
+SELECT id, SUM(id) OVER (ORDER BY id RANGE UNBOUNDED PRECEDING) FROM t1 ORDER BY id;
+
+SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE 2 PRECEDING) FROM t11 ORDER BY p,id;
+SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t11 ORDER BY p,id;
+SELECT p, id, SUM(id) OVER (PARTITION BY p ORDER BY id RANGE UNBOUNDED PRECEDING) FROM t11 ORDER BY p,id;
+#...V
+
+--echo Implicit frame due to ORDER BY, with last in peer group as upper bound
+SELECT user_id, SUM(user_id) OVER w, AVG(user_id) OVER w FROM t2 WINDOW w AS (ORDER BY user_id);
+--sorted_result
+SELECT p, user_id, SUM(user_id) OVER w, AVG(user_id) OVER w FROM t22 WINDOW w AS (PARTITION BY p ORDER BY user_id) ORDER BY p;
+
+--echo Window function use of same field in different windows, both of which
+--echo need buffering. In this case we need subsequent rewrites of arg fields
+--echo Field pointer in tmp files for window 2..n The intervening internal
+--echo window buffering in each step used to mess that up.
+SELECT user_id, SUM(user_id) OVER w, AVG(user_id) OVER w1 FROM t2
+    WINDOW w AS (ORDER BY user_id), w1 AS (ORDER BY user_id);
+
+--echo Check descending order by with RANGE: 2 PRECEDING in this case means larger than
+--echo current row.
+SELECT NTILE(5) OVER w, ROW_NUMBER() OVER w, id, SUM(id) OVER w FROM t1
+    WINDOW w AS (ORDER BY id DESC RANGE 2 PRECEDING);
+SELECT p, NTILE(5) OVER w, ROW_NUMBER() OVER w, id, SUM(id) OVER w FROM t11
+    WINDOW w AS (PARTITION BY p ORDER BY id DESC RANGE 2 PRECEDING);
+--error ER_WINDOW_RANGE_FRAME_NUMERIC_TYPE
+SELECT NTILE(5) OVER w, ROW_NUMBER() OVER w, id, SUM(id) OVER w FROM t1
+    WINDOW w AS (ORDER BY id DESC RANGE INTERVAL 2 MONTH PRECEDING);
+
+update t2 set date=date + user_id;
+SELECT user_id, date, COUNT(*) OVER (ORDER BY date RANGE INTERVAL 1 DAY PRECEDING) FROM t2;
+--error ER_WINDOW_RANGE_FRAME_TEMPORAL_TYPE
+SELECT user_id, date, COUNT(*) OVER (ORDER BY date RANGE 1 PRECEDING) FROM t2;
+
+CREATE TABLE t3(d DOUBLE);
+INSERT INTO t3 VALUES (1.1);
+INSERT INTO t3 VALUES (1.9);
+INSERT INTO t3 VALUES (4.0);
+INSERT INTO t3 VALUES (8.3);
+INSERT INTO t3 VALUES (16.0);
+INSERT INTO t3 VALUES (24.0);
+INSERT INTO t3 VALUES (20.1);
+INSERT INTO t3 VALUES (22.0);
+INSERT INTO t3 VALUES (23.0);
+
+SELECT d, SUM(d) OVER w, COUNT(*) OVER w FROM t3 WINDOW w AS (ORDER BY d RANGE BETWEEN 2.1 PRECEDING AND 1.1 FOLLOWING);
+
+--echo Illegal range ORDER BY type, cf. SQL 2011 7.11 <window clause>, SR 11.a.ii
+CREATE TABLE t4(c VARCHAR(30), i INT, j INT);
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT COUNT(*) OVER (ORDER BY c RANGE 3 PRECEDING) FROM t4;
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT COUNT(*) OVER (ORDER BY i,j RANGE 3 PRECEDING) FROM t4;
+
+--echo ----------------------------------------------------------------------
+--echo -    wf over JSON
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE tj(j JSON, i INT DEFAULT 7);
+INSERT INTO tj(j) VALUES ('1');
+INSERT INTO tj(j) VALUES ('2');
+INSERT INTO tj(j) VALUES ('3');
+INSERT INTO tj(j) VALUES ('4');
+INSERT INTO tj(j) VALUES ('5');
+INSERT INTO tj(j) VALUES (NULL);
+INSERT INTO tj(j) VALUES ('3.14');
+INSERT INTO tj(j) VALUES ('[1,2,3]');
+SELECT CAST(SUM(j) OVER () AS JSON) FROM tj;
+
+--echo ----------------------------------------------------------------------
+--echo -    SELECT DISTINCT
+--echo ----------------------------------------------------------------------
+--echo One window
+SELECT DISTINCT i,COUNT(*) OVER () FROM tj;
+--echo Several windows with final ORDER BY also
+SELECT DISTINCT i,NTILE(3) OVER (ORDER BY i), SUM(i) OVER (), COUNT(*) OVER () FROM tj ORDER BY NTILE(3) OVER (ORDER BY i);
+
+UPDATE tj SET i=i+CASE WHEN JSON_TYPE(j) = 'ARRAY' THEN 1 ELSE j END;
+UPDATE tj SET i=7 where i=8 AND JSON_TYPE(j) != 'ARRAY';
+
+CREATE TABLE tj2 AS SELECT * FROM tj;
+UPDATE tj2 SET i=MOD(i,3);
+SELECT * FROM tj2;
+--echo With GROUP BY
+SELECT          COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+SELECT DISTINCT COUNT(*) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+
+--echo Bug fix GROUP BY with window function referring column used in grouping expression
+SELECT i, SUM(i) OVER (), MOD(SUM(i),2) FROM tj2 GROUP BY i;
+SELECT i, SUM(SUM(i)) OVER (), SUM(i) OVER (ORDER BY i), MOD(SUM(i),2), SUM(i) FROM tj2 GROUP BY i;
+
+DROP TABLE tj2;
+
+--echo ----------------------------------------------------------------------
+--echo -    Bug fixes
+--echo ----------------------------------------------------------------------
+
+--echo Bug fix for FIRST_VALUE, LAST_VALUE when not buffered processing
+SELECT LAST_VALUE(j) OVER w, FIRST_VALUE(j) OVER w FROM tj WINDOW w AS (PARTITION BY i ORDER BY j ROWS UNBOUNDED PRECEDING);
+--echo Bug missing hidden column (j) induction to select list: FIRST_VALUE/LAST_VALUE
+SELECT i, LAST_VALUE((CAST(j AS UNSIGNED))) OVER w, FIRST_VALUE(CAST(j AS UNSIGNED)) OVER w FROM tj
+    WINDOW w AS (PARTITION BY i ORDER BY CAST(j AS UNSIGNED) RANGE UNBOUNDED PRECEDING);
+--echo Fix for lineno in warnings buffered and unbuffered windows
+SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
+SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
+
+--echo Bug fix for UNION
+SELECT i, ROW_NUMBER() OVER () FROM tj UNION ALL SELECT i, ROW_NUMBER() OVER () FROM tj;
+SELECT * FROM (SELECT i, j, ROW_NUMBER() OVER (ORDER BY j) FROM tj UNION SELECT i, j, ROW_NUMBER() OVER (ORDER BY j) FROM tj) alias;
+
+--echo Bug fixes after field_type refactorings on trunk triggered an error in
+--echo the above statements. The WFs didn't all have m_data_type set up.
+SELECT i, RANK() OVER (ORDER BY i) FROM tj UNION ALL SELECT i, RANK() OVER (ORDER BY i) FROM tj;
+SELECT i, DENSE_RANK() OVER (ORDER BY i) FROM tj UNION ALL SELECT i, DENSE_RANK() OVER (ORDER BY i) FROM tj;
+SELECT i, CUME_DIST() OVER (ORDER BY i) FROM tj UNION ALL SELECT i, CUME_DIST() OVER (ORDER BY i) FROM tj;
+SELECT i, PERCENT_RANK() OVER (ORDER BY i) FROM tj UNION ALL SELECT i, PERCENT_RANK() OVER (ORDER BY i) FROM tj;
+SELECT i, NTILE(3) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, NTILE(3) OVER (ORDER BY i) FROM tj;
+SELECT i, SUM(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, SUM(i) OVER (ORDER BY i) FROM tj;
+SELECT i, NTH_VALUE(i,3) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, NTH_VALUE(i, 3) OVER (ORDER BY i) FROM tj;
+SELECT i, NTH_VALUE(i + 3,3) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, NTH_VALUE(i + 3, 3) OVER (ORDER BY i) FROM tj;
+SELECT i, LEAD(i,3) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, LEAD(i, 3) OVER (ORDER BY i) FROM tj;
+SELECT i, FIRST_VALUE(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, FIRST_VALUE(i) OVER (ORDER BY i) FROM tj;
+SELECT i, LAST_VALUE(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, LAST_VALUE(i) OVER (ORDER BY i) FROM tj;
+
+
+DROP TABLE tj;
+
+--echo ----------------------------------------------------------------------
+--echo -    More JSON
+--echo ----------------------------------------------------------------------
+CREATE TABLE tj(j JSON);
+INSERT INTO tj VALUES ('1');
+INSERT INTO tj VALUES ('2');
+INSERT INTO tj VALUES ('3');
+INSERT INTO tj VALUES ('4');
+INSERT INTO tj VALUES ('5');
+INSERT INTO tj VALUES (NULL);
+SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j RANGE 3 PRECEDING) FROM tj;
+INSERT INTO tj VALUES ('3.14');
+SELECT j, JSON_TYPE(j), SUM(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+INSERT INTO tj VALUES ('[1,2,3]');
+SELECT j,
+       JSON_TYPE(j),
+       SUM(CASE WHEN JSON_TYPE(j) = 'ARRAY' THEN j->"$[0]" ELSE j END)
+         OVER (ORDER BY j ROWS 3 PRECEDING)
+  FROM tj;
+
+
+CREATE TABLE t5(b BIGINT UNSIGNED);
+INSERT INTO t5 VALUES (1);
+INSERT INTO t5 VALUES (2);
+INSERT INTO t5 VALUES (3);
+INSERT INTO t5 VALUES (4);
+INSERT INTO t5 VALUES (5);
+INSERT INTO t5 VALUES (6);
+INSERT INTO t5 VALUES (7);
+--echo last row should have COUNT(*) == 0 , not 1 (bug fix)
+SELECT b, COUNT(*) OVER (ORDER BY b RANGE BETWEEN 1 FOLLOWING AND  100 FOLLOWING) bb FROM t5;
+
+CREATE TABLE t6(t TIME, ts TIMESTAMP);
+INSERT INTO t6 VALUES ('12:30', '2016-07-05 08:30:42');
+INSERT INTO t6 VALUES ('22:30', '2015-07-05 08:30:43');
+INSERT INTO t6 VALUES ('13:30', '2014-07-05 08:30:44');
+INSERT INTO t6 VALUES ('01:30', '2013-07-05 08:30:45');
+INSERT INTO t6 VALUES ('15:30', '2016-08-05 08:31:42');
+INSERT INTO t6 VALUES ('20:30', '2016-09-05 08:32:42');
+INSERT INTO t6 VALUES ('04:30', '2016-10-05 08:33:42');
+INSERT INTO t6 VALUES ('06:30', '2016-11-05 08:34:42');
+INSERT INTO t6 VALUES ('18:30', '2016-07-05 09:30:42');
+INSERT INTO t6 VALUES ('21:30', '2016-07-06 10:30:42');
+INSERT INTO t6 VALUES ('00:30', '2016-07-07 11:30:42');
+INSERT INTO t6 VALUES ('00:31', '2016-07-08 12:30:42');
+
+--echo INTERVAL specified with string as below failed
+SELECT t, COUNT(*) OVER (ORDER BY t RANGE
+  BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL '2:2' MINUTE_SECOND FOLLOWING) AS cnt FROM t6;
+
+--echo ----------------------------------------------------------------------
+--echo -    Window spec inheritance
+--echo ----------------------------------------------------------------------
+
+SELECT COUNT(*) OVER w0,
+       COUNT(*) OVER w,
+       COUNT(*) OVER w1 FROM t6
+   WINDOW w0 AS (),
+          w  AS (w0 ORDER BY t),
+          w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND
+                 INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
+
+--error ER_WINDOW_NO_CHILD_PARTITIONING
+SELECT t, COUNT(t) OVER w1 FROM t6
+    WINDOW w1 AS (),
+           w2 AS (w1 PARTITION BY t);
+
+--error ER_WINDOW_NO_REDEFINE_ORDER_BY
+SELECT t, COUNT(t) OVER w1 FROM t6
+    WINDOW w1 AS (ORDER BY t),
+           w2 AS (w1 ORDER BY t);
+
+--error ER_WINDOW_NO_INHERIT_FRAME
+SELECT t, COUNT(t) OVER w1 FROM t6
+    WINDOW w1 AS (ORDER BY t RANGE BETWEEN CURRENT ROW AND
+                  INTERVAL 1 DAY FOLLOWING),
+           w2 AS (w1);
+
+CREATE VIEW v AS
+SELECT COUNT(*) OVER w0,
+       COUNT(*) OVER w,
+       COUNT(*) OVER w1 FROM t6
+   WINDOW w0 AS (),
+          w  AS (w0 ORDER BY t),
+          w1 AS (w RANGE BETWEEN INTERVAL 24 HOUR  PRECEDING AND
+                 INTERVAL '2:2' MINUTE_SECOND FOLLOWING);
+
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+--echo ----------------------------------------------------------------------
+--echo - Bugs with induction of hidden fields from window function also used
+--echo - in ORDER BY/PARTITION BY
+--echo ----------------------------------------------------------------------
+#V...
+SELECT id, AVG(id) OVER (PARTITION BY id) summ FROM t1;
+SELECT     AVG(id) OVER (PARTITION BY id) summ FROM t1;
+
+SELECT id, AVG(id) OVER (PARTITION BY id) summ,
+           AVG(id) OVER (PARTITION BY id) summ2 FROM t1;
+
+SELECT     AVG(id) OVER (PARTITION BY id) summ,
+           AVG(id) OVER (PARTITION BY id) summ2 FROM t1;
+#...V
+
+--echo Bug for AVG in presence of several NULLs
+INSERT INTO t1 VALUES (NULL, 'F');
+SELECT COUNT(id) OVER w, id, AVG(id) OVER w, SUM(id) OVER w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id RANGE 1 PRECEDING);
+
+--echo Repeat previous test, just with REAL to get coverage
+CREATE TABLE t1r (id REAL, sex CHAR(1));
+INSERT INTO t1r VALUES (1.0, 'M');
+INSERT INTO t1r VALUES (2.0, 'F');
+INSERT INTO t1r VALUES (3.0, 'F');
+INSERT INTO t1r VALUES (4.0, 'F');
+INSERT INTO t1r VALUES (5.0, 'M');
+INSERT INTO t1r VALUES (10.0, NULL);
+INSERT INTO t1r VALUES (11.0, NULL);
+INSERT INTO t1r VALUES (10.0, NULL);
+INSERT INTO t1r VALUES (NULL, 'M');
+INSERT INTO t1r VALUES (NULL, 'F');
+SET windowing_use_high_precision= OFF;
+SELECT COUNT(id) OVER w, id, AVG(id) OVER w, SUM(id) OVER w, FIRST_VALUE(id) OVER w FROM t1r
+  WINDOW w AS (ORDER BY id RANGE 1 PRECEDING);
+SET windowing_use_high_precision= ON;
+DROP TABLE t1r;
+
+
+--echo Check frame size, COUNT(*) vs COUNT(<column>) in frames with NULLs
+SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id ASC  RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
+  WINDOW w AS (ORDER BY id DESC RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
+
+
+DROP TABLE t1, t11, t2, t22, t3, t4, t5, t6, tj;
+DROP TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    ORDER BY + RANK with more than one ordering expression
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE t(i INT, j INT, k INT);
+INSERT INTO t VALUES (1,1,1);
+INSERT INTO t VALUES (1,1,2);
+INSERT INTO t VALUES (1,1,2);
+INSERT INTO t VALUES (1,2,1);
+INSERT INTO t VALUES (1,2,2);
+INSERT INTO t VALUES (2,1,1);
+INSERT INTO t VALUES (2,1,1);
+INSERT INTO t VALUES (2,1,2);
+INSERT INTO t VALUES (2,2,1);
+INSERT INTO t VALUES (2,2,2);
+SELECT *, RANK() OVER (ORDER BY i,j,k) AS O_IJK,
+          RANK() OVER (ORDER BY j) AS O_J,
+          RANK() OVER (ORDER BY k,j) AS O_KJ FROM t ORDER BY i,j,k;
+
+DROP TABLE t;
+
+--echo ----------------------------------------------------------------------
+--echo -    Gulutzan's sanity tests in
+--echo -    http://ocelot.ca/blog/blog/2016/04/18/mariadb-10-2-window-functions/
+--echo -    His comments are quoted.
+--echo ----------------------------------------------------------------------
+
+CREATE TABLE t1 (s1 INT, s2 CHAR(5));
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (NULL, NULL);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (NULL, 'a');
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (-1, '');
+
+--echo  "The following statements all cause the MariaDB server to crash"
+--echo  MySQL doesn't crash
+
+SELECT ROW_NUMBER() OVER ();
+--error ER_BAD_FIELD_ERROR
+SELECT 1 AS a, ROW_NUMBER() OVER (ORDER BY a) FROM dual;
+
+SELECT *, ABS(ROW_NUMBER() OVER (ORDER BY s1,s2))
+ - ROW_NUMBER() OVER (ORDER BY s1,s2) AS X FROM t1;
+SELECT RANK() OVER (ORDER BY AVG(s1)) FROM t1;
+
+--echo  "The following statements all give the wrong answers with MariaDB"
+--echo  Correct with MySQL.
+
+SELECT COUNT(*) OVER (ORDER BY s2) FROM t1 WHERE s2 IS NULL;
+
+SELECT * FROM (
+  SELECT *,DENSE_RANK() OVER (ORDER BY s2 DESC),
+           DENSE_RANK() OVER (ORDER BY s2) FROM t1
+           ) alias ORDER BY s1,s2;
+
+SELECT * FROM (
+  SELECT *, SUM(s1) OVER (ORDER BY s1) FROM t1 ORDER BY s1
+         ) alias ORDER BY s1,s2;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(s1), RANK() OVER (ORDER BY s1) FROM t1;
+
+--echo  "The following statement causes the client to hang (it loops in
+--echo  mysql_store_result, I think this is the first time I've seen this type of
+--echo  error)"
+--echo  No issue with MySQL
+
+SELECT *, AVG(s1) OVER () FROM t1;
+SELECT *, AVG(s1) OVER (ROWS UNBOUNDED PRECEDING) FROM t1;
+
+DROP TABLE t1;
+
+--echo Some negative tests (from Srikanth)
+CREATE TABLE t (a INT, b INT, c INT);
+INSERT INTO t VALUES (1,1,1);
+INSERT INTO t VALUES (1,1,2);
+INSERT INTO t VALUES (1,1,3);
+INSERT INTO t VALUES (1,2,1);
+INSERT INTO t VALUES (1,2,2);
+INSERT INTO t VALUES (1,2,3);
+INSERT INTO t VALUES (1,3,1);
+INSERT INTO t VALUES (1,3,2);
+INSERT INTO t VALUES (1,3,3);
+INSERT INTO t VALUES (2,1,1);
+INSERT INTO t VALUES (2,1,2);
+INSERT INTO t VALUES (2,1,3);
+INSERT INTO t VALUES (2,2,1);
+INSERT INTO t VALUES (2,2,2);
+INSERT INTO t VALUES (2,2,3);
+INSERT INTO t VALUES (2,3,1);
+INSERT INTO t VALUES (2,3,2);
+INSERT INTO t VALUES (2,3,3);
+
+--echo Wfs OK in ORDER BY, but not in WHERE or HAVING clauses
+#V...
+SELECT * FROM t ORDER BY RANK() OVER (ORDER BY a DESC,b,c);
+#...V
+SELECT *, RANK() OVER (ORDER BY a DESC,b,c) AS `rank` FROM t ORDER BY `rank`;
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT * FROM t WHERE 1 = RANK() OVER (ORDER BY a);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT * FROM t HAVING 1 = rank() OVER (ORDER BY a);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT 1 FROM t HAVING 1=(SELECT 1 FROM (SELECT 1) foo) AND COUNT(a) OVER ();
+
+--echo #
+--echo # Bug#26502118: WINDOW FUNCTIONS: CRASH AND LARGE MEMORY ALLOCATION,
+--echo #               FIRST_VALUE, BLOBS
+--echo #
+--echo # This was really missing error detection
+--echo #
+CREATE TABLE tb(a LONGBLOB NOT NULL);
+INSERT INTO tb VALUES ('1'), ('2'), ('3'), ('4'), ('5');
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT (SELECT 1 FROM tb WHERE (SELECT 1 FROM tb WHERE FIRST_VALUE(a) OVER()));
+DROP TABLE tb;
+
+--echo Windows should only be allowed in order by of a simple table query
+--error ER_AGGREGATE_ORDER_FOR_UNION
+(select a from t) union (select a from t) order by (row_number() over ());
+--error ER_AGGREGATE_ORDER_FOR_UNION
+(select a from t) union (select a from t) order by (1+row_number() over ());
+--echo This is legal, though:
+(select a from t) union (select a from t order by (row_number() over ()));
+
+--echo Non constants as frame bounds
+--error ER_PARSE_ERROR
+SELECT a AS foo, SUM(a) OVER (ORDER BY a ROWS foo PRECEDING)  FROM t;
+--error ER_PARSE_ERROR
+SELECT a, SUM(a) OVER (ORDER BY a ROWS a PRECEDING)  FROM t;
+
+--echo Non-unique window name
+--error ER_WINDOW_DUPLICATE_NAME
+SELECT count(*) OVER w FROM t WINDOW w AS (ORDER BY a), w AS (ORDER BY b);
+
+--echo Illegal legacy position indication in window's ORDER BY clause
+--error ER_WINDOW_ILLEGAL_ORDER_BY
+SELECT RANK() OVER (ORDER BY 1) FROM t;
+
+SELECT * FROM (
+  SELECT a,b,c, RANK() OVER (ORDER BY 1*1) FROM t
+  ) alias ORDER BY a,b,c;
+
+--echo Crashed: more than one window in subquery
+SELECT * FROM (SELECT count(*) OVER (), sum(c) OVER () AS sum1, a from t) as alias;
+
+--echo Crashed: expression containing window function(s) in subquery
+SELECT * FROM (SELECT count(*) OVER () + sum(c) OVER () AS sum1, a from t) as alias;
+
+--echo Wrong result if subquery window function referenced another column in the select list
+--echo This was OK, but:
+SELECT * FROM (SELECT SUM(b) OVER (), a FROM t) AS alias;
+--echo this one failed with NULL as sum
+SELECT * FROM (SELECT SUM(b) OVER (), b FROM t) AS alias;
+
+--echo Crash due to unguarded access for window name string for an unnamed
+--echo window while producing the error message
+--error ER_WINDOW_NO_REDEFINE_ORDER_BY
+SELECT a, b, c, rank() OVER ( w  ORDER BY c DESC )  FROM t WINDOW w AS (ORDER BY a);
+
+--echo Check that DISTINCT is not allowed in wfs
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(DISTINCT b) OVER () FROM t;
+
+--echo Check that GROUPS bounds unit is not supported yet
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(b) OVER (ORDER by a GROUPS 2 PRECEDING) FROM t;
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+UPDATE t set a= SUM(b) OVER ();
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+DELETE FROM t WHERE SUM(b) OVER () = 10;
+
+--echo Check that EXCLUDE in frames is not supported yet
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(b) OVER (ORDER by a ROWS 2 PRECEDING EXCLUDE CURRENT ROW) FROM t;
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(b) OVER (ORDER by a ROWS 2 PRECEDING EXCLUDE TIES) FROM t;
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(b) OVER (ORDER by a ROWS 2 PRECEDING EXCLUDE GROUP) FROM t;
+--error ER_NOT_SUPPORTED_YET
+SELECT SUM(b) OVER (ORDER by a ROWS 2 PRECEDING EXCLUDE NO OTHERS) FROM t;
+
+--echo Check Nested wfs
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT a, b, FIRST_VALUE(SUM(a+b) OVER()) OVER () AS sum FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT a, b, FIRST_VALUE(1+SUM(a+b) OVER()) OVER () AS sum FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT a, b, SUM(1+SUM(a+b) OVER()) OVER () AS sum FROM t;
+
+--error ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
+SELECT a, b, FIRST_VALUE(a) OVER (PARTITION BY ROW_NUMBER() OVER ()) AS sum FROM t;
+--error ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
+SELECT a, b, FIRST_VALUE(a) OVER (PARTITION BY 1+ROW_NUMBER() OVER ()) AS sum FROM t;
+--error ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
+SELECT a, b, FIRST_VALUE(a) OVER (ORDER BY ROW_NUMBER() OVER ()) AS sum FROM t;
+
+CREATE TABLE t_time(t TIME, ts TIMESTAMP);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL ROW_NUMBER() OVER () HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL ABS(t) HOUR PRECEDING) FROM t_time;
+--error ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 3 HOUR PRECEDING AND INTERVAL ABS(t) HOUR FOLLOWING) FROM t_time;
+
+DROP TABLE t, t_time;
+
+--echo Crash report (Srikanth)
+CREATE TABLE t(a int, b int);
+INSERT INTO t VALUES (1,1);
+INSERT INTO t VALUES (2,1);
+INSERT INTO t VALUES (3,2);
+INSERT INTO t VALUES (4,2);
+INSERT INTO t VALUES (5,3);
+INSERT INTO t VALUES (6,3);
+#V...
+SELECT SUM(a) OVER (ORDER BY b) FROM t;
+SELECT COUNT(*) OVER (ORDER BY b) FROM t;
+SELECT AVG(b) OVER (ORDER BY b) FROM t;
+SELECT a,b,LAST_VALUE(a) OVER (ORDER BY b,a) FROM t;
+SELECT NTILE(2) OVER (ORDER BY b) FROM t;
+#...V
+DROP TABLE t;
+
+--echo Wrong result (Srikanth)
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,2);
+INSERT INTO t1 VALUES (1,3);
+
+SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) over w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+INSERT INTO t1 VALUES (1,3);
+
+SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) OVER w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+
+SELECT a, b, COUNT(a) OVER w count,
+             SUM(a) OVER w sum,
+             AVG(a) OVER w average,
+             LAST_VALUE(a) OVER w lastval FROM t1
+   WINDOW w as (PARTITION BY a ORDER BY b ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING);
+
+DROP TABLE t1;
+
+--echo frame buffer navigation assert
+CREATE TABLE ta (a INT(11) DEFAULT NULL, b INT(11) DEFAULT NULL);
+INSERT INTO  ta VALUES (1,1);
+INSERT INTO  ta VALUES (1,2);
+INSERT INTO  ta VALUES (1,3);
+INSERT INTO  ta VALUES (2,1);
+INSERT INTO  ta VALUES (2,2);
+INSERT INTO  ta VALUES (2,3);
+SELECT last_value(b) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) FROM ta;
+DROP TABLE ta;
+
+--echo Nullability fix bug for COUNT OVER in non optimized eval strategy
+CREATE TABLE t(d DOUBLE); # use a DOUBLE to force un-optimizaed evaluation
+INSERT INTO t VALUES (1.0);
+INSERT INTO t VALUES (2.0);
+INSERT INTO t VALUES (3.0);
+SELECT SUM(d) OVER w, COUNT(*) OVER w FROM t WINDOW W AS (ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+DROP TABLE t;
+
+--echo Bug in inverse logic with initial NULL and RANGE BETWEEN N FOLLOWING AND M FOLLOWING
+CREATE TABLE t1 (d DOUBLE, id INT, sex CHAR(1), n INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(n));
+INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M');
+INSERT INTO t1(d, id, sex) VALUES (2.0, 2, 'F');
+INSERT INTO t1(d, id, sex) VALUES (3.0, 3, 'F');
+INSERT INTO t1(d, id, sex) VALUES (4.0, 4, 'F');
+INSERT INTO t1(d, id, sex) VALUES (5.0, 5, 'M');
+INSERT INTO t1(d, id, sex) VALUES (NULL, NULL, 'M');
+INSERT INTO t1(d, id, sex) VALUES (10.0, 10, NULL);
+INSERT INTO t1(d, id, sex) VALUES (10.0, 10, NULL);
+INSERT INTO t1(d, id, sex) VALUES (11.0, 11, NULL);
+
+SELECT id, AVG(id) over w `avg`, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt FROM t1 WINDOW w as (ORDER BY id RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+SET windowing_use_high_precision= OFF;
+SELECT d, AVG(d) over w `avg`, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+SET windowing_use_high_precision= ON;
+DROP TABLE t1;
+
+--echo Bug in inverse logic with e.g. ROWS BETWEEN UNBOUNDED PRECEDING AND 1
+--echo FOLLOWING: at end of partition, when no rows are removed or added we
+--echo lacked initialization of aggregates in optimized mode.
+CREATE TABLE t (i char(10), j int);
+INSERT INTO t VALUES('A', 1);
+INSERT INTO t VALUES('A', 3);
+INSERT INTO t VALUES('A', 5);
+INSERT INTO t VALUES('B', 1);
+INSERT INTO t VALUES('B', 7);
+SELECT i, j, SUM(j) OVER w FROM t
+       WINDOW w AS (PARTITION BY i ORDER BY j
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING);
+DROP TABLE t;
+
+--echo Test that we force use of a final temporary table in the last windowing step
+--echo if SQL_BUFFER_RESULT is set, even if we would otherwise optimize it away
+CREATE TABLE t1 (t1_id INT) ;
+INSERT INTO t1 (t1_id) VALUES (1);
+INSERT INTO t1 (t1_id) VALUES (2);
+INSERT INTO t1 (t1_id) VALUES (3);
+INSERT INTO t1 (t1_id) VALUES (4);
+INSERT INTO t1 (t1_id) VALUES (5);
+ANALYZE TABLE t1;
+
+--echo Still unset
+SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
+EXPLAIN FORMAT=JSON SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
+
+--echo Now set
+SET SQL_BUFFER_RESULT=TRUE;
+let $query=
+SELECT t1_id, ROW_NUMBER() OVER () FROM t1;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+
+SET SQL_BUFFER_RESULT=FALSE;
+DROP TABLE t1;
+
+--echo Optimization of last tmp file made this query fail before
+--echo (found by Guilhem during review)
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(1),(2),(2);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT COUNT(a) OVER (PARTITION BY a) FROM t1) FROM t1;
+DROP TABLE t1;
+
+SELECT SUM(1) OVER ();
+SELECT SUM(1.2) OVER ();
+SELECT SUM(CAST(4 as JSON)) OVER ();
+SELECT SUM('e') OVER ();
+SELECT SUM(1)   OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT SUM(1.2) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT SUM(CAST(4 as JSON)) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT SUM('e') OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+SELECT AVG(1) OVER ();
+SELECT AVG(1.2) OVER ();
+SELECT AVG(CAST(4 as JSON)) OVER ();
+SELECT AVG('e') OVER ();
+SELECT AVG(1)   OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT AVG(1.2) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT AVG(CAST(4 as JSON)) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+SELECT AVG('e') OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+#Bug-25369943
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1),(2);
+SELECT i FROM t1 WHERE i IN ( SELECT CAST(  SUM(i) OVER (ROWS CURRENT ROW) AS UNSIGNED) FROM t1);
+SELECT i FROM t1 WHERE i IN ( SELECT CAST(0+SUM(i) OVER (ROWS CURRENT ROW) AS UNSIGNED) FROM t1);
+#Bug-25365972
+--error ER_NOT_SUPPORTED_YET
+SELECT FIRST_VALUE(i) IGNORE NULLS OVER () FROM t1;
+DROP TABLE t1;
+
+
+--echo Regression bug introduced by the first patch for Bug#25363694 for empty
+--echo result set in the presence of buffered windowing.
+CREATE TABLE t1(i INT, j INT);
+SELECT SUM(i) OVER w FROM t1
+  WINDOW w AS (PARTITION BY j ORDER BY i ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+DROP TABLE t1;
+
+#Bug-25420525: PROBLEM WITH NOT-NULLABLE FIELDS AND CONST TABLES
+
+CREATE TABLE t1 (pk INT, j INT, PRIMARY KEY (pk), KEY(j));
+INSERT INTO t1 values (1,2);
+SELECT LAST_VALUE(1) OVER (PARTITION BY t1.j), t2.pk FROM t1 LEFT JOIN
+t1 as t2 ON t1.pk = t2.pk WHERE t1.pk=1;
+DROP TABLE t1;
+
+#Bug-25363841: WRONG RESULT WHEN USING WINDOWS WITH DIFFERENT
+#              ORDERING IN EXPRESSIONS
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+ANALYZE TABLE t1;
+SELECT a, RANK() OVER (ORDER BY a) rank_asc,
+RANK() OVER (ORDER BY a desc) rank_desc,
+RANK() OVER (ORDER BY a) + RANK() OVER (ORDER BY a desc) rank_asc_desc FROM t1;
+EXPLAIN FORMAT=JSON SELECT a, RANK() OVER (ORDER BY a) rank_asc,
+RANK() OVER (ORDER BY a desc) rank_desc,
+RANK() OVER (ORDER BY a) + RANK() OVER (ORDER BY a desc) rank_asc_desc FROM t1;
+DROP TABLE t1;
+
+#Bug-25479010: PROBLEM WITH WINDOWING AND IMPLICIT GROUPING
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(5);
+SELECT ROW_NUMBER () OVER (), COUNT(*) FROM t WHERE a < 5;
+DROP TABLE t;
+
+#Bug-25414170
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(3,3,3),(4,4,4);
+INSERT INTO t1 SELECT 10*i,j,5*j FROM t1 UNION SELECT 20*i,j,5*j FROM t1
+UNION SELECT 30*i,j,5*j FROM t1;
+ANALYZE TABLE t1;
+
+SELECT SUM(i) OVER W FROM t1 WINDOW w AS (PARTITION BY j ORDER BY i)
+  ORDER BY SUM(i) OVER w;
+
+SELECT SUM(i) OVER W FROM t1 WINDOW w AS (PARTITION BY j ORDER BY i)
+  ORDER BY 1+SUM(i) OVER w;
+
+SELECT SUM(SUM(i)) OVER W FROM t1 GROUP BY i WINDOW w AS (PARTITION BY i ORDER BY i)
+  ORDER BY SUM(SUM(i)) OVER w;
+
+SELECT 1+SUM(SUM(i)) OVER W FROM t1 GROUP BY i WINDOW w AS (PARTITION BY i ORDER BY i)
+  ORDER BY 1+SUM(SUM(i)) OVER w;
+
+SELECT 1+SUM(i) OVER W FROM t1 WINDOW w AS (PARTITION BY j ORDER BY i)
+  ORDER BY SUM(i) OVER w;
+
+SELECT SUM(2+SUM(i)) OVER W FROM t1 GROUP BY j WINDOW w AS (PARTITION BY j ORDER BY j)
+  ORDER BY SUM(2+SUM(i)) OVER w DESC;
+
+DROP TABLE t1;
+
+#Bug-25474482: WINDOW FUNCTIONS ALLOWED IN HAVING
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1),(2),(3);
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT ROW_NUMBER() OVER () AS num FROM t HAVING (num = '2');
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT ROW_NUMBER() OVER () FROM t HAVING ( ROW_NUMBER() OVER () = '2');
+
+DROP TABLE t;
+
+--echo Error due to missing fix_items of window's ORDER BY when
+--echo eliminating redundant sorts
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),
+                      (3,1),(2,2),(1,3);
+ANALYZE TABLE t1;
+--echo This one was ok
+SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (order BY a) FROM t1;
+EXPLAIN FORMAT=JSON SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (ORDER BY a) FROM t1;
+
+--echo But here the ORDER BY b was erroneously removed.
+let $query=
+SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (ORDER BY b) FROM t1;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+
+DROP TABLE t1;
+
+--echo
+--echo  Test of SOME/ANY/ALL subqueries.
+--echo
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1),(2),(3);
+ANALYZE TABLE t;
+
+SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () FROM t);
+SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () + 1 FROM t);
+EXPLAIN FORMAT=JSON SELECT * FROM t WHERE a IN (SELECT ROW_NUMBER() OVER () FROM t);
+SELECT * FROM t WHERE a = SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+SELECT * FROM t WHERE a = ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+--echo =ALL => NOT EXISTS (select non-equal rows)
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t WHERE a = ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+--echo <>SOME => EXISTS (select non-equal rows)
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t WHERE a <> SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t WHERE a <> ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+SELECT * FROM t WHERE a <> ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+SELECT * FROM t WHERE a >= ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+SELECT * FROM t WHERE a >= SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
+
+SELECT * from t WHERE EXISTS(SELECT ROW_NUMBER() OVER () FROM t);
+EXPLAIN FORMAT=JSON SELECT * from t WHERE EXISTS(SELECT ROW_NUMBER() OVER () FROM t);
+
+let $query=
+SELECT * FROM t upper
+    WHERE EXISTS(SELECT rn FROM (SELECT ROW_NUMBER() OVER () AS rn FROM t) ta
+                 WHERE rn > upper.a);
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo # Correlated => no subquery materialization.
+--echo # IN => EXISTS, error
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t upper
+    WHERE upper.a IN (SELECT ROW_NUMBER() OVER () FROM t
+                      WHERE t.a > upper.a);
+
+--echo # Correlated => no subquery materialization.
+--echo # >ANY => EXISTS(select smaller rows), error
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t upper
+    WHERE upper.a > ANY (SELECT ROW_NUMBER() OVER () FROM t
+                         WHERE t.a > upper.a);
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM t upper
+    WHERE upper.a > ALL (SELECT ROW_NUMBER() OVER () FROM t
+                         WHERE t.a > upper.a);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25601138 WINDOW FUNCTION IN CORRELATED SUBQUERY GIVES WRONG RESULT
+--echo #
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2);
+--echo # When we support this, expected result is 1,1,1 and 2,2,2
+--error ER_NOT_SUPPORTED_YET
+select * from t1 AS upper where i+1
+ IN (select row_number() over () + upper.i from t1 );
+DROP TABLE t1;
+
+--echo #
+--echo # Check window aggregate referencing columns from an outside query
+--echo # All results checked against Postgresql which also allows this.
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2);
+
+# The outer references in ORDER BY and PARTITIONING BY for windows is
+# a constant so essentially no-ops leading to indeterminate results, cf.
+# use of --replace_regex below.
+#
+SELECT (SELECT ROW_NUMBER() OVER (ORDER BY upper.j) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+
+SELECT (SELECT ROW_NUMBER() OVER (PARTITION BY upper.j) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+
+SELECT (SELECT ROW_NUMBER() OVER (PARTITION BY upper.j)
+        FROM t1 LIMIT 1 OFFSET 1)
+    FROM t1 AS upper;
+
+--replace_regex /[12]/Accepted/
+SELECT (SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+--replace_regex /[12]/Accepted/
+SELECT (SELECT FIRST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+
+SELECT (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j DESC)
+        FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+
+--replace_regex /[12]/Accepted/
+SELECT (SELECT LAST_VALUE(j) OVER (ORDER BY upper.j) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+--replace_regex /[12]/Accepted/
+SELECT (SELECT LAST_VALUE(j) OVER (ORDER BY upper.j DESC) FROM t1 LIMIT 1)
+    FROM t1 AS upper;
+
+# Windowing embedded in WHERE clause of outer query
+SELECT * FROM t1 AS upper
+    WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+           FROM t1 LIMIT 1) = 1
+           ;
+SELECT * FROM t1 AS upper
+    WHERE (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+           FROM t1 LIMIT 1) = 2;
+
+#
+# Windowing embedded inside ORDER BY of windowing query
+#
+SELECT FIRST_VALUE(j) OVER (ORDER BY 0 +
+                            (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+                             FROM t1 LIMIT 1))
+    FROM t1 AS upper;
+
+SELECT LAST_VALUE(j)  OVER (ORDER BY 0 +
+                            (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+                             FROM t1 LIMIT 1))
+    FROM t1 AS upper;
+
+# We may start banning subqueries in query order by. When this starts
+# failing, make sure the above fail too:
+SELECT * FROM t1 AS upper ORDER BY (0 + (SELECT FIRST_VALUE(upper.j) OVER (ORDER BY upper.j)
+                                         FROM t1 LIMIT 1));
+
+
+# Windowing embedded in SELECT argument
+#
+# This query required detection of outer windowing when resolving
+# outer reference: upper.j is a constant in the subquery, so
+# LAST_VALUE(<constant>) should just return the outer value for that row
+#
+SELECT LAST_VALUE((SELECT upper.j FROM t1 LIMIT 1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
+
+SELECT FIRST_VALUE((SELECT upper.j FROM t1 LIMIT 1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
+
+SELECT SUM(j + (SELECT upper.j FROM t1 LIMIT 1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
+
+SELECT LAST_VALUE(1 IN (SELECT upper.j FROM t1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
+
+SELECT LAST_VALUE(upper.j IN (SELECT 2 FROM t1)) OVER (ORDER BY i)
+       FROM t1 AS upper;
+
+DROP TABLE t1;
+
+--echo
+--echo Example of usefulness of expression in partition clause
+--echo
+CREATE TABLE t(i INT, c VARCHAR(20));
+INSERT INTO t VALUES (1, 'abra'),(2, 'akaba'),(3, 'bravo'),(4, 'beg');
+SELECT i, SUBSTR(c,1,2), SUM(i) OVER (PARTITION BY SUBSTR(c,1,2)) `sum` FROM t;
+select I, substr(c,1,2), SUM(i) OVER (PARTITION BY SUBSTR(c,1,1)) `sum` FROM t;
+DROP TABLE t;
+
+--echo
+--echo Example of usefulness of grouped aggregate in partition clause
+--echo
+CREATE TABLE t1( i INT, j INT);
+INSERT INTO t1 VALUES (1,1),
+                      (2,1),
+                      (3,2),
+                      (4,2),
+                      (1,3),
+                      (2,3),
+                      (3,4),
+                      (4,4);
+SELECT j AS Having_same_sum_of_i, SUM(i), SUM(SUM(i)) OVER (PARTITION BY SUM(i)) AS sum_sum
+    FROM t1 GROUP BY j;
+
+DROP TABLE t1;
+#Bug-25502548: WL#9236: PROBLEM WITH CONST COLUMNS in GROUP BY WITH
+#                        WINDOWING FUNCTIONS
+
+CREATE TABLE t1(a INT, b INT);
+CREATE TABLE t2(c INT, d INT);
+INSERT INTO t1 VALUES(1,1),(2,2);
+
+SELECT ROW_NUMBER() OVER (), c
+FROM t1 LEFT JOIN t2 ON a = c GROUP BY c;
+SELECT ROW_NUMBER() OVER (), 'c'
+FROM t1 LEFT JOIN t2 ON a = c GROUP BY 'c';
+
+DROP TABLE t1,t2;
+
+--echo
+--echo Bug#25461670 CRASHES OR WRONG RESULTS WITH WINDOW FUNCTIONS IN SUBQUERY
+--echo
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (5,6), (1,7);
+SELECT (SELECT SUM(a) OVER ())  FROM t;
+SELECT (SELECT SUM(a) OVER () FROM t LIMIT 1)  FROM t;
+
+CREATE TABLE t2(i INT);
+INSERT INTO t2 VALUES (10),(100);
+SELECT (SELECT SUM(a) OVER () FROM t2 LIMIT 1)  FROM t;
+
+DROP TABLE t, t2;
+
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,2), (4,5);
+
+--echo Check that a grouped aggregate argument doesn't directly contain a window
+--echo function.
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT AVG(SUM(a) OVER ()) FROM t;
+
+--echo Check that a grouped aggregate argument doesn't directly contain a window
+--echo function by alias.
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT SUM(a) OVER () AS c, (SELECT SUM(c))  FROM t;
+
+--echo At same query level, alias isn't even visible; the visibility
+--echo of alias in subquery is a MySQL extension
+--error ER_BAD_FIELD_ERROR
+SELECT SUM(a) OVER () AS c, SUM(c)  FROM t;
+
+--echo but ok in final ORDER BY
+SELECT SUM(a) OVER () AS c FROM t ORDER BY c;
+
+--echo One more nesting level makes the wf legal inside a grouped aggregate
+--echo argument.
+SELECT AVG(a+(SELECT SUM(a) OVER () FROM t LIMIT 1)) FROM t;
+
+--echo But not if it's a window function alias from an outer level
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT SUM(a) OVER () AS c, (SELECT SUM(1 + (SELECT c FROM DUAL)))  FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT 1+SUM(a) OVER () AS c, (SELECT SUM(1 + (SELECT c FROM DUAL)))  FROM t;
+
+--echo This is illegal even if not referenced from a grouped aggregate since
+--echo logically all windowing happens later.
+
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT SUM(a) OVER () AS c, (SELECT 1 + (SELECT c FROM DUAL))  FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+SELECT 1+SUM(a) OVER () AS c, (SELECT 1 + (SELECT c FROM DUAL))  FROM t;
+
+DROP TABLE t;
+
+#Bug-25366319: WL#9236: WITH GROUP-BY, NO ERROR FOR USING NON GROUPED
+#               FIELDS IN WINDOW SPEC
+
+CREATE TABLE t(a INT, b INT, c INT);
+INSERT INTO t VALUES (1,1,1),(1,2,3),(2,1,2),(2,2,3);
+
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT RANK() OVER (PARTITION BY c ORDER BY c) FROM t GROUP BY a,b;
+SELECT RANK() OVER (PARTITION BY c ORDER BY c) FROM t;
+SELECT RANK() OVER (PARTITION BY a ORDER BY b) FROM t GROUP BY a,b;
+SELECT RANK() OVER (PARTITION BY a ORDER BY b) FROM t;
+SELECT RANK() OVER (PARTITION BY (a+b) ORDER BY (b+a)) FROM t GROUP BY a,b;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(a), RANK() OVER (ORDER BY a) FROM t;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(a), SUM(AVG(a)) OVER (PARTITION BY a) FROM t;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(a), SUM(a) OVER () FROM t;
+
+DROP TABLE t;
+
+#Bug#25420638 : PROBLEM WHEN USING MYISAM FOR INTERNAL TEMP TABLE
+
+set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
+set global internal_tmp_disk_storage_engine='myisam';
+set @old_big_tables= @@big_tables;
+set big_tables= on;
+
+CREATE TABLE t(a int, b int);
+INSERT INTO t VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
+SELECT a,b,NTILE(2) OVER (ORDER BY b) FROM t;
+DROP TABLE t;
+
+set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
+set big_tables= @old_big_tables;
+
+--echo
+--echo Bug#25643783 EXPRESSION INVOLVING WF WITH GROUPED AGGREGATE ARG GIVES WRONG VALUE
+--echo
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(3,3,3),(4,4,4);
+SELECT i, SUM(i), 1+SUM(i), SUM(SUM(i)) OVER w, 1+SUM(SUM(i)) OVER w FROM t1
+       GROUP BY i WINDOW w AS (PARTITION BY i);
+DROP TABLE t1;
+
+--echo
+--echo Bug with missing update of cached example after split_sum_func
+--echo for FIRST_VALUE, LAST_VALUE
+--echo
+CREATE TABLE t(a INT, b INT, c INT, d INT);
+INSERT INTO t VALUES (1,1,1,1), (2,2,4,2), (3,3,9,3);
+SELECT SUM(c/d), LAST_VALUE(SUM(c/d)) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SELECT LAST_VALUE(SUM(c/d)) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SELECT 1+FIRST_VALUE(SUM(c/d)) OVER (ORDER BY a)  FROM t GROUP BY a,b;
+SELECT ROW_NUMBER() OVER () rn,
+       1+FIRST_VALUE(SUM(c/d)) OVER (ORDER BY a) plus_fv,
+       1+LAST_VALUE(SUM(c/d)) OVER (ORDER BY a) plus_lv FROM t GROUP BY a,b;
+DROP TABLE t;
+
+--echo
+--echo Bug 25724779
+--echo
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,2),(3,4);
+SELECT a, SUM(b) FROM t1 GROUP BY a;
+SELECT a, SUM(b) FROM t1 GROUP BY a HAVING a=1;
+SELECT a, SUM(SUM(b)) OVER () FROM t1 GROUP BY a HAVING a=1;
+DROP TABLE t1;
+
+--echo
+--echo Bug#25365929 PROBLEM TRYING TO ADD GCOL USING A
+--echo              WINDOW FUNCTION
+
+#We do not allow window functions in generated columns
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+CREATE TABLE t (a INT , b INT as (ROW_NUMBER() OVER (ORDER BY a)));
+CREATE TABLE t (a INT DEFAULT NULL);
+INSERT INTO t VALUES (1),(2),(3),(4),(5);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+ALTER TABLE t ADD b INT AS (ROW_NUMBER() OVER (ORDER BY a));
+DROP TABLE t;
+CREATE TABLE t (a INT DEFAULT NULL);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+ALTER TABLE t ADD COLUMN b INT as (ROW_NUMBER() OVER (ORDER BY a));
+DROP TABLE t;
+
+--echo
+--echo Bug exposed by PERCENT_RANK() and CUME_DIST() in non-optimized mode
+--echo (default when we add a DOUBLE SUM to the mix)
+--echo
+CREATE TABLE t1 (id INTEGER, sex CHAR(1), d DOUBLE);
+INSERT INTO t1 VALUES (1, 'M', 1.0);
+INSERT INTO t1 VALUES (2, 'F', 2.0);
+INSERT INTO t1 VALUES (3, 'F', 3.0);
+INSERT INTO t1 VALUES (4, 'F', 4.0);
+INSERT INTO t1 VALUES (5, 'M', 5.0);
+INSERT INTO t1 VALUES (10, NULL, 10.0);
+INSERT INTO t1 VALUES (11, NULL, 11.0);
+SELECT sex, id, PERCENT_RANK() OVER w, CUME_DIST() OVER w, SUM(d) OVER w
+   FROM t1 WINDOW w AS (PARTITION BY sex ORDER BY id DESC ROWS
+                        BETWEEN 1 PRECEDING AND CURRENT ROW);
+DROP TABLE t1;
+
+--echo
+--echo Bug#25478832
+--echo
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='TRADITIONAL';
+CREATE TABLE t(a int);
+INSERT INTO t VALUES (1),(2);
+SELECT COUNT(*), ROW_NUMBER() OVER (ORDER BY a) AS rownum
+    FROM t ORDER BY rownum;
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE t;
+
+--echo follow-up bug repro
+CREATE TABLE t1 (id INTEGER, sex CHAR(1));
+PREPARE p from 'SELECT sex, PERCENT_RANK() OVER (ORDER BY AVG(id) DESC)
+                FROM t1 GROUP BY sex ORDER BY sex';
+EXECUTE p;
+
+DROP TABLE t1;
+
+--echo
+--echo Bug#25819164
+--echo
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES(1);
+ANALYZE TABLE t1,t2;
+let $query=
+SELECT ROW_NUMBER() OVER ()
+  FROM t1 AS alias1, t2 AS alias2
+  WHERE alias1.a = 1
+  ORDER BY alias2.a;
+eval $query;
+--echo query's ORDER BY with index order without filesort
+eval EXPLAIN $query;
+
+--echo Add more rows
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1,t2;
+let $query=
+SELECT alias1.a, alias2.a as ord_key_asc,
+       ROW_NUMBER() OVER ()
+  FROM t1 AS alias1, t2 AS alias2
+  WHERE alias1.a = 1
+  ORDER BY alias2.a;
+eval $query;
+--echo query's ORDER BY with index order without filesort
+eval EXPLAIN $query;
+
+let $query=
+SELECT alias1.a, alias2.a as ord_key_asc,
+       ROW_NUMBER() OVER (ORDER BY -alias2.a)
+  FROM t1 AS alias1, t2 AS alias2
+  WHERE alias1.a = 1
+  ORDER BY alias2.a;
+eval $query;
+--echo query's ORDER BY with filesort as WF has ORDER BY which shuffles rows
+eval EXPLAIN $query;
+
+DROP TABLE t1, t2;
+
+
+--echo
+--echo Bug#25472253
+--echo
+CREATE TABLE t (
+   col_date date
+);
+
+INSERT INTO t VALUES ('2017-01-10'), ('2017-01-18');
+
+SELECT
+   FIRST_VALUE(alias1.col_date) OVER () FV,
+   DENSE_RANK() OVER (ORDER BY alias2.col_date
+                      RANGE UNBOUNDED PRECEDING) DR,
+   RANK() OVER (ORDER BY alias1.col_date
+                RANGE BETWEEN INTERVAL 1 WEEK PRECEDING AND CURRENT ROW) R
+   FROM (t AS alias1, t AS alias2);
+DROP TABLE t;
+
+--echo
+--echo Bug#25819199
+--echo
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+INSERT INTO t VALUES(1, 1);
+SELECT NTILE (3) OVER (ORDER BY alias1.a), AVG(alias1.a)  OVER ()
+   FROM t AS alias1 RIGHT JOIN t AS alias2 ON (alias1.a = alias2.b);
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(1),(2),(2);
+CREATE TABLE t2(a INT NOT NULL);
+INSERT INTO t2 VALUES(3);
+SELECT t1.a, t2.a FROM t1 LEFT JOIN t2 ON 0;
+SELECT t1.a, FIRST_VALUE(t2.a) OVER () FROM t1 LEFT JOIN t2 ON 0;
+
+DROP TABLE t, t1, t2;
+
+--echo
+--echo Bug#25551456
+--echo
+CREATE TABLE t1 (id INT);
+INSERT INTO t1 VALUES (1), (2), (3), (2);
+SELECT SUM(MAX(id)) OVER (ORDER BY MAX(id)) FROM t1;
+CREATE INDEX idx ON t1(id);
+--echo Used to be NULL rather than 3:
+SELECT SUM(MAX(id)) OVER (ORDER BY MAX(id)) AS ss FROM t1;
+DROP TABLE t1;
+
+--echo
+--echo Bug#25835846
+--echo
+CREATE TABLE t(a INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+SELECT NTILE(2) OVER (ORDER BY a) FROM t WHERE a = 1;
+SELECT CUME_DIST() OVER (ORDER BY a) FROM t WHERE a = 1;
+DROP TABLE t;
+
+--echo
+--echo Bug#25835149
+--echo
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+CREATE TABLE `test`(
+  `pk` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `dt` DATETIME DEFAULT NULL,
+  `ge` GEOMETRY DEFAULT NULL
+);
+
+INSERT INTO `test` VALUES
+    (1, '2007-05-08 12:10:55', ST_GeomFromText('POINT(1 1)')),
+    (2, NULL, NULL), (3, NULL, NULL),
+    (4, '2001-01-18 00:00:00', ST_GeomFromText('POINT(4 4)')),
+    (5, '2009-11-24 00:00:00', ST_GeomFromText('POINT(5 5)')),
+    (6, '2001-11-22 21:41:15', ST_GeomFromText('POINT(6 6)')),
+    (7, NULL, NULL),
+    (8, '0000-00-00 00:00:00', ST_GeomFromText('POINT(8 8)')),
+    (9, '2003-05-13 18:03:04', ST_GeomFromText('POINT(9 9)')),
+    (10, '2008-04-15 09:44:20', ST_GeomFromText('POINT(10 10)')),
+    (11, '2009-07-15 00:00:00', ST_GeomFromText('POINT(11 11)')),
+    (12, '2007-04-27 13:53:37', ST_GeomFromText('POINT(12 12)')),
+    (13, '0000-00-00 00:00:00', ST_GeomFromText('POINT(13 13)')),
+    (14, '2000-02-02 02:15:28', ST_GeomFromText('POINT(14 14)')),
+    (15, '2004-06-06 00:00:00', ST_GeomFromText('POINT(15 15)')),
+    (16, NULL, NULL),
+    (17, '2002-06-21 00:00:00', ST_GeomFromText('POINT(17 17)')),
+    (18, '2007-03-23 00:00:00', ST_GeomFromText('POINT(18 18)')),
+    (19, '2006-10-06 00:00:00', ST_GeomFromText('POINT(19 19)')),
+    (20, '2008-07-07 00:00:00', ST_GeomFromText('POINT(20 20)'));
+
+SELECT dt, FIRST_VALUE(dt) OVER w1 fv,
+           CAST(FIRST_VALUE(ge) OVER w1 AS JSON) ge FROM test WHERE `pk` = 2 WINDOW w1 AS ();
+SELECT dt, FIRST_VALUE(dt) OVER w1,
+           CAST(FIRST_VALUE(ge) OVER w1 AS JSON) ge FROM test WHERE `pk` > 3 WINDOW w1 AS ();
+SELECT dt, FIRST_VALUE(CAST(dt AS TIME)) OVER w1 FROM test WHERE `pk` > 3 WINDOW w1 AS ();
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE `test`;
+
+--echo
+--echo Bug#25835329
+--echo
+CREATE TABLE t(a int PRIMARY KEY, b date);
+INSERT INTO t VALUES (1, '1979-01-01');
+SELECT STRAIGHT_JOIN CUME_DIST() OVER (ORDER BY alias1.a)
+   FROM t AS alias1 RIGHT JOIN t AS alias2 ON alias1.a = alias2.a
+   WHERE  alias1.a = 1 ;
+INSERT INTO t VALUES (2, '1979-01-02'), (3, '1979-01-03');
+SELECT STRAIGHT_JOIN CUME_DIST() OVER (ORDER BY alias1.a)
+   FROM t AS alias1 RIGHT JOIN t AS alias2 ON alias1.a = alias2.a
+   WHERE  alias1.a > 1 ;
+DROP TABLE t;
+
+
+--echo
+--echo Bug#25840140
+--echo
+CREATE TABLE t(a int);
+INSERT INTO t VALUES (1),(2);
+ANALYZE TABLE t;
+                    SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
+EXPLAIN             SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn FROM t ORDER BY rn ;
+
+--echo Even multiple windows lead to no windowing steps when we have implicit grouping
+                    SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn, SUM(AVG(a)) OVER (),
+                           CUME_DIST() OVER (ORDER BY AVG(a)) FROM t ORDER BY rn;
+
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(a)) AS rn, SUM(AVG(a)) OVER (),
+                           CUME_DIST() OVER (ORDER BY AVG(a)) FROM t ORDER BY rn;
+DROP TABLE t;
+
+--echo
+--echo Bug with constant table: MYISAM makes ot a constant table when it has one row
+--echo
+CREATE TABLE ot (i int) ENGINE=MYISAM;
+CREATE FUNCTION f(a INTEGER) RETURNS INTEGER DETERMINISTIC RETURN a*a;
+
+--echo Empty table did work before
+SELECT ROW_NUMBER() OVER () , BIT_AND(i) FROM ot WHERE f(2)<2;
+SELECT ROW_NUMBER() OVER () AS RN, BIT_AND(i) AS x FROM ot WHERE f(2) < 2 HAVING x < 2;
+SELECT SUM(BIT_AND(i)) OVER (ORDER BY BIT_AND(i)) , BIT_AND(i) FROM ot WHERE f(2)<2;
+INSERT INTO ot VALUES (1);
+
+--echo One row in table: used to be wrong before fix:
+SELECT ROW_NUMBER() OVER () , BIT_AND(i) FROM ot WHERE f(2)<2;
+SELECT ROW_NUMBER() OVER () AS RN, BIT_AND(i) AS x FROM ot WHERE f(2) < 2 HAVING x < 2;
+SELECT SUM(BIT_AND(i)) OVER (ORDER BY BIT_AND(i)) , BIT_AND(i) FROM ot WHERE f(2)<2;
+INSERT INTO ot VALUES (1);
+
+--echo Two rows in table did work before
+SELECT ROW_NUMBER() OVER () , BIT_AND(i) FROM ot WHERE f(2)<2;
+SELECT ROW_NUMBER() OVER () AS RN, BIT_AND(i) AS x FROM ot WHERE f(2) < 2 HAVING x < 2;
+SELECT SUM(BIT_AND(i)) OVER (ORDER BY BIT_AND(i)) , BIT_AND(i) FROM ot WHERE f(2)<2;
+
+DROP TABLE ot;
+DROP FUNCTION f;
+
+--echo Test for circular dependency in graph of windows
+CREATE TABLE t1 (a INT PRIMARY KEY);
+SELECT ROW_NUMBER() OVER w
+  FROM t1
+  WINDOW w AS (w2), w1 AS (), w2 as (w1);
+--error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+SELECT ROW_NUMBER() OVER w
+  FROM t1
+  WINDOW w AS (w2), w1 AS (w), w2 as (w1);
+--error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+SELECT ROW_NUMBER() OVER w
+  FROM t1
+  WINDOW w AS (w1), w1 AS (w2), w2 as (w1);
+
+--error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+SELECT ROW_NUMBER() OVER w FROM t1 WINDOW w AS (w);
+
+--error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+SELECT ROW_NUMBER() OVER w
+  FROM t1
+  WINDOW w AS (w4), w5 AS (w4), w4 AS (), w3 AS (w2), w1 AS (w3), w2 as (w1);
+
+--echo Test for bad name
+--error ER_WINDOW_NO_SUCH_WINDOW
+SELECT ROW_NUMBER() OVER w FROM t1 WINDOW w1 AS ();
+
+--echo Test for good name with other unnamed window present
+SELECT SUM(a) OVER w, ROW_NUMBER() OVER () FROM t1 WINDOW w AS ();
+--echo Test for bad name with other unnamed window present
+--error ER_WINDOW_NO_SUCH_WINDOW
+SELECT SUM(a) OVER w2, ROW_NUMBER() OVER () FROM t1 WINDOW w AS ();
+
+--echo Test for bad window name in window building on other window
+--echo OK
+SELECT SUM(a) OVER w1, ROW_NUMBER() OVER w2 FROM t1
+  WINDOW w2 AS (),
+         w1 AS (w2 ORDER BY a);
+--echo Bad
+--error ER_WINDOW_NO_SUCH_WINDOW
+SELECT SUM(a) OVER w1, ROW_NUMBER() OVER w2 FROM t1
+  WINDOW w2 AS (),
+         w1 AS (w22 ORDER BY a);
+
+--echo Tests without ORDER BY (corner cases)
+CREATE TABLE tno (a INT);
+SELECT RANK() OVER () FROM tno;
+SELECT DENSE_RANK() OVER () FROM tno;
+SELECT PERCENT_RANK() OVER () FROM tno;
+SELECT CUME_DIST() OVER () FROM tno;
+INSERT INTO tno VALUES(20);
+SELECT RANK() OVER () FROM tno;
+SELECT DENSE_RANK() OVER () FROM tno;
+SELECT PERCENT_RANK() OVER () FROM tno;
+SELECT CUME_DIST() OVER () FROM tno;
+INSERT INTO tno VALUES(20),(21),(21),(null);
+SELECT RANK() OVER (PARTITION BY a) FROM tno;
+SELECT DENSE_RANK() OVER (PARTITION BY a) FROM tno;
+SELECT PERCENT_RANK() OVER (PARTITION BY a) FROM tno;
+SELECT CUME_DIST() OVER (PARTITION BY a) FROM tno;
+DROP TABLE tno;
+--echo # constant table is a special case (window without tmp table)
+SELECT RANK() OVER () FROM (SELECT 1) t;
+SELECT DENSE_RANK() OVER () FROM (SELECT 1) t;
+SELECT PERCENT_RANK() OVER () FROM (SELECT 1) t;
+SELECT CUME_DIST() OVER () FROM (SELECT 1) t;
+
+--echo Test for bad frame bounds
+--error ER_WINDOW_FRAME_START_ILLEGAL
+SELECT ROW_NUMBER() OVER (ROWS BETWEEN UNBOUNDED FOLLOWING AND CURRENT ROW)
+  FROM t1;
+--error ER_WINDOW_FRAME_END_ILLEGAL
+SELECT ROW_NUMBER() OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+  FROM t1;
+--error ER_WINDOW_FRAME_END_ILLEGAL
+SELECT ROW_NUMBER() OVER (ORDER BY a RANGE BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+  FROM t1;
+--error ER_WINDOW_ROWS_INTERVAL_USE
+SELECT ROW_NUMBER() OVER (ROWS BETWEEN INTERVAL 2 DAY PRECEDING AND UNBOUNDED FOLLOWING)
+  FROM t1;
+--error ER_WINDOW_ROWS_INTERVAL_USE
+SELECT ROW_NUMBER() OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND INTERVAL 2 DAY FOLLOWING)
+  FROM t1;
+
+DROP TABLE t1;
+
+--echo
+--echo Bug#25879669 SIG11 AT ADD_FROM_ITEM IN SQL/WINDOW.CC
+--echo
+CREATE TABLE t(a int, b int);
+INSERT INTO t VALUES (1,2),(3,4);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT COUNT(*) AS count,
+   ROW_NUMBER() OVER (ORDER BY b) AS rn
+   FROM t ORDER BY b;
+SELECT 1 UNION
+ (SELECT ROW_NUMBER() OVER ( ORDER BY b ) AS rn    FROM t ORDER BY b);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25874481 WL9603:ASSERTION `JOIN()->ORDERED_INDEX_USAGE != (FILESORT->ORDER == JOIN()->ORD
+--echo #
+
+CREATE TABLE AA (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_dec_key decimal(20,4) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_dec_key (col_dec_key),
+  KEY col_varchar_key (col_varchar_key,pk)
+) ENGINE=InnoDB AUTO_INCREMENT=11;
+
+INSERT INTO AA VALUES(10,6473.2230,'a');
+
+CREATE TABLE D (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) NOT NULL,
+  col_int_key int(11) NOT NULL,
+  col_dec decimal(20,4) NOT NULL,
+  col_dec_key decimal(20,4) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_dec_key (col_dec_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=latin1;
+
+INSERT INTO D VALUES
+(1,5,4,4090.3920,5170.7060,'q','q'),(2,8,3,2634.3480,695.3360,'e','e');
+
+SET SQL_MODE='';
+
+UPDATE
+D AS OUTR1 LEFT JOIN D AS OUTR2
+ON ( OUTR1 . pk = OUTR2 . col_int_key )
+SET OUTR1.col_varchar_key = 0
+WHERE OUTR1 . col_int_key < (
+SELECT DISTINCT FIRST_VALUE(7) OVER (  ) AS y
+FROM AA AS INNR1
+WHERE OUTR2 . col_dec_key <= 6
+ORDER BY INNR1 . col_varchar_key LIMIT 1);
+
+SET SQL_MODE=DEFAULT;
+
+DROP TABLE AA, D;
+
+--echo #
+--echo # Bug#25880362 WL9603:ASSERTION `TAB->TYPE() == JT_REF || TAB->TYPE() == JT_EQ_REF' FAILED.
+--echo #
+
+CREATE TABLE G (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=innodb AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+
+INSERT INTO G VALUES (1,7);
+
+CREATE TABLE H (
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ENGINE=innodb AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+
+INSERT INTO H VALUES('RDDGR','so',1);
+
+SELECT
+alias1 . col_varchar_10_latin1 AS field1,
+NTH_VALUE(alias2.col_int, 4) OVER ( ORDER BY alias1.col_varchar_10_utf8 ASC )
+AS field2
+FROM  ( SELECT * FROM  H  ) AS  alias1  LEFT  JOIN ( SELECT * FROM  G  ) AS
+alias2
+ON  alias1 . pk =  alias2 . pk
+WHERE  alias1 . pk = 1;
+
+DROP TABLE G,H;
+
+--echo #
+--echo # Bug#25840052: PROBLEM WITH FIELD::REAL_MAYBE_NULL IN SQL/FIELD.H
+--echo #               FOR MIN/MAX(<WF>)
+--echo #
+
+CREATE TABLE t(a int);
+INSERT INTO t VALUES  (1),(2);
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT MAX(row_number() OVER ()) FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT MIN(rank() OVER (ORDER BY a)) FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT BIT_AND(rank() OVER (ORDER BY a)) FROM t;
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT MIN(a),SUM(rank() OVER (ORDER BY a)) FROM t GROUP BY a;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25868905: PROBLEM AT FILESORT::MAKE_SORTORDER IN SQL/FILESORT.CC
+--echo #               FOR PREPARED STMTS
+--echo #
+
+CREATE TABLE t(pk int PRIMARY KEY, col_int int, col_varchar varchar(10));
+
+PREPARE ps FROM "SELECT
+RANK() OVER ( PARTITION BY pk ORDER BY col_int, col_varchar, pk) AS rnk,
+CUME_DIST() OVER ( PARTITION BY col_int ORDER BY pk ) AS c_dist
+FROM t";
+
+EXECUTE ps;
+
+DROP PREPARE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25877151: PROBLEM IN ITEM_CACHE* MAKE_RESULT_ITEM(ITEM*)
+--echo #
+
+CREATE TABLE t1 (a INT, d CHAR(1));
+
+PREPARE ps FROM "
+SELECT ROW_NUMBER() OVER ( ORDER BY d ) AS rn
+FROM t1
+WINDOW  w1 AS ( ORDER BY d ),
+        w2 AS ( ORDER BY a RANGE 5 PRECEDING )";
+
+EXECUTE ps;
+
+DROP PREPARE ps;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25889341 WL#9603: RANK FUNCTIONS RETURN INCORRECT RESULT IN PREPARED SATEMENT
+--echo #
+
+CREATE TABLE t (a int, b int, c int);
+INSERT INTO t VALUES (5,6,1),(NULL,6,1),(4,6,1),(5,6,1),(NULL,6,1);
+
+SELECT  ROW_NUMBER() OVER ( ORDER BY a ) AS f1,
+   RANK() OVER ( ORDER BY c ) AS f2,
+   LEAD(c) OVER ( ORDER BY a ROWS UNBOUNDED PRECEDING ) AS f7
+   FROM t;
+
+DROP TABLE t;
+
+
+--echo #
+--echo # Bug#25886572 WL#9603: SIG11 AT ITEM_REF::VAL_INT IN SQL/ITEM.CC
+--echo #
+
+SET sql_mode='';
+CREATE TABLE t (a int, b int);
+INSERT INTO t values (1,2),(3,4);
+SELECT RANK() OVER w1 AS rnk FROM t
+   WINDOW w1 AS (ORDER BY AVG(a))
+   ORDER BY b;
+SET sql_mode=DEFAULT;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25880999 : WL#9603: ASSERT `SELECT_LEX->ACTIVE_OPTIONS()
+--echo #                & (1ULL << 17)' IN SQL_SELECT.CC
+
+CREATE TABLE t1(a int, b int);
+CREATE TABLE t2(a int, b int);
+
+SELECT ROW_NUMBER() OVER ( ORDER BY t1.a ) AS rn
+FROM t1, t2 WHERE t1.a = 1 GROUP BY t1.a;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#25907777  WL#9603: ASSERT `SELECT_LEX->LEAF_TABLE_COUNT == 0...' IN SQL/SQL_OPTIMIZER.CC
+--echo #
+CREATE TABLE t1 (a date);
+CREATE TABLE t2 (a int);
+INSERT INTO t1 SELECT CURRENT_DATE();
+INSERT INTO t2 VALUES (5);
+--error ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+SELECT RANK() OVER (ORDER BY a RANGE INTERVAL (SELECT a FROM t2) MINUTE PRECEDING) FROM t1;
+--error ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+SELECT RANK() OVER (ORDER BY a RANGE BETWEEN INTERVAL 1 MINUTE PRECEDING AND INTERVAL (SELECT a FROM t2) MINUTE FOLLOWING) FROM t1;
+--error ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+SELECT RANK() OVER (ORDER BY a RANGE INTERVAL 1+(SELECT a FROM t2) MINUTE PRECEDING) FROM t1;
+--error ER_PARSE_ERROR
+SELECT RANK() OVER (ORDER BY a ROWS (SELECT a FROM t2) PRECEDING) FROM t1;
+--error ER_PARSE_ERROR
+SELECT RANK() OVER (ORDER BY a ROWS BETWEEN 1 PRECEDING AND (SELECT a FROM t2) FOLLOWING) FROM t1;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#25921353 WL#9603: EMPTY RESULT WITH WF IN SELECT, UNGROUPED HAVING AND ORDER BY
+--echo #
+CREATE TABLE t (a int, b varchar(10));
+INSERT INTO t VALUES (1, 'are'), (2, 'not'), (3, 'have');
+
+SELECT a AS field1, ROW_NUMBER() OVER () AS field2 FROM t
+    HAVING field1 >= 2;
+
+--echo Used to give empty set
+SELECT a AS field1, ROW_NUMBER() OVER () AS field2 FROM t
+    HAVING field1 >= 2 ORDER BY field1;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25902905 WL9603:ASSERTION `!(TAB->TABLE()->REGINFO.NOT_EXISTS_OPTIMIZE && !TAB->CONDITION
+--echo #
+CREATE TABLE a (pk int PRIMARY KEY, c varchar(10));
+INSERT INTO a VALUES (6, 's');
+
+CREATE TABLE b (pk int PRIMARY KEY,  c varchar(255));
+INSERT INTO b VALUES (9,'s');
+
+SELECT ROW_NUMBER() OVER (ORDER BY a.c)
+FROM  a LEFT JOIN b
+      ON a.c = b.c
+      WHERE (b.pk IS NULL AND a.pk IN (6));
+
+DROP TABLE a, b;
+
+--echo #
+--echo # Bug#25907063 WL#9603:ASSERT `INITED == INDEX' AT HANDLER::HA_INDEX_READ_MAP IN SQL/HANDLER.CC
+--echo #
+
+SET SQL_MODE='';
+
+--disable_query_log
+
+CREATE TABLE `B` (
+  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_latin1_2` varchar(10) DEFAULT NULL,
+  `col_datetime_2` datetime DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_date` date DEFAULT NULL,
+  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_date_2` date DEFAULT NULL,
+  `col_varchar_255_latin1_2` varchar(255) DEFAULT NULL,
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int` int(11) DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
+  `col_datetime` datetime DEFAULT NULL,
+  `col_int_2` int(11) DEFAULT NULL,
+  `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+);
+
+INSERT INTO `B` VALUES ('HGEFW','q','0000-00-00 00:00:00','eejtkhpxkwzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfclj','0000-00-00','LWMHN','2008-12-21','think',1,566820864,'had','ejtkhpxkwzyojewtgv','2004-12-22 11:23:12',NULL,'some'),('right','jtkhpxkwzy','2003-09-07 00:00:00','f','0000-00-00','COOVF','2007-02-11','FHOLA',2,2116878336,'MFLPA','tkhpxkwzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejh','0000-00-00 00:00:00',NULL,'q'),('EYIBI','that','2005-06-13 00:00:00','NDQUO','0000-00-00','can','0000-00-00','but',3,1827930112,'khpxkwzyoj','t','2004-06-11 18:07:10',4,'SMAVA'),
+('hpxkwzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbp','because','2002-04-01 19:39:00','pxkwzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdf',NULL,'were','0000-00-00','c',4,1662451712,'was','k','2008-02-01 19:50:06',504299520,'QSKDM'),
+('xkwzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxq','kwzyojewtg','2003-12-17 19:44:49','wzyojewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxr','0000-00-00','this',NULL,'was',5,8,'n','zyojewtgvasnskcrutdamugrogyzzsaemys','2005-01-01 09:01:55',9,'yojewtgvas');
+
+CREATE TABLE `C` (
+  `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8_2` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_int_2` int(11) DEFAULT NULL,
+  `col_datetime_2` datetime DEFAULT NULL,
+  `col_datetime` datetime DEFAULT NULL,
+  `col_int` int(11) DEFAULT NULL,
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_255_latin1_2` varchar(255) DEFAULT NULL,
+  `col_varchar_10_latin1_2` varchar(10) DEFAULT NULL,
+  `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
+  `col_varchar_10_utf8_2` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_date_2` date DEFAULT NULL,
+  `col_date` date DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+);
+
+INSERT INTO `C` VALUES ('k','really','why','ojewtgvasn',NULL,'0000-00-00 00:00:00','2001-05-24 20:56:12',NULL,1,'jewtgvasnskcrutd','ZUNYZ','ewtgvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabe','TXHCF','0000-00-00',NULL),('ZBNMG','XMXMV','n','SCNZH',NULL,'2000-09-17 13:22:44',NULL,NULL,2,'x','TFSXR','your','wtgvasnskc',NULL,'2002-11-15'),('you\'re','that','JGMQN','l',1459224576,'0000-00-00 00:00:00','0000-00-00 00:00:00',8,3,'DAGUZ','n','so','tgvasnskcr','2006-02-23',NULL),('m','p','gvasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtk','had',1,'2009-01-25 20:33:11','2007-06-19 00:00:00',NULL,4,'but','z','vasnskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyyb','ZDDNE',NULL,'0000-00-00'),
+('asnskcrutd','snskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpboz','MBLMH','y',105709568,'0000-00-00 00:00:00','0000-00-00 00:00:00',8,5,'nskcrutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpboza','w','WKIYR','RPKKU','0000-00-00',NULL),('HEYZU','k','f','BUHCS',-2118909952,'2005-11-17 00:00:00','2006-05-16 08:41:57',NULL,6,'d','would','g','skcrutdamu','0000-00-00','0000-00-00'),
+('kcrutdamug','z','crutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqj','JGBPK',-1850474496,NULL,'2005-05-04 18:27:48',NULL,7,'rutdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpbozailwc','l','utdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpbozailwcu','d','0000-00-00','0000-00-00'),
+('was','RSLDR','JXEJC','we',1694302208,'0000-00-00 00:00:00','2008-12-03 15:30:21',1471545344,8,'tdamugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpbozailwcug','ZNFUY','OEMYE','n','2003-09-17','2003-05-16'),('QNZIQ','damugrogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpbozailwcuge','e','WXMGG',NULL,'0000-00-00 00:00:00',NULL,1,9,'well','amugrogyzz','a','mugrogyzzs','0000-00-00','2002-12-16'),
+('ugrogyzzsa','grogyzzsaemysmyzomflzilnslxzvupfxrajygqpclheykudxgaloqoaaeirdfcljrcqdrciywuiaapvivsmnlvcsfognnabeubyprqcfadvzrjzhaanyybmbhzwohfockjujddqwqjyzxeehuuwqvnyfejvjqzdvjjatukdbpiiabrdqveoesihupydtktqmkglyemowxmzkymvicqwnriwvvsarcpejhamxqxroligwvcpbozailwcugeoplt','so','GZONQ',-1601634304,'2009-01-13 17:43:56','2004-01-05 00:00:00',NULL,10,'would','because','of','rogyzzsaem','2009-03-07','0000-00-00');
+
+--enable_query_log
+
+SET tmp_table_size= 16384;
+
+SELECT DISTINCT MAX( table2.`col_varchar_255_utf8` ) AS max1 ,
+                MIN( table1.`col_date` ) AS min1 ,
+                AVG( table2.`col_int` ) AS avg1 ,
+                MAX( table1.`col_varchar_255_utf8_2` ) AS max2 ,
+                table2.`col_varchar_255_utf8`  ,
+                FIRST_VALUE( table1. `col_varchar_255_utf8` )  OVER (ORDER BY MAX( table2.`col_varchar_255_utf8` ),
+                                                                              MIN( table1.`col_date` ),
+                                                                              AVG( table2.`col_int` ),
+                                                                              MAX( table1.`col_varchar_255_utf8_2` ),
+                                                                              table2.`col_varchar_255_utf8` ) AS 1st_val
+    FROM  C AS table1 LEFT JOIN
+          B AS table2 ON  table1.`col_int_2` < table2.`col_int_2`
+    GROUP BY  table2.`col_varchar_255_utf8`,  table1.`col_varchar_255_utf8`;
+
+SET tmp_table_size=DEFAULT, SQL_MODE=DEFAULT;
+DROP TABLE C,B;
+
+--echo #
+--echo # Bug#25894860: PROBLEM IN PROTOCOL_SEND
+
+CREATE TABLE t (a int PRIMARY KEY, b varchar(10), KEY idx1 (b));
+INSERT INTO t VALUES (2,'b'),(1,'back'),(5,'think'),(4,'v'),(3,'y');
+
+SELECT  LAG(b) OVER () AS wf_lag,
+        ROW_NUMBER() OVER () AS wf_rn
+        FROM t
+        WHERE b LIKE ('_') AND a=2;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25895300: PROBLEM IN PROTOCOL::SEND
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_datetime datetime DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,8,'2004-03-26 11:59:45'),(2,-692387840,'2000-11-03
+14:56:50'),(3,8,'2008-04-11 14:04:45'),(4,-660865024,'2004-08-11
+07:07:20'),(5,9,'2001-04-11 00:00:00');
+
+CREATE TEMPORARY TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col1 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=Memory;
+
+INSERT INTO t2 VALUES (1,'ntdajwwdda');
+
+SELECT LEAD(t2.col1, 5)
+ OVER ( ORDER BY t1.col_int DESC ) as lead1 ,
+t1.pk, LEAD(t1.pk, 4) OVER ( PARTITION BY t1.col_int ORDER BY t1.col_int
+ ) as lead2 FROM  t1 RIGHT JOIN t2 ON t1.pk=t2.pk
+WHERE  t2.pk IS NOT NULL;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (
+pk INTEGER NOT NULL AUTO_INCREMENT,
+col1 varchar(255) DEFAULT NULL,
+PRIMARY KEY (pk)
+)DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,'I\'ll'),(2,'BORKU'),(3,'HZISF'),(4,'q'),(5,'o'),
+       (6,'now'),(7,'WIBYB'),(8,'could'),(9,'were'),(10,'on'),(11,'HYADL'),
+       (12,'l'),(13,'asdas'),(14,'n'),(16,'my'),(17,'NNTTK'),(18,'as'),
+       (19,'TOAAB'),(20,'asdas'),(21,'well'),(22,'i'),(23,'u'),(24,'e'),
+       (25,'o'),(26,'c'),(28,'YLZRI'),(29,'well'),(30,'want'),(31,'with'),
+       (32,'VMVLI'),(33,'right'),(34,'llotd'),(35,'DNLWV'),(36,'SIPKW'),
+       (37,'o'),(38,'mean'),(39,'asdas'),(40,'asdas');
+
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+
+SELECT NTH_VALUE(view_t1.col1,2) OVER (), view_t1.col1, view_t1.pk FROM view_t1 LEFT JOIN t1
+ON  view_t1.pk = t1.pk WHERE t1.pk BETWEEN 4 AND 10 AND t1.pk IN (4);
+
+DROP TABLE t1;
+DROP VIEW view_t1;
+
+--echo #
+--echo # Bug#25914495: WL#9603: SIG11 AT ITEM_FIELD::ITEM_FIELD IN SQL/ITEM.CC
+--echo #
+
+CREATE TABLE t1(a int);
+CREATE TABLE t2(b int);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (3);
+
+SELECT  RANK() OVER ( ORDER BY a ) + 1 AS rank_expr FROM t1, t2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#25960114 WL#9603: RESULT DIFF SEEN WITHOUT PARTITION CLAUSE AND PARTITION BY NULL
+--echo #
+CREATE TABLE t1 (a int, b float);
+
+INSERT INTO t1 VALUES
+   (4,12),(5,2),(9,14),(12,10),(6,8),(5,7),(2,15),(2,15),(15,11),(14,5),(14,240),
+   (1,10),(14,5),(5,9),(1,11),(2,5),(11,9),(13,13),(6,187),(8,12),(10,12),(15,14),
+   (50,4),(14,3),(166,2),(15,13),(10,12),(48,4),(13,3),(7,10);
+
+SELECT a, b, LEAD (b, 1) OVER (ORDER BY a,b ASC) AS c FROM t1 a ORDER BY a, b, c;
+SELECT a, b, LEAD (b, 1) OVER (PARTITION BY NULL ORDER BY a,b ASC) AS c FROM t1 a ORDER BY a, b, c;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+--echo #
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;
+INSERT INTO CC VALUES
+(10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+(23,'z','z'),(28,'y','y');
+
+SELECT  MAX( col_varchar_key  )  AS field1  FROM CC  AS alias1
+ HAVING field1 <>  5;
+
+CREATE OR REPLACE VIEW v1 AS
+ SELECT  MAX( col_varchar_key  )  AS field1  FROM CC  AS alias1
+  HAVING field1  <>  5;
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE CC;
+
+--echo #
+--echo # Tests added to improve GCOV Coverage data
+--echo #
+
+--echo Item_sum_sum::val_str "if (null_value): test
+CREATE TABLE t(v INT);
+INSERT INTO t VALUES (NULL), (3);
+SELECT SUM((SELECT v FROM t LIMIT 1)) OVER ();
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25976248 WL#9603 ASSERT ERROR IN ITEM_SUM::FIX_AFTER_PULLOUT
+--echo #
+CREATE TABLE t1(a TEXT);
+INSERT INTO t1 VALUES('1');
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a DECIMAL(4,2));
+INSERT INTO t1 VALUES(1);
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a REAL);
+INSERT INTO t1 VALUES(1.0);
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a TIME);
+INSERT INTO t1 VALUES('00:00:01');
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a JSON);
+INSERT INTO t1 VALUES('1');
+--source include/window_functions_bug_25976248.inc
+DROP TABLE t1;
+
+--echo #
+--echo # Problem with ROLLUP and WINDOW functions
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 values (1);
+INSERT INTO t1 values (1);
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (3);
+INSERT INTO t1 values (3);
+INSERT INTO t1 values (4);
+INSERT INTO t1 values (4);
+
+SELECT i, i+1, SUM(i) OVER () FROM t1 GROUP BY i WITH ROLLUP;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26033662 WL#9603: ZERO RESULT FOR WINDOW FUNCTIONS WITH DERIVED TABLE HAVING GROUP BY
+--echo #
+
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,1), (1,2), (2,3), (2,4), (2,5), (2,6), (3,7), (3,11), (4,8);
+# ORDER BY b isn't deterministic, multiple rows have the same b.
+--sorted_result
+SELECT * FROM (SELECT b, RANK() OVER (ORDER BY b) AS c FROM t GROUP BY a,b) s1 UNION
+              (SELECT b, MAX(a) AS c FROM t GROUP BY a,b ) ORDER BY b;
+DROP TABLE t;
+--echo #
+--echo # Bug#26035785 WL#9603: NUMBER OF ROWS PER NTILE BUCKET DIFFER UNEVENLY
+--echo #
+
+CREATE TABLE t (col_int int) ;
+INSERT INTO t VALUES
+(7),(184),(12),(8),(14),(14),(2),(11),(6),(113),(4),(9),(2),(6),(10),(178),(1)
+,(2),(8),(204),(4),(15),(7),(253),(14),(3),(10),(11),(15),(15);
+
+--sorted_result
+SELECT nt, COUNT(*) FROM
+(SELECT  col_int, NTILE( 9 ) OVER ( ORDER BY col_int) nt FROM t ) AS s1
+GROUP BY nt;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26048785 WL9603: RANGE UNBOUNDED PRECEDING IS TOO STRICT ON ORDER BY
+--echo # Tests for RANGE w/o ORDER BY, and with ORDER BY <char/blob>
+--echo #
+
+CREATE TABLE t1(a INT, b CHAR(1), c DATETIME, d BLOB);
+INSERT INTO t1 VALUES (1,'x','2010-01-01','blob'), (2, 'y', '2011-01-01', ''),
+(3, 'y', '2012-01-01', ''), (4, 't', '2012-01-01', 'blob'),
+(5, null, '2013-01-01', null);
+
+# No "RANGE N PRECEDING/FOLLOWING" => doesn't need ORDER BY;
+# no ORDER BY => all rows are peers => two same SUM values.
+# Used to throw error.
+SELECT a, b, c, SUM(a) OVER
+(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# No "RANGE N PRECEDING/FOLLOWING" => accepts string types.
+# Used to throw error.
+SELECT a, b, c, SUM(a) OVER
+(ORDER BY b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# Same query but with "composite" window
+SELECT a, b, c, SUM(a) OVER
+(w RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM t1
+WINDOW w AS (ORDER BY b);
+
+# With blob:
+SELECT a, b, c, d, SUM(a) OVER
+(ORDER BY d RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# No ORDER BY; user omits CURRENT ROW end bound
+SELECT a, b, c, SUM(a) OVER
+(RANGE UNBOUNDED PRECEDING)
+FROM t1;
+
+SELECT a, b, c, SUM(a) OVER
+(w RANGE UNBOUNDED PRECEDING)
+FROM t1
+WINDOW w AS ();
+
+# "RANGE N PRECEDING/FOLLOWING" => ORDER BY imposed
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT a, b, c, SUM(a) OVER
+(RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# "RANGE N PRECEDING/FOLLOWING" => order by numeric or temporal interval
+--error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+SELECT a, b, c, SUM(a) OVER
+(ORDER BY b RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# order by numeric
+SELECT a, b, c, SUM(a) OVER
+(ORDER BY a RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# order by non-interval temporal
+--error ER_WINDOW_RANGE_FRAME_TEMPORAL_TYPE
+SELECT a, b, c, SUM(a) OVER
+(ORDER BY c RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
+FROM t1;
+
+# order by interval temporal
+SELECT a, b, c, SUM(a) OVER
+(ORDER BY c RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND CURRENT ROW)
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26022124 WL#9603: SIG11 AT AGGREGATOR_DISTINCT::ENDUP IN SQL/ITEM_SUM.CC
+--echo #
+CREATE TABLE t1 (pk int NOT NULL, col_int int DEFAULT NULL);
+CREATE TABLE t2 (pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                 col_int int DEFAULT NULL,
+                 col_int2 int DEFAULT NULL);
+
+INSERT INTO t1 VALUES (1,88), (2,99);
+INSERT INTO t2 VALUES (1,2,3) , (4,5,6);
+
+SELECT ROW_NUMBER() OVER (ORDER BY t2.col_int) AS rn,
+       COUNT(DISTINCT t1.col_int) AS cnt,
+       SUM(DISTINCT t1.col_int) AS `sum`
+   FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk WHERE t1.pk IN (1)
+   GROUP BY t1.pk;
+
+SELECT ROW_NUMBER() OVER () AS rn,
+       COUNT(DISTINCT t1.col_int) AS cnt,
+       SUM(DISTINCT t1.col_int) AS `sum`
+   FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk WHERE t1.pk IN (1)
+   GROUP BY t1.pk;
+
+SELECT ROW_NUMBER() OVER (),
+       FIRST_VALUE(SUM(DISTINCT t1.col_int)) OVER (ORDER BY t1.pk),
+       FIRST_VALUE(SUM(DISTINCT t1.col_int) + 1) OVER (ORDER BY t1.pk),
+       SUM(DISTINCT t1.col_int),
+       RANK() OVER (ORDER BY t1.pk)
+   FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk WHERE t1.pk IN (1)
+   GROUP BY t1.pk;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #26115726 WL#9727: RESULT DIFF FOR STD_SAMP IN A VIEW
+--echo #
+CREATE TABLE t(a int);
+INSERT INTO t VALUES (NULL), (1), (3), (6), (10);
+CREATE VIEW v1 AS
+  SELECT STDDEV_SAMP(a) OVER ( ORDER BY a ROWS CURRENT ROW) AS std_dev_samp FROM t;
+
+SELECT STDDEV_SAMP(a) OVER ( ORDER BY a ROWS CURRENT ROW ) AS std_dev_samp FROM t;
+SELECT * FROM v1;
+
+CREATE OR REPLACE VIEW v1 AS SELECT STDDEV_SAMP(a) FROM  t;
+
+SELECT STDDEV_SAMP(a) FROM t;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #26132963 WL#9603: SIG11 AT SORTLENGTH() SQL/FILESORT.CC
+--echo #
+
+CREATE TABLE t1(c1 int, c2 int);
+CREATE TABLE t2(c1 int, c2 int);
+
+INSERT INTO t1 VALUES
+(1,-1208352768),(2,NULL),(3,212140032),(4,5),(5,3),(6,NULL),(7,1),(8,9),
+(9,-1563688960),(10,-288358400),(11,NULL),(12,9),(13,9),(14,NULL),(15,NULL),
+(16,NULL),(17,5),(18,1),(19,4),(20,0),(21,-2036334592),(22,1),
+(23,1961558016),(24,0),(25,NULL);
+
+INSERT INTO t2 VALUES
+(1,553648128),(2,0),(3,3),(4,8),(5,1662844928),(6,0),(7,NULL),
+(8,7),(9,NULL),(10,NULL);
+
+SELECT RANK() OVER ( ORDER BY MIN( t2 . c1 ) + MAX( t1 . c2 )  ) AS rnk
+   FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c2
+   ORDER BY rnk;
+
+# Test that the partial removal of ORDER BY in setup_order_final()
+# isn't leaking memory i.e. Item and SELECT_LEX_UNIT for the subquery do
+# get cleaned up and freed at the query's execution's end.
+SELECT 2 FROM t1
+ ORDER BY SUM(c1) OVER
+    (PARTITION BY COUNT(c2)+(SELECT SUM(c1) FROM t2)) DESC;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #26115664 WL#9603: WRONG RESULT WITH STORED PROGRAM+AGG WFS ON SINGLE ROW MEMORY TABLE
+--echo #
+CREATE TABLE te2 (c1 int, c2 int) ENGINE=Memory;
+INSERT INTO te2 VALUES(1,1351614464 );
+PREPARE ps FROM "SELECT  AVG(c2)  OVER ( ) AS res FROM  te2";
+EXECUTE ps;
+EXECUTE ps;
+EXECUTE ps;
+CREATE PROCEDURE p1() SELECT  AVG(c2)  OVER ( ) AS res FROM  te2;
+CALL p1();
+CALL p1();
+CALL p1();
+DELIMITER !;
+CREATE FUNCTION f1()
+RETURNS char(255)
+BEGIN
+  DECLARE ret char(255);
+  SELECT  AVG(c2)  OVER ( ) AS res FROM  te2 INTO ret;
+  RETURN ret;
+END!
+DELIMITER ;!
+SELECT f1();
+SELECT f1();
+SELECT f1();
+
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+DROP TABLE te2;
+
+--echo #
+--echo # Bug#26129809 WL#9603: VALGRIND REPORTS INVALID READ AT MY_STRNNCOLLSP_SIMPLE|CTYPE-SIMPLE.CC
+--echo #
+
+set sql_mode='';
+
+CREATE TABLE `A` (
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
+  `col_int` int(11) DEFAULT NULL,
+  `col_date` date DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
+  `col_datetime` datetime DEFAULT NULL,
+  `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_10_latin1_key` (`col_varchar_10_latin1_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_10_utf8_key` (`col_varchar_10_utf8_key`),
+  KEY `col_varchar_255_utf8_key` (`col_varchar_255_utf8_key`),
+  KEY `col_varchar_255_latin1_key` (`col_varchar_255_latin1_key`),
+  KEY `col_int_key` (`col_int_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+
+INSERT INTO `A` VALUES ('nznrrizpfk','znrrizpfkx',66,'2006-07-12','2004-06-08','nrrizpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhh',1,'TWLFR',NULL,'CROGF','the','back','0000-00-00 00:00:00','LHIBY',217),('c','GQPFO',28,NULL,'0000-00-00','well',2,'or',NULL,'rrizpfkxce','rizpfkxceksatef','izpfkxceks','0000-00-00 00:00:00','zpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsx',179),('but','XXDMG',44,'2002-09-18',NULL,'some',3,'come','2004-10-05 00:00:00','pfkxceksat','it','p','2001-02-20 00:00:00','YOTTT',238),('fkxceksate','WVXCD',168,'2009-12-23','2005-04-16','kxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuj',4,'SJYOI',NULL,'y','xceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuju','have','0000-00-00 00:00:00','ceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujul',99),('just','i',0,'2003-11-07','0000-00-00','come',5,'can\'t','2006-03-17 18:41:01','not','eksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulp','ksatefqsdk','2000-11-05 22:46:38','k',75);
+
+CREATE TABLE `AA` (
+  `col_datetime` datetime DEFAULT NULL,
+  `col_date` date DEFAULT NULL,
+  `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_int` int(11) DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_255_utf8_key` (`col_varchar_255_utf8_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_varchar_255_latin1_key` (`col_varchar_255_latin1_key`),
+  KEY `col_varchar_10_utf8_key` (`col_varchar_10_utf8_key`),
+  KEY `col_varchar_10_latin1_key` (`col_varchar_10_latin1_key`),
+  KEY `col_int_key` (`col_int_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+
+INSERT INTO `AA` VALUES (NULL,'0000-00-00','b','r','2003-08-19 23:01:25',154,'zgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijursprnwgrpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabrrifnhuufzasunkrcp','0000-00-00','is','gktbkjrkmq','o',1,'ktbkjrkmqm','tbkjrkmqmk',215),(NULL,'2007-05-17','e','VNIVI','2000-11-03 02:44:07',205,'u','0000-00-00','IXNLZ','bkjrkmqmkn','k',2,'hey','BDYIT',25),('2003-11-09 08:17:05','2000-12-18','DTSDH','ZPWFP','2005-05-15 11:04:35',1,'t','2005-12-07','kjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrge','CHSSV','AILLJ',3,'w','IRGCS',56),('2002-12-28 21:31:59','2006-12-11','jrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijursprnwgrpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabrrifnhuufzasunkrcpvasdqk','c',NULL,55,'c','2009-07-13','w','b','o',4,'were','her',200),('0000-00-00 00:00:00','0000-00-00','e','FBJDG','0000-00-00 00:00:00',52,'WPOMI','2003-09-05','HZSNI','all','know',5,'KQHJW','rkmqmknbto',252);
+
+CREATE TABLE `B` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int` int(11) DEFAULT NULL,
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_datetime` datetime DEFAULT NULL,
+  `col_varchar_255_latin1_key` varchar(255) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_utf8_key` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
+  `col_date` date DEFAULT NULL,
+  `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  `col_varchar_255_latin1` varchar(255) DEFAULT NULL,
+  `col_varchar_10_latin1` varchar(10) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_255_utf8_key` (`col_varchar_255_utf8_key`),
+  KEY `col_varchar_255_latin1_key` (`col_varchar_255_latin1_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_10_utf8_key` (`col_varchar_10_utf8_key`),
+  KEY `col_varchar_10_latin1_key` (`col_varchar_10_latin1_key`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
+
+INSERT INTO `B` VALUES (1,229,'a','2003-05-12 00:00:00','x','2002-07-16 00:00:00','p','satefqsdks','can\'t','0000-00-00','atefqsdksj','tefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvt','my',92,NULL),(2,159,'efqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnoz','0000-00-00 00:00:00','fqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxnd','2007-04-08 09:43:38','her','qsdksjijcs','sdksjijcsz','2006-03-26','VXECY','why','JNAFV',70,'0000-00-00'),(3,42,'dksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaij','2009-02-12 04:14:15','back','2000-07-26 07:47:30','r','go','ksjijcszxw','0000-00-00','s','o','sjijcszxwb',200,'0000-00-00'),(4,146,'jijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurs','0000-00-00 00:00:00','EXVCL','0000-00-00 00:00:00','DFVNQ','ijcszxwbjj','NMTOX','2004-12-17','p','jcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurspr','i',104,'2002-03-06'),(5,235,'i','0000-00-00 00:00:00','he\'s','2000-01-06 20:32:48','cszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyci','YGVHA','EFEOY','2000-01-18','szxwbjjvvk','oh','not',239,'2001-07-22');
+
+ALTER TABLE A ADD COLUMN col_varchar_10_latin1_gckey VARCHAR(20) GENERATED ALWAYS AS (CONCAT(col_varchar_10_latin1_key,'x')) VIRTUAL;
+ALTER TABLE B ADD COLUMN col_int_gckey INT GENERATED ALWAYS AS (col_int_key + col_int_key) VIRTUAL;
+ALTER TABLE B ADD COLUMN col_varchar_255_utf8_gckey TEXT GENERATED ALWAYS AS (CONCAT(col_varchar_255_utf8_key,'x')) VIRTUAL;
+
+set sql_mode=default;
+
+SELECT
+   PERCENT_RANK() OVER ( PARTITION BY  alias1 . `col_int`,
+                                       alias2 . `col_int`,
+                                       alias1 . `col_int_key`,
+                                       alias1 . `col_varchar_10_utf8_key`
+                         ORDER BY  alias1 . `col_varchar_255_utf8_key`,
+                                   alias1 . `col_varchar_10_latin1_gckey`,
+                                   alias2 . `col_varchar_255_utf8_gckey`,
+                                   alias1 . `pk`
+                         ROWS 430 PRECEDING  ) AS pr
+   FROM  A AS alias1  RIGHT OUTER JOIN
+            B AS alias2
+            LEFT  JOIN
+            AA AS alias3
+            ON  alias2 . `col_int_key` =  alias3 . `pk`
+         ON  alias1 . `pk` =  alias2 . `col_int_gckey`
+   WHERE  alias2 . `pk` > 5 AND alias2 . `pk` <= ( 5 + 5 )
+      AND alias2 . `pk` > 5 AND alias2 . `pk` <= ( 5 + 2 )
+      AND alias3 . `pk`  IN (5, 0)
+      AND alias3 . `pk` >= 5
+      AND alias3 . `pk` < ( 8 + 4 )
+      AND alias1 . `col_int` >= 5
+      AND alias1 . `col_int` <= ( 4 + 0 )
+      OR  alias2 . `col_int` != 5
+      OR  alias3 . `col_int` <> 7
+      OR  alias3 . `col_int` >= 5
+      AND alias3 . `col_int` < ( 5 + 2 )
+   ORDER BY pr  LIMIT 1000 OFFSET 4;
+
+DROP TABLE `A`, `AA`, `B`;
+
+--echo #
+--echo # Bug#26114804: WL#9603: ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
+--echo #               FOR NESTED AGGREGATE
+
+CREATE TABLE t (a INT, b INT);
+INSERT INTO t VALUES(1,2),(3,4),(4,6),(4,7);
+
+SELECT SUM(a) OVER (ORDER BY SUM(a)) FROM t GROUP BY a;
+SELECT SUM(a) OVER (ORDER BY 1+SUM(a)) FROM t GROUP BY a;
+SELECT SUM(a) OVER (PARTITION BY 1+SUM(a)) FROM t GROUP BY a;
+SELECT SUM(a) OVER (ORDER BY AVG(a)) FROM t GROUP BY a,b;
+SELECT SUM(a) OVER (ORDER BY SUM(b)) FROM t GROUP BY a,b;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26162009: WL#9603: WRONG RESULT WITH MULTIPLE EXECUTIONS OF A
+--echo #               STORED PROGRAM
+
+CREATE TABLE t (
+col_int INT,
+pk INT NOT NULL AUTO_INCREMENT,
+col_int_key INT GENERATED ALWAYS AS (col_int+col_int)
+VIRTUAL, PRIMARY KEY (pk));
+
+INSERT INTO t (col_int, pk) VALUES
+(7,6),(6,5),(4,4),(3,3),(2,2),(1,1);
+
+PREPARE ps FROM  "SELECT AVG(col_int_key) OVER () FROM t
+WHERE pk=3 GROUP BY col_int_key";
+
+EXECUTE ps;
+EXECUTE ps;
+
+# No-table variant
+PREPARE ps FROM "SELECT AVG(12) OVER () FROM dual";
+EXECUTE ps;
+EXECUTE ps;
+
+DROP PREPARE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26174648: WL9603: ASSERTION FAILURE IN ITEM_SUM_SUM::VAL_INT
+--echo #
+
+SELECT 0 & (SUM(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
+SELECT 1 & (SUM(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
+
+--echo #
+--echo # Bug#26178061: WL#9603: RANK AND UNCORRELATED SUBQUERY: WRONG RESULT
+--echo #
+
+CREATE TABLE t(a int);
+INSERT INTO t VALUES
+(NULL),(NULL),(NULL),(NULL),(NULL),
+(NULL),(NULL),(NULL),(NULL),(NULL),
+(-1802764288),(-1438121984),(-1237843968),
+(6),(9),(10),(11),(12),(13),(15),
+(476839936),(780206080),(1887961088);
+
+CREATE TABLE twf AS SELECT RANK() OVER ( ORDER BY a ) AS rnk FROM t  GROUP BY a;
+
+SELECT RANK() OVER ( ORDER BY a ) AS rnk FROM t GROUP BY a;
+SELECT * FROM twf WHERE rnk IN (SELECT RANK() OVER ( ORDER BY a ) AS rnk FROM
+t  GROUP BY a);
+SELECT * FROM twf WHERE rnk NOT IN (SELECT RANK() OVER ( ORDER BY a ) AS rnk
+FROM t  GROUP BY a);
+
+DROP TABLE twf,t;
+
+--echo #
+--echo # Bug#26802696: DENSE_RANK WRONG WITH BUFFERED PROCESSING
+--echo #
+CREATE TABLE employee(department_id INT, salary INT);
+
+INSERT INTO employee VALUES (10, NULL),
+                            (10, 100000),
+                            (10, 60000),
+                            (10, 60000),
+                            (10, 70000),
+                            (20, 80000),
+                            (20, 65000),
+                            (20, 65000),
+                            (30, 300000),
+                            (30, 70000),
+                            (NULL, 75000);
+--echo with partitions
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (PARTITION BY department_id
+               ORDER BY salary DESC)
+  ORDER BY department_id, salary DESC, ntil;
+
+--echo just default partition
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (ORDER BY salary DESC)
+  ORDER BY salary DESC, department_id, ntil;
+
+DROP TABLE employee;
+
+--echo #
+--echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26164633 WL#9603: WRONG RESULT WHEN PARTITION EXPR USING AGGREGATES EVALUATES TO NULL
+--echo #
+CREATE TABLE t1 (
+  pk int NOT NULL DEFAULT '0',
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES
+  (1,4,858718208),          (2,-28508160,723386368),
+  (3,6,3),                  (4,828112896,-409141248),
+  (5,1454702592,856424448), (6,7,7),
+  (7,2,4),                  (8,7,4),
+  (9,1990590464,8),         (10,-538705920,2),
+  (11,7,2002124800),        (12,776273920,-1472200704),
+  (13,7,8),                 (14,0,952041472),
+  (15,9,-427819008),        (16,8,-686096384),
+  (17,397934592,7),         (18,-768671744,6),
+  (19,3,5),                 (20,1533739008,5),
+  (21,1,-1301872640),       (22,798425088,4),
+  (23,5,-561971200),        (24,9,-1901854720),
+  (25,9,811401216),         (26,1856700416,0),
+  (27,7,4),                 (28,9,-1491992576),
+  (29,9,1),                 (30,1724252160,7);
+
+SELECT MIN(table2.pk) + table2.col_int AS part_expr,
+       DENSE_RANK() OVER (PARTITION BY MIN(table2.pk) + table2.col_int
+                          ORDER BY  table1.col_int_key) AS field1
+  FROM  t1 AS table1 LEFT JOIN t1 AS table2
+        ON table1.pk = table2.col_int
+  GROUP BY table2.col_int, table1.col_int_key;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26188578 - WL#9603: HAVING CONDITION IS OPTIMIZED OUT FOR ALIAS ON AGGREGATE W/O GROUP BY
+--echo #
+
+CREATE TABLE E (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+   GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
+   VIRTUAL,
+  col_varchar_255_latin1_key varchar(255)
+   GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
+   VIRTUAL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8
+   GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
+  col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_latin1,-(1)),7)) VIRTUAL,
+  PRIMARY KEY (pk DESC),
+  UNIQUE KEY ucover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key DESC,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key DESC),
+  UNIQUE KEY ucover_key2
+   (pk, col_int_key, col_varchar_255_utf8_key, col_varchar_255_latin1_key,
+    col_varchar_10_utf8_key, col_varchar_10_latin1_key),
+  KEY col_int_key (col_int_key DESC),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key DESC),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key DESC),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key DESC),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY multi_key1 (col_int_key DESC, col_varchar_10_latin1_key),
+  KEY multi_key1a (col_int_key DESC, col_varchar_10_latin1_key DESC),
+  KEY multi_key2 (col_int_key,col_int DESC),
+  KEY multi_key3 (col_varchar_255_utf8_key DESC, col_varchar_255_utf8),
+  KEY multi_key4 (col_varchar_255_latin1_key, col_varchar_255_latin1),
+  KEY multi_key5 (pk DESC,col_int_key DESC, col_varchar_10_latin1_key),
+  KEY cover_key1
+   (pk DESC,col_int_key DESC, col_varchar_255_utf8_key,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key)
+);
+
+INSERT INTO E (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
+               col_varchar_255_utf8, col_varchar_255_latin1)
+ VALUES
+ (NULL,NULL,10,'this','really','mxwcftedxq'),
+ (22216704,'159973376',9,'l','mean','cidtumxwcf'),
+ (-693376,'1',8,'of','gqmwcidtum','qmwcidtumx'),
+ (-183840,'5',7,'xnvgqmwcid','b','nvgqmwcidt'),
+ (2,NULL,6,'is','f','gxqxnvgqmw'),
+ (4,NULL,5,'xdoygxqxnv','h','good'),
+ (3,'1074462720',4,'z','cjxdoygxqx','m'),
+ (-584581120,'-1176634',3,'urqdhj','rhjxdo','but'),
+ (-19295040,'1235025920',2,'svasurqdhu','can','a'),
+ (9,'951910400',1,'qlzsvasurq','lzsvasurqd','in');
+
+CREATE TABLE C (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+  GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
+   VIRTUAL,
+  col_varchar_255_latin1_key varchar(255) GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
+   VIRTUAL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
+  col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_latin1,-(1)),7)) VIRTUAL,
+  PRIMARY KEY (pk DESC),
+  UNIQUE KEY ucover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key DESC,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key DESC),
+  UNIQUE KEY ucover_key2
+   (pk, col_int_key, col_varchar_255_utf8_key, col_varchar_255_latin1_key,
+    col_varchar_10_utf8_key, col_varchar_10_latin1_key),
+  KEY col_int_key (col_int_key DESC),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key DESC),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key DESC),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key DESC),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY multi_key1 (col_int_key DESC, col_varchar_10_latin1_key),
+  KEY multi_key1a (col_int_key DESC, col_varchar_10_latin1_key DESC),
+  KEY multi_key2 (col_int_key, col_int DESC),
+  KEY multi_key3 (col_varchar_255_utf8_key DESC, col_varchar_255_utf8),
+  KEY multi_key4 (col_varchar_255_latin1_key, col_varchar_255_latin1),
+  KEY multi_key5
+   (pk DESC, col_int_key DESC, col_varchar_10_latin1_key),
+  KEY cover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key)
+);
+
+INSERT INTO C
+ (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
+ col_varchar_255_utf8, col_varchar_255_latin1)
+ VALUES
+ (5,'pmfyvvuqvt',6,'so','he','mfyvvuq'),
+ (5,'q',5,'iwsgpmfyvv','wsgpmf','s'),
+ (9,'oeiwsgpmfy',4,'at','can','come'),
+ (-108947046,'kkoeiwsgpm',3,'koeiwsgpmf','o','t'),
+ (NULL,'p',2,'ukkoeiwsgp','now','is'),
+ (NULL,'now',1,'up','u','u');
+
+CREATE VIEW view_E AS SELECT * FROM E;
+
+SELECT  MAX( alias1 .col_int )  AS field1  FROM view_E  AS alias1  LEFT
+JOIN C  AS alias2  ON alias1 .col_int  = alias2 .pk  WHERE alias1 .pk
+IN (  5  )  HAVING field1  <=  6;
+
+# Wrong result
+SELECT * FROM (SELECT MAX( alias1.col_int) AS field1 FROM view_E AS alias1
+                 LEFT JOIN C                                       AS alias2
+                 ON alias1 .col_int  = alias2 .pk
+                 WHERE alias1 .pk IN (5)  HAVING field1  <=  6) s1;
+
+# Works if aggregate is used directly
+SELECT * FROM (SELECT MAX( alias1.col_int) AS field1 FROM view_E AS alias1
+                 LEFT JOIN C                                       AS alias2
+                 ON alias1 .col_int  = alias2 .pk
+                 WHERE alias1 .pk IN (5)  HAVING MAX(alias1 .col_int) <=  6) s1;
+
+DROP TABLE E,C;
+DROP VIEW view_E;
+
+--echo #
+--echo # Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
+--echo #
+
+SET @savmode=@@SESSION.SQL_MODE;
+SET SQL_MODE='';
+CREATE TABLE t(a JSON NOT NULL);
+INSERT INTO t VALUES();
+SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496733
+
+--echo #
+--echo # Bug#26497353: ASSERTION FAILED: M_OPENED_TABLE != NULLPTR
+--echo #
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+
+SELECT DENSE_RANK() OVER w2 FROM t GROUP BY 'a' WITH ROLLUP
+  WINDOW w2 AS (ROWS UNBOUNDED PRECEDING);
+
+DROP TABLE t;
+
+--echo # End of test for Bug#26497353
+
+--echo #
+--echo # Bug #26496645: WINDOW FUNCTIONS: CRASH IN
+--echo #                WINDOW::RESTORE_SPECIAL_RECORD
+--echo #
+
+CREATE TABLE t (
+  b VARCHAR(20) DEFAULT NULL,
+  d INT DEFAULT NULL);
+INSERT INTO t VALUES(1,-1);
+INSERT INTO t VALUES(1,-1);
+SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+                              UNBOUNDED FOLLOWING) FROM t;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496645
+
+--echo #
+--echo # Bug#26411055: WINDOW FRAME ACCEPTS NON-INTEGER ARG FOR ROWS
+--echo #
+
+CREATE TABLE t(w INT);
+
+INSERT INTO t VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS BETWEEN 3 PRECEDING AND 3.4 FOLLOWING) FROM t;
+--error ER_WINDOW_FRAME_ILLEGAL
+SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
+
+--error ER_WINDOW_FRAME_ILLEGAL
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
+SET @p1= 2;
+EXECUTE stmt USING @p1;
+SET @p1= 2.3;
+--error ER_WINDOW_FRAME_ILLEGAL
+EXECUTE stmt USING @p1;
+DROP PREPARE stmt;
+
+DROP TABLE t;
+
+--echo # End of test for Bug#26411055
+
+--echo #
+--echo # Bug#26497247:WINDOW FUNCTIONS: CRASH IN DO_COPY_MAYBE_NULL
+--echo #
+
+CREATE TABLE t(a INTEGER NOT NULL);
+INSERT INTO t VALUES ('1'), ('2'), ('3');
+SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
+DROP TABLE t;
+
+--echo #End of test for Bug#26497247
+
+--echo #
+--echo # Bug #26496880: CRASH IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE t(
+ a INTEGER,
+ b BLOB,
+ PRIMARY KEY (b(1))
+);
+
+INSERT INTO t(b) VALUES('a'),('b'),('c'),('d');
+FLUSH TABLES;
+SELECT LEAD(1,1,1) OVER(PARTITION BY a) FROM t;
+
+DROP TABLE t;
+
+--echo #End of test for Bug#26496880
+
+--echo #
+--echo # Bug#26730020 REEXECUTE PREPARED STATEMENT CRASH WITH WINDOW FUNCTIONS
+--echo #
+CREATE TABLE t(a INT);
+PREPARE s FROM 'DO (SELECT a FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a, a));';
+EXECUTE s;
+EXECUTE s;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26907753 COMBINING CTE AND WINDOW FUNCTION GIVES WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1),(1),(2);
+
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t1
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t WHERE a = b;
+
+WITH t2(i) AS (SELECT i+1 FROM t1)
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t2
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t3 WHERE a = b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26813454 UNWARRANTED ERROR INDICATING WINDOW NAME NOT DEFINED
+--echo #
+CREATE TABLE sales(id INT AUTO_INCREMENT PRIMARY KEY, `date` DATE, sale INT);
+
+INSERT INTO sales(`date`, sale) VALUES
+  ('2017-03-01', 200),
+  ('2017-04-01', 300),
+  ('2017-05-01', 400),
+  ('2017-06-01', 200),
+  ('2017-07-01', 600),
+  ('2017-08-01', 100),
+  ('2017-03-01', 400),
+  ('2017-04-01', 300),
+  ('2017-05-01', 500),
+  ('2017-06-01', 400),
+  ('2017-07-01', 600),
+  ('2017-08-01', 150);
+
+SELECT MONTH(date), SUM(sale),
+       AVG(SUM(sale)) OVER w AS sliding_avg FROM sales GROUP BY MONTH(date)
+WINDOW w AS (ORDER BY MONTH(date)
+             RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)
+ORDER BY AVG(SUM(sale)) OVER (ORDER BY MONTH(date)
+                              RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING),
+         MONTH(date);
+DROP TABLE sales;
+
+--echo #
+--echo # Bug#26739028: WINDOW FUNC + FROM_UNIXTIME CRASH
+--echo #
+
+SELECT FROM_UNIXTIME(LAG('',99)OVER(ROWS UNBOUNDED PRECEDING),'%I %l %I');
+SELECT FROM_UNIXTIME(FIRST_VALUE(@b)RESPECT NULLS OVER(),
+                 REPEAT('1',32))IS NOT FALSE;
+SELECT ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
+                                      OVER(),SHA(''))));
+SELECT FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
+                 REPLACE('%M%V   ','',''));
+
+--echo # End of test for Bug#26739028
+
+--echo #
+--echo # Bug#26389508: INT JOIN_READ_KEY(QEP_TAB*): ASSERTION
+--echo #               `!TABLE->HAS_NULL_ROW()' FAILED
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(2,4),(3,-501481472),(4,NULL),(5,3);
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(5),(5);
+
+--echo This JOIN needs the fix
+SELECT FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk = alias2.col_int_key;
+
+--echo This doesn't and shouldn't do save/restore it (not JT_EQ_REF). Verify
+--echo with debugger.
+SELECT FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk > alias2.col_int_key;
+
+--echo Nor this one (not first window). Verify with debugger.
+SELECT ROW_NUMBER() OVER () AS `row#`,
+       FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk = alias2.col_int_key;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#26975882: CRASH IN STRING::COPY, USUALLY WITH WKB FUNCTIONS
+--echo #               / WINDOW FUNC
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_BUFFER(ST_ASBINARY(1), ST_ASBINARY(NTH_VALUE('4714-05-04',1)OVER(),'axis-order=long-lat'));
+
+--echo # End of test for Bug#26975882
+
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
+
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (FIRST_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    )OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((FIRST_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'))OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(FIRST_VALUE(JSON_KEYS(EXP(-15676),ABS('d0'))
+                          )OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER());
+
+--echo # End of test for Bug#26740557
+
+--echo #
+--echo # Check for errors
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER (ORDER BY i) FROM t1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 ORDER BY RANK() OVER (PARTITION BY AVG(i) ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER w FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of checking for errors
+
+--echo #
+--echo # Bug#27010574 WINDOW FUNCTIONS: BUG WITH LAST_VALUE AND FRAME
+--echo #
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,1),
+                     (2,1),
+                     (3,2),
+                     (4,2),
+                     (5,3),
+                     (6,3);
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a) AS `last` FROM t;
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a
+                           RANGE BETWEEN UNBOUNDED PRECEDING AND
+                                 CURRENT ROW) AS `last`
+  FROM t;
+
+INSERT INTO t VALUES (1,1),
+                     (4,2),
+                     (NULL, 2),
+                     (NULL, NULL),
+                     (2, NULL);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26975848: IFNULL: CRASHES WITH FIRST_VALUE
+--echo # Bug#27062796: WINDOW FUNC: CRASH IN STRING::COPY WITH WKB FUNCTIONS
+--echo # Bug#27062694: WINDOW FUNC: MUCH CRASHING WITH FIRST_VALUE/LAST_VALUE!!
+--echo #
+
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT IFNULL(JSON_TYPE(CASE WHEN(1) THEN(1) ELSE(1) END),
+              LAST_VALUE('')OVER());
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT IFNULL((UUID_TO_BIN(0xAB8631)),(FIRST_VALUE(2.469566E+307)OVER()));
+SELECT IFNULL((JSON_TYPE(@c)),(FIRST_VALUE(@b)OVER()));
+
+--error ER_GIS_INVALID_DATA
+DO ST_WITHIN(ST_ASWKB(ST_ASBINARY(1,'axis-order=srid-defined')), ST_ASWKT(
+ST_ASBINARY(LAST_VALUE(4732)OVER()),'axis-order=srid-defined'));
+
+--error ER_GIS_INVALID_DATA
+DO ST_OVERLAPS(ST_ASWKB(ST_ASBINARY(1,'axis-order=lat-long'),
+'axis-order=srid-defined'), ST_ASWKT(LAST_VALUE('*7') OVER()));
+
+--error ER_GIS_INVALID_DATA
+DO ST_POINTN(ST_ASWKT(ST_ASWKT(ST_ASWKB(6565))),
+ST_ASBINARY(LAST_VALUE(0xfd8b9af2bedb16c0d7f1cca63b5c9e) OVER()));
+
+--error ER_DATA_OUT_OF_RANGE
+DO POW(-8714,REPEAT('1',32)) OR
+VALIDATE_PASSWORD_STRENGTH(LAST_VALUE(1) OVER());
+
+--error ER_GIS_INVALID_DATA
+DO SUBSTRING_INDEX(((((RADIANS(0xBD)) && (ST_SRID(1, 4326)))) OR
+(COT(UUID_SHORT()))), FIRST_VALUE(ROW_COUNT())RESPECT NULLS OVER(), 171);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO ((JSON_TYPE('4:8')) AND (((ROLES_GRAPHML()) LIKE (FIRST_VALUE(31543)
+RESPECT NULLS OVER()))));
+
+--error ER_DATA_OUT_OF_RANGE
+DO CONCAT_WS( JSON_OBJECTAGG( ROW_COUNT(), BIT_COUNT(-23163)),
+DEGREES((1.595545e+308)), REPEAT(FIRST_VALUE('%0') OVER(), 30));
+
+--error ER_USER_LOCK_WRONG_NAME
+DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
+RESPECT NULLS OVER(), UUID_SHORT());
+
+#--echo # Another monitoring of tmp table usage
+#SHOW STATUS LIKE 'Handler_read%';
+#SHOW STATUS LIKE 'Handler_write%';
+#SHOW STATUS LIKE 'Created_tmp_tables';
+# ^ this is disabled because it varies by a few units depending on if
+# test is run alone
+
+--echo # End of test for Bug#26975848, Bug#27062796, Bug#27062694
+
+# Local Variables:
+# mode: sql
+# sql-product: mysql
+# comment-column: 48
+# comment-start: "# "
+# fill-column: 80
+# End:

@@ -16,32 +16,32 @@ innodb_trx_purge_view_update_only_debug	OFF
 show session variables like 'innodb_trx_purge_view_update_only_debug';
 Variable_name	Value
 innodb_trx_purge_view_update_only_debug	OFF
-select * from information_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	OFF
-select * from information_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+innodb_trx_purge_view_update_only_debug	OFF
+select * from performance_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	OFF
+innodb_trx_purge_view_update_only_debug	OFF
 set global innodb_trx_purge_view_update_only_debug=1;
 select @@global.innodb_trx_purge_view_update_only_debug;
 @@global.innodb_trx_purge_view_update_only_debug
 1
-select * from information_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	ON
-select * from information_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+innodb_trx_purge_view_update_only_debug	ON
+select * from performance_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	ON
+innodb_trx_purge_view_update_only_debug	ON
 set @@global.innodb_trx_purge_view_update_only_debug=0;
 select @@global.innodb_trx_purge_view_update_only_debug;
 @@global.innodb_trx_purge_view_update_only_debug
 0
-select * from information_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	OFF
-select * from information_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
+innodb_trx_purge_view_update_only_debug	OFF
+select * from performance_schema.session_variables where variable_name='innodb_trx_purge_view_update_only_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_PURGE_VIEW_UPDATE_ONLY_DEBUG	OFF
+innodb_trx_purge_view_update_only_debug	OFF
 set session innodb_trx_purge_view_update_only_debug='some';
 ERROR HY000: Variable 'innodb_trx_purge_view_update_only_debug' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_trx_purge_view_update_only_debug='some';

@@ -1,10 +1,7 @@
 # Bug #19824442	ALTER TABLE FAILS, TABLESPACE ALREADY IN CACHE, GENERIC
 # 		ERROR FROM ENGINE
 
---source include/have_innodb.inc
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
 SET GLOBAL innodb_file_per_table=ON;
 

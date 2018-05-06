@@ -1,12 +1,6 @@
 SET NAMES binary;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -24,9 +18,10 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
+create user CUser@localhost;
+create user CUser@LOCALHOST;
+ERROR HY000: Operation CREATE USER failed for 'CUser'@'localhost'
 grant select on test.* to CUser@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.* to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -53,9 +48,8 @@ DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 create table t1 (a int);
+create user CUser@localhost;
 grant select on test.t1 to CUser@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -81,9 +75,8 @@ user	host	db	Table_name	Table_priv	Column_priv
 DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
+create user  CUser@localhost;
 grant select(a) on test.t1 to CUser@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select(a) on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
@@ -110,9 +103,8 @@ DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
 ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 drop table t1;
+create user  CUser2@LOCALHOST;
 grant select on test.* to CUser2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on test.* to CUser2@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
@@ -148,9 +140,9 @@ GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO 'mysqltest1'@'%';
 FLUSH PRIVILEGES;
 SHOW GRANTS;
 Grants for mysqltest1@%
-GRANT USAGE ON *.* TO 'mysqltest1'@'%'
-GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO 'mysqltest1'@'%'
-GRANT UPDATE ON `mysqltest_1`.* TO 'mysqltest1'@'%'
+GRANT USAGE ON *.* TO `mysqltest1`@`%`
+GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO `mysqltest1`@`%`
+GRANT UPDATE ON `mysqltest_1`.* TO `mysqltest1`@`%`
 SELECT * FROM mysqltest_1.t1;
 a
 DROP USER 'mysqltest1'@'%';
@@ -169,18 +161,18 @@ RENAME USER 'user1'@'%' TO 'user2'@'%';
 # Show privileges after rename and BEFORE grant
 SHOW GRANTS FOR 'user2'@'%';
 Grants for user2@%
-GRANT USAGE ON *.* TO 'user2'@'%'
+GRANT USAGE ON *.* TO `user2`@`%`
 GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%';
 # Show privileges after rename and grant
 SHOW GRANTS FOR 'user2'@'%';
 Grants for user2@%
-GRANT USAGE ON *.* TO 'user2'@'%'
-GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%'
+GRANT USAGE ON *.* TO `user2`@`%`
+GRANT SELECT (`a`), INSERT (`b`) ON `temp`.`t1` TO `user2`@`%`
 # Connect as the renamed user
 SHOW GRANTS;
 Grants for user2@%
-GRANT USAGE ON *.* TO 'user2'@'%'
-GRANT SELECT (a), INSERT (b) ON `temp`.`t1` TO 'user2'@'%'
+GRANT USAGE ON *.* TO `user2`@`%`
+GRANT SELECT (`a`), INSERT (`b`) ON `temp`.`t1` TO `user2`@`%`
 SELECT a FROM temp.t1;
 a
 1
@@ -194,9 +186,5 @@ ERROR 42000: SELECT command denied to user 'user2'@'localhost' for column 'b' in
 DROP USER 'user2'@'%';
 DROP DATABASE temp;
 set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 End of 5.0 tests

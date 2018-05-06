@@ -1,8 +1,8 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 
---let $save_mi_repo_type=`SELECT @@GLOBAL.master_info_repository`
---let $save_rli_repo_type=`SELECT @@GLOBAL.relay_log_info_repository`
 --let $save_slave_parallel_workers=`SELECT @@global.slave_parallel_workers`
 
 #
@@ -25,8 +25,6 @@ call mtr.add_suppression("Got fatal error .* from master .* slave with the same 
 
 # On the slave
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository='TABLE';
-SET GLOBAL relay_log_info_repository='TABLE';
 
 # create a new channel
 --disable_warnings
@@ -38,7 +36,7 @@ SET GLOBAL relay_log_info_repository='TABLE';
 --echo # RESTART SLAVE SERVER
 --echo #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE --slave-parallel-workers=4 --relay-log-purge=0
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --slave-parallel-workers=4 --relay-log-purge=0
 --source include/rpl_restart_server.inc
 
 # slave fails to initialize due to BUG#19021091 (default
@@ -84,12 +82,9 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 START SLAVE;
 
 # clean up
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
---replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE
---eval SET @@global.master_info_repository='$save_mi_repo_type'
---replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
---eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
 --replace_result $save_slave_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.slave_parallel_workers=$save_slave_parallel_workers
 
@@ -123,8 +118,6 @@ call mtr.add_suppression("Recovery from master pos");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible");
 --source include/stop_slave.inc
 RESET SLAVE ALL;
-SET @@global.master_info_repository="TABLE";
-SET @@global.relay_log_info_repository="TABLE";
 SET @@global.slave_parallel_workers=5;
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -139,7 +132,7 @@ SET @@global.slave_parallel_workers=5;
 
 --echo === RESTART SLAVE SERVER ===
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE --slave-parallel-workers=5
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --slave-parallel-workers=5
 --source include/rpl_restart_server.inc
 --source include/rpl_connection_slave.inc
 START SLAVE;
@@ -147,10 +140,6 @@ START SLAVE;
 # clean up
 --source include/stop_slave.inc
 RESET SLAVE ALL;
---replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE
---eval SET @@global.master_info_repository='$save_mi_repo_type'
---replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
---eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
 --replace_result $save_slave_parallel_workers SAVE_PARALLEL_WORKERS
 --eval SET @@global.slave_parallel_workers=$save_slave_parallel_workers
 

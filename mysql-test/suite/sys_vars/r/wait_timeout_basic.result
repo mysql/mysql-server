@@ -118,15 +118,9 @@ Warning	1292	Truncated incorrect wait_timeout value: '0'
 SELECT @@session.wait_timeout;
 @@session.wait_timeout
 1
-SET @@session.wait_timeout = 123456789031;
-Warnings:
-Warning	1292	Truncated incorrect wait_timeout value: '123456789031'
 SELECT @@session.wait_timeout = @max_wait_timeout;
 @@session.wait_timeout = @max_wait_timeout
-1
-SET @@session.wait_timeout = -1;
-Warnings:
-Warning	1292	Truncated incorrect wait_timeout value: '-1'
+0
 SELECT @@session.wait_timeout;
 @@session.wait_timeout
 1
@@ -137,13 +131,13 @@ SELECT @@session.wait_timeout;
 1
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.wait_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='wait_timeout';
 @@global.wait_timeout = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_07-----------------------#'
 SELECT @@session.wait_timeout = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='wait_timeout';
 @@session.wait_timeout = VARIABLE_VALUE
 1

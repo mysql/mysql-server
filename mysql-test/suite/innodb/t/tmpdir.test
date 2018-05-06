@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 --echo #
@@ -39,7 +38,7 @@ insert into t1 values('text1', 'text2');
 --replace_result $MYSQLD_DATADIR MYSQL_DATADIR
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_tmpdir = @@global.datadir;
---replace_regex /.*mysqld.1*/DATADIR/
+--replace_regex /.*mysqld.1/DATADIR/
 show warnings;
 drop table t1;
 

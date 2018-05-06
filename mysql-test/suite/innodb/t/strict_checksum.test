@@ -2,10 +2,10 @@
 --echo # Bug #20031570 INNODB_CHECKSUM_ALGORITHM VARIABLE LEADS TO CRASHING
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
-# Embedded mode doesn't support restart
---source include/not_embedded.inc
+
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
 
 set global innodb_checksum_algorithm=crc32;
 
@@ -27,8 +27,8 @@ set global innodb_limit_optimistic_insert_debug = 2;
 
 select count(*) from t1;
 
-let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_innodb" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\\[Warning\\] .*MY-\\d+.* innodb_checksum_algorithm is set to "strict_innodb" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+--source include/search_pattern.inc
 
 # Write the records in new pages with innodb checksum format.
 insert into t1 values(4),(5),(6);
@@ -47,9 +47,9 @@ select count(*) from t1;
 # Write the records in new pages with none checksum format.
 insert into t1 values(7),(8),(9);
 
-let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_none" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+let SEARCH_PATTERN=\\[Warning\\] .*MY-\\d+.* innodb_checksum_algorithm is set to "strict_none" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;
 # Restart the server to load the table t1 again.
@@ -62,9 +62,9 @@ set global innodb_checksum_algorithm=strict_crc32;
 # Load the table t1 content with crc32, innodb, none checksum pages.
 select count(*) from t1;
 
-let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_crc32" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+let SEARCH_PATTERN=\\[Warning\\] .*MY-\\d+.* innodb_checksum_algorithm is set to "strict_crc32" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 drop table t1;
 --remove_file $SEARCH_FILE

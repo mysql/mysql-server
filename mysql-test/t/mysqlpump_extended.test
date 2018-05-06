@@ -1,5 +1,4 @@
-
--- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities
@@ -250,7 +249,7 @@ DROP DATABASE db1_extended;
 
 CREATE USER u1@localhost IDENTIFIED BY 'abc';
 CREATE USER u2;
---exec $MYSQL_PUMP --users --exclude-users=root,mysql.sys,mysql.session --exclude-databases=mysql,mtr > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
+--exec $MYSQL_PUMP --users --exclude-users=root,mysql.sys,mysql.session,mysql.infoschema --exclude-databases=mysql,mtr > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
 DROP USER u1@localhost,u2;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_extended.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/db1_extended.sql
@@ -287,7 +286,7 @@ CREATE USER u2;
 CREATE USER u3@120.0.0.1;
 GRANT SELECT ON mysql.user to u3@120.0.0.1;
 
---exec $MYSQL_PUMP --exclude-databases=mysql,mtr --exclude-users=u2,u1@120.0.0.1,root,mysql.sys,mysql.session > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
+--exec $MYSQL_PUMP --exclude-databases=mysql,mtr --exclude-users=u2,u1@120.0.0.1,root,mysql.sys,mysql.session,mysql.infoschema > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
 DROP USER u1@localhost,u3@120.0.0.1,u1@120.0.0.1,u2;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/db1_extended.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/db1_extended.sql
@@ -299,7 +298,7 @@ DROP USER u1@localhost,u3@120.0.0.1;
 --echo # test add-drop-user
 
 CREATE USER u1@localhost IDENTIFIED BY 'abc';
---exec $MYSQL_PUMP --exclude-databases=mysql,mtr --exclude-users=root,mysql.sys,mysql.session --add-drop-user > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
+--exec $MYSQL_PUMP --exclude-databases=mysql,mtr --exclude-users=root,mysql.sys,mysql.session,mysql.infoschema --add-drop-user > $MYSQLTEST_VARDIR/tmp/db1_extended.sql
 DROP USER u1@localhost;
 # if restore reports error it means db1_extended.sql has DROP USER stmt
 --error 1

@@ -1,7 +1,6 @@
 #
 # Test file for InnoDB tests that require the debug sync facility
 #
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 # Save the initial number of concurrent sessions.
@@ -37,6 +36,7 @@ SET DEBUG_SYNC='now SIGNAL table_altered';
 --echo # Connection 1
 --echo # Complete optimization
 connection default;
+--replace_regex /'Unknown error.*'/'Unknown error'/
 --reap
 
 disconnect con2;
@@ -806,7 +806,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent WAIT_FOR delete_child';
 --send ALTER TABLE t2 ADD f3 INT NOT NULL, ALGORITHM=COPY
 
 connect (con1, localhost, root,,);
@@ -886,7 +886,7 @@ INSERT INTO t2 VALUES(1, 2);
 INSERT INTO t3 VALUES(2);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
 --send ALTER TABLE t3 ADD f5 INT NOT NULL, ALGORITHM=COPY
 
 connect (con1, localhost, root,,);
@@ -969,7 +969,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(1);
 
 --enable_connect_log
-SET DEBUG_SYNC= 'commit_alter_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
+SET DEBUG_SYNC= 'alter_after_copy_table SIGNAL delete_parent_parent WAIT_FOR delete_child';
 LOCK TABLES t2 WRITE;
 --send ALTER TABLE t2 ADD f5 INT NOT NULL, ALGORITHM=COPY
 
@@ -986,14 +986,16 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_condition.inc
 SET DEBUG_SYNC= 'now SIGNAL delete_child';
 
+connection default;
+--reap
+
+UNLOCK TABLES;
+
 connection con1;
 --reap
 
 connection default;
---reap
-
 --echo # Without the patch, there will be an orphaned row in table 't2'.
-UNLOCK TABLES;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
@@ -1029,13 +1031,15 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now signal alter_child';
 
-connection con1;
---reap
-
---echo # Cleanup
 connection default;
 --reap
 UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Cleanup
 DROP TABLE t2, t1;
 SET DEBUG_SYNC= 'RESET';
 disconnect con1;

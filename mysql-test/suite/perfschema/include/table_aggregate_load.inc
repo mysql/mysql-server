@@ -19,7 +19,7 @@
 # Display the current setup used
 
 select * from performance_schema.setup_actors
-  order by USER, HOST, ROLE;
+  order by USER, HOST, `ROLE`;
 
 select * from performance_schema.setup_objects
   order by object_type, object_schema, object_name;
@@ -42,8 +42,8 @@ truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 
 # Check the configuration is ok
-show global variables like "performance_schema%";
-show global status like "performance_schema%";
+show global variables like "performance_schema%table%";
+show global status like "performance_schema%table%_lost";
 
 echo "================== Step 1 ==================";
 call dump_thread();
@@ -542,5 +542,5 @@ execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 # On test failures, may help to track the root cause
-show global status like "performance_schema%";
+show global status like "performance_schema%table%_lost";
 

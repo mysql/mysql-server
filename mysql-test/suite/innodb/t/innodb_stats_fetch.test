@@ -3,11 +3,9 @@
 # can be used to forcibly (re)fetch the stats from disk)
 #
 
--- source include/have_innodb.inc
 # Various sizes printed in this test depend on the page size and the
 # functionality tested here is not related to the page size, so we only
 # test with 16k page size.
--- source include/have_innodb_16k.inc
 
 -- vertical_results
 
@@ -68,6 +66,7 @@ stat_name = 'n_diff_pfx02';
 
 FLUSH TABLE test_ps_fetch;
 
+SET SESSION information_schema_stats_expiry=0;
 SELECT seq_in_index, column_name, cardinality
 FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
 ORDER BY index_name, seq_in_index;
@@ -77,3 +76,4 @@ table_rows, avg_row_length, max_data_length, index_length
 FROM information_schema.tables WHERE table_name = 'test_ps_fetch';
 
 DROP TABLE test_ps_fetch;
+SET SESSION information_schema_stats_expiry=default;

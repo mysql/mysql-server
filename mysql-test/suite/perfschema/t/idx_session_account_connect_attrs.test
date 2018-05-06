@@ -1,0 +1,20 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = ORDINAL_POSITION;
+let $table = performance_schema.session_account_connect_attrs;
+
+select PROCESSLIST_ID from performance_schema.session_account_connect_attrs limit 1
+  into @plid;
+
+##########################################################################
+# Test index on PROCESSLIST_ID, ATTR_NAME
+##########################################################################
+
+let $column_count = 2;
+let $col1 = PROCESSLIST_ID;
+let $col2 = ATTR_NAME;
+let $col1_act = @plid;
+let $col2_act = "_os";
+
+--source ../include/idx_explain_test.inc

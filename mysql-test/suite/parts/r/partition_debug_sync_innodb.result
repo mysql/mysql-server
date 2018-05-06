@@ -35,6 +35,16 @@ DROP TABLE t1;
 #
 # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
 #            concurrent I_S query
+#
+# This test is modified after WL#9814. The test case now cannot show
+# the partitions that are altered after I_S query execution is started.
+# That is because, the I_S system view execution sees snapshot (MVCC) of
+# DD metadata at the time the I_S system view select started processing.
+#
+# The test is updated to verify a case when a partition is removed after
+# I_S query starts executing. It is expected that I_S query report a
+# error and continue processing more rows.
+#
 create table t1 (a int)
 engine = innodb stats_persistent=0
 partition by range (a)
@@ -50,13 +60,11 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 t1#P#p0.ibd
-t1.frm
-SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
-SET DEBUG_SYNC='partition_open_error SIGNAL alter WAIT_FOR finish';
+SET DEBUG_SYNC='before_open_in_IS_query SIGNAL parked WAIT_FOR open';
 SELECT TABLE_SCHEMA, TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION,
 PARTITION_DESCRIPTION, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
@@ -64,27 +72,24 @@ WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 SET DEBUG_SYNC = 'now WAIT_FOR parked';
 # When waiting for the name lock in get_all_tables in sql_show.cc
 # this will not be concurrent any more, thus the TIMEOUT
-SET DEBUG_SYNC = 'before_handle_alter_part_end SIGNAL open WAIT_FOR alter TIMEOUT 1';
-# Needs to be executed twice, since first is this 'SET DEBUG_SYNC ...'
-SET DEBUG_SYNC = 'before_close_thread_tables SIGNAL finish EXECUTE 2';
+SET DEBUG_SYNC = 'alter_table_inplace_before_commit SIGNAL open WAIT_FOR alter';
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(PARTITION p0 VALUES LESS THAN (10),
+(PARTITION p1 VALUES LESS THAN (10),
 PARTITION p10 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1639	debug sync point wait timed out
+SET DEBUG_SYNC = 'now SIGNAL alter';
 TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_DESCRIPTION	TABLE_ROWS
-test	t1	p0	1	10	1
-test	t1	p10	2	MAXVALUE	3
-t1#P#p0.ibd
+test	t1	p0	1	MAXVALUE	NULL
+Warnings:
+Warning	1735	Unknown partition 'p0' in table 't1'
+t1#P#p1.ibd
 t1#P#p10.ibd
-t1.frm
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p10 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 SELECT * FROM t1;
 a

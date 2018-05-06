@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
@@ -107,14 +102,18 @@ BEGIN;
 INSERT INTO t1 VALUES (3,0,'3','3','3'),(4,0,'4','4','4'),(5,0,null,null,null);
 UPDATE t1 SET c = 'aaa', d = 'bbb', e = 'ccc' WHERE a = 4;
 ROLLBACK;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 SELECT * FROM t1 ORDER BY a;
 --sync_slave_with_master
 connection slave;
 --echo *************************
 --echo "Slave Data With Rollback
 --echo *************************
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 SELECT * FROM t1 ORDER BY a;
 
 # cleanup

@@ -25,7 +25,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child add constraint fk4 foreign key (a) references parent(b);
 alter table child add constraint fk5 foreign key (b) references parent(b);
 alter table child add constraint fk6 foreign key (c) references parent(b);
@@ -44,7 +44,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
 alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
 alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
@@ -102,5 +102,149 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table child, parent;
+#
+# Bug#24666177 : PARENT TABLE'S HANDLER NOT UPDATED AFTER ADDING A FK DEPENDENCY
+#
+#Setup tables
+create table parent(
+id int unique key
+) engine ndb;
+create table child(
+ref int
+) engine ndb;
+insert into parent values(1), (2), (3);
+insert into child  values(1), (2), (3);
+#Show create table on parent.
+#This will now load the m_fk_data of parent on handler
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Now create a foreign key dependency
+alter table child add foreign key fk1(ref) references parent(id);
+#Now run a alter engine query.
+#m_fk_data of parent should be reloaded now and the query should fail
+alter table parent engine = innodb;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Repeat same with truncate
+truncate table child;
+alter table parent engine = innodb;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Repeat same test for dropping FK
+alter table child drop foreign key fk1;
+# Now this should succeed
+alter table parent engine = innodb;
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) DEFAULT NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#Cleanup
+drop table parent, child;
+#
+# Bug#25859977 : WRONG ERROR MESSAGE SHOWN AFTER ALTER ADD FK FAILURE
+#
+# Setup
+create table parent (
+a int unique,
+b int,
+c int,
+key b_key(b),
+key c_key(c),
+constraint fk_p1 foreign key (b) references parent(a)
+) engine ndb;
+create table child (
+a int,
+b int,
+key a_key(a),
+key b_key(b),
+constraint fk_c1 foreign key (a) references parent(a)
+) engine ndb;
+# Try creating fk with already exisiting names. Should fail.
+alter table parent add constraint fk_p1 foreign key (c) references parent(a);
+ERROR HY000: Duplicate foreign key constraint name 'fk_p1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_p1'
+alter table child add constraint fk_c1 foreign key (b) references parent(a);
+ERROR HY000: Duplicate foreign key constraint name 'fk_c1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_c1'
+# Check if error is thrown when creating table
+create table test_fail (
+a int,
+b int,
+key a_key(a),
+key b_key(b),
+constraint fk_t1 foreign key (a) references parent(a),
+constraint fk_t1 foreign key (b) references parent(a)
+) engine ndb;
+ERROR HY000: Duplicate foreign key constraint name 'fk_t1'
+show warnings;
+Level	Code	Message
+Error	1826	Duplicate foreign key constraint name 'fk_t1'
+# Using distinct names should work
+alter table parent add foreign key fk_p2(b) references parent(a);
+alter table parent add foreign key fk_p3(c) references parent(a);
+alter table child  add foreign key fk_c2(b) references parent(a);
+#Show create tables
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  KEY `b_key` (`b`),
+  KEY `c_key` (`c`),
+  CONSTRAINT `fk_p1` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_p2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_p3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a_key` (`a`),
+  KEY `b_key` (`b`),
+  CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk_c2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Cleanup
+drop table child, parent;
+#
+# Bug#25882950 : CACHED INDEX IN NDBAPI'S DICT CACHE NOT CLEARED AFTER `CREATE TABLE` FAILURE
+#
+# Create a table with bad fk reference
+create table test(
+a int,
+foreign key fk1(a) references bogus_table(a)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+# Now create a table with proper reference - it should pass
+create table test (
+a int unique,
+b int,
+foreign key fk1(b) references test(a)
+) engine ndb;
+#Cleanup
+drop table test;

@@ -20,33 +20,9 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_windows.inc
+--echo # THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
+--echo #
+--echo # THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
+--echo #   mysql-test\t\log_components_notwin.test
 
-SET @start_value= @@global.log_syslog_tag;
-
-SET @@global.log_syslog_tag= DEFAULT;
-SELECT @@global.log_syslog_tag;
-
-SET @@global.log_syslog_tag="production";
-SELECT @@global.log_syslog_tag;
-
-SET @@global.log_syslog_tag= "";
-SELECT @@global.log_syslog_tag;
-
-# wrong
---error ER_WRONG_TYPE_FOR_VAR
-SET @@global.log_syslog_tag= 9;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_syslog_tag= "path/like";
-
---error ER_WRONG_TYPE_FOR_VAR
-SET GLOBAL log_syslog_tag= 0.01;
-
---error ER_GLOBAL_VARIABLE
-SET SESSION log_syslog_tag= "staging";
-
---error ER_GLOBAL_VARIABLE
-SET LOCAL log_syslog_tag= "staging";
-
-SET @@global.log_syslog_tag= @start_value;
+# This "test" should be removed once we have per-component system variables.

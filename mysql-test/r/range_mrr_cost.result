@@ -1,8 +1,6 @@
 set optimizer_switch='mrr=on,mrr_cost_based=on';
 drop table if exists t1, t2, t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
 type int(11) DEFAULT '0' NOT NULL,
@@ -724,11 +722,11 @@ OR ((pk4 =1) AND (((pk1 IN ( 7, 2, 1 ))) OR (pk1 =522)) AND ((pk2 IN ( 0, 2635))
 pk1	pk2	pk3	pk4	filler
 2621	2635	1000015	0	filler
 drop table t1, t2;
-create table t1(a char(2), key(a(1)));
+create table t1(a char(2), key(a(1))) charset utf8mb4;
 insert into t1 values ('x'), ('xx');
 explain select a from t1 where a > 'x';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	2	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'x')
 select a from t1 where a > 'x';
@@ -766,7 +764,7 @@ v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
-1	SIMPLE	s	NULL	ALL	OXLEFT,OXROOTID	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`s`.`OXID` AS `oxid` from `test`.`t1` `v` join `test`.`t1` `s` where ((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`v`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))
 SELECT s.oxid FROM t1 v, t1 s 
@@ -929,7 +927,7 @@ id int(11) NOT NULL auto_increment,
 status varchar(20),
 PRIMARY KEY  (id),
 KEY (status)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
 (1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
 (7,'B'), (8,'B'), (9,'B'), (10,'B'), (11,'B'), (12,'B'),
@@ -943,12 +941,12 @@ INSERT INTO t1 VALUES
 (55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
 EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	11	100.00	Using where
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	11	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`status` AS `status` from `test`.`t1` where ((`test`.`t1`.`status` <> 'A') and (`test`.`t1`.`status` <> 'B'))
 EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	11	100.00	Using where
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	11	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`status` AS `status` from `test`.`t1` where (`test`.`t1`.`status` not in ('A','B'))
 SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
@@ -973,22 +971,22 @@ id	status
 60	C
 EXPLAIN SELECT status FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`status` AS `status` from `test`.`t1` where ((`test`.`t1`.`status` <> 'A') and (`test`.`t1`.`status` <> 'B'))
 EXPLAIN SELECT status FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	11	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`status` AS `status` from `test`.`t1` where (`test`.`t1`.`status` not in ('A','B'))
 EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`status` AS `status` from `test`.`t1` where (`test`.`t1`.`status` not between 'A' and 'B')
 EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	status	status	23	NULL	10	100.00	Using where
+1	SIMPLE	t1	NULL	range	status	status	83	NULL	10	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`status` AS `status` from `test`.`t1` where ((`test`.`t1`.`status` < 'A') or (`test`.`t1`.`status` > 'B'))
 SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
@@ -1103,7 +1101,7 @@ insert into t1 values ('a ','');
 insert into t1 values ('a  ', '');
 insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
   from t3 A, t3 B, t3 C;
-create table t2 (a varchar(10), filler char(200), key(a));
+create table t2 (a varchar(10), filler char(200), key(a)) charset utf8mb4;
 insert into t2 select * from t1;
 explain select * from t1 where a between 'a' and 'a ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1115,16 +1113,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	a	a	13	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`a` = 'a') or (`test`.`t1`.`a` = 'a '))
-explain select * from t2 where a between 'a' and 'a ';
+explain select * from t2 where a between 'a' and 'A';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	13	const	#	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	43	const	#	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` between 'a' and 'a ')
-explain select * from t2 where a = 'a' or a='a ';
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` between 'a' and 'A')
+explain select * from t2 where a = 'a' or a='A';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	13	const	#	100.00	NULL
+1	SIMPLE	t2	NULL	ref	a	a	43	const	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where ((`test`.`t2`.`a` = 'a') or (`test`.`t2`.`a` = 'a '))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where ((`test`.`t2`.`a` = 'a') or (`test`.`t2`.`a` = 'A'))
 update t1 set a='b' where a<>'a';
 explain select * from t1 where a not between 'b' and 'b';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1211,7 +1209,7 @@ item char(20) NOT NULL default '',
 started datetime NOT NULL default '0000-00-00 00:00:00', 
 price decimal(16,3) NOT NULL default '0.000',                 
 PRIMARY KEY (item,started)                     
-) ENGINE=MyISAM;
+) ENGINE=MyISAM, CHARSET utf8mb4;
 INSERT INTO t1 VALUES
 ('A1','2005-11-01 08:00:00',1000),
 ('A1','2005-11-15 00:00:00',2000),
@@ -1219,7 +1217,7 @@ INSERT INTO t1 VALUES
 ('A2','2005-12-01 08:00:00',1000);
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	20	const	2	33.33	Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	80	const	2	33.33	Using where
 Warnings:
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
@@ -1290,64 +1288,42 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((
 DROP TABLE t1;
 CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256.0;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+SELECT COUNT(*) FROM t1 WHERE f1 < 255;
 COUNT(*)
 4
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+SELECT COUNT(*) FROM t1 WHERE f1 < -1;
 COUNT(*)
 0
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+SELECT COUNT(*) FROM t1 WHERE f1 > -1;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128.0;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+SELECT COUNT(*) FROM t1 WHERE f1 < 127;
 COUNT(*)
 4
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129.0;
 COUNT(*)
 5
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+SELECT COUNT(*) FROM t1 WHERE f1 > -128;
 COUNT(*)
 4
-Warnings:
-Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1356,12 +1332,11 @@ insert into t2 select A.a + 10 * (B.a + 10 * C.a), 10, 'filler' from t1 A,
 t1 B, t1 C where A.a < 5;
 insert into t2 select 1000, b, 'filler' from t2;
 alter table t2 add index (a,b);
-select 'In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)' Z;
-Z
-In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)
+Access method can be range/ALL with #rows >= 500.
+Or it can be ref with #rows = 2, only when there is memory limit.
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	5	const	502	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	1000	50.20	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where ((`test`.`t2`.`a` = 1000) and (`test`.`t2`.`b` < 11))
 drop table t1, t2;
@@ -1761,7 +1736,7 @@ SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -2029,7 +2004,7 @@ F2 CHAR(5) NOT NULL,
 F3 CHAR(5) NOT NULL,
 PRIMARY KEY(F1),
 INDEX IDX_F2(F2)
-);
+) COLLATE latin1_swedish_ci;
 INSERT INTO t1 VALUES
 ('A','A','A'),('AA','AA','AA'),('AAA','AAA','AAA'),
 ('AAAA','AAAA','AAAA'),('AAAAA','AAAAA','AAAAA');
@@ -2617,7 +2592,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
 INSERT INTO t1 VALUES ('2001-01-01 11:22:33');
-CREATE TABLE t2 (b VARCHAR(64), KEY (b));
+CREATE TABLE t2 (b VARCHAR(64), KEY (b)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES ('2001-01-01');
 INSERT INTO t2 VALUES ('2001.01.01');
 INSERT INTO t2 VALUES ('2001#01#01');
@@ -2628,17 +2603,17 @@ INSERT INTO t2 VALUES ('2001-01-01 11:22:33');
 
 EXPLAIN SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	b	b	67	NULL	5	20.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = <cache>(cast('2001-01-01' as date)))
 SELECT * FROM t2 WHERE b=CAST('2001-01-01' AS DATE);
 b
-2001#01#01
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
+2001#01#01
 
 # range/ref access cannot be used for any of the queries below.
 # See BUG#13814468 about 'Range checked for each record'
@@ -2646,7 +2621,7 @@ b
 EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	67	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
@@ -2662,7 +2637,7 @@ a	b
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	67	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
@@ -3052,11 +3027,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE t7.a IN (t5.b, t6.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	28.57	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3079,11 +3054,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3455,6 +3430,8 @@ pk INTEGER NOT NULL,
 PRIMARY KEY (pk),
 KEY v1_key (v1(10))
 ) ENGINE=InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
 EXPLAIN SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3530,11 +3507,11 @@ CREATE TABLE t1 (
 col1 VARCHAR(5),
 col2 INT NOT NULL,
 PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('abcde', 10);
 EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	7	const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	22	const	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`col2`) AS `MAX(col2)` from `test`.`t1` where (`test`.`t1`.`col1` = 'abcdeaa')
 EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
@@ -3569,6 +3546,41 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where 
 SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
 DROP TABLE t1;
 #
+# Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+#
+# Tests deleting nodes in tree_delete() not from the end of the
+# linked list.
+#
+CREATE TABLE t1 (
+pk INTEGER,
+PRIMARY KEY (pk)
+);
+SELECT * FROM t1 WHERE pk IN (3, 8) OR pk NOT IN (2);
+pk
+DROP TABLE t1;
+#
+# Bug #23623110: REFACTOR USE_COUNT IN THE RANGE OPTIMIZER
+#
+# Tests deleting nodes in tree_delete() not from the end of the
+# linked list.
+#
+# Indirectly tests ORing with a tree that has a nonzero refcount,
+# where nodes are also being skipped over. (There was a bug in
+# refcounting such trees earlier.)
+#
+CREATE TABLE t1 (
+col_int_key int,
+pk int NOT NULL,
+col_int int,
+KEY test_idx (pk,col_int_key,col_int)
+);
+SELECT * FROM t1 WHERE
+(col_int_key >= 6 AND pk > 6) OR
+(pk > 2 AND col_int_key = 7 AND col_int > 6);
+col_int_key	pk	col_int
+DROP TABLE t1;
+#
+#
 # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
 #                INDEX, EVEN THOUGH COST IS HIGHER
 #
@@ -3588,6 +3600,8 @@ KEY `one_other_idx` (`one_id`,`other_id`),
 KEY `other_id` (`other_id`,`time_created`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101651329
 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
 (82543190), (67538270), (77282760), (77908170),
@@ -3621,11 +3635,83 @@ WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
 70923271, 68066180)
 AND (giant_table.flags & 0x01) = 0 AND giant_table.some_other_id = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	giant_table	NULL	range	PRIMARY,some_other_id	some_other_id	8	NULL	20	100.00	Using where
+1	SIMPLE	giant_table	NULL	range	PRIMARY,some_other_id	PRIMARY	4	NULL	20	0.36	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`giant_table`.`id` AS `id`,`test`.`giant_table`.`something` AS `something`,`test`.`giant_table`.`comment` AS `comment`,`test`.`giant_table`.`time_created` AS `time_created`,`test`.`giant_table`.`one_id` AS `one_id`,`test`.`giant_table`.`other_id` AS `other_id`,`test`.`giant_table`.`some_other_id` AS `some_other_id`,`test`.`giant_table`.`flags` AS `flags` from `test`.`giant_table` where ((`test`.`giant_table`.`some_other_id` = 0) and (`test`.`giant_table`.`id` in (66136539,68983258,89628210,77869520,82543198,67538272,84673401,61069031,68214385,77282865,76991297,64569216,89481638,74534074,70396537,80076375,63308530,77908270,70923271,68066180)) and ((`test`.`giant_table`.`flags` & 0x01) = 0))
 DROP PROCEDURE p;
 DROP TABLE giant_table, t1;
+#
+# Bug#22671573: SIG11 IN SEL_ARG::RB_INSERT |SQL/OPT_RANGE.CC
+#
+# Tests creating an empty tree (impossible condition) and then ANDing with it.
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY test_idx (b, a)
+);
+SELECT * FROM t1 WHERE b BETWEEN 8 AND 8 AND a > 8 AND a <= 8;
+a	b
+DROP TABLE t1;
+#
+# Indirectly tests inserting a node into an empty (impossible) tree.
+#
+CREATE TABLE t1 (
+pk INT,
+PRIMARY KEY ( pk )
+);
+SELECT * FROM t1 WHERE pk = 6 OR pk > 6;
+pk
+DROP TABLE t1;
+#
+# Indirectly tests ORing with an empty (impossible) tree.
+#
+CREATE TABLE t1 (
+col_int_key INT,
+KEY (col_int_key)
+);
+SELECT * FROM t1 WHERE col_int_key IS NULL OR col_int_key < 9 OR col_int_key = 9;
+col_int_key
+DROP TABLE t1;
+#
+# Indirectly tests deleting the last node from a tree
+# (which makes it IMPOSSIBLE) and then inserting more than one node.
+#
+CREATE TABLE t1 (
+a VARCHAR(64),
+KEY a (a)
+);
+SELECT * FROM t1 WHERE a IS NULL OR a NOT IN ( 'foo', 'bar' );
+a
+DROP TABLE t1;
+#
+# Bug#25229315: ASSERTION TABLE->M_RECORD_BUFFER.RECORD_SIZE() ==
+#               RECORD_PREFIX_SIZE(TAB)' FAIL
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, vc VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, NULL), (2, 'w');
+CREATE TABLE t2 (
+i INT,
+vc VARCHAR(1),
+pk INT PRIMARY KEY,
+KEY (i),
+KEY (vc)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 'p', 1), (9, 'w', 2), (NULL, 'r', 3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	i,vc	NULL	NULL	NULL	3	55.56	Range checked for each record (index map: 0x6)
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`vc` = `test`.`t1`.`vc`) or (`test`.`t2`.`i` = `test`.`t1`.`pk`))
+SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
+MIN(t1.pk)
+1
+DROP TABLE t1, t2;
 #
 # Bug #26727773: OPTIMIZER CHOSES COMPOSITE INDEX FOR REF OVER RANGE
 #
@@ -3669,7 +3755,7 @@ FROM transactions
 WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
 GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	transactions	NULL	range	tbl_id_idx,created_idx,trans_type_created_idx	trans_type_created_idx	8	NULL	1	100.00	Using where; Using filesort
+1	SIMPLE	transactions	NULL	range	tbl_id_idx,created_idx,trans_type_created_idx	created_idx	4	NULL	#	#	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select '2017-10-23 01:01:01' AS `2017-10-23 01:01:01`,hour(`test`.`transactions`.`created`) AS `HOUR(created)`,`test`.`transactions`.`source_lvl1` AS `source_lvl1`,`test`.`transactions`.`source_lvl2` AS `source_lvl2`,count(distinct `test`.`transactions`.`app_trans_id`) AS `COUNT(DISTINCT(app_trans_id))` from `test`.`transactions` where ((`test`.`transactions`.`trans_type` = 3) and (`test`.`transactions`.`tbl` = 1) and (`test`.`transactions`.`created` > '2017-10-23 01:01:01')) group by '2017-10-23 01:01:01',hour(`test`.`transactions`.`created`),`test`.`transactions`.`source_lvl1`,`test`.`transactions`.`source_lvl2`
 SET optimizer_trace="enabled=on";
@@ -3681,8 +3767,8 @@ GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
 2017-10-23 01:01:01	HOUR(created)	source_lvl1	source_lvl2	COUNT(DISTINCT(app_trans_id))
 2017-10-23 01:01:01	1	NULL	NULL	0
 SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-SELECT @trace RLIKE "uses_more_keyparts";
-@trace RLIKE "uses_more_keyparts"
+SELECT @trace RLIKE "range_uses_more_keyparts";
+@trace RLIKE "range_uses_more_keyparts"
 1
 SET optimizer_trace="enabled=off";
 DROP PROCEDURE p;

@@ -4,9 +4,7 @@ SET @@global.innodb_lock_wait_timeout=1;
 SET @lock_wait_timeout_old=@@global.lock_wait_timeout;
 SET @@global.lock_wait_timeout=1;
 SET @@global.autocommit=0;
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 SET @wait= @@global.wait_timeout;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
@@ -110,9 +108,7 @@ disconnect mysqltest1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;
 SET  @@global.autocommit=@auto_commit;
 SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
 SET @@global.lock_wait_timeout=@lock_wait_timeout_old;

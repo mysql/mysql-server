@@ -1,5 +1,0 @@
-#
-# Bug#13541194 : MTR TEST TO RUN EMBEDDED SERVER CLIENT TESTS IN MYSQL_CLIENT_TEST.C.
-#
-stopped the current server
-# 7. Restart the server and cleanup

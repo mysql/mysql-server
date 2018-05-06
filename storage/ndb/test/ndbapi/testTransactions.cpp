@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -274,14 +280,28 @@ checkVal(HugoOperations & hugoOps,
   return hugoOps.verifyUpdatesValue(value);
 }
 
-#define TIMEOUT 100
+#define SHORT_TIMEOUT   (Uint32)100
+#define DEFAULT_TIMEOUT (Uint32)3000
 
 int
-setTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
+setShortTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
   int val[] = 
-    { DumpStateOrd::TcSetTransactionTimeout, TIMEOUT };
+    { DumpStateOrd::TcSetTransactionTimeout, SHORT_TIMEOUT };
+  if(restarter.dumpStateAllNodes(val, 2) != 0){
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int
+setDefaultTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  int val[] = 
+    { DumpStateOrd::TcSetTransactionTimeout, DEFAULT_TIMEOUT };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
   }
@@ -345,11 +365,14 @@ runTwoTrans2(NDBT_Context* ctx, NDBT_Step* step){
 
   while(ctx->getProperty("T1-1-Complete", (Uint32)0) == 0 && 
 	!ctx->isTestStopped()){
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(10);
   }
 
   if(!ctx->isTestStopped()){
     do {
+      if (res2==266 || res2==274){ //Expecting timeout
+        CHECK(setShortTransactionTimeout(ctx, step), NDBT_OK);
+      }
       CHECK(T2.startTransaction(pNdb), 0);  
       CHECK(runOp(T2, pNdb, op2, val2), 0);
       CHECK(T2.execute_NoCommit(pNdb), res2);
@@ -359,6 +382,9 @@ runTwoTrans2(NDBT_Context* ctx, NDBT_Step* step){
       }
     } while(false);
     T2.closeTransaction(pNdb);
+    if (res2==266 || res2==274){ //Restore default timeout
+      setDefaultTransactionTimeout(ctx, step);
+    }
   }
   
   ctx->setProperty("T2-Complete", 1);  
@@ -419,10 +445,6 @@ main(int argc, const char** argv){
 					      "runInsertRecord", 
 					      runInsertRecord));
     }
-    
-    pt->addInitializer(new NDBT_Initializer(pt, 
-					    "setTransactionTimeout", 
-					    setTransactionTimeout));
     
     pt->setProperty("op1", matrix[i].op1);
     pt->setProperty("val1", matrix[i].val1);

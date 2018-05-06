@@ -1,28 +1,31 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
+  SET(BUILD_BUNDLED_ZLIB 1)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
-  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
-  ADD_SUBDIRECTORY(zlib)
-  GET_TARGET_PROPERTY(src zlib SOURCES)
-  FOREACH(file ${src})
-    SET(ZLIB_SOURCES ${ZLIB_SOURCES} ${CMAKE_SOURCE_DIR}/zlib/${file})
-  ENDFOREACH()
+  ADD_SUBDIRECTORY(extra/zlib)
 ENDMACRO()
 
 # MYSQL_CHECK_ZLIB_WITH_COMPRESS
@@ -51,12 +54,13 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
     SET(ZLIB_FIND_QUIETLY TRUE)
     INCLUDE(FindZLIB)
     IF(ZLIB_FOUND)
-     INCLUDE(CheckFunctionExists)
-      SET(CMAKE_REQUIRED_LIBRARIES z)
+      INCLUDE(CheckFunctionExists)
+      SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+      SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} z)
       CHECK_FUNCTION_EXISTS(crc32 HAVE_CRC32)
       CHECK_FUNCTION_EXISTS(compressBound HAVE_COMPRESSBOUND)
       CHECK_FUNCTION_EXISTS(deflateBound HAVE_DEFLATEBOUND)
-      SET(CMAKE_REQUIRED_LIBRARIES)
+      SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
       IF(HAVE_CRC32 AND HAVE_COMPRESSBOUND AND HAVE_DEFLATEBOUND)
         SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
         SET(WITH_ZLIB "system" CACHE STRING
@@ -71,5 +75,4 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
       MYSQL_USE_BUNDLED_ZLIB()
     ENDIF()
   ENDIF()
-  SET(HAVE_COMPRESS 1)
 ENDMACRO()

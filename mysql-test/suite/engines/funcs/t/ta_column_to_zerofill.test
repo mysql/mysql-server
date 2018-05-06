@@ -1,5 +1,5 @@
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -709,4 +709,3 @@ ALTER TABLE t4 CHANGE c1 c1 NUMERIC UNSIGNED ZEROFILL NOT NULL;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
  SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
-

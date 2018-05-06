@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -40,8 +47,8 @@ class ScanFragReq {
 public:
   STATIC_CONST( SignalLength = 12 );
 
-  STATIC_CONST( AttrInfoSectionNum = 0 );
-  STATIC_CONST( KeyInfoSectionNum = 1 );
+  STATIC_CONST( AttrInfoSectionNum = 0 ); //Mandatory part
+  STATIC_CONST( KeyInfoSectionNum = 1 );  //Optional
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
@@ -115,6 +122,12 @@ public:
 
   static void setCorrFactorFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getCorrFactorFlag(const Uint32 & requestInfo);
+
+  // Multiple fragment list is sent as last section if MultiFragFlag
+  // is set. Encoded as a list of fragId's, where first fragId
+  // is the same as 'fragmentNoKeyLen'.
+  static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 };
 
 /*
@@ -223,8 +236,7 @@ public:
     ZWRONG_BATCH_SIZE = 1230,
     ZSTANDBY_SCAN_ERROR = 1209,
     NO_TC_CONNECT_ERROR = 1217,
-    ZSCAN_BOOK_ACC_OP_ERROR = 1219,
-    ZUNKNOWN_TRANS_ERROR = 1227
+    ZSCAN_BOOK_ACC_OP_ERROR = 1219
   };
   
   Uint32 senderData;
@@ -294,11 +306,12 @@ public:
  * s = Stat scan             - 1  Bit 17
  * a = Prio A scan           - 1  Bit 18
  * i = Not interpreted flag  - 1  Bit 19
+ * m = Multi fragment scan   - 1  Bit 20
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
- *  rrcdlxhkrztppppCs                 Long variant (6.4.0 +)
+ *  rrcdlxhkrztppppCsaim              Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -326,6 +339,7 @@ public:
 #define SF_STAT_SCAN_SHIFT  (17)
 #define SF_PRIO_A_SHIFT     (18)
 #define SF_NOT_INTERPRETED_SHIFT (19)
+#define SF_MULTI_FRAG_SHIFT  (20)
 
 inline 
 Uint32
@@ -521,6 +535,20 @@ void
 ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
   requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getMultiFragFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_MULTI_FRAG_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setMultiFragFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setMultiFragFlag");
+  requestInfo= (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
+               (val << SF_MULTI_FRAG_SHIFT);
 }
 
 inline

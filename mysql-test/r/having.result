@@ -8,12 +8,14 @@ b
 select count(a) as b from t1 where a=0 having b >=0;
 b
 0
-explain extended select count(a) as b from t1 where a=0 having b >=0;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain select count(a) as b from t1 where a=0 having b >=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select count(NULL) AS `b` from dual where 0 having (`b` >= 0)
+Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 0) having (`b` >= 0)
 drop table t1;
 CREATE TABLE t1 (
 raw_id int(10) NOT NULL default '0',
@@ -91,17 +93,17 @@ drop table t1;
 CREATE TABLE t1 (
 `id` bigint(20) NOT NULL default '0',
 `description` text
-) ENGINE=MyISAM;
+);
 CREATE TABLE t2 (
 `id` bigint(20) NOT NULL default '0',
 `description` varchar(20)
-) ENGINE=MyISAM;
+);
 INSERT INTO t1  VALUES (1, 'test');
 INSERT INTO t2 VALUES (1, 'test');
 CREATE TABLE t3 (
 `id`       bigint(20) NOT NULL default '0',
 `order_id` bigint(20) NOT NULL default '0'
-) ENGINE=MyISAM;
+);
 select
 a.id, a.description,
 count(b.id) as c 
@@ -133,14 +135,14 @@ CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (3), (4), (1), (3), (1);
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a)>0;
 SUM(a)
-2
 6
 4
+2
 SELECT SUM(a) FROM t1 GROUP BY a HAVING SUM(a);
 SUM(a)
-2
 6
 4
+2
 DROP TABLE t1;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2), (1), (3), (2), (1);
@@ -152,6 +154,9 @@ SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 a
 SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 x	a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
@@ -221,16 +226,16 @@ count_col1
 10
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
 count_col1	col2
-10	bob
-10	bye
 10	hello
+10	bye
 10	sam
+10	bob
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
 count_col1	col2
-10	bob
-10	bye
 10	hello
+10	bye
 10	sam
+10	bob
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
 count_col1	col2
 10	hello
@@ -365,6 +370,7 @@ count(s1)
 select * from t1 a, t1 b group by a.s1 having s1 is null;
 ERROR 23000: Column 's1' in having clause is ambiguous
 drop table t1;
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 Warnings:
@@ -373,6 +379,7 @@ select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
 s1	count(s1)
 y	1
+set names utf8mb4;
 drop table t1;
 DROP SCHEMA IF EXISTS HU;
 CREATE SCHEMA HU ;
@@ -414,8 +421,6 @@ f1
 select f1 from t1 group by f1 having max(f1)=f1;
 f1
 set session sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select f1 from t1 having max(f1)=f1;
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 select f1 from t1 group by f1 having max(f1)=f1;
@@ -460,7 +465,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 f1	f2
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -470,9 +475,8 @@ HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -482,7 +486,6 @@ HAVING (table2.f2 = 8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
 DROP TABLE t1;
 #
@@ -728,11 +731,16 @@ CREATE TABLE series (
 val INT(10) UNSIGNED NOT NULL
 );
 INSERT INTO series VALUES(1);
+CREATE TABLE seq_calls (
+c INT
+);
+INSERT INTO seq_calls VALUES(0);
 CREATE FUNCTION next_seq_value() RETURNS INT
 BEGIN
 DECLARE next_val INT;
 SELECT val INTO next_val FROM series;
 UPDATE series SET val=mod(val + 1, 2);
+UPDATE seq_calls SET c=c+1;
 RETURN next_val;
 END;
 |
@@ -742,6 +750,9 @@ INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+SELECT * FROM series, seq_calls;
+val	c
+1	0
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 GROUP BY t HAVING r = 1  ORDER BY t1.u;
 t	r
@@ -749,55 +760,57 @@ t	r
 12	1
 15	1
 17	1
+SELECT * FROM series, seq_calls;
+val	c
+0	7
+UPDATE series set val=0;
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+11	1
+12	1
+15	1
+17	1
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+SELECT * FROM series, seq_calls;
+val	c
+0	17
+UPDATE series set val=0;
 EXECUTE stmt;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+11	1
+14	1
+16	1
+SELECT * FROM series, seq_calls;
+val	c
+1	24
+UPDATE series set val=1;
 EXECUTE stmt;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+10	1
+12	1
+15	1
+17	1
 DEALLOCATE PREPARE stmt;
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+SELECT * FROM series, seq_calls;
+val	c
+0	31
+UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
-0	10
-0	11
-0	12
-0	15
-0	16
-0	17
-0	18
+1	11
+1	15
+1	17
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
-DROP TABLE series;
+DROP TABLE series, seq_calls;
 #
 #  Bug#21243772: NOT IN SUBQUERY RETURNS INCORRECT RESULTS WHEN INNER
 #                QUERY HAS COUNT DISTINCT.
@@ -886,3 +899,27 @@ SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
 c1
 1
 DROP TABLE t1, t2;
+#
+# BUG#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+#
+CREATE TABLE CC (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES
+(10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+(23,'z','z'),(28,'y','y');
+SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+HAVING field1 <> 5;
+field1
+z
+CREATE OR REPLACE VIEW v1 AS SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+HAVING field1 <> 5;
+SELECT * FROM v1;
+field1
+z
+DROP TABLE CC;
+DROP VIEW v1;

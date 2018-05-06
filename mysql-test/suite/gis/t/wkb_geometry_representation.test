@@ -1,0 +1,450 @@
+###############################################################################
+#                                                                             #
+# This test is aimed at testing the modified ST_ASWKB/ST_ASBINARY             #
+# functions where they have been extended to accept two parameters:           #
+# a geometry and an optional argument to specify the axis ordering of         #
+# the returned WKB string.                                                    #
+#                                                                             #
+# Creation Date: 2016-29-07                                                   #
+# Author : Hans H. Melby                                                      #
+#                                                                             #
+###############################################################################
+
+--echo ##########################################################
+--echo # Inserting testing SRS values in spatial reference table
+--echo ##########################################################
+
+--echo # Inserting geographical srs with long-lat ordering
+CREATE SPATIAL REFERENCE SYSTEM 30000000 NAME 'TEST30000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]';
+
+--echo # Inserting geographical srs with lat-long ordering
+CREATE SPATIAL REFERENCE SYSTEM 30100000 NAME 'TEST30100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]';
+
+--echo # Inserting projected srs with northing-easting ordering
+CREATE SPATIAL REFERENCE SYSTEM 30200000 NAME 'TEST30200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]';
+
+--echo # Inserting projected srs with easting-northing ordering
+CREATE SPATIAL REFERENCE SYSTEM 30300000 NAME 'TEST30300000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]';
+
+
+####################################
+# Creating the spatial objects
+####################################
+
+--echo # Creating the spatial objects
+
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_linestring (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
+CREATE TABLE gis_multi_linestring (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
+CREATE TABLE gis_multi_polygon (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+
+######################################
+# Inserting POINT Geometry values
+######################################
+
+--echo # Inserting POINT Geometry Values with different SRID types
+
+INSERT INTO gis_point VALUES
+    (101, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30000000)),
+    (102, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30100000)),
+    (103, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30200000)),
+    (104, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30300000)),
+    (105, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 0));
+
+###########################################
+# Inserting LINESTRING Geometry values
+###########################################
+
+--echo # Inserting LINESTRING Geometry Values with different SRID types
+
+INSERT INTO gis_linestring VALUES
+    (201, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30000000)),
+    (202, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30100000)),
+    (203, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30200000)),
+    (204, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30300000)),
+    (205, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 0));
+
+############################################
+# Inserting POLYGON Geometry values
+############################################
+
+--echo # Inserting POLYGON Geometry Values with different SRID types
+
+INSERT INTO gis_polygon VALUES
+    (301, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30000000)),
+    (302, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30100000)),
+    (303, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30200000)),
+    (304, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30300000)),
+    (305, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 0));
+
+############################################
+# Inserting MULTIPOINT Geometry values
+############################################
+
+--echo # Inserting MULTIPOINT Geometry Values with different SRID types
+
+INSERT INTO gis_multi_point VALUES
+    (401, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30000000)),
+    (402, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30100000)),
+    (403, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30200000)),
+    (404, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30300000)),
+    (405, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 0));
+
+################################################
+# Inserting MULTILINESTRING Geometry values
+################################################
+
+--echo # Inserting MULTILINESTRING Geometry Values with different SRID types
+
+INSERT INTO gis_multi_linestring VALUES
+    (501, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30000000)),
+    (502, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30100000)),
+    (503, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30200000)),
+    (504, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30300000)),
+    (505, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 0));
+
+#############################################
+# Inserting MULTIPOLYGON Geometry values
+#############################################
+
+--echo # Inserting MULTIPOLYGON Geometry Values with different SRID types
+
+INSERT INTO gis_multi_polygon VALUES
+    (601, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30000000)),
+    (602, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30100000)),
+    (603, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30200000)),
+    (604, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30300000)),
+    (605, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 0));
+
+##################################################
+# Inserting GEOMETRYCOLLECTION Geometry values
+##################################################
+
+--echo # Inserting GEOMETRYCOLLECTION Geometry Values with different SRID types
+
+INSERT INTO gis_geometrycollection VALUES
+    (701, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30000000)),
+    (702, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30100000)),
+    (703, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30200000)),
+    (704, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30300000)),
+    (705, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 0));
+
+--echo #####################################################################
+--echo # Retrieving geometries with ST_ASWKB with no parameter
+--echo # (Should thus be retrieved with the SRID default axis ordering)
+--echo #####################################################################
+
+--echo # Retrieve all values from gis_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_linestring
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_linestring
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_geometrycollection
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_geometrycollection
+ ORDER BY fid;
+
+--echo #####################################################################
+--echo # Retrieving geometries with ST_ASWKB with lat-long axis ordering
+--echo # (Default SRID coordination should thus be overridden)
+--echo #####################################################################
+
+--echo # Retrieve all values from gis_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_point ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_polygon ORDER BY fid;
+
+--echo # Retrieve all values from gis_geometrycollection
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_geometrycollection ORDER BY fid;
+
+--echo #####################################################################
+--echo # Retrieving geometries with ST_ASWKB with long-lat axis ordering
+--echo # (Default SRID coordination should thus be overridden)
+--echo #####################################################################
+
+--echo # Retrieve all values from gis_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_point ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_polygon ORDER BY fid;
+
+--echo # Retrieve all values from gis_geometrycollection
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_geometrycollection ORDER BY fid;
+
+--echo #####################################################################
+--echo # Retrieving geometries with ST_ASWKB with srid-default axis ordering
+--echo # (Default SRID coordination should thus be explicitly used)
+--echo #####################################################################
+
+--echo # Retrieve all values from gis_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_polygon ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_point ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_linestring ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_polygon ORDER BY fid;
+
+--echo # Retrieve all values from gis_geometrycollection
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_geometrycollection ORDER BY fid;
+
+--echo ##########################################################################
+--echo # Retrieving geometries with ST_ASWKB with empty axis ordering parameter
+--echo # (Default SRID coordination should thus be used)
+--echo ##########################################################################
+
+--echo # Retrieve all values from gis_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_linestring
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_point
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_point
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_linestring
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_linestring
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_multi_polygon
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_polygon
+ ORDER BY fid;
+
+--echo # Retrieve all values from gis_geometrycollection
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_geometrycollection
+ ORDER BY fid;
+
+
+--echo ################################
+--echo # Specific cases testing
+--echo # ##############################
+
+--echo # Test with combined lowercase and uppercase characters in optional parameter
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'aXIs-oRDer=sriD-dEFineD'))) FROM gis_geometrycollection ORDER BY fid;
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LaT-LOng'))) FROM gis_geometrycollection ORDER BY fid;
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LOnG-lAT'))) FROM gis_geometrycollection ORDER BY fid;
+
+--echo # Test with combined lowercase, uppercase and whitespaces in optional parameter
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   aXIs-oRDer=sriD-dEFineD    '))) FROM gis_geometrycollection ORDER BY fid;
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ' axis-order=LaT-LOng   '))) FROM gis_geometrycollection ORDER BY fid;
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   axis-order=LOnG-lAT       '))) FROM gis_geometrycollection ORDER BY fid;
+
+--echo # Test with only whitespaces in optional parameter (Should return same as empty string)
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '       '))) FROM gis_geometrycollection
+ ORDER BY fid;
+
+--echo ##########################
+--echo # Error testing
+--echo # ########################
+
+--echo # Test with badly formed options string
+
+--error ER_INVALID_OPTION_KEY_VALUE_PAIR
+SELECT ST_ASWKB(g, 'axis-order srid-defined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_START_CHARACTER
+SELECT ST_ASWKB(g, '=axis-order srid-defined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_END_CHARACTER
+SELECT ST_ASWKB(g, 'axis-order=srid-defined=') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_CHARACTERS
+SELECT ST_ASWKB(g, 'axis-order== srid-defined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_KEY_VALUE_PAIR
+SELECT ST_ASWKB(g, 'axis-=order srid-def=ined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_END_CHARACTER
+SELECT ST_ASWKB(g, 'axis-order srid-defined,') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_START_CHARACTER
+SELECT ST_ASWKB(g, ',axis-order srid-defined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_CHARACTERS
+SELECT ST_ASWKB(g, 'axis-order,,srid-defined') FROM gis_geometrycollection;
+--error ER_DUPLICATE_OPTION_KEY
+SELECT ST_ASWKB(g, 'axis-order=srid-defined, axis-order=lat-long') FROM gis_geometrycollection;
+
+
+
+--echo # Test with too many options
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASWKB(g, 'axis-order=srid-defined, axis-order2=lat-long') FROM gis_geometrycollection;
+
+--echo # Test with invalid options key
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASWKB(g, 'axix-order=srid-defined') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASWKB(g, 'axix-order=lat-long') FROM gis_geometrycollection;
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASWKB(g, 'axix-order=long-lat') FROM gis_geometrycollection;
+
+--echo # Test with invalid options value
+
+--error ER_INVALID_OPTION_VALUE
+SELECT ST_ASWKB(g, 'axis-order=invalid-option') FROM gis_geometrycollection;
+
+--echo # Test with too many function parameters
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ASWKB(g, 'axis-order=long-lat', POINT(2, 4)) FROM gis_geometrycollection;
+
+--echo # Test with too invalid start and end characters in substring
+
+--error ER_INVALID_OPTION_START_CHARACTER
+SELECT ST_ASWKB(POINT(4, 2), 'axis-order=test,=long-lathello,=test');
+
+--error ER_INVALID_OPTION_END_CHARACTER
+SELECT ST_ASWKB(POINT(4, 2), 'axis-order=long-lat=, axis-order=lat-long');
+
+--echo # Test with both invalid option and invalid value
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASWKB(g, 'invalid_option=invalid-value') FROM gis_geometrycollection;
+
+--echo # NULL value testing: Should return NULL if either or both parameters of
+--echo # ST_ASWKB/ST_ABINARY is NULL
+
+SELECT ST_AsWKB(NULL, 'axis-order=srid-defined');
+SELECT ST_AsWKB(POINT(0, 0), NULL);
+SELECT ST_AsWKB(NULL, NULL);
+
+--echo # Bug#24488316 Test case
+
+SELECT ST_AsText(ST_GeomFromWKB(ST_AsWKB(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(MULTILINESTRING((1 9,18 2,0 -17,5 -3),(19 19,-4 -14),(-16 5,19 6),(-6 0,6 12,12 19,-19 -12),(5 -19,8 -19),(14 0,-16 -1,-1 -4,-1 20)),MULTILINESTRING((-14 -4,6 -4),(1 -4,-13 -1),(-17 5,-10 -8),(9 -17,-17 0,4 -19,12 2)))))),LINESTRING(-5 -12,-5 -9))', 4016))));
+
+--echo # Testing with null character in options string
+
+--error ER_INVALID_OPTION_KEY_VALUE_PAIR
+SELECT HEX(ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 0)'), x'00c0ffee'));
+
+--echo # Test with options strings that previously gave wrong error message
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_AsWKB(POINT(1, 1), 'axis-order=lat-long,foo=bar');
+--error ER_INVALID_OPTION_KEY
+SELECT ST_AsWKB(POINT(1, 1), 'axis-order=lat-long , foo=bar');
+
+--echo # Test with invalid options value and invalid SRID (should give same
+--echo # error as with a valid SRID)
+
+--error ER_INVALID_OPTION_VALUE
+DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4326), 'axis-order = foo'); 
+
+
+--echo #####################################################################
+--echo # ST_ASBINARY
+--echo #####################################################################
+
+# ST_ASBINARY has the exact same implementation as ST_ASWKB. We still need
+# minimal testing of the interface to detect changes that affect only the one
+# function name.
+
+# These queries are a selection of those done for ST_ASWKB.
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g)))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=srid-defined')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, '')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=lat-long')))
+FROM gis_geometrycollection ORDER BY fid;
+
+SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=long-lat')))
+FROM gis_geometrycollection ORDER BY fid;
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASBINARY(g, 'invalid_option=invalid-value')
+FROM gis_geometrycollection;
+
+--error ER_INVALID_OPTION_KEY
+SELECT ST_ASBINARY(g, 'axis-order=srid-defined, axis-order2=lat-long')
+FROM gis_geometrycollection;
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ST_ASBINARY(g, 'axis-order=long-lat', POINT(2, 4))
+FROM gis_geometrycollection;
+
+SELECT ST_ASBINARY(NULL, 'axis-order=srid-defined');
+SELECT ST_ASBINARY(POINT(0, 0), NULL);
+SELECT ST_ASBINARY(NULL, NULL);
+
+DROP TABLE gis_point;
+DROP TABLE gis_linestring;
+DROP TABLE gis_polygon;
+DROP TABLE gis_multi_point;
+DROP TABLE gis_multi_linestring;
+DROP TABLE gis_multi_polygon;
+DROP TABLE gis_geometrycollection;
+
+# Cleanup.
+DROP SPATIAL REFERENCE SYSTEM 30000000;
+DROP SPATIAL REFERENCE SYSTEM 30100000;
+DROP SPATIAL REFERENCE SYSTEM 30200000;
+DROP SPATIAL REFERENCE SYSTEM 30300000;

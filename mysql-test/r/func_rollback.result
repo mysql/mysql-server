@@ -9,8 +9,6 @@ DROP FUNCTION IF EXISTS f1_two_inserts;
 DROP FUNCTION IF EXISTS f1_insert_select;
 SET SESSION AUTOCOMMIT=0;
 SET SESSION sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1_select (f1 BIGINT, f2 BIGINT) ENGINE = MEMORY;
 INSERT INTO t1_select(f1,f2) VALUES (1,-1),(2,NULL),(3,0),(4,1),(5,2);
 SELECT * FROM t1_select;
@@ -200,8 +198,6 @@ SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 DROP FUNCTION f1_insert_select;
 SET SESSION sql_mode = 'traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION f1_insert_select(my_f1 INTEGER) RETURNS INTEGER
 BEGIN
 INSERT INTO t1_not_null SELECT * FROM t1_select WHERE f1 = my_f1;
@@ -216,8 +212,6 @@ SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 DROP FUNCTION f1_insert_select;
 SET SESSION sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 # Function tries to
 #    1. INSERT statement: Insert one row with NULL -> NOT NULL violation
@@ -280,8 +274,6 @@ SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 DROP FUNCTION f1_insert_with_two_rows;
 SET SESSION sql_mode = 'traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION f1_insert_with_two_rows() RETURNS INTEGER
 BEGIN
 INSERT INTO t1_not_null(f1,f2) VALUES (10,10),(10,NULL);
@@ -295,8 +287,6 @@ ROLLBACK;
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 SET SESSION sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 # FUNCTION in Correlated Subquery
 SELECT 1 FROM t1_select t1

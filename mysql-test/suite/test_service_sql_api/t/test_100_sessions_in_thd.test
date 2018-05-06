@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo ##########################################
 --echo # Run plugin

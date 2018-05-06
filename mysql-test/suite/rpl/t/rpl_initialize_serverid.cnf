@@ -1,0 +1,9 @@
+!include ../my.cnf
+
+[mysqld.1]
+secure-file-priv =		""
+
+[mysqld.2]
+secure-file-priv =		""
+master-retry-count =            60
+

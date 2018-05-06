@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -42,7 +49,7 @@ class NdbReceiver
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
-  friend class NdbRootFragment;
+  friend class NdbWorker;
   friend int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,
@@ -135,16 +142,24 @@ private:
    * Calculate size of result buffer which has to be 
    * allocated for a buffered result set, and later given to 
    * initReceiveBuffer() as 'buffer' argument.
+   *
+   * The 'batch_rows' and 'batch_bytes' argument may have been
+   * set by 'calculate_batch_size'. On return from this method
+   * the 'batch_bytes' size may be capped to the max possible 
+   * batch size if 'batch_rows' are returned.
    */
   static
-  Uint32 result_bufsize(Uint32 batch_rows,
-                        Uint32 batch_bytes,
-                        Uint32 fragments,
-                        const NdbRecord *result_record,
-                        const Uint32* read_mask,
-                        const NdbRecAttr *first_rec_attr,
-                        Uint32 key_size,
-                        bool read_range_no);
+  void result_bufsize(const NdbRecord *result_record,
+                      const Uint32* read_mask,
+                      const NdbRecAttr *first_rec_attr,
+                      Uint32 key_size,
+                      bool   read_range_no,
+                      bool   read_correlation,
+                      Uint32 parallelism,
+                      Uint32  batch_rows,    //In:     'REQ' argument to TC
+                      Uint32& batch_bytes,   //In/Out: 'REQ' Argument to TC 
+                      Uint32& buffer_bytes); //Out:     ReceiveBuffer size  
+
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.

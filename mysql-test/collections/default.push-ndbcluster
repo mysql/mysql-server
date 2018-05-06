@@ -1,16 +1,22 @@
-# Run the standard 'n_mix' tests to check that none of those are affected
+# Run the standard 'all-default' tests to check that none of those are affected
 # by compiling MySQL Server with NDB. Including NDB adds two more storage engine,
 # a few new information_schema tables, the ndbinfo database and more tables
 # in the mysql database. This test run detects typical problems caused by these
-# additions.
-#
-# NOTE! The debug mysqld is not enabled in order to speed up the tests. This
-# causes some tests which require mysqld-debug to be skipped(those may later
-# fail in MySQL Cluster build and test cycle). In addition since this is the only
-# build which runs without debug mysqld enabled it will detect any test
-# which does not source the necessary include to skip itself when not in debug mode.
-#
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests-report --skip-ndb
+# additions. This should be the _identical_ and same
+# 'all-default-debug' as on the other builds
+# making it easy to compare and spot any differences.
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --experimental=collections/default.experimental --unit-tests-report --no-skip
 
 # Run the ndbcluster suite only(separately for better report in the CI tool).
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --suite=ndbcluster
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --experimental=collections/default.experimental --suite=ndbcluster
+
+# Run the gcol_ndb suite only(separately for better report in the CI tool).
+# The tests in the gcol_ndb suite use the include files present in the gcol
+# suite.
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vardir=var-gcol-ndb --experimental=collections/default.experimental --suite=gcol_ndb
+
+# Run the NDB memcache plugin tests.
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --experimental=collections/default.experimental --suite=ndb_memcache
+
+# Run the meb and meb_ptr suites
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --experimental=collections/default.experimental --suite=meb,meb_ptr

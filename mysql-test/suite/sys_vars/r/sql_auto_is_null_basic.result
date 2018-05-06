@@ -9,11 +9,11 @@ SELECT @@session.sql_auto_is_null;
 1
 '#---------------------BS_STVARS_044_03----------------------#'
 SELECT IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 IF(@@session.sql_auto_is_null, "ON", "OFF") = VARIABLE_VALUE
 1
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_auto_is_null';
 VARIABLE_VALUE
 ON

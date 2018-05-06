@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `val` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @digest.show = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SHOW CREATE TABLE test.t1');
 CREATE SCHEMA test_sys;
 use test_sys;

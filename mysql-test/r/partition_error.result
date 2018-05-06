@@ -735,8 +735,6 @@ DROP TABLE t1;
 #            subpartitions
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -756,9 +754,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (TO_DAYS(purchased))
+) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
@@ -777,9 +775,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (TO_DAYS(purchased))
+) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp0 ENGINE = <curr_engine>,
   SUBPARTITION sp1 ENGINE = <curr_engine>)) */
@@ -797,13 +795,11 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -813,6 +809,9 @@ PARTITION BY KEY (a) PARTITIONS 2;
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int
 )
@@ -821,13 +820,14 @@ PARTITION BY RANGE (a)
 PARTITION p0 VALUES LESS THAN (1),
 PARTITION p1 VALU ES LESS THAN (2)
 );
-ERROR HY000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VALU ES LESS THAN (2)
+)' at line 7
 partition by list (a)
 partitions 3
 (partition x1 values in (1,2,9,4) tablespace ts1,
 partition x2 values in (3, 11, 5, 7) tablespace ts2,
 partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
-ERROR 42000: Partitioning can not be used stand-alone in query near 'partition by list (a)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'partition by list (a)
 partitions 3
 (partition x1 values in (1,2,9,4) tablespace ' at line 1
 CREATE TABLE t1 (
@@ -934,7 +934,7 @@ primary key(a,b))
 partition by key (a)
 partitions 3
 (partition x1, partition x2);
-ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near ')' at line 8
+ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near '(partition x1, partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -943,7 +943,7 @@ primary key(a,b))
 partition by hash (rand(a))
 partitions 2
 (partition x1, partition x2);
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'rand(a))
 partitions 2
 (partition x1, partition x2)' at line 6
 CREATE TABLE t1 (
@@ -954,9 +954,9 @@ primary key(a,b))
 partition by range (rand(a))
 partitions 2
 (partition x1 values less than (0), partition x2 values less than (2));
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'rand(a))
 partitions 2
-(partition x1 values less than (0), partition x2 values less than' at line 6
+(partition x1 values less than (0), partition x2 values le' at line 6
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -965,7 +965,7 @@ primary key(a,b))
 partition by list (rand(a))
 partitions 2
 (partition x1 values in (1), partition x2 values in (2));
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'rand(a))
 partitions 2
 (partition x1 values in (1), partition x2 values in (2))' at line 6
 CREATE TABLE t1 (
@@ -1080,7 +1080,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by hash (rand(a+b));
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 7
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'rand(a+b))' at line 7
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1186,7 +1186,8 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4),
 partition x2);
-ERROR HY000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition
+ERROR 42000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition near ',
+partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1215,6 +1216,17 @@ primary key(a,b))
 partition by list (a)
 partitions 2
 (partition x1 values less than 4,
+partition x2 values less than (5));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
+partition x2 values less than (5))' at line 8
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by list (a)
+partitions 2
+(partition x1 values less than (4),
 partition x2 values less than (5));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 CREATE TABLE t1 (
@@ -1272,10 +1284,9 @@ partition x2 values in (3,5,6)
 ( subpartition x21 nodegroup 0,
 subpartition x22 nodegroup 1)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
-partition x2 values in (3,5,6)
-( subpartition x21 nodegroup 0,
-subpartition x' at line 11
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '( subpartition x11 nodegroup 0,
+subpartition x12 nodegroup 1),
+partition x2 valu' at line 10
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1291,8 +1302,9 @@ partition x2 values in (2)
 ( subpartition x21 nodegroup 0,
 subpartition x22 nodegroup 1)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ')
-)' at line 14
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '( subpartition x21 nodegroup 0,
+subpartition x22 nodegroup 1)
+)' at line 13
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1367,7 +1379,8 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4),
 partition x2);
-ERROR HY000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
+partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1387,7 +1400,8 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4,6),
 partition x2);
-ERROR HY000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
+partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -1419,6 +1433,9 @@ partitions 2
 partition x2 values in (5));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
 partition x2 values in (5))' at line 8
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (x1));
@@ -1438,13 +1455,13 @@ partition by range (ascii(v))
 ERROR HY000: This partition function is not allowed
 create table t1 (a int)
 partition by hash (rand(a));
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'rand(a))' at line 2
 create table t1 (a int)
 partition by hash(CURTIME() + a);
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'CURTIME() + a)' at line 2
 create table t1 (a int)
 partition by hash (NOW()+a);
-ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near 'NOW()+a)' at line 2
 create table t1 (a int)
 partition by hash (extract(hour from convert_tz(a, '+00:00', '+00:00')));
 ERROR HY000: This partition function is not allowed
@@ -1460,8 +1477,6 @@ ERROR HY000: This partition function is not allowed
 #             timestamp primary key
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE old (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (UNIX_TIMESTAMP(a)) (
 PARTITION p VALUES LESS THAN (1219089600),
@@ -1773,9 +1788,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p1 VALUES IN (1)
  (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = InnoDB,
   SUBPARTITION p1spSecond COMMENT = 'SubPartition comment in p1spSecond' ENGINE = InnoDB),
@@ -1803,9 +1818,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p1 VALUES IN (1)
  (SUBPARTITION p1spFirst COMMENT = 'SubPartition comment in p1spFirst' ENGINE = InnoDB,
   SUBPARTITION p1spSecond ENGINE = InnoDB),
@@ -1839,9 +1854,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   KEY `inx_a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION pUpTo10 VALUES LESS THAN (10)
  (SUBPARTITION `p-10sp0` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB,
   SUBPARTITION `p-10sp1` COMMENT = 'This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|' ENGINE = InnoDB),
@@ -1851,10 +1866,10 @@ SUBPARTITION BY HASH (a)
 SELECT PARTITION_NAME, SUBPARTITION_NAME, PARTITION_COMMENT FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 PARTITION_NAME	SUBPARTITION_NAME	PARTITION_COMMENT
-pUpTo10	p-10sp0	This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!
-pUpTo10	p-10sp1	This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!
-pMax	pMaxsp0	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!
-pMax	pMaxsp1	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!
+pUpTo10	p-10sp0	This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|
+pUpTo10	p-10sp1	This is a long comment (2050 ascii characters)   50 pUpTo10 partition ......80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|
+pMax	pMaxsp0	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|
+pMax	pMaxsp1	This is a long comment (2050 ascii characters)   50 pMax partition comment .80-!.................. 100 ................................................................................................ 200....................................................................................................................................................................................................................................................................................................... 500 ............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................... 1000 ..............1024-|
 DROP TABLE t1;
 SET sql_mode = default;
 #

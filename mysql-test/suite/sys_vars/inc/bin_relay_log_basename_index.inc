@@ -40,10 +40,10 @@ if ($rpl_debug)
 
 --disable_warnings
 --replace_result $basename REPLACED
---eval select * from information_schema.global_variables where variable_name='$rpl_log_var_name'
+--eval select * from performance_schema.global_variables where variable_name='$rpl_log_var_name'
 
 --replace_result $basename REPLACED
---eval select * from information_schema.session_variables where variable_name='$rpl_log_var_name'
+--eval select * from performance_schema.session_variables where variable_name='$rpl_log_var_name'
 --enable_warnings
 
 #

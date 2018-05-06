@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 let $initial_timeout=`select @@innodb_lock_wait_timeout`;
 set global innodb_lock_wait_timeout=42;

@@ -2,9 +2,6 @@
 # This test is to check various cases of account lock functionality
 #
 
-# This test makes no sense with the embedded server
---source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -100,9 +97,11 @@ disconnect unlocked_user_con;
 --echo # Basic SHOW CREATE USER
 connection default;
 -- echo # Should appear without ACCOUNT UNLOCK
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER unlocked_user@localhost;
 ALTER USER unlocked_user@localhost ACCOUNT LOCK;
 --echo # Should appear with ACCOUNT LOCK
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER unlocked_user@localhost;
 
 --echo # roll back changes
@@ -249,18 +248,23 @@ CREATE USER u1@localhost REQUIRE NONE ACCOUNT LOCK WITH MAX_QUERIES_PER_HOUR 100
 --echo # CREATE USER SQL syntax check
 DROP USER u1@localhost;
 CREATE USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 1
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT UNLOCK;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 2
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 3
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 4
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER invalid SQL syntax
 --error ER_PARSE_ERROR
@@ -268,29 +272,37 @@ ALTER USER u1@localhost ACCOUNT UNLOCK WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXP
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 1
 CREATE USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 2
 CREATE USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 3
 CREATE USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 4
 ALTER USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 5
 ALTER USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 6
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 7
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 8
 ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 
 --echo # MySQL user table layout from the before ACCOUNT LOCK option
@@ -299,9 +311,11 @@ call mtr.add_suppression("Column count of mysql.* is wrong. "
                          "The table is probably corrupted");
 
 connection default;
-CREATE TABLE temp_user LIKE mysql.user;
-INSERT INTO temp_user SELECT * FROM mysql.user;
+CREATE TABLE mysql.temp_user LIKE mysql.user;
+INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
+ALTER TABLE mysql.user DROP COLUMN create_role_priv;
+ALTER TABLE mysql.user DROP COLUMN drop_role_priv;
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
@@ -321,7 +335,7 @@ ALTER USER backuser@localhost ACCOUNT UNLOCK;
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 DROP USER backuser@localhost;
 DROP TABLE mysql.user;
-ALTER TABLE temp_user RENAME mysql.user;
+ALTER TABLE mysql.temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;
 
 --echo # Check whether 'account' can be used as the identifier.
@@ -355,20 +369,13 @@ DROP USER u3@localhost;
 --echo # Bug #20814051 CREATE USER BINLOG EVENTS INCLUDE NEW ACCOUNT KEYWORD
 --echo #
 
---echo # test general log with log_builtin_as_identified_by_password ON
-
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-
---echo # SHOW CREATE USER should always show ACCOUNT LOCK clause
-
-SET GLOBAL log_builtin_as_identified_by_password = ON;
 CREATE USER u1 IDENTIFIED BY 'pass';
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
 ALTER USER u1 ACCOUNT LOCK;
+--replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
 DROP USER u1;
-
---echo # restarting the server with log_builtin_as_identified_by_password ON
 
 # Write file to make mysql-test-run.pl wait for the server to stop
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -380,15 +387,13 @@ DROP USER u1;
 -- source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Turn on reconnect
 --enable_reconnect
 
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
-
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
@@ -417,15 +422,12 @@ ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
 
 ALTER USER u2 IDENTIFIED BY 'pass';
 
-CREATE TABLE test_log (argument TEXT);
---replace_result $MYSQLTEST_VARDIR ...
-eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
-     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
-
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # cleanup

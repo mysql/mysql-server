@@ -1,24 +1,20 @@
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+select INSTRUMENTED, HISTORY
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+INSTRUMENTED	HISTORY
+YES	YES
 flush tables with read lock;
+select INSTRUMENTED, HISTORY
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+INSTRUMENTED	HISTORY
+YES	YES
 insert into test.t1 values (1), (2), (3);
 call dump_one_thread('user1');
 username	event_name	sql_text
 user1	statement/sql/flush	flush tables with read lock
 username	event_name	nesting_event_type
 username	event_name	nesting_event_type
-user1	stage/sql/starting	STATEMENT
-user1	stage/sql/Waiting for query cache lock	STATEMENT
 user1	stage/sql/starting	STATEMENT
 user1	stage/sql/query end	STATEMENT
 user1	stage/sql/closing tables	STATEMENT

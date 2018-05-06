@@ -1,5 +1,5 @@
 DROP DATABASE IF EXISTS test1;
-CREATE DATABASE test1;
+CREATE DATABASE test1 charset latin1;
 USE test;
 drop table if exists tb1 ;
 create table tb1 (
@@ -61,7 +61,7 @@ f55 numeric zerofill not null DEFAULT 99,
 f56 numeric unsigned zerofill not null DEFAULT 99,
 f57 numeric (0) not null DEFAULT 99,
 f58 numeric (64) not null DEFAULT 99
-) engine = innodb;
+) charset latin1 engine = innodb;
 Warnings:
 Note	1265	Data truncated for column 'f36' at row 1
 Note	1265	Data truncated for column 'f37' at row 1
@@ -77,7 +77,7 @@ Note	1265	Data truncated for column 'f47' at row 1
 Note	1265	Data truncated for column 'f49' at row 1
 Note	1265	Data truncated for column 'f51' at row 1
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb1.txt'
-into table tb1;
+into table tb1 CHARACTER SET latin1;
 drop table if exists tb2 ;
 create table tb2 (
 f59 numeric (0) unsigned,
@@ -131,9 +131,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 drop table if exists tb3 ;
 create table tb3 (
 f118 char not null DEFAULT 'a',
@@ -194,13 +194,13 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = innodb;
+) charset latin1 engine = innodb;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb3.txt'
-into table tb3;
+into table tb3 CHARACTER SET latin1;
 drop table if exists tb4;
 create table tb4 (
 f176 numeric (0) unsigned not null DEFAULT 9,
@@ -261,9 +261,9 @@ f238 varchar(0),
 f239 varchar(20000) binary,
 f240 varchar(2000),
 f241 char(100)
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb4.txt'
-into table tb4;
+into table tb4 CHARACTER SET latin1;
 USE test1;
 drop table if exists tb2 ;
 create table tb2 (
@@ -318,44 +318,50 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 USE test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 USE test;
 DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
 CREATE TABLE t1  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t2  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t4  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t10 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t11 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t1;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t2;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t4;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t10;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t11;
+charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t1
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t2
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t4
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t10
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t11
+character set latin1;
 drop TABLE if exists t3;
-CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t3.txt' INTO TABLE t3;
+CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t3.txt' INTO TABLE t3
+character set latin1;
 drop database if exists test4;
 CREATE database test4;
 use test4;
 CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int)
-ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t6;
+charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t6
+character set latin1;
 use test;
 drop TABLE if exists t7, t8;
-CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = InnoDB;
-CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t7;
+CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) charset latin1 ENGINE = InnoDB;
+CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t7
+character set latin1;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -367,7 +373,8 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t8;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t8
+character set latin1;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -380,342 +387,343 @@ Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 drop TABLE if exists t9;
-CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' INTO TABLE t9;
+CREATE TABLE t9 (f1 int, f2 char(25), f3 int) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' INTO TABLE t9
+character set latin1;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
-ORDER BY table_schema, table_name, column_name;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t1	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t10	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t10	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t10	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t10	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t11	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t11	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t11	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t11	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t2	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t2	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t2	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t3	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t3	f2	2	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t4	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t4	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t4	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t4	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t7	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t7	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t7	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t8	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test	t8	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t8	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	tb1	f1	1	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
-def	test	tb1	f10	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
-def	test	tb1	f11	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		
-def	test	tb1	f12	12	NULL	YES	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references		
-def	test	tb1	f13	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references		
-def	test	tb1	f14	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references		
-def	test	tb1	f15	15	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f16	16	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f17	17	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references		
-def	test	tb1	f18	18	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references		
-def	test	tb1	f19	19	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f2	2	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_bin	char(0)			select,insert,update,references		
-def	test	tb1	f20	20	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f21	21	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references		
-def	test	tb1	f22	22	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references		
-def	test	tb1	f23	23	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f24	24	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f25	25	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	tb1	f26	26	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
-def	test	tb1	f27	27	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f28	28	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f29	29	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
-def	test	tb1	f3	3	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
-def	test	tb1	f30	30	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	test	tb1	f31	31	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f32	32	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f33	33	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb1	f34	34	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb1	f35	35	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f36	36	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f37	37	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb1	f38	38	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
-def	test	tb1	f39	39	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references		
-def	test	tb1	f40	40	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
-def	test	tb1	f41	41	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f42	42	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f43	43	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f44	44	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f45	45	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb1	f46	46	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references		
-def	test	tb1	f47	47	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb1	f48	48	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
-def	test	tb1	f49	49	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f5	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
-def	test	tb1	f50	50	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f51	51	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f52	52	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f53	53	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb1	f54	54	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb1	f55	55	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f56	56	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb1	f57	57	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb1	f58	58	99	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
-def	test	tb1	f6	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references		
-def	test	tb1	f7	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references		
-def	test	tb1	f8	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references		
-def	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
-def	test	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
-def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
-def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
-def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
-def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
-def	test	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
-def	test	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f62	4	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f63	5	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f64	6	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f65	7	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb2	f66	8	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references		
-def	test	tb2	f67	9	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb2	f68	10	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
-def	test	tb2	f69	11	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references		
-def	test	tb3	f119	2		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_bin	char(1)			select,insert,update,references		
-def	test	tb3	f120	3		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references		
-def	test	tb3	f121	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references		
-def	test	tb3	f122	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references		
-def	test	tb3	f123	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references		
-def	test	tb3	f124	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references		
-def	test	tb3	f125	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references		
-def	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
-def	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
-def	test	tb3	f128	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		
-def	test	tb3	f129	12		NO	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references		
-def	test	tb3	f130	13	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references		
-def	test	tb3	f131	14	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references		
-def	test	tb3	f132	15	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f133	16	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f134	17	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references		
-def	test	tb3	f135	18	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references		
-def	test	tb3	f136	19	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f137	20	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f138	21	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references		
-def	test	tb3	f139	22	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references		
-def	test	tb3	f140	23	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f141	24	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f142	25	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test	tb3	f143	26	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
-def	test	tb3	f144	27	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f145	28	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f146	29	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
-def	test	tb3	f147	30	999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	test	tb3	f148	31	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f149	32	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f150	33	1000	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb3	f151	34	999	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb3	f152	35	0000001000	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f153	36	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f154	37	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb3	f155	38	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
-def	test	tb3	f156	39	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb3	f157	40	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
-def	test	tb3	f158	41	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f159	42	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f160	43	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f161	44	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f162	45	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb3	f163	46	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references		
-def	test	tb3	f164	47	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb3	f165	48	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
-def	test	tb3	f166	49	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f167	50	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f168	51	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f169	52	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f170	53	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb3	f171	54	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb3	f172	55	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f173	56	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb3	f174	57	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb3	f175	58	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references		
-def	test	tb4	f176	1	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb4	f177	2	9	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
-def	test	tb4	f178	3	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f179	4	0000000000000000000000000000000000000000000000000000000000000009	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f180	5	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f181	6	0000000000000000000000000000000000000000000000000000000000000009	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f182	7	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test	tb4	f183	8	9.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references		
-def	test	tb4	f184	9	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test	tb4	f185	10	9.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
-def	test	tb4	f186	11	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f187	12	000000000000000000000000000000009.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f188	13	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f189	14	000000000000000000000000000000009.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test	tb4	f190	15	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb4	f191	16	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb4	f192	17	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f193	18	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f194	19	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb4	f195	20	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb4	f196	21	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f197	22	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f198	23	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb4	f199	24	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb4	f200	25	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f201	26	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f202	27	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb4	f203	28	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb4	f204	29	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb4	f205	30	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb4	f206	31	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f207	32	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f208	33	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f209	34	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f210	35	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test	tb4	f211	36	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test	tb4	f212	37	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test	tb4	f213	38	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test	tb4	f214	39	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f215	40	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f216	41	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test	tb4	f217	42	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
-def	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
-def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
-def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
-def	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
-def	test	tb4	f235	52	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references		
-def	test	tb4	f236	53	NULL	YES	char	90	90	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(90)			select,insert,update,references		
-def	test	tb4	f237	54	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references		
-def	test	tb4	f238	55	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(0)			select,insert,update,references		
-def	test	tb4	f239	56	NULL	YES	varchar	20000	20000	NULL	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references		
-def	test	tb4	f240	57	NULL	YES	varchar	2000	2000	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references		
-def	test	tb4	f241	58	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references		
-def	test1	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references		
-def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references		
-def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
-def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references		
-def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references		
-def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references		
-def	test1	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test1	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references		
-def	test1	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f62	4	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f63	5	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f64	6	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f65	7	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references		
-def	test1	tb2	f66	8	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references		
-def	test1	tb2	f67	9	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references		
-def	test1	tb2	f68	10	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references		
-def	test1	tb2	f69	11	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test1	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test1	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test1	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test1	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test1	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test1	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test1	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test1	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test1	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test1	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
-def	test1	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references		
-def	test1	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references		
-def	test1	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references		
-def	test1	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references		
-def	test1	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references		
-def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references		
-def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references		
-def	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	test4	t6	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references		
-def	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+ORDER BY table_schema,
+table_name COLLATE utf8_general_ci,
+ordinal_position;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t1	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t10	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t10	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t10	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t10	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t11	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t11	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t11	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t11	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t2	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t2	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t2	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t3	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t3	f2	2	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t4	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t4	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t4	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t4	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t7	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t7	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t7	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t8	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test	t8	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t8	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	tb1	f1	1	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
+def	test	tb1	f2	2	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_bin	char(0)			select,insert,update,references			NULL
+def	test	tb1	f3	3	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
+def	test	tb1	f4	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references			NULL
+def	test	tb1	f5	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references			NULL
+def	test	tb1	f6	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references			NULL
+def	test	tb1	f7	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references			NULL
+def	test	tb1	f8	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references			NULL
+def	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references			NULL
+def	test	tb1	f10	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
+def	test	tb1	f11	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references			NULL
+def	test	tb1	f12	12	NULL	YES	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references			NULL
+def	test	tb1	f13	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references			NULL
+def	test	tb1	f14	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references			NULL
+def	test	tb1	f15	15	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f16	16	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f17	17	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references			NULL
+def	test	tb1	f18	18	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
+def	test	tb1	f19	19	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f20	20	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f21	21	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references			NULL
+def	test	tb1	f22	22	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references			NULL
+def	test	tb1	f23	23	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f24	24	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f25	25	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	tb1	f26	26	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
+def	test	tb1	f27	27	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f28	28	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f29	29	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
+def	test	tb1	f30	30	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	test	tb1	f31	31	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f32	32	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f33	33	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb1	f34	34	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb1	f35	35	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f36	36	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f37	37	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb1	f38	38	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references			NULL
+def	test	tb1	f39	39	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb1	f40	40	10	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
+def	test	tb1	f41	41	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f42	42	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f43	43	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f44	44	0000000000000000000000000000000000000000000000000000000000000010	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f45	45	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb1	f46	46	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references			NULL
+def	test	tb1	f47	47	10	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb1	f48	48	9.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references			NULL
+def	test	tb1	f49	49	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f50	50	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f51	51	0000000010	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f52	52	000000000000000000000000000000009.900000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f53	53	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb1	f54	54	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb1	f55	55	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f56	56	0000000099	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb1	f57	57	99	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb1	f58	58	99	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references			NULL
+def	test	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
+def	test	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f62	4	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f63	5	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f64	6	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f65	7	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb2	f66	8	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references			NULL
+def	test	tb2	f67	9	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb2	f68	10	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references			NULL
+def	test	tb2	f69	11	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
+def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
+def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
+def	test	tb3	f119	2		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_bin	char(1)			select,insert,update,references			NULL
+def	test	tb3	f120	3		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
+def	test	tb3	f121	4	NULL	YES	tinytext	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	tinytext			select,insert,update,references			NULL
+def	test	tb3	f122	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text			select,insert,update,references			NULL
+def	test	tb3	f123	6	NULL	YES	mediumtext	16777215	16777215	NULL	NULL	NULL	latin1	latin1_swedish_ci	mediumtext			select,insert,update,references			NULL
+def	test	tb3	f124	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	latin1	latin1_swedish_ci	longtext			select,insert,update,references			NULL
+def	test	tb3	f125	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob			select,insert,update,references			NULL
+def	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references			NULL
+def	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
+def	test	tb3	f128	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references			NULL
+def	test	tb3	f129	12	0x05	NO	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references			NULL
+def	test	tb3	f130	13	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references			NULL
+def	test	tb3	f131	14	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references			NULL
+def	test	tb3	f132	15	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f133	16	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f134	17	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references			NULL
+def	test	tb3	f135	18	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
+def	test	tb3	f136	19	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f137	20	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f138	21	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references			NULL
+def	test	tb3	f139	22	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references			NULL
+def	test	tb3	f140	23	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f141	24	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f142	25	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	tb3	f143	26	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
+def	test	tb3	f144	27	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f145	28	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f146	29	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
+def	test	tb3	f147	30	999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	test	tb3	f148	31	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f149	32	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f150	33	1000	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb3	f151	34	999	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb3	f152	35	0000001000	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f153	36	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f154	37	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb3	f155	38	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references			NULL
+def	test	tb3	f156	39	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb3	f157	40	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
+def	test	tb3	f158	41	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f159	42	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f160	43	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f161	44	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f162	45	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb3	f163	46	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references			NULL
+def	test	tb3	f164	47	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb3	f165	48	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references			NULL
+def	test	tb3	f166	49	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f167	50	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f168	51	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f169	52	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f170	53	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb3	f171	54	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb3	f172	55	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f173	56	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb3	f174	57	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb3	f175	58	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0)			select,insert,update,references			NULL
+def	test	tb4	f176	1	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb4	f177	2	9	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
+def	test	tb4	f178	3	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f179	4	0000000000000000000000000000000000000000000000000000000000000009	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f180	5	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f181	6	0000000000000000000000000000000000000000000000000000000000000009	NO	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f182	7	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test	tb4	f183	8	9.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references			NULL
+def	test	tb4	f184	9	9	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test	tb4	f185	10	9.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references			NULL
+def	test	tb4	f186	11	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f187	12	000000000000000000000000000000009.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f188	13	0000000009	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f189	14	000000000000000000000000000000009.000000000000000000000000000000	NO	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f190	15	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb4	f191	16	88.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb4	f192	17	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f193	18	00000000000000000088.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f194	19	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb4	f195	20	55.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb4	f196	21	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f197	22	00000000000000000055.5	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f198	23	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb4	f199	24	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb4	f200	25	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f201	26	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f202	27	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb4	f203	28	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb4	f204	29	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb4	f205	30	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb4	f206	31	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f207	32	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f208	33	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f209	34	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f210	35	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test	tb4	f211	36	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test	tb4	f212	37	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test	tb4	f213	38	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test	tb4	f214	39	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f215	40	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f216	41	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f217	42	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
+def	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
+def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
+def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb4	f235	52	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
+def	test	tb4	f236	53	NULL	YES	char	90	90	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(90)			select,insert,update,references			NULL
+def	test	tb4	f237	54	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references			NULL
+def	test	tb4	f238	55	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(0)			select,insert,update,references			NULL
+def	test	tb4	f239	56	NULL	YES	varchar	20000	20000	NULL	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references			NULL
+def	test	tb4	f240	57	NULL	YES	varchar	2000	2000	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references			NULL
+def	test	tb4	f241	58	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references			NULL
+def	test1	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test1	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
+def	test1	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f62	4	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f63	5	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f64	6	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f65	7	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
+def	test1	tb2	f66	8	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30)			select,insert,update,references			NULL
+def	test1	tb2	f67	9	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
+def	test1	tb2	f68	10	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned			select,insert,update,references			NULL
+def	test1	tb2	f69	11	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f70	12	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f71	13	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f72	14	NULL	YES	decimal	NULL	NULL	63	30	NULL	NULL	NULL	decimal(63,30) unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f73	15	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test1	tb2	f74	16	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test1	tb2	f75	17	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f76	18	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f77	19	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test1	tb2	f78	20	7.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test1	tb2	f79	21	00000000000000000007.7	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f80	22	00000000000000000008.8	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f81	23	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test1	tb2	f82	24	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test1	tb2	f83	25	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f84	26	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f85	27	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test1	tb2	f86	28	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test1	tb2	f87	29	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test1	tb2	f88	30	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test1	tb2	f89	31	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f90	32	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f91	33	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f92	34	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f93	35	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references			NULL
+def	test1	tb2	f94	36	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select,insert,update,references			NULL
+def	test1	tb2	f95	37	8.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned			select,insert,update,references			NULL
+def	test1	tb2	f96	38	8.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned			select,insert,update,references			NULL
+def	test1	tb2	f97	39	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f98	40	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f99	41	0000000008.8	NO	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f100	42	00000000000000000008.8	NO	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double unsigned zerofill			select,insert,update,references			NULL
+def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
+def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
+def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
+def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
+def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test4	t6	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
+def	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -727,7 +735,7 @@ COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	binary	NULL	NULL
 1.0000	blob	NULL	NULL
@@ -752,7 +760,7 @@ COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -762,7 +770,7 @@ COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
-ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
+ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	date	NULL	NULL
@@ -794,7 +802,7 @@ COLLATION_NAME,
 COLUMN_TYPE
 FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
-ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
+ORDER BY TABLE_SCHEMA, TABLE_NAME COLLATE utf8_general_ci, ORDINAL_POSITION;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 1.0000	test	t1	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t1	f2	char	25	25	latin1	latin1_swedish_ci	char(25)

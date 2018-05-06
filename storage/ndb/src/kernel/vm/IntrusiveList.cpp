@@ -1,31 +1,43 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifdef TAP_TEST
+#ifdef TEST_INTRUSIVELIST
 
 #include <ndb_global.h>
 #include <NdbTap.hpp>
 #include "IntrusiveList.hpp"
 #include "ArrayPool.hpp"
+#include "RWPool.hpp"
 #include "test_context.hpp"
 
 #define JAM_FILE_ID 249
 
-class SL
+class Type
+{
+};
+
+class SL: public Type
 {
 public:
   Uint32 nextList;
@@ -43,6 +55,9 @@ public:
   Uint32 key;
   Uint32 data;
   Uint32 nextPool;
+#ifndef USE_ARRAYPOOL
+  Uint32 m_magic;
+#endif
 };
 
 static unsigned scale = 100;
@@ -138,7 +153,7 @@ static unsigned scale = 100;
 
 #define LIST_COUNT_TEST(pool, list, head, value) \
   { \
-    Uint32 c = list.count(); \
+    Uint32 c = list.getCount(); \
     ok(c == value, "count %u (%u)", c, value); \
   }
 
@@ -154,22 +169,24 @@ static unsigned scale = 100;
  \
   ok(list.isEmpty(), "list.isEmpty()")
 
-void testSLList(ArrayPool<T>& pool)
+template<typename Pool>
+void testSLList(Pool& pool)
 {
   diag("testSLList");
-  SLList<T, SL>::Head head;
-  LocalSLList<T, SL> list(pool, head);
+  SLList<SL>::Head head;
+  LocalSLList<Pool, SL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
   LIST_RELEASE_FIRST(list);
 }
 
-void testDLList(ArrayPool<T>& pool)
+template<typename Pool>
+void testDLList(Pool& pool)
 {
   diag("testDLList");
-  DLList<T, DL>::Head head;
-  LocalDLList<T, DL> list(pool, head);
+  DLList<DL>::Head head;
+  LocalDLList<Pool, DL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -178,11 +195,12 @@ void testDLList(ArrayPool<T>& pool)
   LIST_RELEASE_FIRST(list);
 }
 
-void testSLCList(ArrayPool<T>& pool)
+template<typename Pool>
+void testSLCList(Pool& pool)
 {
   diag("testSLCList");
-  SLCList<T, SL>::Head head;
-  LocalSLCList<T, SL> list(pool, head);
+  SLCList<SL>::Head head;
+  LocalSLCList<Pool, SL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -191,11 +209,12 @@ void testSLCList(ArrayPool<T>& pool)
   LIST_RELEASE_FIRST(list);
 }
 
-void testDLCList(ArrayPool<T>& pool)
+template<typename Pool>
+void testDLCList(Pool& pool)
 {
   diag("testDLCList");
-  DLCList<T, DL>::Head head;
-  LocalDLCList<T, DL> list(pool, head);
+  DLCList<DL>::Head head;
+  LocalDLCList<Pool, DL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -208,11 +227,12 @@ void testDLCList(ArrayPool<T>& pool)
   LIST_RELEASE_FIRST(list);
 }
 
-void testSLFifoList(ArrayPool<T>& pool)
+template<typename Pool>
+void testSLFifoList(Pool& pool)
 {
   diag("testSLFifoList");
-  SLFifoList<T, SL>::Head head;
-  LocalSLFifoList<T, SL> list(pool, head);
+  SLFifoList<SL>::Head head;
+  LocalSLFifoList<Pool, SL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -221,11 +241,12 @@ void testSLFifoList(ArrayPool<T>& pool)
   LIST_LAST_TEST(pool, list, head);
 }
 
-void testDLFifoList(ArrayPool<T>& pool)
+template<typename Pool>
+void testDLFifoList(Pool& pool)
 {
   diag("testDLFifoList");
-  DLFifoList<T, DL>::Head head;
-  LocalDLFifoList<T, DL> list(pool, head);
+  DLFifoList<DL>::Head head;
+  LocalDLFifoList<Pool, DL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -236,11 +257,12 @@ void testDLFifoList(ArrayPool<T>& pool)
   LIST_LAST_TEST(pool, list, head);
 }
 
-void testSLCFifoList(ArrayPool<T>& pool)
+template<typename Pool>
+void testSLCFifoList(Pool& pool)
 {
   diag("testSLCFifoList");
-  SLCFifoList<T, SL>::Head head;
-  LocalSLCFifoList<T, SL> list(pool, head);
+  SLCFifoList<SL>::Head head;
+  LocalSLCFifoList<Pool, SL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -255,11 +277,12 @@ void testSLCFifoList(ArrayPool<T>& pool)
   LIST_COUNT_TEST(pool, list, head, 0);
 }
 
-void testDLCFifoList(ArrayPool<T>& pool)
+template<typename Pool>
+void testDLCFifoList(Pool& pool)
 {
   diag("testDLCFifoList");
-  DLCFifoList<T, DL>::Head head;
-  LocalDLCFifoList<T, DL> list(pool, head);
+  DLCFifoList<DL>::Head head;
+  LocalDLCFifoList<Pool, DL> list(pool, head);
 
   LIST_COMMON_TEST(pool, list, head);
 
@@ -278,20 +301,21 @@ void testDLCFifoList(ArrayPool<T>& pool)
   LIST_COUNT_TEST(pool, list, head, 0);
 }
 
-void testConcat(ArrayPool<T>& pool)
+template<typename Pool>
+void testConcat(Pool& pool)
 {
   diag("testConcat");
-  SLFifoList<T, SL>::Head slhead;
-  DLFifoList<T, DL>::Head dlhead;
-  SLCFifoList<T, SL>::Head slchead;
-  DLCFifoList<T, DL>::Head dlchead;
+  SLFifoList<SL>::Head slhead;
+  DLFifoList<DL>::Head dlhead;
+  SLCFifoList<SL>::Head slchead;
+  DLCFifoList<DL>::Head dlchead;
 
   Ptr<T> p;
 
   Uint32 c_seized = 0;
 
   {
-    LocalSLFifoList<T, SL> list(pool, slhead);
+    LocalSLFifoList<Pool, SL> list(pool, slhead);
     for (; c_seized < 1 * scale ; c_seized ++)
     {
       list.seizeFirst(p);
@@ -299,7 +323,7 @@ void testConcat(ArrayPool<T>& pool)
     }
   } /* sl: 100-1 */
   {
-    LocalDLFifoList<T, DL> list(pool, dlhead);
+    LocalDLFifoList<Pool, DL> list(pool, dlhead);
     for (; c_seized < 2 * scale ; c_seized ++)
     {
       list.seizeFirst(p);
@@ -307,30 +331,30 @@ void testConcat(ArrayPool<T>& pool)
     }
   } /* dl: 200-101 */
   {
-    LocalSLCFifoList<T, SL> list(pool, slchead);
+    LocalSLCFifoList<Pool, SL> list(pool, slchead);
     for (; c_seized < 3 * scale; c_seized ++)
     {
       list.seizeFirst(p);
       p.p->key = c_seized + 1;
     }
-    ok(list.count() == 1 * scale, "slc.count %u (%u)", list.count(), 1 * scale);
+    ok(list.getCount() == 1 * scale, "slc.count %u (%u)", list.getCount(), 1 * scale);
   } /* slc: 300-201 */
   {
-    LocalDLCFifoList<T, DL> list(pool, dlchead);
+    LocalDLCFifoList<Pool, DL> list(pool, dlchead);
     for (; c_seized < 4 * scale; c_seized ++)
     {
       list.seizeFirst(p);
       p.p->key = c_seized + 1;
     }
-    ok(list.count() == 1 * scale, "dlc.count %u (%u)", list.count(), 1 * scale);
+    ok(list.getCount() == 1 * scale, "dlc.count %u (%u)", list.getCount(), 1 * scale);
   } /* dlc: 400-301 */
   {
-    LocalSLCFifoList<T, SL> list(pool, slchead);
+    LocalSLCFifoList<Pool, SL> list(pool, slchead);
     list.appendList(dlchead);
-    ok(list.count() == 2 * scale, "slc.append(dlc) %u (%u) items", list.count(), 2 * scale);
+    ok(list.getCount() == 2 * scale, "slc.append(dlc) %u (%u) items", list.getCount(), 2 * scale);
   } /* slc: 300-201, 400-301 */
   {
-    LocalSLFifoList<T, SL> list(pool, slhead);
+    LocalSLFifoList<Pool, SL> list(pool, slhead);
     list.prependList(slchead);
     Uint32 c = 0;
     if (list.first(p))
@@ -341,7 +365,7 @@ void testConcat(ArrayPool<T>& pool)
     ok(c == 3 * scale, "sl.prepend(slc) %u (%u) items", c, 3 * scale);
   } /* sl: 300-201, 400-301, 100-1 */
   {
-    LocalDLCFifoList<T, DL> list(pool, dlchead);
+    LocalDLCFifoList<Pool, DL> list(pool, dlchead);
     for (; c_seized < 5 * scale; c_seized ++)
     {
       list.seizeFirst(p);
@@ -349,7 +373,7 @@ void testConcat(ArrayPool<T>& pool)
     }
   } /* dlc: 500-401 */
   {
-    LocalDLFifoList<T, DL> list(pool, dlhead);
+    LocalDLFifoList<Pool, DL> list(pool, dlhead);
     list.appendList(dlchead);
     Uint32 c = 0;
     if (list.first(p))
@@ -360,7 +384,7 @@ void testConcat(ArrayPool<T>& pool)
     ok(c == 2 * scale, "dl.append(dlc) %u (%u) items", c, 2 * scale);
   } /* dl: 200-101, 500-401 */
   {
-    LocalSLFifoList<T, SL> list(pool, slhead);
+    LocalSLFifoList<Pool, SL> list(pool, slhead);
     list.prependList(dlhead);
     Uint32 c = 0;
     if (list.first(p))
@@ -373,7 +397,7 @@ void testConcat(ArrayPool<T>& pool)
   ok(slchead.getCount() == 0, "slc.count %u (0)", slchead.getCount());
   ok(dlchead.getCount() == 0, "dlc.count %u (0)", dlchead.getCount());
   {
-    LocalSLFifoList<T, SL> list(pool, slhead);
+    LocalSLFifoList<Pool, SL> list(pool, slhead);
     list.first(p);
     ok(p.p->key == 2 * scale, "sl#1: %u (%u)", p.p->key, 2 * scale);
     for (unsigned i = 0; i < 1 * scale; i++) list.next(p);
@@ -397,10 +421,16 @@ main(int argc, char **argv)
   if (argc == 2)
     scale = atoi(argv[1]);
 
+#ifdef USE_ARRAYPOOL
   (void)test_context(1 * scale);
   ArrayPool<T> pool;
 
   pool.setSize(10 * scale);
+#else
+  Pool_context pc = test_context(1 * scale);
+  RecordPool<RWPool<T> > pool;
+  pool.init(1, pc);
+#endif
 
   plan(0);
 

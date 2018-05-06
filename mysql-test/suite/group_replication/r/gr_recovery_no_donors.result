@@ -1,0 +1,122 @@
+
+############################################################
+# 1. Create a group with 1 member and schedule a periodic
+#    event to create some load in the group.
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("This member has more executed transactions *.*");
+call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
+SET @old_event_scheduler= @@global.event_scheduler;
+SET GLOBAL EVENT_SCHEDULER= ON;
+CREATE EVENT IF NOT EXISTS e1
+ON SCHEDULE
+EVERY 1 SECOND
+STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ENDS CURRENT_TIMESTAMP + INTERVAL 40 SECOND
+ON COMPLETION PRESERVE
+ENABLE
+COMMENT 'Test with events'
+ DO
+BEGIN
+DECLARE v INTEGER;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+SET v=0;
+WHILE v < 10
+DO
+INSERT INTO test.t1 values (NULL);
+SET v = v+1;
+END WHILE;
+END//
+
+############################################################
+# 2. Add error suppressions.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+[connection server3]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 3. Stop applier channel on member 1 so that joinining
+#    members that will recover from it will be blocked on
+#    recovery waiting for the View_change_log_event on which
+#    them joined.
+[connection server1]
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+############################################################
+# 4. Stop and start members 2 and 3 without waiting for
+#    member status.
+[connection server2]
+STOP GROUP_REPLICATION;
+[connection server3]
+STOP GROUP_REPLICATION;
+[connection server2]
+START GROUP_REPLICATION;
+[connection server3]
+START GROUP_REPLICATION;
+[connection server2]
+include/gr_wait_for_member_state.inc
+[connection server3]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 5. Stop and start member 1 without waiting for member
+#    status.
+[connection server1]
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+ALTER EVENT e1 DISABLE;
+SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;
+DROP EVENT e1;
+DROP TABLE t1;
+STOP GROUP_REPLICATION;
+RESET MASTER;
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 6. Clean up.
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
+[connection server2]
+include/stop_group_replication.inc
+DROP EVENT IF EXISTS e1;
+DROP TABLE IF EXISTS t1;
+[connection server3]
+include/stop_group_replication.inc
+DROP EVENT IF EXISTS e1;
+DROP TABLE IF EXISTS t1;
+include/group_replication_end.inc

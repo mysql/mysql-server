@@ -1,23 +1,16 @@
-# Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
+--echo # Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
 
--- source include/have_innodb.inc
-
---disable_warnings
-if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
-{
-  --skip Test requires InnoDB built with UNIV_DEBUG definition.
-}
---enable_warnings
+-- source include/have_debug.inc
 
 # Don't test under valgrind, undo slots of the previous test might exist still
 # and cause unstable result.
 --source include/not_valgrind.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot find a free slot for an undo log. Do you have too many active transactions");
 
 set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
-set global innodb_trx_rseg_n_slots_debug = 32;
+set global innodb_trx_rseg_n_slots_debug = 5;
 --enable_query_log
 
 set @old_innodb_rollback_segments = @@innodb_rollback_segments;
@@ -26,6 +19,9 @@ set global innodb_rollback_segments=1;
 show variables like "max_connections";
 show variables like "innodb_thread_concurrency";
 show variables like "innodb_file_per_table";
+show variables like "innodb_undo_tablespaces";
+show variables like "innodb_rollback_segments";
+show variables like "innodb_trx_rseg_n_slots_debug";
 
 --disable_warnings
 drop database if exists mysqltest;
@@ -36,19 +32,16 @@ CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int
 
 --disable_query_log
 #
-# Insert in 1 transaction which needs over 1 page undo record to avoid the insert_undo cached,
-# because the cached insert_undo can be reused at "CREATE TABLE" statement later.
+# Add some rows so UPDATE below has something to work on.
 #
-START TRANSACTION;
-let $c = 4096;
+let $c = 5;
 while ($c)
 {
   eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
   dec $c;
 }
-COMMIT;
 
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   # if failed at here, it might be shortage of file descriptors limit.
@@ -60,15 +53,28 @@ while ($c)
 select count(*) from information_schema.processlist;
 
 #
-# fill the all undo slots
+# Fill all the undo slots.
+#
+# CREATE TABLE above creates both cached insert and update slots, with exact
+# number of slots of each type depending on implementation. Since type of the
+# slot can't be changed we have to use transactions of both insert and update
+# types to to fill all undo slots.
 #
 --disable_query_log
-let $c = 32;
+let $c = 10;
+while ($c > 5)
+{
+  connection con$c;
+  START TRANSACTION;
+  eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
+  dec $c;
+}
+
 while ($c)
 {
   connection con$c;
   START TRANSACTION;
-  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 33 - $c;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 6 - $c;
   dec $c;
 }
 --enable_query_log
@@ -81,7 +87,7 @@ CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=I
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   connection con$c;
@@ -94,7 +100,7 @@ connection default;
 select count(*) from information_schema.processlist;
 
 --disable_query_log
-let $c = 32;
+let $c = 10;
 while ($c)
 {
   disconnect con$c;

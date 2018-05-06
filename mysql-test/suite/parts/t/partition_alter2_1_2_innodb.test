@@ -42,11 +42,6 @@ let $more_pk_ui_tests= 0;
 # only do the second part
 let $only_part_2= 1;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
-# Does not work with --embedded
---source include/not_embedded.inc
 # This test takes long time, so only run it with the --big mtr-flag.
 --source include/big_test.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
@@ -56,7 +51,6 @@ let $only_part_2= 1;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files

@@ -1,0 +1,476 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#########################################################################
+#                            CONFIGURATION
+#########################################################################
+CREATE TABLE tt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = innodb;
+CREATE TABLE tt_2 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = innodb;
+CREATE TABLE nt_1 (ddl_case INT, PRIMARY KEY(ddl_case)) ENGINE = innodb;
+INSERT INTO tt_1(ddl_case) VALUES(0);
+INSERT INTO tt_2(ddl_case) VALUES(0);
+#########################################################################
+#                          CHECK IMPLICT COMMIT
+#########################################################################
+SET AUTOCOMMIT= 0;
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (31);
+LOAD INDEX INTO CACHE nt_1 IGNORE LEAVES;
+Table	Op	Msg_type	Msg_text
+test.nt_1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (30);
+LOAD INDEX INTO CACHE tt_1, tt_2 IGNORE LEAVES;
+Table	Op	Msg_type	Msg_text
+test.tt_1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+test.tt_2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (29);
+ANALYZE TABLE nt_1;
+Table	Op	Msg_type	Msg_text
+test.nt_1	analyze	status	OK
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ANALYZE TABLE nt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (28);
+CHECK TABLE nt_1;
+Table	Op	Msg_type	Msg_text
+test.nt_1	check	status	OK
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (27);
+OPTIMIZE TABLE nt_1;
+Table	Op	Msg_type	Msg_text
+test.nt_1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.nt_1	optimize	status	OK
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; OPTIMIZE TABLE nt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (26);
+REPAIR TABLE nt_1;
+Table	Op	Msg_type	Msg_text
+test.nt_1	repair	note	The storage engine for the table doesn't support repair
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; REPAIR TABLE nt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (25);
+LOCK TABLES tt_1 WRITE;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (24);
+UNLOCK TABLES;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (23);
+CREATE USER 'user'@'localhost';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (22);
+GRANT ALL ON *.* TO 'user'@'localhost';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON *.* TO 'user'@'localhost'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (21);
+SET PASSWORD FOR 'user'@'localhost' = 'newpass';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'user'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (20);
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (19);
+RENAME USER 'user'@'localhost' TO 'user_new'@'localhost';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; RENAME USER 'user'@'localhost' TO 'user_new'@'localhost'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (18);
+DROP USER 'user_new'@'localhost';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP USER 'user_new'@'localhost'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (17);
+CREATE EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT evt ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT * FROM tt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (16);
+ALTER EVENT evt COMMENT 'evt';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER EVENT evt COMMENT 'evt'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (15);
+DROP EVENT evt;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP EVENT evt
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (14);
+CREATE FUNCTION fc () RETURNS VARCHAR(64) CHARSET utf8mb4 RETURN "fc";
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `fc`() RETURNS varchar(64) CHARSET utf8mb4
+RETURN "fc"
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (13);
+ALTER FUNCTION fc COMMENT 'fc';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER FUNCTION fc COMMENT 'fc'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (12);
+DROP FUNCTION fc;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP FUNCTION fc
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (11);
+CREATE PROCEDURE pc () UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `pc`()
+UPDATE tt_2 SET ddl_case = ddl_case WHERE ddl_case= NEW.ddl_case
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (10);
+ALTER PROCEDURE pc COMMENT 'pc';
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER PROCEDURE pc COMMENT 'pc'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (9);
+CREATE VIEW v AS SELECT * FROM tt_1;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS SELECT * FROM tt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (8);
+DROP PROCEDURE pc;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP PROCEDURE pc
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (7);
+ALTER VIEW v AS SELECT * FROM tt_1;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS SELECT * FROM tt_1
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (6);
+DROP VIEW v;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP VIEW v
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (5);
+CREATE TABLE tt_xx (a int);
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx (a int)
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (4);
+RENAME TABLE tt_xx TO new_tt_xx;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; RENAME TABLE tt_xx TO new_tt_xx
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (3);
+DROP TABLE IF EXISTS tt_xx, new_tt_xx;
+Warnings:
+Note	1051	Unknown table 'test.tt_xx'
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `new_tt_xx`,`tt_xx` /* generated by server */
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (2);
+CREATE DATABASE db;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	CREATE DATABASE db
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+INSERT INTO tt_1(ddl_case) VALUES (1);
+DROP DATABASE IF EXISTS db;
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	DROP DATABASE IF EXISTS db
+-e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
+
+###################################################################################
+#                               CHECK CONSISTENCY
+###################################################################################
+include/rpl_sync.inc
+include/diff_tables.inc [server1:tt_1,server2:tt_1]
+include/diff_tables.inc [server1:tt_2,server2:tt_2]
+include/diff_tables.inc [server1:nt_1,server2:nt_1]
+###################################################################################
+#                                        CLEAN
+###################################################################################
+include/rpl_sync.inc
+include/group_replication_end.inc

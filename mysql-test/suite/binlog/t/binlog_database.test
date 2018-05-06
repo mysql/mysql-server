@@ -7,7 +7,7 @@ set binlog_format=statement;
 source extra/binlog_tests/database.test;
 set binlog_format=mixed;
 source extra/binlog_tests/database.test;
-set binlog_format=row;
+set binlog_format='row';
 source extra/binlog_tests/database.test;
 
 show databases;

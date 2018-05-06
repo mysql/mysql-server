@@ -1,10 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+
+let $global_tmp_storage_engine  = `select @@global.default_tmp_storage_engine`;
+let $session_tmp_storage_engine = `select @@session.default_tmp_storage_engine`;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -16,6 +14,7 @@ drop view if exists v1;
 
 # Add a lot of keys to slow down check
 create table t1(n int not null, key(n), key(n), key(n), key(n));
+
 let $1=10000;
 disable_query_log;
 while ($1)
@@ -52,11 +51,31 @@ drop table t1, t2;
 #
 # Bug#26325 TEMPORARY TABLE "corrupt" after first read, according to CHECK TABLE
 #
+
+# Repair table is supported only by MyISAM engine
+
+SET @@GLOBAL.default_tmp_storage_engine = MyISAM;
+SET @@session.default_tmp_storage_engine = MyISAM;
+
+SELECT @@global.default_tmp_storage_engine;
+SELECT @@session.default_tmp_storage_engine;
+
 CREATE TEMPORARY TABLE t1(a INT);
 CHECK TABLE t1;
 REPAIR TABLE t1;
 DROP TABLE t1;
 
+# Reset the variables to MTR default
+eval SET @@global.default_tmp_storage_engine = $global_tmp_storage_engine;
+eval SET @@session.default_tmp_storage_engine = $session_tmp_storage_engine;
+
+SELECT @@global.default_tmp_storage_engine;
+SELECT @@session.default_tmp_storage_engine;
+
+CREATE TEMPORARY TABLE t1(a INT);
+CHECK TABLE t1;
+REPAIR TABLE t1;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#56422 CHECK TABLE run when the table is locked reports corruption
@@ -81,21 +100,6 @@ UNLOCK TABLES;
 DROP TABLE t1;
 disconnect con1;
 
---echo #
---echo # BUG#26727481: SEGMENTATION FAULT DURING MYSQL_UPGRADE IN 8.0.3
---echo #
-
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file std_data/41_decimal.frm $MYSQLD_DATADIR/test/t1.frm
---copy_file std_data/41_decimal.MYD $MYSQLD_DATADIR/test/t1.MYD
---copy_file std_data/41_decimal.MYI $MYSQLD_DATADIR/test/t1.MYI
-
-CHECK TABLE t1;
-CHECK TABLE t1 FOR UPGRADE;
-REPAIR TABLE t1;
---echo #REPAIR TABLE does not fix pre 5.0 decimal types.
-CHECK TABLE t1;
-DROP TABLE t1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

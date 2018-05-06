@@ -1,16 +1,14 @@
 # Crash-safe InnoDB ALTER operations
 
 --source include/not_valgrind.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 
 --disable_query_log
-call mtr.add_suppression('InnoDB: cannot find a free slot for an undo log');
-call mtr.add_suppression('InnoDB: row_merge_rename_index_to_add failed with error 47');
-call mtr.add_suppression('InnoDB: Flagged corruption of `c[23]`');
-call mtr.add_suppression('InnoDB: Index `c[23]` .*is corrupted');
+call mtr.add_suppression(' cannot find a free slot for an undo log');
+call mtr.add_suppression(' row_merge_rename_index_to_add failed with error 47');
+call mtr.add_suppression(' Flagged corruption of `c[23]`');
+call mtr.add_suppression(' Index `c[23]` .*is corrupted');
 --enable_query_log
 
 --echo #
@@ -18,11 +16,13 @@ call mtr.add_suppression('InnoDB: Index `c[23]` .*is corrupted');
 --echo #
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
+--disable_parsing
 SET DEBUG='+d,ib_create_table_fail_too_many_trx';
 --error ER_TOO_MANY_CONCURRENT_TRXS
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 
 SET DEBUG='-d,ib_create_table_fail_too_many_trx';
+--enable_parsing
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 # Flag the secondary indexes corrupted.
 SET DEBUG='+d,dict_set_index_corrupted';
@@ -62,7 +62,7 @@ INSERT INTO t1 VALUES (1,2),(3,4);
 SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 
 let $orig_table_id = `SELECT table_id
-	FROM information_schema.innodb_sys_tables
+	FROM information_schema.innodb_tables
 	WHERE name = 'test/t1'`;
 
 # Write file to make mysql-test-run.pl expect crash
@@ -75,27 +75,8 @@ ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 --source include/start_mysqld.inc
 
 let $temp_table_name = `SELECT SUBSTR(name, 6)
-	FROM information_schema.innodb_sys_tables
+	FROM information_schema.innodb_tables
 	WHERE table_id = $orig_table_id`;
-
---echo # Manual *.frm recovery begin.
-
---move_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/$temp_table_name.frm
-
-perl;
-my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
-my $t1_frm = "$ENV{'datadir'}/test/t1.frm";
-rename($frm_file[0], $t1_frm);
-EOF
-
---echo # Manual recovery end
-
-FLUSH TABLES;
-
---echo # Drop the orphaned original table.
---disable_query_log
-eval DROP TABLE `#mysql50#$temp_table_name`;
---enable_query_log
 
 --echo # Files in datadir after manual recovery.
 --list_files $MYSQLD_DATADIR/test
@@ -121,7 +102,7 @@ INSERT INTO t2 VALUES (1,2),(3,4);
 SET DEBUG='d,innodb_alter_commit_crash_before_commit';
 
 let $orig_table_id = `SELECT table_id
-	FROM information_schema.innodb_sys_tables
+	FROM information_schema.innodb_tables
 	WHERE name = 'test/t2'`;
 
 # Write file to make mysql-test-run.pl expect crash
@@ -132,30 +113,6 @@ ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
 
 --echo # Startup the server after the crash
 --source include/start_mysqld.inc
-
---echo # Read and remember the temporary table name
-let $temp_table_name = `SELECT SUBSTRING(name,6)
-	FROM information_schema.innodb_sys_tables
-	WHERE name LIKE "test/#sql-ib$orig_table_id%"`;
-# This second copy is an environment variable for the perl script below.
-let temp_table_name = $temp_table_name;
-
---echo # Manual *.frm recovery begin. The dictionary was not updated
---echo # and the files were not renamed. The rebuilt table
---echo # was left behind on purpose, to faciliate data recovery.
-
-perl;
-my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
-my $target_frm = "$ENV{'datadir'}/test/$ENV{'temp_table_name'}.frm";
-rename($frm_file[0], $target_frm);
-EOF
-
---echo # Manual recovery end
-
---echo # Drop the orphaned rebuilt table.
---disable_query_log
-eval DROP TABLE `#mysql50#$temp_table_name`;
---enable_query_log
 
 SHOW TABLES;
 INSERT INTO t2 VALUES (5,6),(7,8);
@@ -173,16 +130,16 @@ DROP TABLE t2;
 --echo # -------------------------
 
 --echo #
---echo # Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
+--echo # Bug#19330255 CRASH DURING ALTER TABLE LEADS TO
 --echo # DATA DICTIONARY INCONSISTENCY
 --echo #
 
-CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(150), c int NOT NULL);
 INSERT INTO t1 SET a=1,c=2;
 SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 
 let $orig_table_id = `select table_id from
-  information_schema.innodb_sys_tables where name = 'test/t1'`;
+  information_schema.innodb_tables where name = 'test/t1'`;
 
 # Write file to make mysql-test-run.pl expect crash
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -193,33 +150,10 @@ ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
 --echo # Restart mysqld after the crash and reconnect.
 --source include/start_mysqld.inc
 
-let $temp_table_name = `SELECT SUBSTR(name, 6)
-	FROM information_schema.innodb_sys_tables
-	WHERE table_id = $orig_table_id`;
-
---echo # Manual *.frm recovery begin.
---move_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/$temp_table_name.frm
-
-perl;
-my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
-my $t1_frm = "$ENV{'datadir'}/test/t1.frm";
-rename($frm_file[0], $t1_frm);
-EOF
-
---echo # Manual recovery end
-
-FLUSH TABLES;
-
---echo # Drop the orphaned original table.
---disable_query_log
-eval DROP TABLE `#mysql50#$temp_table_name`;
---enable_query_log
-
 --echo # Files in datadir after manual recovery.
 --list_files $MYSQLD_DATADIR/test
 
 SHOW TABLES;
 SHOW CREATE TABLE t1;
-UPDATE t1 SET d=NULL;
 SELECT * FROM t1;
 DROP TABLE t1;

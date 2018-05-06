@@ -70,7 +70,7 @@ begin
 set msg= concat('No such person type:', person_type);
 SIGNAL SQLSTATE '45000' SET
 MESSAGE_TEXT = msg,
-MYSQL_ERRNO = 20000;
+MYSQL_ERRNO = 50000;
 end;
 end case;
 end
@@ -236,14 +236,6 @@ po_id	line_no	item_id	qty
 2	1	200	1
 3	1	300	10
 3	2	301	20
-SELECT * FROM ab_physical_person;
-person_id	first_name	middle_initial	last_name
-1	John	A	Doe
-2	Marry	B	Smith
-SELECT * FROM ab_moral_person;
-company_id	name
-3	ACME real estate, INC
-4	Local school
 select po_id as "PO#",
 ( case cust_type
 when "P" then concat (pp.first_name,
@@ -258,9 +250,9 @@ left join ab_physical_person pp on po.cust_id = pp.person_id
 left join ab_moral_person mp on po.cust_id = company_id
 ;
 PO#	Sold to
-3	Local school
 1	John A Doe
 2	Marry B Smith
+3	Local school
 select po_id as "PO#",
 ol.line_no as "Line",
 ol.item_id as "Item",

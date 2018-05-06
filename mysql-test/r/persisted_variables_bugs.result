@@ -1,0 +1,156 @@
+#
+# Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
+#
+# Should fail: event_scheduler does not allow setting to DISABLED at runtime
+SET PERSIST event_scheduler=DISABLED;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'DISABLED'
+# Should fail: data type still checked even with persist_only
+SET PERSIST_ONLY event_scheduler=123.456;
+ERROR 42000: Incorrect argument type to variable 'event_scheduler'
+# Should work: check not called for PERSIST_ONLY
+SET PERSIST_ONLY event_scheduler=DISABLED;
+# cleanup
+RESET PERSIST event_scheduler;
+#
+# Bug #27374791: RESET PERSIST DOES IMPLICIT COMMIT AND DOESN'T NEED
+#                RELOAD PRIVILEGES
+#
+CREATE DATABASE bug27374791;
+USE bug27374791;
+CREATE TABLE T( i int);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+BEGIN;
+INSERT INTO T values (9);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET PERSIST max_connections=31;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+RESET PERSIST;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET GLOBAL max_connections=DEFAULT;
+DROP DATABASE bug27374791;
+#
+# Bug #27322254: WITH PERSIST_ONLY, VARIABLE VALUE EQUALS 18446744073709547520
+#                IS STORED AS -4096
+#
+SELECT @@max_binlog_cache_size;
+@@max_binlog_cache_size
+18446744073709547520
+SET PERSIST max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET PERSIST_ONLY max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET @a=cast(@@max_binlog_cache_size as char);
+SELECT @a;
+@a
+18446744073709547520
+RESET PERSIST;
+SET GLOBAL max_binlog_cache_size= DEFAULT;
+#
+# Bug #27536421: SET PERSIST CHANGES THE VALUE OF OPTIMIZER_TRACE_OFFSET
+#                AFTER RESTART
+#
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+@@global.auto_increment_increment, @@global.auto_increment_offset,
+@@global.binlog_error_action, @@global.binlog_format,
+@@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+@@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+@@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+@@global.max_join_size;
+@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
+-1	0	1	1	ABORT_SERVER	###	1000	200	NULL	20000000	90.000000		18446744073709551615
+SET PERSIST optimizer_trace_offset = default;
+SET PERSIST activate_all_roles_on_login= ON;
+SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
+SET PERSIST binlog_error_action= IGNORE_ERROR, binlog_format= ROW;
+SET PERSIST cte_max_recursion_depth= 4294967295, eq_range_index_dive_limit= 4294967295;
+SET PERSIST innodb_monitor_disable='latch';
+SET PERSIST innodb_max_dirty_pages_pct= 97.3;
+SET PERSIST init_connect='SET autocommit=0';
+SET PERSIST max_join_size= 18446744073709551615;
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+@@global.auto_increment_increment, @@global.auto_increment_offset,
+@@global.binlog_error_action, @@global.binlog_format,
+@@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+@@global.innodb_monitor_disable,
+@@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+@@global.max_join_size;
+@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+activate_all_roles_on_login	ON
+auto_increment_increment	4
+auto_increment_offset	2
+binlog_error_action	IGNORE_ERROR
+binlog_format	ROW
+cte_max_recursion_depth	4294967295
+eq_range_index_dive_limit	4294967295
+init_connect	SET autocommit=0
+innodb_max_dirty_pages_pct	97.300000
+innodb_monitor_disable	latch
+max_join_size	18446744073709551615
+optimizer_trace_offset	-1
+# Restart server
+# restart
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+@@global.auto_increment_increment, @@global.auto_increment_offset,
+@@global.binlog_error_action, @@global.binlog_format,
+@@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+@@global.innodb_monitor_disable,
+@@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+@@global.max_join_size;
+@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+activate_all_roles_on_login	ON
+auto_increment_increment	4
+auto_increment_offset	2
+binlog_error_action	IGNORE_ERROR
+binlog_format	ROW
+cte_max_recursion_depth	4294967295
+eq_range_index_dive_limit	4294967295
+init_connect	SET autocommit=0
+innodb_max_dirty_pages_pct	97.300000
+innodb_monitor_disable	latch
+max_join_size	18446744073709551615
+optimizer_trace_offset	-1
+# Cleanup
+RESET PERSIST;
+SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = default,
+auto_increment_increment = default, auto_increment_offset = default,
+binlog_error_action = default, binlog_format = default,
+cte_max_recursion_depth = default, eq_range_index_dive_limit = default,
+innodb_monitor_disable = default,
+innodb_max_dirty_pages_pct = default, init_connect = default,
+max_join_size = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+#
+# Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS
+#
+# Set one variable in the mysqld-auto.cnf
+SET PERSIST max_join_size= 10000000;
+# Set another variable in the mysqld-auto.cnf
+SET PERSIST init_connect='';
+# Restart the server so it sets the variable time from mysqld-auto.cnf
+# restart
+# Check the microseconds of set_time: must be 2 (i.e. different for the two vars)
+SELECT COUNT(DISTINCT MICROSECOND(set_time)) FROM performance_schema.variables_info
+WHERE variable_name IN ('max_join_size', 'init_connect');
+COUNT(DISTINCT MICROSECOND(set_time))
+2
+# Cleanup
+SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
+RESET PERSIST;
+# End of the 8.0 tests

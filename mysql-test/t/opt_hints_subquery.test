@@ -244,24 +244,24 @@ SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
 
---echo A query with nested subqueries which by default is materialized together
+--echo A query with nested subqueries which by default will use FirstMatch
 EXPLAIN
 SELECT * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Let's turn off Materialization, DuplicateWeedout is then SELECTed
+--echo Let's turn off FirstMatch, Materialization is then selected
 EXPLAIN
-SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Let's also turn off DuplicateWeedout,  FirstMatch is then used
+--echo Let's also turn off Materialization,  DuplicateWeedout is then used
 EXPLAIN
-SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Also turn off FirstMatch. LooseScan not usable. Back to DuplicateWeedout
+--echo Also turn off DuplicateWeedout. LooseScan not usable; so still DuplicateWeedout
 EXPLAIN
-SELECT /*+ NO_SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT, FIRSTMATCH) */ *
+SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, DUPSWEEDOUT) */ *
 FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
@@ -274,9 +274,9 @@ WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 
 --echo Test same query with SEMIJOIN hint
---echo Force Materialization, should not change anything
+--echo Force FirstMatch, should not change anything
 EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Force LooseScan, will use DuplicateWeedout
@@ -284,9 +284,9 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Force FirstMatch
+--echo Force Materialization
 EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t1
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Force DuplicateWeedout
@@ -294,38 +294,38 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo If Materialization is among candidates, it will be used
+--echo If FirstMatch is among candidates, it will be used
 EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t1
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
-EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
-WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
-               WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
-EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, FIRSTMATCH, LOOSESCAN,
-           DUPSWEEDOUT) */ * FROM t1
-WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
-               WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Drop Materialization. DuplicateWeedout will be used
 EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
---echo Drop DuplicateWeedout, FirstMatch is next
 EXPLAIN
-SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t1
+SELECT /*+ SEMIJOIN(@subq1 FIRSTMATCH, MATERIALIZATION, LOOSESCAN,
+           DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+               WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+--echo Drop FirstMatch. Materialization will be used
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
+WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
+               WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
+--echo Drop Materialization, DuplicateWeedout next
+EXPLAIN
+SELECT /*+ SEMIJOIN(@subq1 LOOSESCAN, DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Strategy hints on inner-most query is ignored since sj-nests are merged
 EXPLAIN
-SELECT /*+ NO_SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
+SELECT /*+ NO_SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 --echo Ditto
 EXPLAIN
-SELECT /*+ SEMIJOIN(@subq2 FIRSTMATCH) */ * FROM t1
+SELECT /*+ SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
                WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 
@@ -596,7 +596,7 @@ SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION)
            SEMIJOIN(@subq2 MATERIALIZATION) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)
   AND t1.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2);
---echo Turn off DuplicateWeedout for first.  MatLookup is used for both
+--echo Turn off DuplicateWeedout for first.  Materialization is used for both
 EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 DUPSWEEDOUT) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3)

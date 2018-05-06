@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1,t2,t3,t4;
 CREATE TABLE t1 (
 auto int(5) unsigned NOT NULL auto_increment,
 string char(10),
@@ -27,7 +26,8 @@ time_field time,
 date_time datetime,
 time_stamp timestamp,
 PRIMARY KEY (auto)
-) engine=ndb;
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values 
 (NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
 b'001','one','one',
@@ -45,11 +45,16 @@ b'011','three','one,two,three',
 b'100','four','one,two,three,four',
 '1904-04-04','1904', 
 '04:04:04','1904-04-04 04:04:04',NULL);
-CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
+CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
-CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) ) ENGINE=ndbcluster;
+CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t3 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
-CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster;
+CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 set @old_ecpd = @@session.optimizer_switch;
 set @@optimizer_switch = 'engine_condition_pushdown=off';
@@ -1337,7 +1342,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' between date_time and date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where with pushed condition (('aaaa' between `test`.`t1`.`string` and `test`.`t1`.`string`) and ('aaaa' between `test`.`t1`.`vstring` and `test`.`t1`.`vstring`) and (0xaaaa between `test`.`t1`.`bin` and `test`.`t1`.`bin`) and (0xaaaa between `test`.`t1`.`vbin` and `test`.`t1`.`vbin`) and (<cache>(-(1)) between `test`.`t1`.`tiny` and `test`.`t1`.`tiny`) and (<cache>(-(1)) between `test`.`t1`.`short` and `test`.`t1`.`short`) and (<cache>(-(1)) between `test`.`t1`.`medium` and `test`.`t1`.`medium`) and (<cache>(-(1)) between `test`.`t1`.`long_int` and `test`.`t1`.`long_int`) and (<cache>(-(1)) between `test`.`t1`.`longlong` and `test`.`t1`.`longlong`) and (1 between `test`.`t1`.`utiny` and `test`.`t1`.`utiny`) and (1 between `test`.`t1`.`ushort` and `test`.`t1`.`ushort`) and (1 between `test`.`t1`.`umedium` and `test`.`t1`.`umedium`) and (1 between `test`.`t1`.`ulong` and `test`.`t1`.`ulong`) and (1 between `test`.`t1`.`ulonglong` and `test`.`t1`.`ulonglong`) and ('one' between `test`.`t1`.`options` and `test`.`t1`.`options`) and ('one' between `test`.`t1`.`flags` and `test`.`t1`.`flags`) and ('1901-01-01' between `test`.`t1`.`date_field` and `test`.`t1`.`date_field`) and ('1901' between `test`.`t1`.`year_field` and `test`.`t1`.`year_field`) and ('01:01:01' between `test`.`t1`.`time_field` and `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' between `test`.`t1`.`date_time` and `test`.`t1`.`date_time`)); Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (('aaaa' between `test`.`t1`.`string` and `test`.`t1`.`string`) and ('aaaa' between `test`.`t1`.`vstring` and `test`.`t1`.`vstring`) and (0xaaaa between `test`.`t1`.`bin` and `test`.`t1`.`bin`) and (0xaaaa between `test`.`t1`.`vbin` and `test`.`t1`.`vbin`) and (<cache>(-(1)) between `test`.`t1`.`tiny` and `test`.`t1`.`tiny`) and (<cache>(-(1)) between `test`.`t1`.`short` and `test`.`t1`.`short`) and (<cache>(-(1)) between `test`.`t1`.`medium` and `test`.`t1`.`medium`) and (<cache>(-(1)) between `test`.`t1`.`long_int` and `test`.`t1`.`long_int`) and (<cache>(-(1)) between `test`.`t1`.`longlong` and `test`.`t1`.`longlong`) and (1 between `test`.`t1`.`utiny` and `test`.`t1`.`utiny`) and (1 between `test`.`t1`.`ushort` and `test`.`t1`.`ushort`) and (1 between `test`.`t1`.`umedium` and `test`.`t1`.`umedium`) and (1 between `test`.`t1`.`ulong` and `test`.`t1`.`ulong`) and (1 between `test`.`t1`.`ulonglong` and `test`.`t1`.`ulonglong`) and ('one' between `test`.`t1`.`options` and `test`.`t1`.`options`) and ('one' between `test`.`t1`.`flags` and `test`.`t1`.`flags`) and ('1901-01-01' between `test`.`t1`.`date_field` and `test`.`t1`.`date_field`) and ('1901' between `test`.`t1`.`year_field` and `test`.`t1`.`year_field`) and ('01:01:01' between `test`.`t1`.`time_field` and `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' between `test`.`t1`.`date_time` and `test`.`t1`.`date_time`)) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -1443,7 +1448,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' not between date_time and date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where with pushed condition (('aaaa' not between `test`.`t1`.`string` and `test`.`t1`.`string`) and ('aaaa' not between `test`.`t1`.`vstring` and `test`.`t1`.`vstring`) and (0xaaaa not between `test`.`t1`.`bin` and `test`.`t1`.`bin`) and (0xaaaa not between `test`.`t1`.`vbin` and `test`.`t1`.`vbin`) and (<cache>(-(1)) not between `test`.`t1`.`tiny` and `test`.`t1`.`tiny`) and (<cache>(-(1)) not between `test`.`t1`.`short` and `test`.`t1`.`short`) and (<cache>(-(1)) not between `test`.`t1`.`medium` and `test`.`t1`.`medium`) and (<cache>(-(1)) not between `test`.`t1`.`long_int` and `test`.`t1`.`long_int`) and (<cache>(-(1)) not between `test`.`t1`.`longlong` and `test`.`t1`.`longlong`) and (1 not between `test`.`t1`.`utiny` and `test`.`t1`.`utiny`) and (1 not between `test`.`t1`.`ushort` and `test`.`t1`.`ushort`) and (1 not between `test`.`t1`.`umedium` and `test`.`t1`.`umedium`) and (1 not between `test`.`t1`.`ulong` and `test`.`t1`.`ulong`) and (1 not between `test`.`t1`.`ulonglong` and `test`.`t1`.`ulonglong`) and ('one' not between `test`.`t1`.`options` and `test`.`t1`.`options`) and ('one' not between `test`.`t1`.`flags` and `test`.`t1`.`flags`) and ('1901-01-01' not between `test`.`t1`.`date_field` and `test`.`t1`.`date_field`) and ('1901' not between `test`.`t1`.`year_field` and `test`.`t1`.`year_field`) and ('01:01:01' not between `test`.`t1`.`time_field` and `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' not between `test`.`t1`.`date_time` and `test`.`t1`.`date_time`))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (('aaaa' not between `test`.`t1`.`string` and `test`.`t1`.`string`) and ('aaaa' not between `test`.`t1`.`vstring` and `test`.`t1`.`vstring`) and (0xaaaa not between `test`.`t1`.`bin` and `test`.`t1`.`bin`) and (0xaaaa not between `test`.`t1`.`vbin` and `test`.`t1`.`vbin`) and (<cache>(-(1)) not between `test`.`t1`.`tiny` and `test`.`t1`.`tiny`) and (<cache>(-(1)) not between `test`.`t1`.`short` and `test`.`t1`.`short`) and (<cache>(-(1)) not between `test`.`t1`.`medium` and `test`.`t1`.`medium`) and (<cache>(-(1)) not between `test`.`t1`.`long_int` and `test`.`t1`.`long_int`) and (<cache>(-(1)) not between `test`.`t1`.`longlong` and `test`.`t1`.`longlong`) and (1 not between `test`.`t1`.`utiny` and `test`.`t1`.`utiny`) and (1 not between `test`.`t1`.`ushort` and `test`.`t1`.`ushort`) and (1 not between `test`.`t1`.`umedium` and `test`.`t1`.`umedium`) and (1 not between `test`.`t1`.`ulong` and `test`.`t1`.`ulong`) and (1 not between `test`.`t1`.`ulonglong` and `test`.`t1`.`ulonglong`) and ('one' not between `test`.`t1`.`options` and `test`.`t1`.`options`) and ('one' not between `test`.`t1`.`flags` and `test`.`t1`.`flags`) and ('1901-01-01' not between `test`.`t1`.`date_field` and `test`.`t1`.`date_field`) and ('1901' not between `test`.`t1`.`year_field` and `test`.`t1`.`year_field`) and ('01:01:01' not between `test`.`t1`.`time_field` and `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' not between `test`.`t1`.`date_time` and `test`.`t1`.`date_time`)) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -1659,7 +1664,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' not in(date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where with pushed condition (('aaaa' <> `test`.`t1`.`string`) and ('aaaa' <> `test`.`t1`.`vstring`) and (0xaaaa <> `test`.`t1`.`bin`) and (0xaaaa <> `test`.`t1`.`vbin`) and (<cache>(-(1)) <> `test`.`t1`.`tiny`) and (<cache>(-(1)) <> `test`.`t1`.`short`) and (<cache>(-(1)) <> `test`.`t1`.`medium`) and (<cache>(-(1)) <> `test`.`t1`.`long_int`) and (-1 <> `test`.`t1`.`longlong`) and (1 <> `test`.`t1`.`utiny`) and (1 <> `test`.`t1`.`ushort`) and (1 <> `test`.`t1`.`umedium`) and (1 <> `test`.`t1`.`ulong`) and (1 <> `test`.`t1`.`ulonglong`) and ('one' <> `test`.`t1`.`options`) and ('one' <> `test`.`t1`.`flags`) and ('1901-01-01' <> `test`.`t1`.`date_field`) and (1901 <> `test`.`t1`.`year_field`) and ('01:01:01' <> `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' <> `test`.`t1`.`date_time`))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (('aaaa' <> `test`.`t1`.`string`) and ('aaaa' <> `test`.`t1`.`vstring`) and (0xaaaa <> `test`.`t1`.`bin`) and (0xaaaa <> `test`.`t1`.`vbin`) and (<cache>(-(1)) <> `test`.`t1`.`tiny`) and (<cache>(-(1)) <> `test`.`t1`.`short`) and (<cache>(-(1)) <> `test`.`t1`.`medium`) and (<cache>(-(1)) <> `test`.`t1`.`long_int`) and (-1 <> `test`.`t1`.`longlong`) and (1 <> `test`.`t1`.`utiny`) and (1 <> `test`.`t1`.`ushort`) and (1 <> `test`.`t1`.`umedium`) and (1 <> `test`.`t1`.`ulong`) and (1 <> `test`.`t1`.`ulonglong`) and ('one' <> `test`.`t1`.`options`) and ('one' <> `test`.`t1`.`flags`) and ('1901-01-01' <> `test`.`t1`.`date_field`) and (1901 <> `test`.`t1`.`year_field`) and ('01:01:01' <> `test`.`t1`.`time_field`) and ('1901-01-01 01:01:01' <> `test`.`t1`.`date_time`)) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -1791,7 +1796,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	range	attr1	attr1	4	NULL	#	#	Using where with pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)); Using MRR; Using filesort
+1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	index	attr1	PRIMARY	4	NULL	#	#	Using where with pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t4` where ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)) order by `test`.`t4`.`pk1`
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
@@ -1812,11 +1817,11 @@ pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 3	3	9223372036854775805	3	d	3	3	9223372036854775805	3	d
 4	4	9223372036854775806	4	e	4	4	9223372036854775806	4	e
 explain
-select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+select auto from t1 where string = "aaaa" collate utf8mb4_general_ci order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (`test`.`t1`.`string` = <cache>(('aaaa' collate latin1_general_ci))) order by `test`.`t1`.`auto`
+Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where (`test`.`t1`.`string` = <cache>(('aaaa' collate utf8mb4_general_ci))) order by `test`.`t1`.`auto`
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1832,7 +1837,8 @@ Warnings:
 Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`attr1` AS `attr1`,`test`.`t3`.`attr2` AS `attr2`,`test`.`t3`.`attr3` AS `attr3`,`test`.`t3`.`attr4` AS `attr4`,`test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`attr2` = `test`.`t3`.`attr2`)) where (((`test`.`t4`.`attr1` > 1) and (`test`.`t4`.`attr3` < 5)) or isnull(`test`.`t4`.`attr1`)) order by `test`.`t4`.`pk1`
 create table t5 (a int primary key auto_increment, b tinytext not null) 
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t5 where b like '%jo%' order by a;
@@ -1877,7 +1883,8 @@ auto
 4
 drop table t1;
 create table t1 (a int, b varchar(3), primary key using hash(a))
-engine=ndb;
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t1 where b like 'ab';
@@ -1970,7 +1977,8 @@ changed timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 PRIMARY KEY (id),
 KEY NodeAlias_identifies_1_Node (nodeId),
 KEY NodeAlias_KeyIndex (aliasKey)
-) engine=ndb;
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into NodeAlias VALUES(null, 2 , '49', '49',  0,'2008-03-07 14:54:59');
 insert into NodeAlias VALUES(null, 3 , '49' , '49' , 0 , '2008-03-07 14:55:24');
 insert into NodeAlias VALUES(null, 4 , '49' , '49' , 0 , '2008-03-07 14:55:51');
@@ -1981,7 +1989,7 @@ insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 explain select * from nodealias where (aliasKey LIKE '491803%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	nodealias	p0,p1,p2,p3,p4,p5,p6,p7	range	nodealias_KeyIndex	nodealias_KeyIndex	48	NULL	#	#	Using where with pushed condition (`test`.`nodealias`.`aliasKey` like '491803%'); Using MRR
+1	SIMPLE	nodealias	p0,p1,p2,p3,p4,p5,p6,p7	range	nodealias_KeyIndex	nodealias_KeyIndex	183	NULL	#	#	Using where with pushed condition (`test`.`nodealias`.`aliasKey` like '491803%'); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`nodealias`.`id` AS `id`,`test`.`nodealias`.`nodeId` AS `nodeId`,`test`.`nodealias`.`displayName` AS `displayName`,`test`.`nodealias`.`aliasKey` AS `aliasKey`,`test`.`nodealias`.`objectVersion` AS `objectVersion`,`test`.`nodealias`.`changed` AS `changed` from `test`.`nodealias` where (`test`.`nodealias`.`aliasKey` like '491803%')
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
@@ -2024,7 +2032,9 @@ a	b	d
 Warnings:
 Warning	4294	Scan filter is too large, discarded
 drop table t1;
-create table t1 (a int primary key, b varchar(5000) character set latin1) engine=ndb;
+create table t1 (a int primary key, b varchar(5000) character set latin1)
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (0, 'I just cant beg you, any-more');
 select * from t1 where b="value";
 a	b
@@ -2037,9 +2047,11 @@ a	b
 2	Aberdeen
 show warnings;
 Level	Code	Message
-create table balerno (a int primary key, 
-b varchar(2000), 
-c varchar(2000)) engine=ndb;
+create table balerno (
+a int primary key,
+b varchar(2000),
+c varchar(2000)
+) engine=ndb character set latin1;
 alter table balerno add index (b);
 show warnings;
 Level	Code	Message
@@ -2156,7 +2168,8 @@ a
 show warnings;
 Level	Code	Message
 drop table balerno;
-create table t (pk int primary key, x varchar(1)) engine = ndb;
+create table t (pk int primary key, x varchar(1)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,"a");
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t where x <> "aa";
@@ -2258,7 +2271,8 @@ select * from t where x not like concat("%", replace("a%","a","b"));
 pk	x
 0	a
 drop table t;
-create table t (pk int primary key, x int) engine = ndb;
+create table t (pk int primary key, x int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t where 3 between 1+1 and x order by pk;
@@ -2283,7 +2297,8 @@ pk	x
 5	5
 drop table t;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
-create table t (x enum ('yes','yep','no')) engine = ndb;
+create table t (x enum ('yes','yep','no')) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values ('yes'),('yep'),('no');
 explain select * from t where x like 'yes' order by x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2317,16 +2332,16 @@ b int not null,
 c int not null,
 d int not null,
 primary key (`a`,`b`)
-) engine = ndb;
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`tx`.`c` = 1)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
+explain
 select straight_join *
 from tx
 join tx as t2 on t2.a = tx.a and t2.b = tx.b
@@ -2338,9 +2353,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	#	#	Child of 't2' in pushed join@1
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	#	#	Child of 't3' in pushed join@1
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2350,19 +2364,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using where; Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	1003	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't2' is not pushable, need filesort before joining child tables
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`tx`.`c` = 1)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2372,34 +2383,32 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using where; Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	1003	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't2' is not pushable, need filesort before joining child tables
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
-create table t (pk int, i int) engine = ndb;
+create table t (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,6), (6,9), (9,1);
-create table subq (pk int, i int) engine = ndb;
+create table subq (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into subq values (1,3), (3,6), (6,9), (9,1);
-explain extended 
+explain 
 select * from t where exists
 (select * from t as subq where subq.i=3 and t.i=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DEPENDENT SUBQUERY	subq	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`t` `subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
-explain extended 
+explain 
 select * from t where exists
 (select * from subq where subq.i=3 and t.i=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DEPENDENT SUBQUERY	subq	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
 select * from t where exists
@@ -2502,6 +2511,8 @@ b
 1
 drop table mytab;
 create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
 select * from t where b like 'a%';
 a	b
@@ -2513,7 +2524,8 @@ a	b
 4	ccc
 drop table t;
 create table escapetest ( emailaddress varchar(255) default null, id int not
-null default '0') engine=ndbcluster;
+null default '0') engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into escapetest values('test_data@test.org', 1);
 explain select * from escapetest where emailaddress like "test_%";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2532,16 +2544,18 @@ select * from escapetest where emailaddress like "test|_%" escape '|';
 emailaddress	id
 test_data@test.org	1
 drop table escapetest;
-create table a(a varchar(7)) engine=ndb charset=utf8;
+create table a(a varchar(7)) engine=ndb charset=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into a values ('abcdefg');
 select * from a;
 a
 abcdefg
-explain extended select * from a where a like 'abcdefg%';
+explain select * from a where a like 'abcdefg%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`a`.`a` like 'abcdefg%')
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a` from `test`.`a` where (`test`.`a`.`a` like 'abcdefg%')
 select * from a where a like 'abcdefg%';
 a
@@ -2561,7 +2575,8 @@ drop table t1;
 # BUG#14798022 "CHAR (0)" DATATYPE CAUSING ERROR 1296
 # Verify there is no push down support for char(0)
 # 
-create table t1(a int, b char(0)) engine=ndbcluster;
+create table t1(a int, b char(0)) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values(1,''), (2, NULL);
 explain select * from t1 where b = '';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

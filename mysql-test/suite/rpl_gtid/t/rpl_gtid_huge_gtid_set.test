@@ -1,0 +1,85 @@
+# ==== Purpose ====
+#
+# This test will validate that huge GTID_EXECUTED values are properly
+# handled on asynchronous replication.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#22369630 GTID_SET TO_STRING MALLOC ISSUE FOR LARGE SETS
+#
+--source include/big_test.inc
+--source include/master-slave.inc
+
+--echo
+--echo ################################################################
+--echo # 1. Generate a huge GTID_EXECUTED with 70043 characters length.
+--echo #    It will be like:
+--echo #    aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10000:10002:...:120000
+--disable_query_log
+--let $gno= 99998
+--let $gno_number= 10001
+while ($gno_number > 0)
+{
+  --let $gno= `SELECT $gno + 2`
+  --eval SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:$gno'
+  BEGIN;
+  COMMIT;
+  --dec $gno_number
+}
+SET GTID_NEXT = 'AUTOMATIC';
+--enable_query_log
+
+--let $assert_text= GTID_EXECUTED must contain all 70043 characters
+--let $assert_cond= [SELECT CHAR_LENGTH(@@GLOBAL.GTID_EXECUTED)] = 70043
+--source include/assert.inc
+
+
+--echo
+--echo ################################################################
+--echo # 2. Sync slave.
+# In valgrind sync a large workload might take long when MTS is enabled
+--let $slave_timeout= 1200
+--let $use_gtids= 1
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= GTID_EXECUTED must contain all 70043 characters
+--let $assert_cond= [SELECT CHAR_LENGTH(@@GLOBAL.GTID_EXECUTED)] = 70043
+--source include/assert.inc
+
+
+--echo
+--echo ################################################################
+--echo # 3. Execute some transactions and check that nothing bad happens.
+--echo #    Validate that data is delivered to both servers.
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--source include/rpl_connection_master.inc
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ################################################################
+--echo # 4. Check that Retrieved transaction set it is equal to
+--echo #    GTID_EXECUTED.
+--let $assert_text= 'Transactions_committed_all_members must be equal to GTID_EXECUTED'
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT Received_Transaction_Set from performance_schema.replication_connection_status]"
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+--let $rpl_connection_name= master
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

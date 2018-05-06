@@ -136,12 +136,12 @@ set optimizer_switch=@old_opt_switch;
 
 # 5.1-style subquery transformations
 CREATE TABLE t1 (s1 CHAR(5),
-                 s2 CHAR(5));
+                 s2 CHAR(5)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('z','?'),('y','!');
 # > ANY -> > MIN...
-explain extended select * from t1 where s1 > any (select s2 from t1);
+explain select * from t1 where s1 > any (select s2 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
-explain extended select * from t1 where s1 > any (select max(s2) from t1);
+explain select * from t1 where s1 > any (select max(s2) from t1);
 select * from information_schema.OPTIMIZER_TRACE;
 # IN -> EXISTS
 if (`select locate('semijoin', @@optimizer_switch) > 0`)
@@ -150,9 +150,9 @@ if (`select locate('semijoin', @@optimizer_switch) > 0`)
   set optimizer_switch="semijoin=off,materialization=off";
 --enable_query_log
 }
-explain extended select * from t1 where s1 in (select s2 from t1);
+explain select * from t1 where s1 in (select s2 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
-explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1);
+explain select * from t1 where (s1,s2) in (select s2,s1 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
 set optimizer_switch=@old_opt_switch;
 drop table t1;
@@ -212,7 +212,7 @@ insert into t3_16 values
 insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
 select * from information_schema.OPTIMIZER_TRACE;
@@ -389,12 +389,12 @@ select * from information_schema.OPTIMIZER_TRACE;
 create table t1 (
 	id   char(16) not null default '',
         data int not null
-);
+) charset utf8mb4;
 create table t2 (
 	s   char(16),
         i   int,
 	d   double
-);
+) charset utf8mb4;
 delimiter |;
 insert into t1 values ("a", 1), ("b", 2) |
 insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0), ("d", 4, 4.0) |
@@ -444,7 +444,7 @@ select * from information_schema.OPTIMIZER_TRACE|
 set @@optimizer_switch=@old_opt_switch;
 
 # Stored procedures
-create procedure p1(arg char(1))
+create procedure p1(arg char(1) charset utf8mb4)
 begin
   declare res int;
   select d into res from t6 where d in (select f1() from t2 where s=arg);
@@ -455,6 +455,10 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch="materialization=off";
 set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1("c")|
+# Regex to replace 'NAME_CONST(var_name,value)' with 'var_name'
+# in the opt trace when the variables used are declared within
+# procedures or passed as arguments and log-bin is enabled.
+--replace_regex /[ ]NAME_CONST[(][\'](.*)[\'][,][^)]*[)]/\1/
 select * from information_schema.OPTIMIZER_TRACE|
 set @@optimizer_switch=@old_opt_switch;
 
@@ -488,7 +492,7 @@ select @trace=@trace2;
 drop procedure p1;
 create temporary table optt like information_schema.OPTIMIZER_TRACE;
 delimiter |;
-create procedure p1(arg char(1))
+create procedure p1(arg char(1) charset utf8mb4)
 begin
   declare res int;
   set optimizer_trace="enabled=off";
@@ -502,6 +506,10 @@ begin
   select d+1 into res from t6 where d=res+1;
 end|
 call  p1("c")|
+# Regex to replace 'NAME_CONST(var_name,value)' with 'var_name'
+# in the opt trace when the variables used are declared within
+# procedures or passed as arguments and log-bin is enabled.
+--replace_regex /[ ]NAME_CONST[(][\'](.*)[\'][,][^)]*[)]/\1/
 select * from optt|
 select @@optimizer_trace|
 delimiter ;|
@@ -528,13 +536,6 @@ create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 select * from information_schema.OPTIMIZER_TRACE;
 drop view v1;
-
-# I_S tables
---disable_warnings
-select * from information_schema.session_variables where
-VARIABLE_NAME="optimizer_trace";
---enable_warnings
-select * from information_schema.OPTIMIZER_TRACE;
 
 # test that DUMPFILE does no escaping of \n
 # otherwise a JSON parser could not read

@@ -1,8 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA
 # Miscelaneous
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 #
@@ -102,7 +101,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 # Bug#44898 PerformanceSchema: can create a table in db performance_schema, cannot insert
 #
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_DBACCESS_DENIED_ERROR
 create table performance_schema.t1(a int);
 
 # The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE
@@ -215,6 +214,7 @@ select mysql_errno, returned_sqlstate, message_text, errors, warnings from
 use performance_schema;
 truncate performance_schema.events_statements_history;
 
+set names latin1;
 # Should truncate at 1024 bytes (1024 characters)
 select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
 
@@ -223,3 +223,78 @@ select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 select _utf8mb4 'Ð²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑ' as B;
 
 select count(*) from events_statements_history where sql_text like "%...";
+
+#
+# Bug#26162562 INDEX NAME IS NOT CORRECT AFTER DELETE OPERATION ON PFS
+# TABLE
+
+--disable_warnings
+drop table if exists test.t1;
+--enable_warnings
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'test', 't1', 'YES', 'YES');
+
+create table test.t1 (a int, b int, primary key (a), key my_index(b));
+
+insert into test.t1 values (1, 2), (3, 4), (5, 6);
+
+flush table test.t1;
+
+select * from test.t1 where a = 3;
+select * from test.t1 where b = 4;
+
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_NAME = 't1';
+
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME = 't1';
+
+update performance_schema.setup_objects
+  set timed = 'NO' where OBJECT_NAME = 't1';
+
+# Lock stats should still be here
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_NAME = 't1';
+
+# Index stats should still be here
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME = 't1';
+
+update performance_schema.setup_objects
+  set enabled = 'NO' where OBJECT_NAME = 't1';
+
+# Lock stats not printed
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_NAME = 't1';
+
+# Index stats not printed
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME = 't1';
+
+update performance_schema.setup_objects
+  set enabled = 'YES' where OBJECT_NAME = 't1';
+
+# Lock stats available again
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR
+  from performance_schema.table_lock_waits_summary_by_table
+  where OBJECT_NAME = 't1';
+
+# Index stats available again
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, COUNT_STAR
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME = 't1';
+
+drop table test.t1;
+
+delete from performance_schema.setup_objects
+  where (OBJECT_TYPE = 'TABLE')
+    and (OBJECT_SCHEMA = 'test')
+    and (OBJECT_NAME = 't1');
+

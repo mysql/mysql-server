@@ -1,0 +1,179 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo # Testing of histogram statistics that uses DEBUG functionality.
+
+--echo #
+--echo # Simulate a failure due to dropping histograms during DROP TABLE
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='+d,fail_after_drop_histograms';
+--error ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+DROP TABLE t1;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='-d,fail_after_drop_histograms';
+
+--echo #
+--echo # Simulate a failure due to dropping histograms during ALTER TABLE
+--echo #
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+
+SET DEBUG='+d,fail_after_drop_histograms';
+--error ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+ALTER TABLE t1 DROP COLUMN col2;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+
+SET DEBUG='-d,fail_after_drop_histograms';
+
+--echo #
+--echo # Simulate a failure due to renaming histograms during ALTER TABLE RENAME
+--echo #
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='+d,fail_after_rename_histograms';
+--error ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS
+ALTER TABLE t1 RENAME TO t2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+SET DEBUG='-d,fail_after_rename_histograms';
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check that histogram with sampling works as expected
+--echo #
+
+SET DEBUG='+d,histogram_force_sampling';
+
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+SET DEBUG='-d,histogram_force_sampling';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26020352 WL8943:ASSERTION `M_THD->GET_TRANSACTION()->IS_EMPTY(
+--echo #              TRANSACTION_CTX::STMT) && M
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='+d,histogram_fail_after_open_table';
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='-d,histogram_fail_after_open_table';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26027240 WL8943:VIRTUAL BOOL SQL_CMD_ANALYZE_TABLE::EXECUTE(THD*):
+--echo #              ASSERTION `FALSE' FAIL
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SET DEBUG='+d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+--echo # Since we have simulated a fail, the histogram should still be present.
+--echo # However, since this is a simulation of failure no error is reported.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='-d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+--echo # The histogram should now be gone.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#26772858 MDL FOR COLUMN STATISTICS IS NOT PROPERLY REFLECTED IN
+--echo # P_S.METADATA_LOCKS
+--echo #
+connect(con1, localhost, root,,);
+CREATE TABLE t1 (col1 INT);
+SET DEBUG_SYNC='store_histogram_after_write_lock SIGNAL histogram_1_waiting WAIT_FOR continue_store_histogram';
+--send ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+# The connection 'con1' will now wait on the debug sync point
+# "store_histogram_after_write_lock", where it has acquired an exclusive lock
+# on the histogram object. Switch connection, and inspect the metadata locks
+# table in performance schema in order to verify that OBJECT_TYPE is properly
+# reflected. Wait until 'con1' has signaled that it actually is waiting
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR histogram_1_waiting';
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME
+  FROM performance_schema.metadata_locks
+  WHERE LOCK_TYPE = "EXCLUSIVE"
+    AND OBJECT_TYPE = "COLUMN STATISTICS"
+  ORDER BY OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME;
+
+# While 'con1' still is waiting on the sync point right after the exclusive lock
+# is aquired, open a new connection and create a histogram for the same column.
+# The effect we want is a wait on the same MDL, so that we can inspect that
+# the lock is fully reflected in performance_schema.events_waits_*
+connect(con2, localhost, root,,);
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL histogram_2_lock_waiting';
+--send ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+# Go back to the default connection, and verify the contents of
+# performance_schema.events_waits_*. Wait until 'con2' has signaled that it is
+# actually waiting for the lock.
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR histogram_2_lock_waiting';
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
+  FROM performance_schema.events_waits_current
+  WHERE OBJECT_TYPE = "COLUMN STATISTICS"
+  ORDER BY OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+# Finally let 'con1' finish building the histogram. Once 'con1' has released the
+# MDL on the column statistics object, 'con2' will continue and do its work.
+SET DEBUG_SYNC='now SIGNAL continue_store_histogram';
+
+--disconnect con1
+--disconnect con2
+DROP TABLE t1;

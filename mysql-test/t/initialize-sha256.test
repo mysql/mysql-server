@@ -1,19 +1,13 @@
 --source include/big_test.inc
---source include/not_embedded.inc
---source include/have_no_undo_tablespaces.inc
 --source include/have_ssl.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
-let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
-
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 
 --echo # Save the count of columns in mysql
 --let $mysql_cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql'`
@@ -65,7 +59,7 @@ source $passwd_file;
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
-connect(root_con,localhost,root,$new_pwd,mysql);
+connect(root_con,localhost,root,$new_pwd,mysql,,,SSL);
 
 --echo # must fail due to password expiration
 --error ER_MUST_CHANGE_PASSWORD
@@ -107,11 +101,7 @@ remove_file $PASSWD_FILE;
 remove_file $MYSQLD_LOG;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 --echo #

@@ -4,8 +4,7 @@
 
 
 --source include/big_test.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
@@ -102,7 +101,7 @@ SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
        OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
        performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db1'
        OR CURRENT_SCHEMA='db2' OR CURRENT_SCHEMA='db3' 
-       ORDER BY CURRENT_SCHEMA, OBJECT_NAME;
+       ORDER BY CURRENT_SCHEMA, OBJECT_NAME, EVENT_ID;
 
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history;

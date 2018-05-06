@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 --echo #
 --echo # WL#7766 Deprecate the EOF packet
@@ -188,7 +187,7 @@ BEGIN
   DECLARE done INT DEFAULT FALSE;
   DECLARE cur1 CURSOR FOR SELECT * FROM t1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-  SET @@session.tx_isolation='READ-COMMITTED';
+  SET @@session.transaction_isolation='READ-COMMITTED';
   OPEN cur1;
   read_loop: LOOP
     FETCH cur1 INTO v1;
@@ -210,7 +209,7 @@ BEGIN
   DECLARE y int;
   DECLARE c1 CURSOR FOR SELECT * FROM t1 limit 1;
   DECLARE c2 CURSOR FOR SELECT * FROM t2 limit 1;
-  SET @@session.tx_isolation='READ-COMMITTED';
+  SET @@session.transaction_isolation='READ-COMMITTED';
   OPEN c1;
   OPEN c2;
 
@@ -266,29 +265,6 @@ BEGIN
 SELECT * FROM t1 ORDER BY 1;
 END |
 DELIMITER ;|
-
-SET GLOBAL query_cache_size=1048576;
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_session();
---echo #expect 0 since query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_no_session();
---echo #expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_no_session();
-
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_no_session();
---echo #expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_no_session();
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-CALL sel_with_session();
---echo #expect 1 as query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-SET GLOBAL query_cache_size= default;
 
 --echo #cleanup
 DROP DATABASE bug19550875;

@@ -52,7 +52,7 @@
 #   this worklog.
 
 --source include/have_debug_sync.inc
---source include/not_gtid_enabled.inc
+--source include/have_log_bin.inc
 --let $rpl_topology= none
 --let $rpl_server_count= 1
 --source include/rpl_init.inc

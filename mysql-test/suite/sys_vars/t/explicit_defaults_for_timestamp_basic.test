@@ -1,15 +1,14 @@
 #
 # show the global and session values;
 #
---source include/not_embedded.inc
 
 select @@global.explicit_defaults_for_timestamp into @save_global_explicit_defaults_for_timestamp;
 select @@session.explicit_defaults_for_timestamp into @save_session_explicit_defaults_for_timestamp;
 show global variables like 'explicit_defaults_for_timestamp';
 show session variables like 'explicit_defaults_for_timestamp';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
-select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+select * from performance_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+select * from performance_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
 --enable_warnings
 
 #
@@ -34,3 +33,14 @@ SET SESSION explicit_defaults_for_timestamp=TRUE;
 
 --connection default
 DROP USER damn;
+
+--echo #
+--echo # WL#9687 : Change default for explicit_defaults_for_timestamp to ON
+--echo #
+
+SET GLOBAL explicit_defaults_for_timestamp = 0;
+SET explicit_defaults_for_timestamp = 0;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+SET GLOBAL explicit_defaults_for_timestamp = default;
+SET explicit_defaults_for_timestamp = default;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';

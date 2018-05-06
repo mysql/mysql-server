@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
 #############################
@@ -40,7 +37,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 
 # Expect no TABLE_LOCK_STAT lost, we have room for 1 table lock for db1.t1
 --disable_warnings
-select variable_value from information_schema.global_status
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 --enable_warnings
 
@@ -76,7 +73,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 
 # Expect TABLE_LOCK_STAT lost, we can not keep stats for db1.t2
 --disable_warnings
-select variable_value > 0 from information_schema.global_status
+select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 --enable_warnings
 
@@ -117,7 +114,7 @@ select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 
 # Do not expect lost counter in TABLE_LOCK_STAT 
 --disable_warnings
-select variable_value from information_schema.global_status
+select variable_value from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_LOCK_STAT_LOST';
 --enable_warnings
 

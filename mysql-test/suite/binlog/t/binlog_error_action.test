@@ -17,7 +17,6 @@
 # added to check both the behaviours.
 ###############################################################################
 --source include/have_log_bin.inc
---source include/not_embedded.inc
 --source include/have_binlog_format_statement.inc
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
@@ -32,11 +31,12 @@ call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
-call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("An error occurred during sync stage of the commit");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Can't open file:*");
+call mtr.add_suppression("Can't generate a unique log-filename*");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 let $old=`select @@debug`;
 
@@ -47,11 +47,12 @@ RESET MASTER;
 --echo Test case1
 # Make binlog index readonly and check the behaviour with ABORT
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $INDEX=$MYSQLD_DATADIR/master-bin.index;
+let $INDEX=$MYSQLD_DATADIR/binlog.index;
 --chmod 0444 $INDEX
 
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --chmod 0666 $INDEX
@@ -97,7 +98,7 @@ flush logs;
 # Make binlog index readonly and check the behaviour with IGNORE
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --chmod 0444 $INDEX
---replace_regex /\.[\\\/]master/master/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
 --error 29
 flush logs;
 CREATE TABLE t1 ( f int );
@@ -111,7 +112,7 @@ DROP TABLE t1;
 # the behaviour in case of IGNORE
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
---replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 flush logs;
 CREATE TABLE t2 (f int );
@@ -126,7 +127,7 @@ SET SESSION debug="-d,fault_injection_updating_index";
 # after the error.
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
---replace_regex /\.[\\\/]master/master/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
+--replace_regex /\.[\\\/]binlog/binlog/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
 # error EE_WRITE with error code number 3 is expected.
 --error 3
 flush logs;
@@ -136,7 +137,7 @@ SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
 --echo Test case8
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,fault_injection_init_name";
---replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 flush logs;
 CREATE TABLE t2 (f int );
@@ -226,7 +227,7 @@ INSERT INTO t1 VALUES (1);
 # Check that error present in error log
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
 --let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Check that transaction is not committed
 --let $assert_cond= COUNT(*) = 0 FROM t1;
@@ -263,7 +264,7 @@ INSERT INTO t1 VALUES (2);
 # Check that error present in error log
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
 --let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Cleanup
 DROP TABLE t1;

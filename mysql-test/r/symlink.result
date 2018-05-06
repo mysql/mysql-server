@@ -42,7 +42,7 @@ t9	CREATE TABLE `t9` (
   `b` char(16) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
@@ -55,14 +55,14 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="/this-dir-does-not-exist";
 Got one of the listed errors
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="not-hard-path";
-ERROR 42000: Incorrect table name 'not-hard-path'
+ERROR HY000: Incorrect path value: 'not-hard-path'
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="MYSQLTEST_VARDIR/run";
 Got one of the listed errors
@@ -81,7 +81,7 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 drop database mysqltest;
 create table t1 (a int not null) engine=myisam;
 alter table t1 data directory="MYSQLTEST_VARDIR/tmp";
@@ -91,7 +91,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add b int;
 alter table t1 data directory="MYSQLTEST_VARDIR/log";
 Warnings:
@@ -101,7 +101,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 index directory="MYSQLTEST_VARDIR/log";
 Warnings:
 Warning	1618	<INDEX DIRECTORY> option ignored
@@ -110,7 +110,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
@@ -120,20 +120,20 @@ CREATE TABLE t2(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
 INDEX DIRECTORY='TEST_DIR/tmp';
 RENAME TABLE t2 TO t1;
-ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (Errcode: 17 - File exists)
+ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (OS errno 17 - File exists)
 DROP TABLE t2;
 create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 9 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 99 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create table t1 (a int) engine=myisam select 42 a;
 select * from t1;
 a
@@ -167,30 +167,34 @@ INDEX DIRECTORY='MYSQLD_DATADIR';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='TEST_DIR/master-data_var';
-ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2 - No such file or directory)
+ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (OS errno 2 - No such file or directory)
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT) DATA DIRECTORY='MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='MYSQLTEST_VARDIR/tmp';
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
 DROP TABLE t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#40980 - Drop table can remove another MyISAM table's
 #             data and index files
 #
-CREATE TABLE user(a INT) ENGINE=MYISAM DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
-                             INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
-FLUSH TABLE user;
-# Symlinking mysql database to tmpdir
-FLUSH TABLE mysql.user;
-DROP TABLE user;
-FLUSH TABLE mysql.user;
-SELECT * FROM mysql.user;
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT, b INT) ENGINE=MYISAM;
+INSERT INTO schema1.t1 VALUES(1,1);
+INSERT INTO schema1.t1 VALUES(2,2);
+CREATE TABLE t1(a INT) ENGINE=MYISAM DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
+                            INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
+FLUSH TABLE t1;
+# Symlinking schema1 database to tmpdir
+FLUSH TABLE schema1.t1;
+DROP TABLE t1;
+FLUSH TABLE schema1.t1;
+SELECT * FROM schema1.t1;
+a	b
+1	1
+2	2
+DROP SCHEMA schema1;
 End of 5.1 tests
 #
 # Test for bug #11759990 - "52354: 'CREATE TABLE .. LIKE ... '
@@ -205,7 +209,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 # CREATE TABLE LIKE statement on table with INDEX/DATA DIRECTORY
 # options should not fail. Per documentation newly created table
 # should not inherit value of these options from the original table.
@@ -215,7 +219,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop tables t1, t2;
 #
 # Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE

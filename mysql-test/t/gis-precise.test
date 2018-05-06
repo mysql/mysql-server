@@ -3,7 +3,8 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
--- source include/have_geometry.inc
+# Disabled on Windows ASAN due to https://bugs.llvm.org/show_bug.cgi?id=35365
+--source include/not_asan_windows.inc
 
 
 #
@@ -32,7 +33,7 @@ insert into t1 values
 select ST_astext(g) from t1 where ST_Within(g, ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'));
 select 'Contains';
 select ST_astext(g) from t1 where ST_Contains(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
-select 'Intersects';
+select 'st_Intersects';
 select ST_astext(g) from t1 where ST_Intersects(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
 select 'Contains';
 select ST_astext(g) from t1 where ST_Contains(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
@@ -69,9 +70,7 @@ select ST_DISTANCE(ST_GeomFromText('linestring(0 0, 3 6, 6 3, 0 0)'), ST_GeomFro
 
 
 # Operations tests
---replace_result 23.85542168674699 23.855421686746986
 select ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
---replace_result 23.85542168674699 23.855421686746986
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
 select ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('POINT(20 20)')));
@@ -92,7 +91,6 @@ create table t1(geom geometrycollection);
 insert into t1 values (ST_GeomFromText('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((1 1, 10 10, 0 8, 1 1))'));
---replace_numeric_round 5
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 
@@ -160,7 +158,7 @@ ST_GeomFromText('POLYGON((525298.67 183511.53,525296.57
 
 SET @a=0x0000000001030000000200000005000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000024400000000000000000000000000000000000000000000000000000F03F000000000000F03F0000000000000040000000000000F03F00000000000000400000000000000040000000000000F03F0000000000000040000000000000F03F000000000000F03F;
 --error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(TOUCHES(@a, ST_GEOMFROMTEXT('point(0 0)'))) t;
+SELECT ST_ASTEXT(ST_TOUCHES(@a, ST_GEOMFROMTEXT('point(0 0)'))) t;
 
 
 --echo #
@@ -176,7 +174,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
 SET sql_mode = default;
-select ST_astext(ST_mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))) as result;
+select ST_astext(ST_geomfromwkb(ST_AsWKB(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5))))) as result;
 
 SELECT ST_AsText(ST_Symdifference(ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),ST_GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
 SELECT st_equals(ST_GeomFromWKB(ST_AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1), Point(0, 0))))),
@@ -390,7 +388,7 @@ select ST_astext(st_difference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'),
 
 select ST_astext(st_symdifference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromText('polygon((0 0, 0 1, 1 1, 1 0, 0 0))'))) as result;
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 select ST_astext(ST_symdifference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromText('polygon((0 0, 1 0, 0 0,0 1, 0 0))'))) as result;
 
 SELECT ST_Equals(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromText('polygon((0 0, 1 0, 0 0,0 1, 0 0))')) as result;
@@ -420,17 +418,17 @@ select ST_AsText(ST_GeometryFromWKB(ST_AsWKB(GeometryCollection(POINT(0, 0),
                                                       MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
                                                                                       Point(0, 0)))))))) as Result;
 
-select st_touches(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
-select st_overlaps(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))'));
-select st_crosses(GeometryFromText('geometrycollection(multipoint(0 0, 1 0, 1 1, 0 1, 0 0))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
-select st_astext(st_union(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_union(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_intersection(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_intersection(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_difference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_difference(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_touches(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+select st_overlaps(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))'));
+select st_crosses(ST_GeometryFromText('geometrycollection(multipoint(0 0, 1 0, 1 1, 0 1, 0 0))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+select st_astext(st_union(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_union(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_difference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_difference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
 
 select ST_astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0))));
 --error ER_GIS_INVALID_DATA
@@ -649,10 +647,10 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GeometryCollection(POLYGON((0 0)))
 --error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GeomFromText('POLYGON((0 0, 1 1))'), ST_GeomFromText('POLYGON((1 0, 0 1))'));
 
-select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(2 2)')));
-select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(-22 -11)')));
+select st_astext(st_makeenvelope(st_geomfromtext('point(0 0)'), st_geomfromtext('point(2 2)')));
+select st_astext(st_makeenvelope(st_geomfromtext('point(0 0)'), st_geomfromtext('point(-22 -11)')));
 --replace_numeric_round 5
-select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
+select st_distance_sphere(st_geomfromtext('point(-120 45)'), st_geomfromtext('point(30.24 68.37)'));
 
 --echo #
 --echo # Bug #19552241   MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
@@ -676,10 +674,10 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 0)'),ST_GEOMFROMTEXT('MULTI
 --echo #
 --echo # Bug #19784515  ASSERTION `DIM1 >= 0 && DIM1 <= 2 && DIM2 >= 0 && DIM2 <= 2' FAILED
 --echo #
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 set @centroid_point = ST_CENTROID(ST_UNION(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((-556 966,-721 -210),(-202 390,-954 804,682 504,-394 -254,832 371,907 -369,827 126,-567 -337,-304 -555,-957 -483,-660 792),(-965 -940,814 -804,-477 -909,-128 57,-819 880,761 497,-559 40,-431 427,179 -291,-707 315,137 -781,-416 -371,-5 -156),(-600 -570,-481 -191,991 -361,768 888,-647 566,795 -861,-82 -575,-593 539))'), ST_GEOMFROMTEXT('MULTIPOLYGON(((805 69,249 708,147 455,546 -672,-218 843,458 24,-630 -420,-83 -69, 805 69)),((196 -219,-201 663,-867 521,-910 -315,-749 801,-402 820,-167 -817,-526 -163,744 -988,-588 -370,573 695,-597 513,-246 439, 196 -219)),((32 -903,189 -871,-778 -741,784 340,403 -555,607 -540,-513 -982,700 -124,344 732,714 151,-812 -252,-440 -895,-426 231,-819 -357, 32 -903)),((-395 830,454 -143,788 -279,618 -843,-490 -507,-224 17, -395 830)))')), ST_INTERSECTION(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(-169 -570),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTILINESTRING((683 4,864 -634,548 -891,727 -691,-570 32,-334 -438,127 -317,241 -12,-807 947,-987 693,-345 -867,854 -106)),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTIPOLYGON(((266 51,851 523,-781 366,-607 -581, 266 51)),((416 -450,-973 880,103 226,-896 -857,-369 761, 416 -450)),((168 171,26 -99,-606 -490,-174 -138,-325 -218,-833 -652,-255 -445,-882 -762,-202 -560, 168 171)),((-423 -216,-531 -190,-147 821,362 441,645 -128,-997 708,134 -426,714 -9,147 842,-887 -870,688 -330,689 17,-314 -262,401 -112,-606 761, -423 -216)),((-582 -373,-360 -84,-727 -171,412 -660,750 -846,-464 718,163 -11,489 -659,586 -324,-741 -198,144 -165,644 -80,930 -487,-504 -205, -582 -373))),MULTIPOLYGON(((266 51,851 523,-781 366,-607 -581, 266 51)),((416 -450,-973 880,103 226,-896 -857,-369 761, 416 -450)),((168 171,26 -99,-606 -490,-174 -138,-325 -218,-833 -652,-255 -445,-882 -762,-202 -560, 168 171)),((-423 -216,-531 -190,-147 821,362 441,645 -128,-997 708,134 -426,714 -9,147 842,-887 -870,688 -330,689 17,-314 -262,401 -112,-606 761, -423 -216)),((-582 -373,-360 -84,-727 -171,412 -660,750 -846,-464 718,163 -11,489 -659,586 -324,-741 -198,144 -165,644 -80,930 -487,-504 -205, -582 -373))),GEOMETRYCOLLECTION(),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTILINESTRING((683 4,864 -634,548 -891,727 -691,-570 32,-334 -438,127 -317,241 -12,-807 947,-987 693,-345 -867,854 -106)))'), ST_GEOMFROMTEXT('MULTIPOINT(157 69,-725 -189,-176 -41,676 375,33 -672,-76 47)')), ST_UNION(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(-896 100,-793 810,243 -525,650 -373,599 170,-554 -890),POINT(945 -828),POINT(945 -828),LINESTRING(-896 100,-793 810,243 -525,650 -373,599 170,-554 -890),POINT(945 -828),MULTIPOINT(-47 307,-768 -425,-3 167,-170 30,-784 721,951 146,407 790,37 850,-466 738),GEOMETRYCOLLECTION(),MULTIPOINT(-47 307,-768 -425,-3 167,-170 30,-784 721,951 146,407 790,37 850,-466 738),MULTIPOLYGON(((104 113,688 423,-859 602,272 978, 104 113)),((981 -394,189 -400,649 -325,-977 371,30 859,590 318,329 -894,-51 262,197 952,-846 -139,-920 399, 981 -394)),((-236 -759,834 757,857 747,437 -146,194 913,316 862,976 -491,-745 933,610 687,-149 -164,-803 -565,451 -275, -236 -759)),((572 96,-160 -607,529 930,-544 -132,458 294, 572 96))))')), ST_CENTROID(ST_GEOMFROMTEXT('POINT(-939 -921)'))))));
 
---replace_regex /-111\.[0-9]+/-111/ /-57\.[0-9]+/-57/
 SELECT ST_AsText(@centroid_point) as centroid;
 
 SELECT MBRWITHIN(@centroid_point, ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((541 -927,-414 316,-429 -444,212 260,-125 104,445 563,-713 -975,-976 514),(-830 882,-377 914,-915 919,-535 -23,-508 979),(806 347,-87 220,226 -22,-12 468,707 598,83 951,-592 701,833 964,270 -932,743 -514,231 469,-575 -122,-99 -245,416 465,801 -587))'), ST_GEOMFROMTEXT('LINESTRING(-96 -182,-373 75,697 687,-881 -463,-557 -959,-493 810)'))) as result;
@@ -749,18 +747,18 @@ insert into tbl_polygon (id, geom) values
 insert into tbl_polygon (id, geom) values
 ('POLY2',ST_GeomFromText('POLYGON((0 0,0 -10,10 -10,10 0,0 0))'));
 
-select 100, area(t.geom) from tbl_polygon t
+select 100, st_area(t.geom) from tbl_polygon t
 where t.id like 'POLY%'; 
 
-select 1, touches(t.geom, p.geom)
+select 1, ST_touches(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
-select 1, intersects(t.geom, p.geom)
+select 1, st_intersects(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
-select 0, overlaps(t.geom, p.geom)
+select 0, st_overlaps(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
@@ -828,15 +826,15 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0
 --echo #
 --echo # Bug #20135389  ST_MAKEENVELOPE() RETURNS SAME SET OF SRID VALUES IN THE ERROR MESSAGE
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236),
                                  ST_GEOMFROMTEXT('POINT(0 0)', 0)));
---error ER_WRONG_ARGUMENTS
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1),
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4145),
                                  ST_GEOMFROMTEXT('POINT(0 0)', 0)));
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0),
-                                 ST_GEOMFROMTEXT('POINT(0 0)', 100)));
+                                 ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
 
 --echo #
 --echo # Bug #20085563  ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
@@ -904,11 +902,11 @@ SELECT ST_AsText(ST_Union(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION
 --echo #
 --echo # Bug #20073238  WL7541: MEMORY ISSUE FOUND BY VALGRIND AND MANUAL INSPECTION
 --echo #
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 set @centroid_point = ST_CENTROID(ST_UNION(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((-556 966,-721 -210),(-202 390,-954 804,682 504,-394 -254,832 371,907 -369,827 126,-567 -337,-304 -555,-957 -483,-660 792),(-965 -940,814 -804,-477 -909,-128 57,-819 880,761 497,-559 40,-431 427,179 -291,-707 315,137 -781,-416 -371,-5 -156),(-600 -570,-481 -191,991 -361,768 888,-647 566,795 -861,-82 -575,-593 539))'), ST_GEOMFROMTEXT('MULTIPOLYGON(((805 69,249 708,147 455,546 -672,-218 843,458 24,-630 -420,-83 -69, 805 69)),((196 -219,-201 663,-867 521,-910 -315,-749 801,-402 820,-167 -817,-526 -163,744 -988,-588 -370,573 695,-597 513,-246 439, 196 -219)),((32 -903,189 -871,-778 -741,784 340,403 -555,607 -540,-513 -982,700 -124,344 732,714 151,-812 -252,-440 -895,-426 231,-819 -357, 32 -903)),((-395 830,454 -143,788 -279,618 -843,-490 -507,-224 17, -395 830)))')), ST_INTERSECTION(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(-169 -570),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTILINESTRING((683 4,864 -634,548 -891,727 -691,-570 32,-334 -438,127 -317,241 -12,-807 947,-987 693,-345 -867,854 -106)),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTIPOLYGON(((266 51,851 523,-781 366,-607 -581, 266 51)),((416 -450,-973 880,103 226,-896 -857,-369 761, 416 -450)),((168 171,26 -99,-606 -490,-174 -138,-325 -218,-833 -652,-255 -445,-882 -762,-202 -560, 168 171)),((-423 -216,-531 -190,-147 821,362 441,645 -128,-997 708,134 -426,714 -9,147 842,-887 -870,688 -330,689 17,-314 -262,401 -112,-606 761, -423 -216)),((-582 -373,-360 -84,-727 -171,412 -660,750 -846,-464 718,163 -11,489 -659,586 -324,-741 -198,144 -165,644 -80,930 -487,-504 -205, -582 -373))),MULTIPOLYGON(((266 51,851 523,-781 366,-607 -581, 266 51)),((416 -450,-973 880,103 226,-896 -857,-369 761, 416 -450)),((168 171,26 -99,-606 -490,-174 -138,-325 -218,-833 -652,-255 -445,-882 -762,-202 -560, 168 171)),((-423 -216,-531 -190,-147 821,362 441,645 -128,-997 708,134 -426,714 -9,147 842,-887 -870,688 -330,689 17,-314 -262,401 -112,-606 761, -423 -216)),((-582 -373,-360 -84,-727 -171,412 -660,750 -846,-464 718,163 -11,489 -659,586 -324,-741 -198,144 -165,644 -80,930 -487,-504 -205, -582 -373))),GEOMETRYCOLLECTION(),MULTIPOINT(384 290,-601 123,408 86,-616 -300,160 -474,-979 -4,-63 -824,-689 -765,-219 802,-54 -93,191 -982,-723 -449),MULTILINESTRING((683 4,864 -634,548 -891,727 -691,-570 32,-334 -438,127 -317,241 -12,-807 947,-987 693,-345 -867,854 -106)))'), ST_GEOMFROMTEXT('MULTIPOINT(157 69,-725 -189,-176 -41,676 375,33 -672,-76 47)')), ST_UNION(ST_ENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(-896 100,-793 810,243 -525,650 -373,599 170,-554 -890),POINT(945 -828),POINT(945 -828),LINESTRING(-896 100,-793 810,243 -525,650 -373,599 170,-554 -890),POINT(945 -828),MULTIPOINT(-47 307,-768 -425,-3 167,-170 30,-784 721,951 146,407 790,37 850,-466 738),GEOMETRYCOLLECTION(),MULTIPOINT(-47 307,-768 -425,-3 167,-170 30,-784 721,951 146,407 790,37 850,-466 738),MULTIPOLYGON(((104 113,688 423,-859 602,272 978, 104 113)),((981 -394,189 -400,649 -325,-977 371,30 859,590 318,329 -894,-51 262,197 952,-846 -139,-920 399, 981 -394)),((-236 -759,834 757,857 747,437 -146,194 913,316 862,976 -491,-745 933,610 687,-149 -164,-803 -565,451 -275, -236 -759)),((572 96,-160 -607,529 930,-544 -132,458 294, 572 96))))')), ST_CENTROID(ST_GEOMFROMTEXT('POINT(-939 -921)'))))));
 
 
---replace_regex /-111\.[0-9]+/-111/ /-57\.[0-9]+/-57/
 SELECT ST_AsText(@centroid_point) as centroid;
 
 SELECT MBRWITHIN(@centroid_point, ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((541 -927,-414 316,-429 -444,212 260,-125 104,445 563,-713 -975,-976 514),(-830 882,-377 914,-915 919,-535 -23,-508 979),(806 347,-87 220,226 -22,-12 468,707 598,83 951,-592 701,833 964,270 -932,743 -514,231 469,-575 -122,-99 -245,416 465,801 -587))'), ST_GEOMFROMTEXT('LINESTRING(-96 -182,-373 75,697 687,-881 -463,-557 -959,-493 810)'))) as result;
@@ -963,7 +961,8 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0
 --echo #
 --echo # Bug#20187460  OVERLAPPING GEOMETRY COMPONENTS OF SAME TYPE ARE NOT GETTING MERGED PROPERLY
 --echo #
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((4 -10,-3 0,-5 6,9 9,5 7,9 -6,9 -10,7 9,0 -4,-6 10,0 -3,9 3, 4 -10)),
                                                            GEOMETRYCOLLECTION(),
                                                            GEOMETRYCOLLECTION(MULTIPOLYGON(((-8 0,-2 -6,-10 -9,-9 7,-2 -10,7 -9,3 -6,-5 -8,-10 -7,-6 10,4 -10,-7 -8,6 -1, -8 0)),((-4 -3,7 -10,-4 -1,-10 -3,3 -3,-10 -4,-1 2,-2 -10,6 -7,-9 -8, -4 -3))),
@@ -1002,11 +1001,11 @@ SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(-3 3)'),
                    ST_UNION(ST_GEOMFROMTEXT('POINT(4 1)'), 
                             ST_GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
 
-SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(GEOMFROMTEXT('POINT(-3 3)'),
-                                            GEOMFROMTEXT('POLYGON((8 3,-2 9,-10 2,-10 -9,7 -1,4 1,7 6,5 -10,5 3,2 1,-10 0, 8 3))')), 
-                            ST_CONVEXHULL(GEOMFROMTEXT('MULTIPOINT(8 -8,-7 5)'))), 
-                   ST_UNION(GEOMFROMTEXT('POINT(4 1)'), 
-                            GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
+SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(-3 3)'),
+                                            ST_GEOMFROMTEXT('POLYGON((8 3,-2 9,-10 2,-10 -9,7 -1,4 1,7 6,5 -10,5 3,2 1,-10 0, 8 3))')), 
+                            ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOINT(8 -8,-7 5)'))), 
+                   ST_UNION(ST_GEOMFROMTEXT('POINT(4 1)'), 
+                            ST_GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
 
 
 --echo #
@@ -1033,11 +1032,15 @@ SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'),
 --echo #
 --echo # Bug#20406722 ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 --echo #
---error ER_WRONG_ARGUMENTS
+
+# Despite the name, this bug is not about the function name not being printed,
+# it's about raising the wrong error.
+
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
---error ER_WRONG_ARGUMENTS
+--error ER_SRS_NOT_FOUND
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
---error ER_WRONG_ARGUMENTS
+--error ER_SRS_NOT_FOUND
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
 
 --echo #
@@ -1045,9 +1048,9 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
 --echo #
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 --echo #
@@ -1055,9 +1058,9 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 --echo #
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 --echo #
@@ -1119,12 +1122,12 @@ select ST_Crosses(ST_GeomFromText('MULTIPOINT(1 0,15 0,10 10)'),ST_GeomFromText(
 SELECT ST_ASTEXT(ST_INTERSECTION(
      ST_GEOMFROMTEXT(
           'MULTIPOLYGON(((3 2,7 5,0 0,-9.9 9,10.0002 1,2.232432 2,4 -0.7654,3 2)))'),
-     ST_GEOMFROMWKB(
+     ST_GEOMFROMWKB(ST_AsWKB(
           MULTILINESTRING(
                LINESTRING(POINT(7,0)),LINESTRING(POINT(4,6),POINT(7,5),POINT(5,2),POINT(6,9),POINT(1,8.4),POINT(4,6),POINT(6,9),POINT(0,5),POINT(9,8),POINT(-3.6,+.5)),
                LINESTRING(POINT(+.9,5)),
                LINESTRING(POINT(2,5),POINT(7,1),POINT(2,5),POINT(2.8,6),POINT(1,3),POINT(3,9),POINT(9,7),POINT(6.1,4),POINT(2,7),POINT(8,6),POINT(0,0),POINT(1,9),POINT(4,6.5)),
-               LINESTRING(POINT(-.5,6))))));
+               LINESTRING(POINT(-.5,6)))))));
 
 
 --echo #
@@ -1328,8 +1331,6 @@ SELECT 1,
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
 ST_GEOMFROMTEXT('MULTIPOINT(0 0, 2 0, 2 4)')) as result;
 
-# This one still fails but there is no easy fix for it, and it's not the
-# scope of this bug anyway.
 SELECT 1,
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
                                                 LINESTRING(3 1, 5 1))'),
@@ -1481,6 +1482,7 @@ st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
 st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 5, 0 5))')))
 as result; #point&linear
 
+--echo # Invalid geometry in input.
 select st_astext(st_intersection(
 st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
 st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 2, 6 2, 6 5, 0 5))')))
@@ -1550,14 +1552,14 @@ select st_astext(st_union(cast(point(1,1)as char(15)),point(1,1))) as res;
 --echo # Bug #21663612 AUTO INCREMENT COLUMN VALUES ARE NOT VISIBLE IN A TABLE CONTAINING SPATIAL INDEX
 --echo #
 CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT
-                 NULL, SPATIAL INDEX(g)) ENGINE=INNODB;
+                 NULL SRID 0, SPATIAL INDEX(g)) ENGINE=INNODB;
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(0 0)'));
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(10 0)'));
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(10 10)'));
 SELECT id FROM t2;
 DROP TABLE t2;
 
-CREATE TABLE t3 (id INT PRIMARY KEY, g GEOMETRY NOT NULL,
+CREATE TABLE t3 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
                  SPATIAL INDEX(g)) ENGINE=INNODB;
 INSERT INTO t3(id, g) VALUES
 (1, ST_GEOMFROMTEXT('POINT(0 0)')),
@@ -1566,6 +1568,22 @@ INSERT INTO t3(id, g) VALUES
 SELECT id FROM t3;
 DROP TABLE t3;
 
+
+--echo #
+--echo # Bug#17167633 WKT <EXACT NUMERIC LITERAL> WITHOUT LEADING ZEROS
+--echo #
+--error ER_GIS_INVALID_DATA
+SELECT ST_AsText(ST_PointFromText('POINT(1 . 1)'));
+SELECT ST_AsText(ST_PointFromText('POINT(1 .1)'));
+SELECT ST_AsText(ST_LineFromText('LINESTRING(.0 0,0 0,0 0)'));
+SELECT ST_X(ST_PointFromText('POINT(.0  0)'));
+SELECT ST_Y(ST_PointFromText('point(0  .0)'));
+
+CREATE TABLE t1 (col_1 CHAR(7));
+INSERT INTO t1 VALUES ('POINT(.');
+--error ER_GIS_INVALID_DATA
+SELECT ST_GeomFromText(col_1) FROM t1;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#11761559 SUPPORT OGC STANDARD WKT FOR MULTIPOINT

@@ -2,14 +2,11 @@
 # This test verifies the correct behaviour in case of invalid
 # Usage of DDLs on the table replication_group_member_stats.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_group_member_stats
   ADD COLUMN foo INTEGER;
 
---error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.replication_group_member_stats;
 
 --error ER_DBACCESS_DENIED_ERROR
@@ -19,3 +16,6 @@ ALTER TABLE performance_schema.replication_group_member_stats
 --error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index
   ON performance_schema.replication_group_member_stats(Member_Id);
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.replication_group_member_stats;

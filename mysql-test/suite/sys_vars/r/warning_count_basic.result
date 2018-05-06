@@ -13,7 +13,7 @@ COUNT(@@SESSION.warning_count)
 1 Expected
 '#---------------------BS_STVARS_057_03----------------------#'
 SELECT @@SESSION.warning_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='warning_count';
 @@SESSION.warning_count = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@SESSION.warning_count)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='warning_count';
 COUNT(VARIABLE_VALUE)
 1

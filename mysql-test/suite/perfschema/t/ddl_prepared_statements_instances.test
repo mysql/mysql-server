@@ -3,9 +3,6 @@
 
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.prepared_statements_instances
   add column foo integer;
@@ -19,3 +16,6 @@ ALTER TABLE performance_schema.prepared_statements_instances ADD INDEX test_inde
 CREATE UNIQUE INDEX test_index
   ON performance_schema.prepared_statements_instances(OWNER_OBJECT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.prepared_statements_instances;

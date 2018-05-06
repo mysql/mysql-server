@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -105,6 +112,7 @@ class LcpFragOrd {
   friend class Lgman;
   friend class Pgman;
   friend class Dbtup;
+  friend class Backup;
 
   /**
    * Sender(s) / Receiver(s)
@@ -193,8 +201,10 @@ struct LcpPrepareReq
   Uint32 lcpId;
   Uint32 backupPtr;
   Uint32 backupId;
+  Uint32 createGci;
+  Uint32 localLcpId;
 
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 10 );
 };
 
 struct LcpPrepareRef
@@ -218,6 +228,50 @@ struct LcpPrepareConf
   STATIC_CONST( SignalLength = 4 );
 };
 
+struct SyncPageCacheReq
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+
+  STATIC_CONST( SignalLength = 4 );
+};
+
+struct SyncPageCacheConf
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 diskDataExistFlag;
+
+  STATIC_CONST( SignalLength = 5 );
+};
+
+struct SyncExtentPagesReq
+{
+  enum LcpOrder
+  {
+    FIRST_LCP = 0,
+    INTERMEDIATE_LCP = 1,
+    END_LCP = 2
+  };
+  Uint32 senderData;
+  Uint32 senderRef;
+  LcpOrder lcpOrder;
+
+  STATIC_CONST( SignalLength = 3 );
+};
+
+struct SyncExtentPagesConf
+{
+  Uint32 senderData;
+  Uint32 senderRef;
+
+  STATIC_CONST( SignalLength = 2 );
+};
+
 struct EndLcpReq 
 {
   Uint32 senderData;
@@ -228,15 +282,6 @@ struct EndLcpReq
   Uint32 proxyBlockNo;
 
   STATIC_CONST( SignalLength = 4 );
-};
-
-struct EndLcpRef 
-{
-  Uint32 senderData;
-  Uint32 senderRef;
-  Uint32 errorCode;
-  
-  STATIC_CONST( SignalLength = 3 );
 };
 
 struct EndLcpConf
@@ -298,7 +343,18 @@ public:
     LCP_IDLE       = 0,
     LCP_PREPARED   = 1,
     LCP_SCANNING   = 2,
-    LCP_SCANNED    = 3
+    LCP_SCANNED    = 3,
+    LCP_PREPARE_READ_CTL_FILES = 4,
+    LCP_PREPARE_OPEN_DATA_FILE = 5,
+    LCP_PREPARE_READ_TABLE_DESC = 6,
+    LCP_PREPARE_ABORTING = 7,
+    LCP_WAIT_END_LCP = 8,
+    LCP_PREPARE_WAIT_DROP_CASE = 9,
+    LCP_WAIT_SYNC_DISK = 10,
+    LCP_WAIT_SYNC_EXTENT = 11,
+    LCP_WAIT_WRITE_CTL_FILE = 12,
+    LCP_WAIT_CLOSE_EMPTY = 13,
+    LCP_WAIT_FINAL_SYNC_EXTENT = 14
   };
 private:
   Uint32 senderRef;
@@ -410,6 +466,36 @@ public:
   Uint32 startNodeId;
 };
 
+class WaitCompleteLcpConf
+{
+public:
+  STATIC_CONST (SignalLength = 5);
+
+  Uint32 senderRef;
+  Uint32 lcpId;
+  Uint32 localLcpId;
+  Uint32 maxGciInLcp;
+  Uint32 maxKeepGci;
+};
+class LcpAllCompleteReq
+{
+public:
+  STATIC_CONST (SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 lcpId;
+  Uint32 maxGciInLcp;
+  Uint32 maxKeepGci;
+};
+
+class GetLocalLcpIdConf
+{
+public:
+  STATIC_CONST (SignalLength = 2);
+
+  Uint32 lcpId;
+  Uint32 localLcpId;
+};
 #undef JAM_FILE_ID
 
 #endif

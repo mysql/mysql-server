@@ -11,8 +11,6 @@ alter table t1 engine=heap;
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a tinyint not null auto_increment primary key, b char(20) default "default_value");
 insert into t1 values (126,"first"),(63, "middle"),(0,"last");
 insert into t1 values (0,"error");
@@ -23,8 +21,8 @@ replace into t1 values (126,"first updated");
 replace into t1 values (63,default);
 select * from t1;
 a	b
-126	first updated
 63	default_value
+126	first updated
 127	last
 drop table t1;
 SET sql_mode = default;

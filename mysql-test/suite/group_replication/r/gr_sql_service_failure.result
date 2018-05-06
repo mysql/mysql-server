@@ -1,0 +1,29 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+SET SESSION sql_log_bin= 1;
+
+# 1. Start GR. Force SQL Service to return error failing Start GR.
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_sql_service_force_error';
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+# 2. Start GR successfully now.
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_sql_service_force_error';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 3. Clean up.
+
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug_save;
+include/group_replication_end.inc

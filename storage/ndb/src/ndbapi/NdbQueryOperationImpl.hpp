@@ -1,18 +1,25 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef NdbQueryOperationImpl_H
 #define NdbQueryOperationImpl_H
@@ -33,7 +40,9 @@ class NdbParamOperand;
 class NdbTransaction;
 class NdbReceiver;
 class NdbOut;
-class NdbRootFragment;
+class NdbWorker;
+
+struct QueryNode;
 
 /**
  * This class simplifies the task of allocating memory for many instances
@@ -243,10 +252,14 @@ public:
    */
   int isPrunable(bool& pruned);
 
-  /** Get the number of fragments to be read for the root operation.*/
-  Uint32 getRootFragCount() const
-  { return m_rootFragCount; }
+  /** Get the number of SPJ workers involved in this query. */
+  Uint32 getWorkerCount() const
+  { return m_workerCount; }
 
+  /** Get the number of fragments handled by each worker. */
+  Uint32 getFragsPerWorker() const
+  { return m_fragsPerWorker; }
+ 
   NdbBulkAllocator& getResultStreamAlloc()
   { return m_resultStreamAlloc; }
 
@@ -272,16 +285,16 @@ private:
   };
 
   /**
-   * Container of root fragments that the application is currently
+   * Container of SPJ worker results that the application is currently
    * iterating over. 'Owned' by application thread and can be accesed
    * without requiring a mutex lock.
-   * RootFragments are appended to a OrderedFragSet by ::prepareMoreResults()
+   * Worker results are appended to a OrderedFragSet by ::prepareMoreResults()
    *
    */
   class OrderedFragSet{
   public:
     // For calculating need for dynamically allocated memory.
-    static const Uint32 pointersPerFragment = 2;
+    static const Uint32 pointersPerWorker = 2;
 
     explicit OrderedFragSet();
 
@@ -291,7 +304,7 @@ private:
      * Prepare internal datastructures.
      * param[in] allocator For allocating arrays of pointers.
      * param[in] ordering Possible scan ordering.
-     * param[in] capacity Max no of root fragments.
+     * param[in] capacity Max no of SPJ-worker results.
      * @return 0 if ok, else errorcode
      */
     void prepare(NdbBulkAllocator& allocator,
@@ -301,21 +314,21 @@ private:
                  const NdbRecord* resultRecord);
 
     /**
-     * Add root fragments with completed ResultSets to this OrderedFragSet.
+     * Add worker results with completed ResultSets to this OrderedFragSet.
      * The PollGuard mutex must locked, and under its protection
-     * completed root fragments are 'consumed' from rootFrags[] and
+     * completed worker results are 'consumed' from rootFrags[] and
      * added to OrderedFragSet where it become available for the
      * application thread.
      */
-    void prepareMoreResults(NdbRootFragment rootFrags[], Uint32 cnt);  // Need mutex lock
+    void prepareMoreResults(NdbWorker workers[], Uint32 cnt);  // Need mutex lock
 
-    /** Get the root fragment from which to read the next row.*/
-    NdbRootFragment* getCurrent() const;
+    /** Get the worker result from which to read the next row.*/
+    NdbWorker* getCurrent() const;
 
     /**
-     * Re-organize the fragments after a row has been consumed. This is 
-     * needed to remove fragments that has been emptied, and to re-sort 
-     * fragments if doing a sorted scan.
+     * Re-organize the worker results after a row has been consumed. This is 
+     * needed to remove workers that has been emptied, and to re-sort 
+     * workers if doing a sorted scan.
      */
     void reorganize();
 
@@ -323,33 +336,33 @@ private:
     void clear();
 
     /**
-     * Get all fragments where more rows may be (pre-)fetched.
-     * (This method is not idempotent - the fragments are removed
+     * Get all SPJ-worker result where more rows may be (pre-)fetched.
+     * (This method is not idempotent - the 'workers' are removed
      * from the set.)
-     * @return Number of fragments (in &frags) from which more 
+     * @return Number of workers (in &workers) from which more 
      * results should be requested.
      */
-    Uint32 getFetchMore(NdbRootFragment** &rootFrags);
+    Uint32 getFetchMore(NdbWorker** &workers);
 
   private:
 
-    /** No of fragments to read until '::finalBatchReceived()'.*/
+    /** No of workers to read from until '::finalBatchReceived()'.*/
     int m_capacity;
-    /** Number of fragments in 'm_activeFrags'.*/
-    int m_activeFragCount;
-    /** Number of fragments in 'm_fetchMoreFrags'. */
-    int m_fetchMoreFragCount;
+    /** Number of workers in 'm_activeWorkers'.*/
+    int m_activeWorkerCount;
+    /** Number of workers in 'm_fetchMoreWorkers'. */
+    int m_fetchMoreWorkerCount;
 
     /**
-     * Number of fragments where the final ResultSet has been received.
+     * Number of worker results where the final ResultSet has been received.
      * (But not necessarily consumed!).
      */
-    int m_finalFragReceivedCount;
+    int m_finalResultReceivedCount;
     /**
-     * Number of fragments where the final ResultSet has been received
+     * Number of worker results where the final ResultSet has been received
      * and consumed.
      */
-    int m_finalFragConsumedCount;
+    int m_finalResultConsumedCount;
 
     /** Ordering of index scan result.*/
     NdbQueryOptions::ScanOrdering m_ordering;
@@ -358,26 +371,26 @@ private:
     /** Needed for comparing records when ordering results.*/
     const NdbRecord* m_resultRecord;
     /**
-     * Fragments where some tuples in the current ResultSet has not 
+     * Worker results where some tuples in the current ResultSet has not 
      * yet been consumed.
      */
-    NdbRootFragment** m_activeFrags;
+    NdbWorker** m_activeWorkers;
     /**
-     * Fragments from which we should request more ResultSets.
+     * SPJ-workers from which we should request more ResultSets.
      * Either due to the current ResultSets has been consumed,
      * or double buffering of ResultSets allows us to request
      * another batch before the current has been consumed.
      */
-    NdbRootFragment** m_fetchMoreFrags;
+    NdbWorker** m_fetchMoreWorkers;
 
-    /** Add a complete fragment that has been received.*/
-    void add(NdbRootFragment& frag);
+    /** Add a complete worker result that has been received.*/
+    void add(NdbWorker& worker);
 
-    /** For sorting fragment reads according to index value of first record. 
+    /** For sorting worker results reads according to index value of first record. 
      * Also f1<f2 if f2 has reached end of data and f1 has not.
      * @return 1 if f1>f2, 0 if f1==f2, -1 if f1<f2.*/
-    int compare(const NdbRootFragment& frag1,
-                const NdbRootFragment& frag2) const;
+    int compare(const NdbWorker& worker1,
+                const NdbWorker& worker2) const;
 
     /** For debugging purposes.*/
     bool verifySortOrder() const;
@@ -439,34 +452,41 @@ private:
    */
   Uint32 m_globalCursor;
 
-  /** Number of root fragments not yet completed within the current batch.
+  /** Number of SPJ workers not yet completed within the current batch.
    *  Only access w/ PollGuard mutex as it is also updated by receiver thread 
    */
-  Uint32 m_pendingFrags;  // BEWARE: protect with PollGuard mutex
+  Uint32 m_pendingWorkers;  // BEWARE: protect with PollGuard mutex
 
-  /** Number of fragments to be read by the root operation. (1 if root 
-   * operation is a lookup)*/
-  Uint32 m_rootFragCount;
+  /** Number of SPJ workers collecting partial results for this query.
+   * (1 if root operation is a lookup)
+   */
+  Uint32 m_workerCount;
 
   /**
-   * This is an array with one element for each fragment that the root
-   * operation accesses (i.e. one for a lookup, all for a table scan).
-   * It keeps the state of the read operation on that fragment, and on
+   * How many fragments are handled by each Worker, > 1 if MultiFragScan.
+   */
+  Uint32 m_fragsPerWorker;
+
+  /**
+   * This is an array with one element for each worker (SPJ requests)
+   * involved in the query.
+   * ( <= #fragment that the root operation accesses, one for a lookup)
+   * It keeps the state of the read operation from that worker, and on
    * any child operation instance derived from it.
    */
-  NdbRootFragment* m_rootFrags;
+  NdbWorker* m_workers;
 
   /** Root fragments that the application is currently iterating over. Only 
    * accessed by application thread.
    */
   OrderedFragSet m_applFrags;
 
-  /** Number of root fragments for which confirmation for the final batch 
+  /** Number of SPJ-worker results for which confirmation for the final batch 
    * (with tcPtrI=RNIL) has been received. Observe that even if 
-   * m_finalBatchFrags==m_rootFragCount, all tuples for the final batches may
-   * still not have been received (i.e. m_pendingFrags>0).
+   * m_finalWorkers==m_workerCount, all tuples for the final batches may
+   * still not have been received (i.e. m_pendingWorkers>0).
    */
-  Uint32 m_finalBatchFrags; // BEWARE: protect with PollGuard mutex
+  Uint32 m_finalWorkers;   // BEWARE: protect with PollGuard mutex
 
   /** Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
@@ -536,7 +556,7 @@ private:
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
    * @return 0 if send succeeded, -1 otherwise.
    */
-  int sendFetchMore(NdbRootFragment* rootFrags[], Uint32 cnt,
+  int sendFetchMore(NdbWorker* workers[], Uint32 cnt,
                     bool forceSend);
 
   /** Wait for more scan results which already has been REQuested to arrive.
@@ -567,12 +587,12 @@ private:
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U); }
 
-  /** A complete batch has been received for a given root fragment
+  /** A complete batch has been received for a given SPJ-worker result.
    *  Update whatever required before the appl. is allowed to navigate 
    *  the result.
    *  @return: 'true' if its time to resume appl. threads
    */ 
-  bool handleBatchComplete(NdbRootFragment& rootFrag);
+  bool handleBatchComplete(NdbWorker& worker);
 
   NdbBulkAllocator& getPointerAlloc()
   { return m_pointerAlloc; }
@@ -655,7 +675,7 @@ public:
    * descendant lookup operations.
    * @param receiver The receiver object that shall process the results.*/
   bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
-                        NdbReceiver* receiver); 
+                        const NdbReceiver* receiver); 
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
@@ -729,8 +749,13 @@ public:
   Uint32 getMaxBatchRows() const
   { return m_maxBatchRows; }
 
+  /** Get the maximal number of bytes that may be returned in a single 
+   *  SCANREQ to the SPJ block.
+   */
+  Uint32 getMaxBatchBytes() const;
+
   /** Get size of buffer required to hold a full batch of 'packed' rows */
-  Uint32 getBatchBufferSize() const;
+  Uint32 getResultBufferSize() const;
 
   /** Get size of a full row. */  
   Uint32 getRowSize() const;
@@ -757,9 +782,6 @@ private:
   NdbQueryOperationImpl* m_parent;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
-
-  /** Max rows (per resultStream) in a scan batch.*/
-  Uint32 m_maxBatchRows;
 
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
@@ -792,15 +814,28 @@ private:
   /** True if this operation reads from any disk column. */
   bool m_diskInUserProjection;
 
-  /** Number of scan fragments to read in parallel.
-   */
+  /** Number of scan fragments to read in parallel. */
   Uint32 m_parallelism;
   
   /** Size of each unpacked result row (in bytes).*/
   mutable Uint32 m_rowSize;
 
+  /** Max rows (per resultStream) in a fragment scan batch.
+   *   >0: User specified prefered value,
+   *  ==0: Use default CFG values
+   *
+   *  Used as 'batch_rows' argument in 'SCANREQ'
+   */
+  Uint32 m_maxBatchRows;
+
+  /** 'batch_byte_size' argument to be used in 'SCANREQ'
+   *  Calculated as the min value required to fetch all m_maxBatchRows,
+   *  and max size set in CFG.
+   */
+  mutable Uint32 m_maxBatchBytes;
+
   /** Size of the buffer required to hold a batch of result rows */
-  mutable Uint32 m_batchBufferSize;
+  mutable Uint32 m_resultBufferSize;
 
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
@@ -836,7 +871,8 @@ private:
 
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
-  int prepareAttrInfo(Uint32Buffer& attrInfo);
+  int prepareAttrInfo(Uint32Buffer& attrInfo,
+                      const QueryNode*& queryNode);
 
   /**
    * Expand keys and bounds for the root operation into the KEYINFO section.

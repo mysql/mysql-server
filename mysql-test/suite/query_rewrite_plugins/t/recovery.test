@@ -23,7 +23,7 @@ SELECT 'Rewrite';
 --echo #
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

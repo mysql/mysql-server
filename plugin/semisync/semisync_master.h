@@ -1,24 +1,36 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SEMISYNC_MASTER_H
 #define SEMISYNC_MASTER_H
 
-#include "semisync.h"
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "plugin/semisync/semisync.h"
 
 extern PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 
@@ -34,12 +46,12 @@ extern PSI_stage_info stage_reading_semi_sync_ack;
 extern unsigned int rpl_semi_sync_master_wait_for_slave_count;
 
 struct TranxNode {
-  char             log_name_[FN_REFLEN];
-  my_off_t         log_pos_;
-  mysql_cond_t     cond;
-  int              n_waiters;
-  struct TranxNode *next_;            /* the next node in the sorted list */
-  struct TranxNode *hash_next_;    /* the next node during hash collision */
+  char log_name_[FN_REFLEN];
+  my_off_t log_pos_;
+  mysql_cond_t cond;
+  int n_waiters;
+  struct TranxNode *next_;      /* the next node in the sorted list */
+  struct TranxNode *hash_next_; /* the next node during hash collision */
 };
 
 /**
@@ -76,9 +88,8 @@ struct TranxNode {
     more efficient.
  */
 #define BLOCK_TRANX_NODES 16
-class TranxNodeAllocator
-{
-public:
+class TranxNodeAllocator {
+ public:
   /**
     @param reserved_nodes
       The number of reserved TranxNodes. It is used to set 'reserved_blocks'
@@ -86,20 +97,21 @@ public:
       freeing memory, we will reserve at least reserved_blocks of Blocks not
       freed.
    */
-  TranxNodeAllocator(uint reserved_nodes) :
-    reserved_blocks(reserved_nodes/BLOCK_TRANX_NODES +
-                  (reserved_nodes%BLOCK_TRANX_NODES > 1 ? 2 : 1)),
-    first_block(NULL), last_block(NULL),
-    current_block(NULL), last_node(-1), block_num(0) {}
+  TranxNodeAllocator(uint reserved_nodes)
+      : reserved_blocks(reserved_nodes / BLOCK_TRANX_NODES +
+                        (reserved_nodes % BLOCK_TRANX_NODES > 1 ? 2 : 1)),
+        first_block(NULL),
+        last_block(NULL),
+        current_block(NULL),
+        last_node(-1),
+        block_num(0) {}
 
-  ~TranxNodeAllocator()
-  {
-    Block *block= first_block;
-    while (block != NULL)
-    {
-      Block *next= block->next;
+  ~TranxNodeAllocator() {
+    Block *block = first_block;
+    while (block != NULL) {
+      Block *next = block->next;
       free_block(block);
-      block= next;
+      block = next;
     }
   }
 
@@ -111,31 +123,27 @@ public:
 
     @return Return a TranxNode *, or NULL if an error occured.
    */
-  TranxNode *allocate_node()
-  {
+  TranxNode *allocate_node() {
     TranxNode *trx_node;
-    Block *block= current_block;
+    Block *block = current_block;
 
-    if (last_node == BLOCK_TRANX_NODES-1)
-    {
-      current_block= current_block->next;
-      last_node= -1;
+    if (last_node == BLOCK_TRANX_NODES - 1) {
+      current_block = current_block->next;
+      last_node = -1;
     }
 
-    if (current_block == NULL && allocate_block())
-    {
-      current_block= block;
-      if (current_block)
-        last_node= BLOCK_TRANX_NODES-1;
+    if (current_block == NULL && allocate_block()) {
+      current_block = block;
+      if (current_block) last_node = BLOCK_TRANX_NODES - 1;
       return NULL;
     }
 
-    trx_node= &(current_block->nodes[++last_node]);
+    trx_node = &(current_block->nodes[++last_node]);
     trx_node->log_name_[0] = '\0';
-    trx_node->log_pos_= 0;
-    trx_node->next_= 0;
-    trx_node->hash_next_= 0;
-    trx_node->n_waiters= 0;
+    trx_node->log_pos_ = 0;
+    trx_node->next_ = 0;
+    trx_node->hash_next_ = 0;
+    trx_node->n_waiters = 0;
     return trx_node;
   }
 
@@ -144,10 +152,9 @@ public:
 
     @return Return 0, or 1 if an error occured.
    */
-  int free_all_nodes()
-  {
-    current_block= first_block;
-    last_node= -1;
+  int free_all_nodes() {
+    current_block = first_block;
+    last_node = -1;
     free_blocks();
     return 0;
   }
@@ -160,30 +167,27 @@ public:
 
     @return Return 0, or 1 if an error occured.
    */
-  int free_nodes_before(TranxNode* node)
-  {
+  int free_nodes_before(TranxNode *node) {
     Block *block;
-    Block *prev_block= NULL;
+    Block *prev_block = NULL;
 
-    block= first_block;
-    while (block != current_block->next)
-    {
+    block = first_block;
+    while (block != current_block->next) {
       /* Find the Block containing the given node */
-      if (&(block->nodes[0]) <= node && &(block->nodes[BLOCK_TRANX_NODES]) >= node)
-      {
+      if (&(block->nodes[0]) <= node &&
+          &(block->nodes[BLOCK_TRANX_NODES]) >= node) {
         /* All Blocks before the given node are put into the rear */
-        if (first_block != block)
-        {
-          last_block->next= first_block;
-          first_block= block;
-          last_block= prev_block;
-          last_block->next= NULL;
+        if (first_block != block) {
+          last_block->next = first_block;
+          first_block = block;
+          last_block = prev_block;
+          last_block->next = NULL;
           free_blocks();
         }
         return 0;
       }
-      prev_block= block;
-      block= block->next;
+      prev_block = block;
+      block = block->next;
     }
 
     /* Node does not find should never happen */
@@ -191,17 +195,17 @@ public:
     return 1;
   }
 
-private:
+ private:
   uint reserved_blocks;
 
- /**
-   A sequence memory which contains BLOCK_TRANX_NODES TranxNodes.
+  /**
+    A sequence memory which contains BLOCK_TRANX_NODES TranxNodes.
 
-   BLOCK_TRANX_NODES The number of TranxNodes which are in a Block.
+    BLOCK_TRANX_NODES The number of TranxNodes which are in a Block.
 
-   next Every Block has a 'next' pointer which points to the next Block.
-        These linking Blocks constitute a Block link table.
-  */
+    next Every Block has a 'next' pointer which points to the next Block.
+         These linking Blocks constitute a Block link table.
+   */
   struct Block {
     Block *next;
     TranxNode nodes[BLOCK_TRANX_NODES];
@@ -237,26 +241,24 @@ private:
   /**
     Allocate a block and then assign it to current_block.
   */
-  int allocate_block()
-  {
-    Block *block= (Block *)my_malloc(key_ss_memory_TranxNodeAllocator_block,
-                                     sizeof(Block), MYF(0));
-    if (block)
-    {
-      block->next= NULL;
+  int allocate_block() {
+    Block *block = (Block *)my_malloc(key_ss_memory_TranxNodeAllocator_block,
+                                      sizeof(Block), MYF(0));
+    if (block) {
+      block->next = NULL;
 
       if (first_block == NULL)
-        first_block= block;
+        first_block = block;
       else
-        last_block->next= block;
+        last_block->next = block;
 
       /* New Block is always put into the rear */
-      last_block= block;
+      last_block = block;
       /* New Block is always the current_block */
-      current_block= block;
+      current_block = block;
       ++block_num;
 
-      for (int i=0; i< BLOCK_TRANX_NODES; i++)
+      for (int i = 0; i < BLOCK_TRANX_NODES; i++)
         mysql_cond_init(key_ss_cond_COND_binlog_send_,
                         &current_block->nodes[i].cond);
 
@@ -269,14 +271,12 @@ private:
     Free a given Block.
     @param block The Block will be freed.
    */
-  void free_block(Block *block)
-  {
-    for (int i=0; i< BLOCK_TRANX_NODES; i++)
+  void free_block(Block *block) {
+    for (int i = 0; i < BLOCK_TRANX_NODES; i++)
       mysql_cond_destroy(&block->nodes[i].cond);
     my_free(block);
     --block_num;
   }
-
 
   /**
     If there are some free Blocks and the total number of the Blocks in the
@@ -285,22 +285,18 @@ private:
     'reserved_blocks' or there is only one free Block behind the
     'current_block'.
    */
-  void free_blocks()
-  {
-    if (current_block == NULL || current_block->next == NULL)
-      return;
+  void free_blocks() {
+    if (current_block == NULL || current_block->next == NULL) return;
 
     /* One free Block is always kept behind the current block */
-    Block *block= current_block->next->next;
-    while (block_num > reserved_blocks && block != NULL)
-    {
-      Block *next= block->next;
+    Block *block = current_block->next->next;
+    while (block_num > reserved_blocks && block != NULL) {
+      Block *next = block->next;
       free_block(block);
-      block= next;
+      block = next;
     }
-    current_block->next->next= block;
-    if (block == NULL)
-      last_block= current_block->next;
+    current_block->next->next = block;
+    if (block == NULL) last_block = current_block->next;
   }
 };
 
@@ -312,44 +308,42 @@ private:
    active transaction nodes can exceed the maximum allowed
    connections.
 */
-class ActiveTranx
-  :public Trace {
-private:
-
+class ActiveTranx : public Trace {
+ private:
   TranxNodeAllocator allocator_;
   /* These two record the active transaction list in sort order. */
-  TranxNode       *trx_front_, *trx_rear_;
+  TranxNode *trx_front_, *trx_rear_;
 
-  TranxNode      **trx_htb_;        /* A hash table on active transactions. */
+  TranxNode **trx_htb_; /* A hash table on active transactions. */
 
-  int              num_entries_;              /* maximum hash table entries */
-  mysql_mutex_t *lock_;                                     /* mutex lock */
+  int num_entries_;     /* maximum hash table entries */
+  mysql_mutex_t *lock_; /* mutex lock */
 
   inline void assert_lock_owner();
 
-  inline unsigned int calc_hash(const unsigned char *key,unsigned int length);
+  inline unsigned int calc_hash(const unsigned char *key, unsigned int length);
   unsigned int get_hash_value(const char *log_file_name, my_off_t log_file_pos);
 
   int compare(const char *log_file_name1, my_off_t log_file_pos1,
               const TranxNode *node2) {
-    return compare(log_file_name1, log_file_pos1,
-                   node2->log_name_, node2->log_pos_);
+    return compare(log_file_name1, log_file_pos1, node2->log_name_,
+                   node2->log_pos_);
   }
-  int compare(const TranxNode *node1,
-              const char *log_file_name2, my_off_t log_file_pos2) {
-    return compare(node1->log_name_, node1->log_pos_,
-                   log_file_name2, log_file_pos2);
+  int compare(const TranxNode *node1, const char *log_file_name2,
+              my_off_t log_file_pos2) {
+    return compare(node1->log_name_, node1->log_pos_, log_file_name2,
+                   log_file_pos2);
   }
   int compare(const TranxNode *node1, const TranxNode *node2) {
-    return compare(node1->log_name_, node1->log_pos_,
-                   node2->log_name_, node2->log_pos_);
+    return compare(node1->log_name_, node1->log_pos_, node2->log_name_,
+                   node2->log_pos_);
   }
 
-public:
+ public:
   int signal_waiting_sessions_all();
   int signal_waiting_sessions_up_to(const char *log_file_name,
                                     my_off_t log_file_pos);
-  TranxNode* find_active_tranx_node(const char *log_file_name,
+  TranxNode *find_active_tranx_node(const char *log_file_name,
                                     my_off_t log_file_pos);
   ActiveTranx(mysql_mutex_t *lock, unsigned long trace_level);
   ~ActiveTranx();
@@ -365,12 +359,12 @@ public:
    * position.
    * If log_file_name is NULL, everything will be cleared: the sorted
    * list and the hash table will be reset to empty.
-   * 
+   *
    * Return:
    *  0: success;  non-zero: error
    */
   int clear_active_tranx_nodes(const char *log_file_name,
-                               my_off_t    log_file_pos);
+                               my_off_t log_file_pos);
 
   /* Given a position, check to see whether the position is an active
    * transaction's ending position by probing the hash table.
@@ -388,50 +382,43 @@ public:
    * Return:
    *   True :  If there are no nodes
    *   False:  othewise
-  */
-  bool is_empty()
-  {
-    return (trx_front_ == NULL);
-  }
-
+   */
+  bool is_empty() { return (trx_front_ == NULL); }
 };
 
 /**
-   AckInfo is a POD. It defines a structure includes information related to an ack:
-   server_id   - which slave the ack comes from.
-   binlog_name - the binlog file name included in the ack.
-   binlog_pos  - the binlog file position included in the ack.
+   AckInfo is a POD. It defines a structure includes information related to an
+   ack: server_id   - which slave the ack comes from. binlog_name - the binlog
+   file name included in the ack. binlog_pos  - the binlog file position
+   included in the ack.
 */
-struct AckInfo
-{
+struct AckInfo {
   int server_id;
   char binlog_name[FN_REFLEN];
-  unsigned long long binlog_pos;
+  unsigned long long binlog_pos = 0;
 
-  void clear() { binlog_name[0]= '\0'; }
+  AckInfo() { clear(); }
+
+  void clear() { binlog_name[0] = '\0'; }
   bool empty() const { return binlog_name[0] == '\0'; }
   bool is_server(int server_id) const { return this->server_id == server_id; }
 
-  bool equal_to(const char *log_file_name, my_off_t log_file_pos) const
-  {
-    return (ActiveTranx::compare(binlog_name, binlog_pos,
-                                 log_file_name, log_file_pos) == 0);
+  bool equal_to(const char *log_file_name, my_off_t log_file_pos) const {
+    return (ActiveTranx::compare(binlog_name, binlog_pos, log_file_name,
+                                 log_file_pos) == 0);
   }
-  bool less_than(const char *log_file_name, my_off_t log_file_pos) const
-  {
-    return (ActiveTranx::compare(binlog_name, binlog_pos,
-                                 log_file_name, log_file_pos) < 0);
+  bool less_than(const char *log_file_name, my_off_t log_file_pos) const {
+    return (ActiveTranx::compare(binlog_name, binlog_pos, log_file_name,
+                                 log_file_pos) < 0);
   }
 
-  void set(int server_id, const char *log_file_name, my_off_t log_file_pos)
-  {
-    this->server_id= server_id;
+  void set(int server_id, const char *log_file_name, my_off_t log_file_pos) {
+    this->server_id = server_id;
     update(log_file_name, log_file_pos);
   }
-  void update(const char *log_file_name, my_off_t log_file_pos)
-  {
+  void update(const char *log_file_name, my_off_t log_file_pos) {
     strcpy(binlog_name, log_file_name);
-    binlog_pos= log_file_pos;
+    binlog_pos = log_file_pos;
   }
 };
 
@@ -440,23 +427,22 @@ struct AckInfo
    ack's position when a transaction is fully acknowledged, so it can wake
    up the waiting transactions.
  */
-class AckContainer : public Trace
-{
-public:
+class AckContainer : public Trace {
+ public:
   AckContainer() : m_ack_array(NULL), m_size(0), m_empty_slot(0) {}
-  ~AckContainer()
-  {
-    if (m_ack_array)
-      my_free(m_ack_array);
+  ~AckContainer() {
+    if (m_ack_array) my_free(m_ack_array);
   }
 
   /** Clear the content of the ack array */
-  void clear()
-  {
-    if (m_ack_array)
-    {
-      memset(m_ack_array, 0, sizeof(AckInfo) * m_size);
-      m_empty_slot= m_size;
+  void clear() {
+    if (m_ack_array) {
+      for (unsigned i = 0; i < m_size; ++i) {
+        m_ack_array[i].clear();
+        m_ack_array[i].server_id = 0;
+        m_ack_array[i].binlog_pos = 0;
+      }
+      m_empty_slot = m_size;
     }
     m_greatest_ack.clear();
   }
@@ -466,6 +452,7 @@ public:
      if it is full.
 
      @param[in] size size of the container.
+     @param ackinfo Acknowledgement information
 
      @return 0 if succeeds, otherwise fails.
   */
@@ -482,14 +469,13 @@ public:
      @return Pointer of an ack if the ack should be reported to semisync master.
              Otherwise, NULL is returned.
   */
-  const AckInfo* insert(int server_id, const char *log_file_name,
+  const AckInfo *insert(int server_id, const char *log_file_name,
                         my_off_t log_file_pos);
-  const AckInfo* insert(const AckInfo &ackinfo)
-  {
+  const AckInfo *insert(const AckInfo &ackinfo) {
     return insert(ackinfo.server_id, ackinfo.binlog_name, ackinfo.binlog_pos);
   }
 
-private:
+ private:
   /* The greatest ack of the acks already reported to semisync master. */
   AckInfo m_greatest_ack;
 
@@ -501,7 +487,7 @@ private:
 
   /* Prohibit to copy AckContainer objects */
   AckContainer(AckContainer &container);
-  AckContainer& operator= (const AckContainer& container);
+  AckContainer &operator=(const AckContainer &container);
 
   bool full() { return m_empty_slot == m_size; }
   unsigned int size() { return m_size; }
@@ -512,15 +498,12 @@ private:
      @param[in] log_file_name  binlog name of the ack that should be removed
      @param[in] log_file_pos   binlog position of the ack that should removed
   */
-  void remove_all(const char *log_file_name, my_off_t log_file_pos)
-  {
-    unsigned int i= m_size;
-    for (i= 0; i < m_size; i++)
-    {
-      if (m_ack_array[i].equal_to(log_file_name, log_file_pos))
-      {
+  void remove_all(const char *log_file_name, my_off_t log_file_pos) {
+    unsigned int i = m_size;
+    for (i = 0; i < m_size; i++) {
+      if (m_ack_array[i].equal_to(log_file_name, log_file_pos)) {
         m_ack_array[i].clear();
-        m_empty_slot= i;
+        m_empty_slot = i;
       }
     }
   }
@@ -537,20 +520,17 @@ private:
              the size of container, then no slot is updated.
   */
   unsigned int updateIfExist(int server_id, const char *log_file_name,
-                             my_off_t log_file_pos)
-  {
+                             my_off_t log_file_pos) {
     unsigned int i;
 
-    m_empty_slot= m_size;
-    for (i= 0; i < m_size; i++)
-    {
+    m_empty_slot = m_size;
+    for (i = 0; i < m_size; i++) {
       if (m_ack_array[i].empty())
-        m_empty_slot= i;
-      else if (m_ack_array[i].is_server(server_id))
-      {
+        m_empty_slot = i;
+      else if (m_ack_array[i].is_server(server_id)) {
         m_ack_array[i].update(log_file_name, log_file_pos);
         if (trace_level_ & kTraceDetail)
-          sql_print_information("Update an exsiting ack in slot %u", i);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK, i);
         break;
       }
     }
@@ -567,15 +547,13 @@ private:
      @return NULL if no ack is smaller than given position, otherwise
               return its pointer.
   */
-  AckInfo *minAck(const char *log_file_name, my_off_t log_file_pos)
-  {
+  AckInfo *minAck(const char *log_file_name, my_off_t log_file_pos) {
     unsigned int i;
-    AckInfo *ackinfo= NULL;
+    AckInfo *ackinfo = NULL;
 
-    for (i= 0; i < m_size; i++)
-    {
+    for (i = 0; i < m_size; i++) {
       if (m_ack_array[i].less_than(log_file_name, log_file_pos))
-        ackinfo= m_ack_array+i;
+        ackinfo = m_ack_array + i;
     }
 
     return ackinfo;
@@ -585,14 +563,14 @@ private:
 /**
    The extension class for the master of semi-synchronous replication
 */
-class ReplSemiSyncMaster
-  :public ReplSemiSyncBase {
+class ReplSemiSyncMaster : public ReplSemiSyncBase {
  private:
-  ActiveTranx    *active_tranxs_;  /* active transaction list: the list will
-                                      be cleared when semi-sync switches off. */
+  ActiveTranx *active_tranxs_ = nullptr;
+  /* active transaction list: the list will
+     be cleared when semi-sync switches off. */
 
   /* True when initObject has been called */
-  bool init_done_;
+  bool init_done_ = false;
 
   /* Mutex that protects the following state variables and the active
    * transaction list.
@@ -602,27 +580,27 @@ class ReplSemiSyncMaster
   mysql_mutex_t LOCK_binlog_;
 
   /* This is set to true when reply_file_name_ contains meaningful data. */
-  bool            reply_file_name_inited_;
+  bool reply_file_name_inited_ = false;
 
   /* The binlog name up to which we have received replies from any slaves. */
-  char            reply_file_name_[FN_REFLEN];
+  char reply_file_name_[FN_REFLEN];
 
   /* The position in that file up to which we have the reply from any slaves. */
-  my_off_t        reply_file_pos_;
+  my_off_t reply_file_pos_ = 0;
 
   /* This is set to true when we know the 'smallest' wait position. */
-  bool            wait_file_name_inited_;
+  bool wait_file_name_inited_ = false;
 
   /* NULL, or the 'smallest' filename that a transaction is waiting for
    * slave replies.
    */
-  char            wait_file_name_[FN_REFLEN];
+  char wait_file_name_[FN_REFLEN];
 
   /* The smallest position in that file that a trx is waiting for: the trx
    * can proceed and send an 'ok' to the client when the master has got the
    * reply from the slave indicating that it already got the binlog events.
    */
-  my_off_t        wait_file_pos_;
+  my_off_t wait_file_pos_ = 0;
 
   /* This is set to true when we know the 'largest' transaction commit
    * position in the binlog file.
@@ -631,19 +609,20 @@ class ReplSemiSyncMaster
    * switch off.  Binlog-dump thread can use the three fields to detect when
    * slaves catch up on replication so that semi-sync can switch on again.
    */
-  bool            commit_file_name_inited_;
+  bool commit_file_name_inited_ = false;
 
   /* The 'largest' binlog filename that a commit transaction is seeing.       */
-  char            commit_file_name_[FN_REFLEN];
+  char commit_file_name_[FN_REFLEN];
 
   /* The 'largest' position in that file that a commit transaction is seeing. */
-  my_off_t        commit_file_pos_;
+  my_off_t commit_file_pos_ = 0;
 
   /* All global variables which can be set by parameters. */
-  volatile bool            master_enabled_;      /* semi-sync is enabled on the master */
-  unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
+  volatile bool master_enabled_ =
+      false;                       /* semi-sync is enabled on the master */
+  unsigned long wait_timeout_ = 0; /* timeout period(ms) during tranx wait */
 
-  bool            state_;                    /* whether semi-sync is switched */
+  bool state_ = 0; /* whether semi-sync is switched */
 
   AckContainer ack_container_;
 
@@ -651,13 +630,9 @@ class ReplSemiSyncMaster
   void unlock();
 
   /* Is semi-sync replication on? */
-  bool is_on() {
-    return (state_);
-  }
+  bool is_on() { return (state_); }
 
-  void set_master_enabled(bool enabled) {
-    master_enabled_ = enabled;
-  }
+  void set_master_enabled(bool enabled) { master_enabled_ = enabled; }
 
   /* Switch semi-sync off because of timeout in transaction waiting. */
   int switch_off();
@@ -666,19 +641,16 @@ class ReplSemiSyncMaster
 
   /* Switch semi-sync on when slaves catch up. */
   int try_switch_on(const char *log_file_name, my_off_t log_file_pos);
-public:
 
+ public:
   ReplSemiSyncMaster();
   ~ReplSemiSyncMaster();
 
-  bool getMasterEnabled() {
-    return master_enabled_;
-  }
+  bool getMasterEnabled() { return master_enabled_; }
   void setTraceLevel(unsigned long trace_level) {
     trace_level_ = trace_level;
-    ack_container_.trace_level_= trace_level;
-    if (active_tranxs_)
-      active_tranxs_->trace_level_ = trace_level;
+    ack_container_.trace_level_ = trace_level;
+    if (active_tranxs_) active_tranxs_->trace_level_ = trace_level;
   }
 
   /* Set if the master has to wait for an ack from the salve or not. */
@@ -702,7 +674,7 @@ public:
 
   /* Add a semi-sync replication slave */
   void add_slave();
-    
+
   /* Remove a semi-sync replication slave */
   void remove_slave();
 
@@ -722,7 +694,7 @@ public:
    *  end_offset    - (IN)  the offset in the binlog file up to which we have
    *                        the replies from the slave or that was skipped
    */
-  void reportReplyBinlog(const char* log_file_name, my_off_t end_offset);
+  void reportReplyBinlog(const char *log_file_name, my_off_t end_offset);
 
   /* Commit a transaction in the final step.  This function is called from
    * InnoDB before returning from the low commit.  If semi-sync is switch on,
@@ -739,13 +711,12 @@ public:
    * Return:
    *  0: success;  non-zero: error
    */
-  int commitTrx(const char* trx_wait_binlog_name,
-                my_off_t trx_wait_binlog_pos);
+  int commitTrx(const char *trx_wait_binlog_name, my_off_t trx_wait_binlog_pos);
 
   /* Reserve space in the replication event packet header:
    *  . slave semi-sync off: 1 byte - (0)
    *  . slave semi-sync on:  3 byte - (0, 0xef, 0/1}
-   * 
+   *
    * Input:
    *  header   - (IN)  the header buffer
    *  size     - (IN)  size of the header buffer
@@ -758,7 +729,7 @@ public:
   /* Update the sync bit in the packet header to indicate to the slave whether
    * the master will wait for the reply of the event.  If semi-sync is switched
    * off and we detect that the slave is catching up, we switch semi-sync on.
-   * 
+   *
    * Input:
    *  packet        - (IN)  the packet containing the replication event
    *  log_file_name - (IN)  the event ending position's file name
@@ -768,16 +739,14 @@ public:
    * Return:
    *  0: success;  non-zero: error
    */
-  int updateSyncHeader(unsigned char *packet,
-                       const char *log_file_name,
-		       my_off_t log_file_pos,
-		       uint32 server_id);
+  int updateSyncHeader(unsigned char *packet, const char *log_file_name,
+                       my_off_t log_file_pos, uint32 server_id);
 
   /* Called when a transaction finished writing binlog events.
    *  . update the 'largest' transactions' binlog event position
    *  . insert the ending position in the active transaction list if
    *    semi-sync is on
-   * 
+   *
    * Input:  (the transaction events' ending binlog position)
    *  log_file_name - (IN)  transaction ending position's file name
    *  log_file_pos  - (IN)  transaction ending position's file offset
@@ -785,20 +754,19 @@ public:
    * Return:
    *  0: success;  non-zero: error
    */
-  int writeTranxInBinlog(const char* log_file_name, my_off_t log_file_pos);
+  int writeTranxInBinlog(const char *log_file_name, my_off_t log_file_pos);
 
   /* Read the slave's reply so that we know how much progress the slave makes
    * on receive replication events.
-   * 
+   *
    * Input:
    *  net          - (IN)  the connection to master
-   *  server_id    - (IN)  master server id number
    *  event_buf    - (IN)  pointer to the event packet
    *
    * Return:
    *  0: success;  non-zero: error
    */
-  int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
+  int readSlaveReply(NET *net, const char *event_buf);
 
   /* In semi-sync replication, this method simulates the reception of
    * an reply and executes reportReplyBinlog directly when a transaction
@@ -814,7 +782,7 @@ public:
    *  0: success;  non-zero: error
    */
   int skipSlaveReply(const char *event_buf, uint32 server_id,
-                     const char* log_file_name, my_off_t log_file_pos);
+                     const char *log_file_name, my_off_t log_file_pos);
 
   /* Export internal statistics for semi-sync replication. */
   void setExportStats();
@@ -847,16 +815,14 @@ public:
     @param[in] log_file_pos   binlog file position of the ack
   */
   void handleAck(int server_id, const char *log_file_name,
-                 my_off_t log_file_pos)
-  {
+                 my_off_t log_file_pos) {
     lock();
     if (rpl_semi_sync_master_wait_for_slave_count == 1)
       reportReplyBinlog(log_file_name, log_file_pos);
-    else
-    {
-      const AckInfo *ackinfo= NULL;
+    else {
+      const AckInfo *ackinfo = NULL;
 
-      ackinfo= ack_container_.insert(server_id, log_file_name, log_file_pos);
+      ackinfo = ack_container_.insert(server_id, log_file_name, log_file_pos);
       if (ackinfo != NULL)
         reportReplyBinlog(ackinfo->binlog_name, ackinfo->binlog_pos);
     }
@@ -865,7 +831,7 @@ public:
 };
 
 /* System and status variables for the master component */
-extern char rpl_semi_sync_master_enabled;
+extern bool rpl_semi_sync_master_enabled;
 extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_clients;
 extern unsigned long rpl_semi_sync_master_timeout;
@@ -891,5 +857,5 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      0           : stop waiting if detected no avaialable semi-sync slave.
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
-extern char rpl_semi_sync_master_wait_no_slave;
+extern bool rpl_semi_sync_master_wait_no_slave;
 #endif /* SEMISYNC_MASTER_H */

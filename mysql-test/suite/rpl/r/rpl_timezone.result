@@ -117,8 +117,6 @@ CREATE TABLE t1 (a INT, b TIMESTAMP);
 INSERT INTO t1 VALUES (1, NOW());
 SET @@session.time_zone='Japan';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET b= '1970-01-01 08:59:59' WHERE a= 1;
 Warnings:
 Warning	1264	Out of range value for column 'b' at row 1

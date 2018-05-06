@@ -1,28 +1,37 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_tables.h"
-#include "ndb_repl_tab.h"
+#include "sql/ndb_repl_tab.h"
 
-#ifdef HAVE_NDB_BINLOG
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster_connection.h"  /* do_retry_sleep() */
-#include "ndb_table_guard.h"
-#include "ndb_share.h"
+#include <stdio.h>
+
+#include "mf_wcomp.h"
+#include "sql/ha_ndbcluster_tables.h"
+#include "sql/mysqld.h"                // system_charset_info
+#include "sql/ndb_share.h"
+#include "sql/ndb_sleep.h"
+#include "sql/ndb_table_guard.h"
 
 Ndb_rep_tab_key::Ndb_rep_tab_key(const char* _db,
                                  const char* _table_name,
@@ -148,7 +157,7 @@ Ndb_rep_tab_row::Ndb_rep_tab_row()
   memset(conflict_fn_spec, 0, sizeof(conflict_fn_spec));
 }
 const char* Ndb_rep_tab_reader::ndb_rep_db= NDB_REP_DB;
-const char* Ndb_rep_tab_reader::ndb_replication_table= NDB_REPLICATION_TABLE;
+const char* Ndb_rep_tab_reader::ndb_replication_table = "ndb_replication";
 const char* Ndb_rep_tab_reader::nrt_db= "db";
 const char* Ndb_rep_tab_reader::nrt_table_name= "table_name";
 const char* Ndb_rep_tab_reader::nrt_server_id= "server_id";
@@ -163,7 +172,6 @@ Ndb_rep_tab_reader::Ndb_rep_tab_reader()
 }
 
 int Ndb_rep_tab_reader::check_schema(const NdbDictionary::Table* reptab,
-                                     NdbDictionary::Dictionary* dict,
                                      const char** error_str)
 {
   DBUG_ENTER("check_schema");
@@ -234,7 +242,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -272,7 +280,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -321,7 +329,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
         {
           ambiguous_match = true;
           /* Ambiguous matches...*/
-          my_snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
+          snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
                       "Ambiguous matches in %s.%s for %s.%s (%u)."
                       "Candidates : %s.%s (%u), %s.%s (%u).",
                       ndb_rep_db, ndb_replication_table,
@@ -358,7 +366,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
         if (retries--)
         {
           ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -377,7 +385,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
 
   if (ndberror.code != 0)
   {
-    my_snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
+    snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
                 "Unable to retrieve %s.%s, logging and "
                 "conflict resolution may not function "
                 "as intended (ndberror %u)",
@@ -430,15 +438,12 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
       }
     }
 
-    if ((error= check_schema(reptab,
-                             dict,
-                             &error_str)) != 0)
+    if ((error = check_schema(reptab, &error_str)) != 0)
     {
       DBUG_PRINT("info", ("check_schema failed : %u, error_str : %s",
                           error, error_str));
       break;
     }
-
 
     Ndb_rep_tab_row best_match_row;
 
@@ -498,7 +503,7 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
   {
     if (ndberror.code != 0)
     {
-      my_snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
+      snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
                   "Unable to retrieve %s.%s, logging and "
                   "conflict resolution may not function "
                   "as intended (ndberror %u)",
@@ -513,11 +518,11 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
     switch (error)
     {
     case -1:
-      my_snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
+      snprintf(warning_msg_buffer, sizeof(warning_msg_buffer),
                   "Missing or wrong type for column '%s'", error_str);
       break;
     case -2:
-      my_snprintf(warning_msg_buffer, sizeof(warning_msg_buffer), "%s", error_str);
+      snprintf(warning_msg_buffer, sizeof(warning_msg_buffer), "%s", error_str);
       break;
     case -3:
       /* Message already set */
@@ -534,7 +539,7 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
                                              "NULL")));
 
   DBUG_RETURN(error);
-};
+}
 
 Uint32
 Ndb_rep_tab_reader::get_binlog_flags() const
@@ -553,8 +558,3 @@ Ndb_rep_tab_reader::get_warning_message() const
 {
   return warning_msg;
 }
-
-
-/* #ifdef HAVE_NDB_BINLOG */
-
-#endif

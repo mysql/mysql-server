@@ -1,0 +1,75 @@
+# ==== Requirements ====
+#
+# R1. When '@@SESSION.GTID_NEXT' is set to 'AUTOMATIC',
+#     an XA empty transaction, ended with 'XA COMMIT
+#     ONE PHASE', nothing should be logged to the
+#     binlog.
+# R2. When '@@SESSION.GTID_NEXT' is set manually to a GTID,
+#     an empty XA transation, ended with 'XA COMMIT
+#     ONE PHASE', should be written to the binary log
+#     as an empty transaction (BEGIN; COMMIT;).
+#
+# ==== Implementation ====
+#
+# With default setup:
+# 1) Start with a GTID_NEXT value of 'AUTOMATIC',
+#    start a XA transaction,
+#    and end the transaction with 'XA COMMIT ONE PHASE'.
+#
+# 2) Start with a GTID_NEXT value set manually,
+#    start a XA transaction,
+#    and end the transaction with 'XA COMMIT ONE PHASE'.
+#
+# ==== References ====
+#
+# Bug#27041402 ASSERTION `NEW_VALUE >= 0' FAILED.
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 1) Start with a GTID_NEXT value of 'AUTOMATIC',
+--echo #    start a XA transaction,
+--echo #    and end the transaction with 'XA COMMIT ONE PHASE'.
+--echo #
+
+--source include/rpl_connection_master.inc
+
+--source include/save_binlog_position.inc
+--let $pre_commit_position= $binlog_position
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+XA START 'trx';
+XA END 'trx';
+XA COMMIT 'trx' ONE PHASE;
+--source include/save_binlog_position.inc
+--let $assert_cond= $pre_commit_position = $binlog_position
+--let $assert_text= Empty transaction, binlog position is the same
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+
+--echo #
+--echo # 2) Start with a GTID_NEXT value set manually,
+--echo #    start a XA transaction,
+--echo #    and end the transaction with 'XA COMMIT ONE PHASE'.
+--echo #
+
+SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+XA START 'trx';
+XA END 'trx';
+XA COMMIT 'trx' ONE PHASE;
+
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+
+--let $assert_cond= [SELECT GTID_SUBSET("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1", @@GLOBAL.GTID_EXECUTED)] != 0
+--let $assert_text= Transaction is present in GTID_EXECUTED
+--source include/assert.inc
+
+--let $event_sequence= Gtid/SET.* # Query/BEGIN # Query/COMMIT
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

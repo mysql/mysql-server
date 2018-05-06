@@ -14,7 +14,7 @@ alter table child add constraint fkname foreign key (a) references parent(a);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -32,7 +32,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -40,9 +40,9 @@ alter table child add constraint fkname foreign key (b) references parent(a);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 update child set b = 2 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -60,7 +60,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -68,9 +68,9 @@ alter table child add constraint fkname foreign key (a) references parent(b);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 update parent set b = 2 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -88,7 +88,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -96,11 +96,11 @@ alter table child add constraint fkname foreign key (b) references parent(b);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 update child set b = 2 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 update parent set b = 2 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -118,7 +118,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -126,9 +126,9 @@ alter table child add constraint fkname foreign key (c) references parent(a);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 update child set c = 2 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -146,7 +146,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;
@@ -154,11 +154,11 @@ alter table child add constraint fkname foreign key (c) references parent(b);
 insert into parent values (1,1,1);
 insert into child values (1,1,1);
 update child set c = 2 where a = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into child values (2,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 update parent set b = 2 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 begin;
 delete from parent;
 delete from child;
@@ -176,7 +176,7 @@ begin;
 delete from parent;
 commit;
 commit;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from child;
 delete from parent;
 alter table child drop foreign key fkname;

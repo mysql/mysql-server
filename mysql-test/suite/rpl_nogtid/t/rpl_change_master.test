@@ -1,0 +1,114 @@
+# ==== Purpose ====
+#
+# This test calls CHANGE MASTER in order to check if replication can
+# restart from where SQL thread left, not from where I/O thread left.
+#
+# This file tests the case when master_info is stored in a file.
+#
+# ==== See also ====
+#
+# rpl_change_master_crash_safe.test
+
+--source include/no_valgrind_without_big.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+--source extra/rpl_tests/rpl_change_master.test
+
+
+# BUG#11758581 - 50801: CHANGE MASTER ACCEPTS BOGUS VARIABLES
+# We want to check if CHANGE MASTER values have newline characters.
+--source include/rpl_reset.inc
+connection slave;
+
+###
+### This should fail with error ER_WRONG_ARGUMENTS due to empty MASTER_HOST
+### value.
+###
+--source include/stop_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--error ER_WRONG_ARGUMENTS
+eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='', MASTER_PORT=$MASTER_MYPORT;
+
+###
+### This should fail with error ER_SYNTAX_ERROR due to newline
+### in string values.
+###
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--error ER_WRONG_VALUE
+eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1\n127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--error ER_WRONG_VALUE
+eval CHANGE MASTER TO MASTER_USER='root\n', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--error ER_WRONG_VALUE
+eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='repli\ncation', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+--error ER_WRONG_VALUE
+eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.\n001', MASTER_LOG_POS=4;
+
+###
+### This should be accepted.
+###
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
+
+--source include/start_slave.inc
+--let $status_items= Master_Host
+--source include/show_slave_status.inc
+--source include/rpl_reset.inc
+
+#
+# Bug #11752299 REPLICATION SLAVE TRUNCATES MASTER_PASSWORD > 32 CHARACTERS
+#
+
+--let $passwd=012345678901234567890123456789ab
+--let assert_cond=CHAR_LENGTH("$passwd") = 32
+--let assert_text=Password length is 32
+--source include/assert.inc
+
+connection master;
+SET SQL_LOG_BIN=0;
+--eval CREATE USER rpl@127.0.0.1 IDENTIFIED BY '$passwd'
+--eval GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1
+SET SQL_LOG_BIN=1;
+
+connection slave;
+--source include/stop_slave.inc
+
+# First, verify that 32 char maximum password works.
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='$passwd', master_ssl=1
+
+--source include/start_slave_io.inc
+
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= Yes
+--source include/check_slave_param.inc
+
+# Now, prove 1 char oversized password is rejected
+--error ER_CHANGE_MASTER_PASSWORD_LENGTH
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x$passwd', master_ssl=1
+
+# Cleanup Bug #11752299
+
+connection master;
+SET SQL_LOG_BIN=0;
+DROP USER rpl@127.0.0.1;
+FLUSH PRIVILEGES;
+SET SQL_LOG_BIN=1;
+
+connection slave;
+--source include/stop_slave_io.inc
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -129,6 +129,9 @@ analyze table t1;
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+# Mask cost values since it varies between runs how much of the indexes
+# are cached in InnoDB's buffer pool
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/
 explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
@@ -370,7 +373,7 @@ drop table t2;
 --echo #             try to repair it
 --echo #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
-KEY(c1), KEY(c2), KEY(c3));
+KEY(c1), KEY(c2), KEY(c3)) charset latin1;
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t1 VALUES(0,0,0);

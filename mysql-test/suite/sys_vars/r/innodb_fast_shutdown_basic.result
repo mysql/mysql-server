@@ -109,13 +109,13 @@ SET @@local.innodb_fast_shutdown = 0;
 ERROR HY000: Variable 'innodb_fast_shutdown' is a GLOBAL variable and should be set with SET GLOBAL
 '#----------------------FN_DYNVARS_042_06------------------------#'
 SELECT count(VARIABLE_VALUE) AS res_is_0
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='innodb_fast_shutdown';
 res_is_0
 1
 '#----------------------FN_DYNVARS_042_07------------------------#'
 SELECT @@global.innodb_fast_shutdown =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_fast_shutdown';
 @@global.innodb_fast_shutdown =
 VARIABLE_VALUE

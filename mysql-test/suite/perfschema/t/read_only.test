@@ -4,8 +4,6 @@
 # - a regular user can not update setup_ tables under --read-only
 # - a user with SUPER privileges can
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --enable_connect_log
 
 use performance_schema;
@@ -13,10 +11,8 @@ use performance_schema;
 set @start_read_only= @@global.read_only;
 set @start_super_read_only= @@global.super_read_only;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user pfsuser@localhost;
 grant SELECT, UPDATE on performance_schema.* to pfsuser@localhost;
-set sql_mode= @orig_sql_mode;
 flush privileges;
 
 connect (con1, localhost, pfsuser, , test);

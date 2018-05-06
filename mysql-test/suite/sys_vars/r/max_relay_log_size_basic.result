@@ -100,12 +100,12 @@ SELECT @@session.max_relay_log_size;
 ERROR HY000: Variable 'max_relay_log_size' is a GLOBAL variable
 '#----------------------FN_DYNVARS_082_06------------------------#'
 SELECT @@global.max_relay_log_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_relay_log_size';
 @@global.max_relay_log_size = VARIABLE_VALUE
 1
 SELECT @@max_relay_log_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_relay_log_size';
 @@max_relay_log_size = VARIABLE_VALUE
 1

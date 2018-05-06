@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.thread_handling)
 1 Expected
 '#---------------------BS_STVARS_051_03----------------------#'
 SELECT @@GLOBAL.thread_handling = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='thread_handling';
 @@GLOBAL.thread_handling = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.thread_handling)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='thread_handling';
 COUNT(VARIABLE_VALUE)
 1

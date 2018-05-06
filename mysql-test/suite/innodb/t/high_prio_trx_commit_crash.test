@@ -4,12 +4,9 @@
 #
 # Outcome: T2 completes according to crash point. T1 aborts.
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# # Embedded server does not support crashing
---source include/not_embedded.inc
 # # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 

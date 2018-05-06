@@ -1,14 +1,13 @@
 #
-# Bug#23477214 RACE CONDITION BETWEEN FIL_IBD_CREATE()
-# AND SELECT * FROM I_S.FILES
+# Bug#25200952 	TRANSACTIONS WITH DML WITH SUBQUERIES ON I_S TABLES CAN BLOCK CONCURRENT DDL
 #
-SET DEBUG_SYNC='fil_ibd_created_space SIGNAL halfway WAIT_FOR done';
-CREATE TABLESPACE t ADD DATAFILE 't.ibd';
-SET DEBUG_SYNC='now WAIT_FOR halfway';
-SELECT file_type FROM INFORMATION_SCHEMA.FILES WHERE tablespace_name='t';
-file_type
-SET DEBUG_SYNC='now SIGNAL done';
-SELECT file_type FROM INFORMATION_SCHEMA.FILES WHERE tablespace_name='t';
-file_type
-TABLESPACE
-DROP TABLESPACE t;
+CREATE TABLE t1 (i INT);
+BEGIN;
+INSERT INTO t1 (SELECT COUNT(*) FROM information_schema.tables);
+# Connection 1
+# This create table shouldn't be blocked because of I_S query on mysql.tables in another
+# connection
+CREATE TABLE t2 (j INT);
+commit;
+DROP TABLE t1;
+DROP TABLE t2;

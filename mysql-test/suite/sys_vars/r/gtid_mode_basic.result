@@ -20,12 +20,12 @@ gtid_mode	OFF
 show session variables like 'gtid_mode';
 Variable_name	Value
 gtid_mode	OFF
-select * from information_schema.global_variables where variable_name='gtid_mode';
+select * from performance_schema.global_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_MODE	OFF
-select * from information_schema.session_variables where variable_name='gtid_mode';
+gtid_mode	OFF
+select * from performance_schema.session_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_MODE	OFF
+gtid_mode	OFF
 set global gtid_mode = OFF;
 set global gtid_mode = ON_PERMISSIVE;
 ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
@@ -98,6 +98,19 @@ set global gtid_mode = off_permissive;
 set global gtid_mode = on_permissive;
 set global gtid_mode = on;
 ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because ENFORCE_GTID_CONSISTENCY is not ON.
+RESET MASTER;
+SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
+BEGIN;
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
+ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the added gtid set must not overlap with @@GLOBAL.GTID_OWNED
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2-2';
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:1-1';
+ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the added gtid set must not overlap with @@GLOBAL.GTID_OWNED
+SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:3-3';
+SELECT @@global.gtid_purged;
+@@global.gtid_purged
+11111111-1111-1111-1111-111111111111:2-3
+ROLLBACK;
 CREATE TABLE t1 (a INT);
 SET AUTOCOMMIT = 0;
 SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';

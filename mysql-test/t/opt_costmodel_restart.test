@@ -2,12 +2,8 @@
 # Test of the cost constants when restarting the server
 #
 
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
-
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
---source include/have_innodb_16k.inc
 
 #
 # Test that changes to cost constants are used after restarting server
@@ -68,23 +64,29 @@ eval EXPLAIN FORMAT=JSON $query_innodb;
 eval EXPLAIN FORMAT=JSON $query_myisam;
 
 #
-# Update one cost constant in each of the two cost constant tables.
-# The new value is double of the default value.
+# Update one cost constant in the server cost table and the two cost
+# constants in the engine cost table (the reason for updating both is that
+# after a restart the statistics about whether pages are in memory or on disk
+# may vary). The new value is double of the default value.
 #
 UPDATE mysql.server_cost 
 SET cost_value=0.4
 WHERE cost_name="row_evaluate_cost";
 
-UPDATE mysql.engine_cost 
+UPDATE mysql.engine_cost
 SET cost_value=2.0
 WHERE cost_name="memory_block_read_cost";
+
+UPDATE mysql.engine_cost
+SET cost_value=2.0
+WHERE cost_name="io_block_read_cost";
 
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc
 --echo "MySQL restarted"
 
-SELECT cost_name,cost_value FROM mysql.server_cost;
-SELECT engine_name, cost_name,cost_value FROM mysql.engine_cost;
+SELECT cost_name, cost_value FROM mysql.server_cost;
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 
 #
 # Run the two queries an validate that the cost estimate has doubled
@@ -101,19 +103,24 @@ UPDATE mysql.engine_cost
 SET cost_value=DEFAULT;
 
 #
-# Test that adding an engine specific cost constant does not influence
+# Test that adding engine specific cost constants does not influence
 # other engines.
 #
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
+INSERT INTO mysql.engine_cost VALUES
+  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc
 --echo "MySQL restarted"
 
+SELECT cost_name, cost_value FROM mysql.server_cost;
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
+
 #
 # Run the two queries and validate that the query against MyISAM has
-# the original cost estimates while the read cost for InnoDb should
+# the original cost estimates while the read cost for InnoDB should
 # be four times the original
 #
 --echo "Explain with cost estimate against InnoDB"

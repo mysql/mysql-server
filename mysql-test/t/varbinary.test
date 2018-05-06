@@ -1,11 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# This test uses chmod, can't be run with root permissions
+# This test uses chmod, cannot be run with root permissions
 -- source include/not_as_root.inc
-
 
 # Initialise
 --disable_warnings
@@ -26,16 +20,17 @@ select x'31',X'ffff'+0;
 
 create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
-insert into t1 set UNIQ=123; 
-explain extended select * from t1 where UNIQ=0x38afba1d73e6a18a;
+insert into t1 set UNIQ=123;
+analyze table t1;
+explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
 drop table t1;
 
 #
 # Test error conditions
 #
---error 1064
+--error ER_PARSE_ERROR
 select x'hello';
---error 1054
+--error ER_BAD_FIELD_ERROR
 select 0xfg;
 
 #
@@ -46,51 +41,6 @@ select x,xx from t1;
 drop table t1;
 
 # End of 4.1 tests
-
-#
-# Bug #19371 VARBINARY() have trailing zeros after upgrade from 4.1
-#
-
-# Test with a saved table from 4.1
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file std_data/bug19371.frm $MYSQLD_DATADIR/test/t1.frm;
-chmod 0777 $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/bug19371.MYD $MYSQLD_DATADIR/test/t1.MYD;
-chmod 0777 $MYSQLD_DATADIR/test/t1.MYD;
-copy_file std_data/bug19371.MYI $MYSQLD_DATADIR/test/t1.MYI;
-chmod 0777 $MYSQLD_DATADIR/test/t1.MYI;
-
-# Everything _looks_ fine
-show create table t1;
-
-# But the length of the varbinary columns are too long
-select length(a), length(b) from t1;
-
-# Run CHECK TABLE, it should indicate table need a REPAIR TABLE
-CHECK TABLE t1 FOR UPGRADE;
-
-# Run REPAIR TABLE to alter the table and repair
-# the varbinary fields
-REPAIR TABLE t1;
-
-# Now check it's back to normal
-show create table t1;
-select length(a), length(b) from t1;
-insert into t1 values("ccc", "ddd");
-select length(a), length(b) from t1;
-select hex(a), hex(b) from t1;
-select concat("'", a, "'"), concat("'", b, "'") from t1;
-
-drop table t1;
-
-# Check that the fix does not affect table created with current version
-create table t1(a varbinary(255));
-insert into t1 values("aaa   ");
-select length(a) from t1;
-alter table t1 modify a varchar(255);
-select length(a) from t1;
-drop table t1;
-
 
 #
 # Bug#28127 (Some valid identifiers names are not parsed correctly)
@@ -139,7 +89,7 @@ select 0x;
 select 0b;
 
 
-create TABLE t1(a INT, b VARBINARY(10), c VARBINARY(10));
+create TABLE t1(a INT, b VARBINARY(4), c VARBINARY(4));
 INSERT INTO t1 VALUES
 (1, 0x31393831, 0x31303037),
 (2, 0x31393832, 0x31303038),
@@ -153,23 +103,23 @@ INSERT INTO t1 VALUES
 --echo #
 
 SELECT
-b & c, b & 0x31393838, b & NULL, b & 0b1011,
-0x31393838 & b, NULL & b, 0b1011 & b
+hex(b & c), hex(b & 0x31393838), b & NULL, hex(b & 0b00000000000000000000000000001011),
+hex(0x31393838 & b), NULL & b, hex(0b00000000000000000000000000001011 & b)
 FROM t1;
 
 SELECT
-b | c, b | 0x31393838, b | NULL, b | 0b1011,
-0x31393838 | b, NULL | b, 0b1011 | b
+hex(b | c), hex(b | 0x31393838), b | NULL, hex(b | 0b00000000000000000000000000001011),
+hex(0x31393838 | b), NULL | b, hex(0b00000000000000000000000000001011 | b)
 FROM t1;
 
 SELECT
-b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
-0x31393838 ^ b, NULL ^ b, 0b1011 ^ b
+hex(b ^ c), hex(b ^ 0x31393838), b ^ NULL, hex(b ^ 0b00000000000000000000000000001011),
+hex(0x31393838 ^ b), NULL ^ b, hex(0b00000000000000000000000000001011 ^ b)
 FROM t1;
 
-SELECT BIT_COUNT(b), ~b, b << 1, b >> 1 from t1;
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+SELECT BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1) from t1;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
 
 --echo #
 --echo # stored procedures with warnings
@@ -177,33 +127,30 @@ SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
 
 CREATE PROCEDURE test_bin_op()
 SELECT
-b & c, b & 0x31393838, b & NULL, b & 0b1011,
-0x31393838 & b, NULL & b, 0b1011 & b,
-b | c, b | 0x31393838, b | NULL, b | 0b1011,
-0x31393838 | b, NULL | b, 0b1011 | b,
-b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
-0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
-BIT_COUNT(b), ~b, b << 1, b >> 1
+HEX(b & c), HEX(b & 0x31393838), b & NULL, HEX(b & 0b00000000000000000000000000001011),
+HEX(0x31393838 & b), NULL & b, HEX(0b00000000000000000000000000001011 & b),
+HEX(b | c), HEX(b | 0x31393838), b | NULL, HEX(b | 0b00000000000000000000000000001011),
+HEX(0x31393838 | b), NULL | b, HEX(0b00000000000000000000000000001011 | b),
+HEX(b ^ c), HEX(b ^ 0x31393838), b ^ NULL, HEX(b ^ 0b00000000000000000000000000001011),
+HEX(0x31393838 ^ b), NULL ^ b, HEX(0b00000000000000000000000000001011 ^ b),
+BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
 CREATE PROCEDURE test_bin_op()
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
 CREATE PROCEDURE test_bin_op()
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
 
 CALL test_bin_op();
-RESET QUERY CACHE;
 CALL test_bin_op();
 DROP PROCEDURE test_bin_op;
 
@@ -213,57 +160,57 @@ DROP PROCEDURE test_bin_op;
 
 PREPARE s1 FROM
 "SELECT
-b & c, b & 0x31393838, b & NULL, b & 0b1011,
-0x31393838 & b, NULL & b, 0b1011 & b,
-b | c, b | 0x31393838, b | NULL, b | 0b1011,
-0x31393838 | b, NULL | b, 0b1011 | b,
-b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
-0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
-BIT_COUNT(b), ~b, b << 1, b >> 1
+HEX(b & c), HEX(b & 0x31393838), b & NULL, HEX(b & 0b00000000000000000000000000001011),
+HEX(0x31393838 & b), NULL & b, HEX(0b00000000000000000000000000001011 & b),
+HEX(b | c), HEX(b | 0x31393838), b | NULL, HEX(b | 0b00000000000000000000000000001011),
+HEX(0x31393838 | b), NULL | b, HEX(0b00000000000000000000000000001011 | b),
+HEX(b ^ c), HEX(b ^ 0x31393838), b ^ NULL, HEX(b ^ 0b00000000000000000000000000001011),
+HEX(0x31393838 ^ b), NULL ^ b, HEX(0b00000000000000000000000000001011 ^ b),
+BIT_COUNT(b), HEX( ~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;";
 
 EXECUTE s1;
-RESET QUERY CACHE;
 EXECUTE s1;
 
-PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a";
+PREPARE s2 from "SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a";
 EXECUTE s2;
-RESET QUERY CACHE;
 EXECUTE s2;
 
-PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1";
+PREPARE s2 from "SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1";
 EXECUTE s2;
-RESET QUERY CACHE;
 EXECUTE s2;
 
 --echo #
 --echo # views with warnings
 --echo #
 
+--disable_ps_protocol
 CREATE VIEW v1 AS
 SELECT
-b & c, b & 0x31393838, b & NULL, b & 0b1011,
-0x31393838 & b, NULL & b, 0b1011 & b,
-b | c, b | 0x31393838, b | NULL, b | 0b1011,
-0x31393838 | b, NULL | b, 0b1011 | b,
-b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
-0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
-BIT_COUNT(b), ~b, b << 1, b >> 1
+HEX(b & c), HEX(b & 0x31393838), b & NULL, HEX(b & 0b00000000000000000000000000001011),
+HEX(0x31393838 & b), NULL & b, HEX(0b00000000000000000000000000001011 & b),
+HEX(b | c), HEX(b | 0x31393838), b | NULL, HEX(b | 0b00000000000000000000000000001011),
+HEX(0x31393838 | b), NULL | b, HEX(0b00000000000000000000000000001011 | b),
+HEX(b ^ c), HEX(b ^ 0x31393838), b ^ NULL, HEX(b ^ 0b00000000000000000000000000001011),
+HEX(0x31393838 ^ b), NULL ^ b, HEX(0b00000000000000000000000000001011 ^ b),
+BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;
+--enable_ps_protocol
 SELECT * from v1;
-RESET QUERY CACHE;
 SELECT * from v1;
 
+--disable_ps_protocol
 CREATE VIEW v2 AS
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
+--enable_ps_protocol
 SELECT * from v2;
-RESET QUERY CACHE;
 SELECT * from v2;
 
+--disable_ps_protocol
 CREATE VIEW v3 AS
-SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
+--enable_ps_protocol
 SELECT * from v3;
-RESET QUERY CACHE;
 SELECT * from v3;
 
 DROP VIEW v1,v2,v3;
@@ -291,7 +238,7 @@ NULL ^ 0b1011, 0b1011 ^ NULL, 0b1011 ^ 0b1011
 FROM t1;
 
 SELECT a, BIT_AND(a), BIT_OR(a), BIT_XOR(a),
-~NULL, NULL << 1, NULL >> 1,
+~NULL, NULL << 1, NULL >> 1, 1 << NULL, 1 >> NULL,
 ~0x31393838, 0x31393838 << 1, 0x31393838 >> 1,
 ~0b1011, 0b1011 << 1, 0b1011 >> 1
 FROM t1
@@ -301,18 +248,21 @@ GROUP BY a;
 --echo # binary/varbinary vs char/varchar
 --echo #
 
+# PS protocol gives different metadata for `Max length' column
+--disable_ps_protocol
+--enable_metadata
 SELECT '12' | '12';
 SELECT _binary '12' | '12';
 SELECT _binary '12' | _binary '12';
-SELECT _binary '12' | 0x01;
+SELECT _binary '12' | 0x0001;
 SELECT _binary '12' | 1;
 SELECT binary '12' | '12';
 SELECT binary '12' | binary '12';
-SELECT binary '12' | 0x01;
+SELECT binary '12' | 0x0001;
 SELECT binary '12' | 1;
 SELECT '12' | 0x01;
 SELECT '12' | 1;
-SELECT CAST('12' AS binary) | 0x01;
+SELECT CAST('12' AS binary) | 0x0001;
 SELECT CAST('12' AS binary) | 1;
 SELECT CAST(b AS char) | 0x31393838 FROM t1 LIMIT 1;
 SELECT (b + 0) | 0x31393838 FROM t1 LIMIT 1;
@@ -320,11 +270,132 @@ SELECT CAST(0x01 AS char) | 0x31393838 FROM t1 LIMIT 1;
 SELECT 0x01 << 1;
 SELECT _binary '12' << 1;
 SELECT binary '12' << 1;
-SELECT CAST('12' AS binary) | 1;
+SELECT CAST('12' AS binary) << 1;
 SELECT CAST(b AS char) << 1 FROM t1 LIMIT 1;
 SELECT CAST(b AS unsigned) << 1 FROM t1 LIMIT 1;
 SELECT (b + 0) << 1 FROM t1 LIMIT 1;
 SELECT CAST(b AS unsigned) | 0x31393838 FROM t1 LIMIT 1;
 SELECT CAST(b AS unsigned) | CAST(c AS unsigned) FROM t1 LIMIT 1;
+--disable_metadata
+--enable_ps_protocol
 
 DROP TABLE t1;
+
+PREPARE ps FROM 'SELECT (~?)';
+SET @a:=0;
+EXECUTE ps USING @a;
+SET @a:='abcd';
+EXECUTE ps USING @a;
+SET @a:=_binary 'abcd';
+EXECUTE ps USING @a;
+SET @a:=34;
+EXECUTE ps USING @a;
+SELECT (_binary x'31' | x'31');
+SELECT _binary '1' + 0;
+SELECT (_binary x'31' | x'31') + 0;
+SELECT 1.0 * (_binary x'312E35' | x'312E35');
+SELECT 1.0 * (x'312E35' | x'312E35');
+SELECT HEX(_binary 0x0003 << (_binary 0x38 | NULL));
+SELECT (_binary x'31' | NULL) + 0;
+SELECT CONCAT("", (0x39 | NULL));
+SELECT ~(CONCAT ("", NULL));
+
+--echo #
+--echo # Testing datetime and time without warnings
+--echo #
+SELECT DATEDIFF((_binary '2012-05-19 09:06:07' | _binary '2012-05-19 09:06:07'), '2012-05-21 09:06:07');
+SELECT DATEDIFF(20120519090607 | 20120519090607, '2012-05-21 09:06:07');
+SELECT DATEDIFF(20120519090607, '2012-05-21 09:06:07');
+SELECT SUBTIME((_binary '2012-05-19 09:06:07' | _binary '2012-05-19 09:06:07'),'1 1:1:1.000002');
+SELECT SUBTIME(20120519090607 | 20120519090607 ,'1 1:1:1.000002');
+SELECT SUBTIME(20120519090607 ,'1 1:1:1.000002');
+
+--echo #
+--echo # Testing datetime and time with warnings
+--echo #
+SELECT DATEDIFF((_binary '12012-05-19 09:06:07' | _binary '12012-05-19 09:06:07'), '2012-05-21 09:06:07');
+SELECT DATEDIFF(120120519090607 | 120120519090607, '2012-05-21 09:06:07');
+SELECT DATEDIFF(120120519090607, '12012-05-21 09:06:07');
+SELECT SUBTIME((_binary '12007-12-31 23:59:59.999999' | _binary '12007-12-31 23:59:59.999999'),'1 1:1:1.000002');
+SELECT SUBTIME(120120519090607 | 120120519090607 ,'1 1:1:1.000002');
+SELECT SUBTIME(120120519090607 ,'1 1:1:1.000002');
+
+CREATE TABLE t1(gid INT, a VARBINARY(20), b BIGINT);
+INSERT INTO t1 VALUES(1, _binary '2012-05-19 09:06:07', 20120519090607),
+(1, _binary '2012-05-19 09:06:07', 20120519090607),
+(2, _binary '12012-05-19 09:06:07', 120120519090607),
+(2, _binary '12012-05-19 09:06:07', 120120519090607);
+
+SELECT DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07') FROM t1 GROUP BY gid;
+SELECT DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07') FROM t1 GROUP BY gid;
+
+SELECT DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07') FROM t1 WHERE gid = 1;
+SELECT DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07') FROM t1 WHERE gid = 1;
+
+SELECT DATEDIFF(BIT_OR(a), '2012-05-21 09:06:07') FROM t1 WHERE gid = 2;
+SELECT DATEDIFF(BIT_OR(b), '2012-05-21 09:06:07') FROM t1 WHERE gid = 2;
+
+SELECT SUBTIME(BIT_OR(a), '1 1:1:1.000002') FROM t1 GROUP BY gid;
+SELECT SUBTIME(BIT_OR(b), '1 1:1:1.000002') FROM t1 GROUP BY gid;
+
+SELECT SUBTIME(BIT_OR(a), '1 1:1:1.000002') FROM t1 WHERE gid = 1;
+SELECT SUBTIME(BIT_OR(b), '1 1:1:1.000002') FROM t1 WHERE gid = 1;
+
+SELECT SUBTIME(BIT_OR(a), '1 1:1:1.000002') FROM t1 WHERE gid = 2;
+SELECT SUBTIME(BIT_OR(b), '1 1:1:1.000002') FROM t1 WHERE gid = 2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Test conversions
+--echo #
+CREATE TABLE t1(vb varbinary(10), i INT, d DECIMAL(5,2), f FLOAT(5,2), dd DOUBLE(5,2), gid INT);
+
+INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 0.0, 0.0, 0.0, 1);
+INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 1.0, 1.0, 1.0, 2);
+
+SELECT
+d + (vb | vb) , f + (vb | vb), dd + (vb | vb), CAST((vb | vb) AS DECIMAL(10,2)),
+d + (i | i) , f + (i | i), dd + (i | i), CAST((i | i) AS DECIMAL(10,2))
+FROM t1
+WHERE gid = 1;
+
+SELECT
+d * (vb | vb) , f * (vb | vb), dd * (vb | vb),
+(vb | vb) / d , (vb | vb) / f, (vb | vb) / dd,
+d * (i | i) , f * (i | i), dd * (i | i),
+(i | i) / d , (i | i) / f, (i | i) / dd
+FROM t1 WHERE gid = 2;
+
+SET sql_mode='';
+SELECT
+d + BIT_OR(vb), f + BIT_OR(vb), dd + BIT_OR(vb), CAST(BIT_OR(vb) AS DECIMAL(10,2)),
+d + BIT_OR(i), f + BIT_OR(i), dd + BIT_OR(i), CAST(BIT_OR(i) AS DECIMAL(10,2))
+FROM t1
+WHERE gid= 1;
+
+SELECT
+d * BIT_OR(vb), f * BIT_OR(vb), dd * BIT_OR(vb), BIT_OR(vb) / d,
+CAST(BIT_OR(vb) AS DECIMAL(10,2)), BIT_OR(vb) / f, BIT_OR(vb) / dd,
+d * BIT_OR(i), f * BIT_OR(i), dd * BIT_OR(i), BIT_OR(i) / d,
+CAST(BIT_OR(i) AS DECIMAL(10,2)), BIT_OR(i) / f, BIT_OR(i) / dd
+FROM t1
+WHERE gid= 2;
+
+SELECT
+d + BIT_OR(vb), f + BIT_OR(vb), dd + BIT_OR(vb),
+d + BIT_OR(i), f + BIT_OR(i), dd + BIT_OR(i)
+FROM t1
+WHERE gid= 1
+GROUP BY gid;
+
+SELECT
+d * BIT_OR(vb), f * BIT_OR(vb), dd * BIT_OR(vb),  BIT_OR(vb) / d,
+BIT_OR(vb) / f, BIT_OR(vb) / dd,
+d * BIT_OR(i), f * BIT_OR(i), dd * BIT_OR(i),  BIT_OR(i) / d,
+BIT_OR(i) / f, BIT_OR(i) / dd
+FROM t1
+WHERE gid= 2
+GROUP BY gid;
+
+drop table t1;

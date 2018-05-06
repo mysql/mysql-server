@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,6 +30,7 @@
 #include <ndb_version.h>
 #include <NDBT_Stats.hpp>
 #include <math.h>
+#include <NdbHost.h>
 
 #undef min
 #undef max
@@ -41,8 +49,8 @@ struct Opts {
   uint rpkvar;
   uint scanpct;
   uint eqscans;
-  my_bool keeptable;
-  my_bool abort;
+  bool keeptable;
+  bool abort;
   const char* dump;
   Opts() :
     loglevel(0),
@@ -116,7 +124,6 @@ static const Uint32 g_ndbrec_c_offset=offsetof(my_record, m_c);
 static const Uint32 g_ndbrec_c_nb_offset=2;
 static const Uint32 g_ndbrec_d_offset=offsetof(my_record, m_d);
 static const Uint32 g_ndbrec_d_nb_offset=3;
-static const Uint32 g_ndbrecord_bytes=sizeof(my_record);
 
 static NdbTransaction* g_con = 0;
 static NdbOperation* g_op = 0;
@@ -514,7 +521,7 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
       const uint l1 = (uint)c[0];
       const uint l2 = (uint)val2.c[0];
       require(l1 <= g_charlen && l2 <= g_charlen);
-      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2, 0);
+      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2);
     } else if (! c_null) {
       k = +1;
     } else if (! val2.c_null) {
@@ -2082,7 +2089,7 @@ runtest()
   uint seed = g_opts.seed;
   if (seed != 1) { // not loop number
     if (seed == 0) { // random
-      seed = 2 + (ushort)getpid();
+      seed = 2 + NdbHost_GetProcessId();
     }
     ll0("random seed is " << seed);
     srand(seed);
@@ -2208,9 +2215,6 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-const char*
-load_default_groups[] = { "mysql_cluster", 0 };
-
 static void
 short_usage_sub()
 {
@@ -2221,7 +2225,6 @@ static void
 usage()
 {
   ndbout << my_progname << ": ordered index stats test" << endl;
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int

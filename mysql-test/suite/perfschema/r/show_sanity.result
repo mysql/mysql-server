@@ -340,7 +340,6 @@ where show_mode = "5.6"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
-5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 4B
@@ -356,7 +355,6 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
-5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
 
 ================================================================================
 TEST 5A
@@ -408,10 +406,12 @@ where show_mode = "JUNK: GLOBAL-ONLY"
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+5.6	I_S.SESSION_VARIABLES	INNODB_CHECKPOINT_DISABLED
 5.6	I_S.SESSION_VARIABLES	INNODB_DEADLOCK_DETECT
+5.6	I_S.SESSION_VARIABLES	INNODB_SCAN_DIRECTORIES
 5.6	I_S.SESSION_VARIABLES	INNODB_STATS_INCLUDE_DELETE_MARKED
-5.6	I_S.SESSION_VARIABLES	KEYRING_OPERATIONS
 5.6	I_S.SESSION_VARIABLES	LOG_STATEMENTS_UNSAFE_FOR_BINLOG
+5.6	I_S.SESSION_VARIABLES	PERFORMANCE_SCHEMA_ERROR_SIZE
 5.6	I_S.SESSION_VARIABLES	TLS_VERSION
 
 ================================================================================
@@ -434,10 +434,12 @@ where show_mode = "JUNK: GLOBAL-ONLY"
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+5.6	I_S.SESSION_VARIABLES	INNODB_CHECKPOINT_DISABLED
 5.6	I_S.SESSION_VARIABLES	INNODB_DEADLOCK_DETECT
+5.6	I_S.SESSION_VARIABLES	INNODB_SCAN_DIRECTORIES
 5.6	I_S.SESSION_VARIABLES	INNODB_STATS_INCLUDE_DELETE_MARKED
-5.6	I_S.SESSION_VARIABLES	KEYRING_OPERATIONS
 5.6	I_S.SESSION_VARIABLES	LOG_STATEMENTS_UNSAFE_FOR_BINLOG
+5.6	I_S.SESSION_VARIABLES	PERFORMANCE_SCHEMA_ERROR_SIZE
 5.6	I_S.SESSION_VARIABLES	TLS_VERSION
 
 ================================================================================
@@ -537,7 +539,17 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_STATUS	COM_ALTER_USER_DEFAULT_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_CREATE_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_DROP_ROLE
+5.6	I_S.GLOBAL_STATUS	COM_GRANT_DYNAMIC
+5.6	I_S.GLOBAL_STATUS	COM_GRANT_ROLES
+5.6	I_S.GLOBAL_STATUS	COM_INSTALL_COMPONENT
+5.6	I_S.GLOBAL_STATUS	COM_REVOKE_DYNAMIC
+5.6	I_S.GLOBAL_STATUS	COM_REVOKE_ROLES
+5.6	I_S.GLOBAL_STATUS	COM_SET_ROLE
 5.6	I_S.GLOBAL_STATUS	COM_SHUTDOWN
+5.6	I_S.GLOBAL_STATUS	COM_UNINSTALL_COMPONENT
 
 ================================================================================
 TEST 8
@@ -624,6 +636,14 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_STATUS	COM_ALTER_USER_DEFAULT_ROLE
+5.6	I_S.SESSION_STATUS	COM_CREATE_ROLE
+5.6	I_S.SESSION_STATUS	COM_DROP_ROLE
+5.6	I_S.SESSION_STATUS	COM_GRANT_DYNAMIC
+5.6	I_S.SESSION_STATUS	COM_GRANT_ROLES
+5.6	I_S.SESSION_STATUS	COM_REVOKE_DYNAMIC
+5.6	I_S.SESSION_STATUS	COM_REVOKE_ROLES
+5.6	I_S.SESSION_STATUS	COM_SET_ROLE
 5.6	I_S.SESSION_STATUS	COM_SHUTDOWN
 
 ================================================================================
@@ -662,6 +682,7 @@ where (show_mode = "JUNK: GLOBAL-ONLY")
 and source = "I_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 13
@@ -704,6 +725,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_ACCOUNT")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 15
@@ -759,6 +781,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_USER")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 18
@@ -813,6 +836,7 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_HOST")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Acl_cache_items_count
 
 ================================================================================
 TEST 21

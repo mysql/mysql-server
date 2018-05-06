@@ -2,9 +2,6 @@
 # This test requires that --log-output includes 'table', and the general
 # log is on
 
-# embedded server causes different stat
--- source include/not_embedded.inc
-
 # thread pool causes different results
 -- source include/not_threadpool.inc
 
@@ -36,13 +33,13 @@ DROP VIEW IF EXISTS v1;
 --enable_warnings
 
 --disable_warnings
-CREATE VIEW v1 AS SELECT VARIABLE_NAME AS NAME, CONVERT(VARIABLE_VALUE, UNSIGNED) AS VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS;
+CREATE VIEW v1 AS SELECT VARIABLE_NAME AS NAME, CONVERT(VARIABLE_VALUE, UNSIGNED) AS VALUE FROM performance_schema.global_status;
 
 SELECT VALUE INTO @tc FROM v1 WHERE NAME = 'Threads_connected';
 SELECT NAME FROM v1 WHERE NAME = 'Threads_created' AND VALUE < @tc;
-#SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS where variable_name like '%thread%';
-#SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS;
-#SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
+#SELECT * FROM performance_schema.global_status where variable_name like '%thread%';
+#SELECT * FROM performance_schema.global_status;
+#SELECT * FROM performance_schema.global_variables;
 --disable_warnings
 
 DROP VIEW v1;

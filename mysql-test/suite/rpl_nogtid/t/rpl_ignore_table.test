@@ -1,0 +1,189 @@
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+
+#
+# BUG#16487
+#  
+# Requirement:
+# Multi-updates on ignored tables should not fail even if the slave does 
+# not have the ignored tables.
+#
+# Note table t1, t2, and t3 are ignored in the option file to this test.
+#
+
+--echo **** Test case for BUG#16487 ****
+--echo **** Master ****
+connection master;
+
+CREATE TABLE test.t4 (a int);
+CREATE TABLE test.t1 (a int);
+
+# Expect: The row must *not* by updated on slave, since t1 is ignored
+UPDATE test.t4 NATURAL JOIN test.t1 SET t1.a=5;
+
+--echo **** Slave ****
+sync_slave_with_master;
+SELECT * FROM t4;
+
+# Cleanup
+connection master;
+DROP TABLE t1;
+DROP TABLE t4;
+
+sync_slave_with_master;
+
+
+#
+# Bug#25482 GRANT statements are not replicated if
+# you use "replicate-ignore-table"
+#
+
+--echo **** Test case for BUG#25482 ****
+--echo **** Adding GRANTS on master ****
+
+connection master;
+create table test.t1(a int);
+create table test.t4(a int);
+
+CREATE USER mysqltest1@localhost;
+# Simple grant that should not replicate
+GRANT SELECT ON test.t1 TO mysqltest1@localhost;
+
+# Partial replicate
+CREATE USER mysqltest2@localhost;
+GRANT INSERT ON test.t4 TO mysqltest2@localhost;
+GRANT select, update, insert, references on t1
+  to mysqltest2@localhost;
+
+# Partial replicate 2
+CREATE USER mysqltest3@localhost;
+GRANT SELECT ON test.* TO mysqltest3@localhost;
+GRANT INSERT ON test.t4 TO mysqltest3@localhost;
+GRANT select(a), update(a), insert(a), references(a) on t4
+  to mysqltest3@localhost;
+
+# Create another database and table
+create database mysqltest2;
+create table mysqltest2.t2 (id int);
+# Create a grant that should replicate
+CREATE USER mysqltest4@localhost IDENTIFIED BY 'pass';
+GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost;
+
+# Create a grant manually
+insert ignore into mysql.user (user, host) values ("mysqltest5", "somehost");
+
+# Partial replicate 3 with *.*
+CREATE USER mysqltest6@localhost;
+GRANT SELECT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON *.* TO mysqltest6@localhost;
+GRANT INSERT ON test.* TO mysqltest6@localhost;
+GRANT INSERT ON test.t1 TO mysqltest6@localhost;
+
+--sorted_result
+show grants for mysqltest1@localhost;
+--sorted_result
+show grants for mysqltest2@localhost;
+--sorted_result
+show grants for mysqltest3@localhost;
+--sorted_result
+show grants for mysqltest4@localhost;
+--sorted_result
+show grants for mysqltest6@localhost;
+
+flush privileges;
+show grants for mysqltest5@somehost;
+
+
+sync_slave_with_master;
+
+--echo **** Checking grants on slave ****
+
+# Check that grants are replicated to slave
+show grants for mysqltest2@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+show grants for mysqltest5@somehost;
+show grants for mysqltest6@localhost;
+
+# mysqltest1 should not have test.t1 grants
+show grants for mysqltest1@localhost;
+
+--echo **** Revoking grants on master ****
+connection master;
+REVOKE SELECT ON test.t1 FROM mysqltest1@localhost;
+REVOKE SELECT ON mysqltest2.t2 FROM mysqltest4@localhost;
+REVOKE select(a) on t4
+ from mysqltest3@localhost;
+
+show grants for mysqltest1@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+
+sync_slave_with_master;
+
+--echo **** Checking grants on slave ****
+
+show grants for mysqltest1@localhost;
+show grants for mysqltest3@localhost;
+show grants for mysqltest4@localhost;
+
+# Cleanup
+# connection slave;
+# BUG31552 changes idempotency is not default any longer
+# In order the following `delete from mysql.user',
+# where mysqltest1 does not have some grants,
+# to succeed on slave the mode is temporarily changed
+set global slave_exec_mode='IDEMPOTENT';
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
+
+connection master;
+drop table t1, mysqltest2.t2;
+drop table t4;
+drop database mysqltest2;
+delete from mysql.user where user like "mysqltest%";
+delete from mysql.db where user like "mysqltest%";
+#
+# BUG 27606 causes failure to replicate this statement
+# move it to slave instead
+#delete from mysql.tables_priv where user like "mysqltest%";
+delete from mysql.columns_priv where user like "mysqltest%";
+
+sync_slave_with_master;
+# bug#31552: do not restore the mode here but later in order
+# to succeed with yet the following delete from mysql.tables_priv
+
+#BUG27606
+delete from mysql.tables_priv where user like "mysqltest%";
+
+connection master;
+
+#BUG27606
+delete from mysql.tables_priv where user like "mysqltest%";
+
+#
+# bug#22877 replication character sets get out of sync
+# using replicate-wild-ignore-table
+#
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS t5;
+--enable_warnings
+CREATE TABLE t5 (
+ word varchar(50) collate utf8_unicode_ci NOT NULL default ''
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+SET @@session.character_set_client=33,@@session.collation_connection=192;
+CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
+INSERT INTO t5 (word)  VALUES ('TEST’');
+SELECT HEX(word) FROM t5;
+sync_slave_with_master;
+set @@global.slave_exec_mode= default; # bug#31552 comments above
+connection slave;
+SELECT HEX(word) FROM t5;
+--error 1146
+SELECT * FROM tmptbl504451f4258$1;
+connection master;
+DROP TABLE t5;
+sync_slave_with_master;
+
+--source include/rpl_end.inc
+--source include/force_restart.inc

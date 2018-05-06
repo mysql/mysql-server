@@ -1,7 +1,5 @@
 # shutdown SQL command test cases.
 
-# Skip test in embedded mode
---source include/not_embedded.inc
 
 let $BDIR= `select @@basedir`;
 let $DDIR= `select @@datadir`;
@@ -39,13 +37,13 @@ let $DDIR= `select @@datadir`;
 
 --echo # start mysqladmin with shutdown option.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root shutdown 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root shutdown 2>&1
 --source include/wait_until_disconnected.inc
 
 --echo # start the mysql server with init file and shutdown command.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 1
---exec $MYSQLD_CMD --no-defaults  --datadir=$DDIR --init-file=shutdown.sql >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
+--exec $MYSQLD_CMD --no-defaults --innodb_dedicated_server=OFF --datadir=$DDIR --init-file=shutdown.sql >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
 --source include/wait_until_disconnected.inc
 
 --echo # restart server.

@@ -1,0 +1,133 @@
+################################################################################
+# Test case to test functionality in which a plugin/component can add its own
+# tables in performance schema.
+#
+################################################################################
+
+--echo #################
+--echo # INITIAL STATE #
+--echo #################
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+
+--echo ###########
+--echo # INSTALL #
+--echo ###########
+
+INSTALL COMPONENT "file://component_pfs_example_component_population";
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_continent;
+
+show create table performance_schema.pfs_example_continent;
+
+select * from performance_schema.pfs_example_continent;
+
+--echo ##############
+--echo # UN INSTALL #
+--echo ##############
+
+UNINSTALL COMPONENT "file://component_pfs_example_component_population";
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+
+--echo ################################
+--echo # SERVER RESTART, UN INSTALLED #
+--echo ################################
+
+--source include/restart_mysqld.inc
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+
+--echo ###########
+--echo # INSTALL #
+--echo ###########
+
+INSTALL COMPONENT "file://component_pfs_example_component_population";
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_continent;
+
+show create table performance_schema.pfs_example_continent;
+
+select * from performance_schema.pfs_example_continent;
+
+--echo #############################
+--echo # SERVER RESTART, INSTALLED #
+--echo #############################
+
+--source include/restart_mysqld.inc
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_continent;
+
+show create table performance_schema.pfs_example_continent;
+
+select * from performance_schema.pfs_example_continent;
+
+--echo ##############
+--echo # UN INSTALL #
+--echo ##############
+
+UNINSTALL COMPONENT "file://component_pfs_example_component_population";
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_continent;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/pfs_example_component_population.log;
+remove_file $MYSQLD_DATADIR/pfs_example_component_population.log;

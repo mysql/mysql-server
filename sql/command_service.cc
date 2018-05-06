@@ -1,21 +1,29 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "m_ctype.h"
+#include "my_command.h"
 #include "mysql/service_command.h"
-#include "srv_session.h"
+#include "sql/srv_session.h"
 
 /**
   @file
@@ -63,18 +71,15 @@
     0 success
     1 failure
 */
-extern "C"
 int command_service_run_command(Srv_session *session,
                                 enum enum_server_command command,
-                                const union COM_DATA * data,
-                                const CHARSET_INFO * client_cs,
+                                const union COM_DATA *data,
+                                const CHARSET_INFO *client_cs,
                                 const struct st_command_service_cbs *callbacks,
                                 enum cs_text_or_binary text_or_binary,
-                                void * service_callbacks_ctx)
-{
-  if (!session || !Srv_session::is_valid(session))
-    return true;
+                                void *service_callbacks_ctx) {
+  if (!session || !Srv_session::is_valid(session)) return true;
 
   return session->execute_command(command, data, client_cs, callbacks,
-                                  text_or_binary, service_callbacks_ctx);  
+                                  text_or_binary, service_callbacks_ctx);
 }

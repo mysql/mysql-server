@@ -10,7 +10,7 @@ a04 CHAR(255) NOT NULL DEFAULT 'a',
 a05 CHAR(255) NOT NULL DEFAULT 'a',
 a06 CHAR(255) NOT NULL DEFAULT 'a',
 b INT NOT NULL DEFAULT 0
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 ALTER TABLE t1 ADD CONSTRAINT pkey PRIMARY KEY(
 a00,
 a01,
@@ -23,7 +23,7 @@ a06
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 1
 SET GLOBAL innodb_limit_optimistic_insert_debug = 7;
@@ -38,7 +38,7 @@ INSERT INTO t1 (a00) VALUES ('ah');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 3
 INSERT INTO t1 (a00) VALUES ('ai');
@@ -47,7 +47,7 @@ INSERT INTO t1 (a00) VALUES ('ak');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 4
 INSERT INTO t1 (a00) VALUES ('al');
@@ -60,7 +60,7 @@ INSERT INTO t1 (a00) VALUES ('ar');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 5
 INSERT INTO t1 (a00) VALUES ('as');
@@ -73,7 +73,7 @@ INSERT INTO t1 (a00) VALUES ('ay');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 6
 INSERT INTO t1 (a00) VALUES ('az');
@@ -86,7 +86,7 @@ INSERT INTO t1 (a00) VALUES ('bf');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 7
 INSERT INTO t1 (a00) VALUES ('bg');
@@ -99,7 +99,7 @@ INSERT INTO t1 (a00) VALUES ('bm');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 8
 INSERT INTO t1 (a00) VALUES ('bn');
@@ -112,7 +112,7 @@ INSERT INTO t1 (a00) VALUES ('bt');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 11
 INSERT INTO t1 (a00) VALUES ('bu');
@@ -139,7 +139,7 @@ INSERT INTO t1 (a00) VALUES ('co');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 15
 INSERT INTO t1 (a00) VALUES ('cp');
@@ -194,7 +194,7 @@ INSERT INTO t1 (a00) VALUES ('el');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 23
 INSERT INTO t1 (a00) VALUES ('em');
@@ -248,7 +248,7 @@ INSERT INTO t1 (a00) VALUES ('gh');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 29
 SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
@@ -284,7 +284,7 @@ cn	a
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 30
 SET DEBUG_SYNC = 'RESET';
@@ -306,7 +306,7 @@ el	a
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 31
 SET DEBUG_SYNC = 'RESET';
@@ -334,7 +334,7 @@ gb	a
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_SYS_TABLESTATS WHERE NAME = 'test/t1';
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
 CLUST_INDEX_SIZE
 32
 SET DEBUG_SYNC = 'RESET';

@@ -18,7 +18,7 @@ unique(b) using hash,
 index(c)) engine = ndb;
 alter table child add constraint fkname foreign key (a) references parent (a)
 on delete cascade on update restrict;
-alter table grandchild add constraint fkname foreign key (a) references child
+alter table grandchild add constraint fkname_child foreign key (a) references child
 (a) on delete cascade on update restrict;
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -81,7 +81,7 @@ set ndb_deferred_constraints = 1;
 begin;
 update t1 set b = a + 1;
 commit;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE RESTRICT)
 begin;
 update t1 set b = a + 1;
 update t1 set b = null where a = @maxa;

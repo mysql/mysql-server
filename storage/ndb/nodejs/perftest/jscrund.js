@@ -1,21 +1,25 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 'use strict';
@@ -24,21 +28,20 @@
 global.JSCRUND = {};
 
 // Modules:
-JSCRUND.mynode = require("..");
-JSCRUND.unified_debug = require("../Adapter/api/unified_debug");
+JSCRUND.mynode = require("database-jones");
+JSCRUND.unified_debug = require("unified_debug");
 JSCRUND.udebug = JSCRUND.unified_debug.getLogger("jscrund.js");
-JSCRUND.stats  = require("../Adapter/api/stats");
-JSCRUND.lib    = require("./lib");
+JSCRUND.stats  = require(JSCRUND.mynode.api.stats);
 
 // Backends:
 JSCRUND.mysqljs = require('./jscrund_mysqljs');
-JSCRUND.sqlAdapter = require('./jscrund_sql');
-JSCRUND.spiAdapter = require('./jscrund_dbspi');
-JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
 var DEBUG, DETAIL;
+var path = require("path"),
+    fs = require("fs");
+
 
 // webkit-devtools-agent allows you to profile the process from a Chrome browser
 try {
@@ -78,7 +81,9 @@ function usage() {
   "   -r <n>  :  Repeat tests #n times (default 1, n<0: forever)\n" +
   "   --trace :\n" +
   "   -t      :  Enable trace output\n" +
-  "   --set prop=value: set connection property prop to value"
+  "   --set prop=value: set connection property prop to value\n" +
+  "   -E <name> \n" +
+  "   --deployment=<name>\n: use deplyment <name> from jones_deployments.js\n"
   ;
   console.log(msg);
   process.exit(1);
@@ -126,6 +131,9 @@ function parse_command_line(options) {
         console.log('runs value is not allowed:', process.argv[i]);
         options.exit = true;
       }
+      break;
+    case '-E':
+      options.deployment = process.argv[++i];
       break;
     case '--stats':
       options.stats = true;
@@ -224,6 +232,9 @@ function parse_command_line(options) {
         case '--varchar':
           options.B_varchar_size = values[1];
           break;
+        case '--deployment':
+          options.deployment = values[1];
+          break;
         default:
           console.log('Invalid option ' + val);
           options.exit = true;
@@ -235,6 +246,46 @@ function parse_command_line(options) {
     }
   }
 }
+
+/** Timer functions for crund. Multiple timers can be used simultaneously,
+ * as long as each timer is created via new Timer().
+ * start() starts the timer.
+ * stop() stops the timer and writes results.
+ * mode is the mode of operation (indy, each, or bulk)
+ * operation is the operation (e.g. persist, find, delete)
+ * numberOfIterations is the number of iterations of each operation
+ */
+function Timer() {
+}
+
+Timer.prototype.start = function(mode, operation, numberOfIterations) {
+  //console.log('lib.Timer.start', mode, operation, 'iterations:', numberOfIterations);
+  this.mode = mode;
+  this.operation = operation;
+  this.numberOfIterations = numberOfIterations;
+  this.current = Date.now();
+};
+
+Timer.prototype.stop = function() {
+  function pad(str, count, onRight) {
+    while (str.length < count)
+      str = (onRight ? str + ' ' : ' ' + str);
+    return str;
+  }
+  function rpad(num, str) {
+    return pad(str, num, true);
+  }
+  function lpad(num, str) {
+    return pad(str, num, false);
+  }
+  this.interval = Date.now() - this.current;
+  this.average = this.interval / this.numberOfIterations;
+  var ops = Math.round(this.numberOfIterations * 1000 / this.interval);
+  console.log(rpad(18, this.mode + ' ' + this.operation),
+              '    time: ' + lpad(4, this.interval.toString()) + 'ms',
+              '    avg latency: ' + lpad(4, this.average.toFixed(3)) + 'ms',
+              '    ops/s: ' + lpad(4, ops.toString()));
+};
 
 /** Error reporter 
  */
@@ -344,7 +395,6 @@ ResultLog.prototype.close = function() {
  */
 function main() {
   var config_file_exists = false;
-  var fs = require('fs');
 
   /* Default options: */
   var options = {
@@ -361,7 +411,8 @@ function main() {
     'setProp' : {},
     'delay_pre' : 0,
     'delay_post' : 0,
-    'B_varchar_size' : 10
+    'B_varchar_size' : 10,
+    'deployment' : 'test'
   };
 
   /* Options from config file */
@@ -404,25 +455,24 @@ function main() {
 
   /* Fetch the backend implementation */
   if(options.spi) {
+    JSCRUND.spiAdapter = require('./jscrund_dbspi');
     JSCRUND.implementation = new JSCRUND.spiAdapter.implementation();
   } else if(options.adapter == 'sql') {
+    JSCRUND.sqlAdapter = require('./jscrund_sql');
     JSCRUND.implementation = new JSCRUND.sqlAdapter.implementation();
   } else if(options.adapter == 'null') {
+    JSCRUND.nullAdapter = require('./jscrund_null');
     JSCRUND.implementation = new JSCRUND.nullAdapter.implementation();
   } else {
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   }
 
-  /* Get default connection properties */
-  var properties = JSCRUND.implementation.getDefaultProperties(options.adapter);
-
-  /* Then mix in connection properties from jscrund.config */
-  if(config_file_exists) {
-    for(var i in config_file.connection_properties) {
-      if(config_file.connection_properties.hasOwnProperty(i)) {
-        properties[i] = config_file.connection_properties[i];
-      }
-    }
+  /* Get connection properties */
+  var properties;
+  if(typeof JSCRUND.implementation.getConnectionProperties === 'function') {
+    properties = JSCRUND.implementation.getConnectionProperties();
+  } else {
+    properties = new JSCRUND.mynode.ConnectionProperties(options.adapter, options.deployment);
   }
 
   /* Then mix in properties from the command line */
@@ -482,7 +532,7 @@ function main() {
 
   var runTests = function(options) {
 
-    var timer = new JSCRUND.lib.Timer();
+    var timer = new Timer();
 
     var modeNames = options.modes.split('\,');    
     var modeNumber = 0;
@@ -785,7 +835,9 @@ function main() {
   };
 
   // create database
-  JSCRUND.lib.SQL.create('./', properties, function(err) {
+  JSCRUND.metadataManager = require("jones-ndb").getDBMetadataManager(properties);
+
+  JSCRUND.metadataManager.runSQL(path.join(__dirname, "./create.sql"), function(err) {
     if (err) {
       console.log('Error creating tables.', err);
       process.exit(1);

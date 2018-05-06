@@ -19,8 +19,6 @@ DROP TABLE t1;
 # OFFSETS)
 #
 SET @@SESSION.sql_mode=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 c1 int(1)AUTO_INCREMENT,
 c2 int(1),
@@ -126,8 +124,6 @@ DROP TABLE ibstd_08;
 # AND SEGFAULT
 #
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t (a int) engine=innodb;
 create table s (
 b int generated always as (1) virtual,
@@ -188,6 +184,8 @@ Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
 VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
+Warnings:
+Warning	1831	Duplicate index 'ftidx' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 DROP TABLE t1;
 CREATE TABLE t1 (
 col1 int(11) NOT NULL,
@@ -197,4 +195,95 @@ col4 int(11) DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
 VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+DROP TABLE t1;
+CREATE TABLE t1 (
+col1 int(11) NOT NULL,
+col2 int(11) DEFAULT NULL,
+col3 int(11) NOT NULL,
+col4 int(11) DEFAULT NULL,
+col5 int(11) GENERATED ALWAYS AS ((col2 - col4)) VIRTUAL,
+col6 int(11) GENERATED ALWAYS AS ((col5 + col1)) VIRTUAL,
+col7 bigint(20) GENERATED ALWAYS AS ((col2 / col1)) VIRTUAL,
+col8 int(11) GENERATED ALWAYS AS ((col5 % col5)) VIRTUAL,
+col9 text,
+KEY idx1 (col5 DESC),
+KEY idx2 (col6)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) DEFAULT NULL,
+  `col3` int(11) NOT NULL,
+  `col4` int(11) DEFAULT NULL,
+  `col5` int(11) GENERATED ALWAYS AS ((`col2` - `col4`)) VIRTUAL,
+  `col6` int(11) GENERATED ALWAYS AS ((`col5` + `col1`)) VIRTUAL,
+  `col7` bigint(20) GENERATED ALWAYS AS ((`col2` / `col1`)) VIRTUAL,
+  `col8` int(11) GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col9` text,
+  KEY `idx1` (`col5` DESC),
+  KEY `idx2` (`col6`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (10, 50, 40, 300, "lope");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (100, 3240, 4000, 11, "dskf");
+INSERT INTO t1(col1, col2, col3, col4, col9) VALUES (5, 400, 20, 900, "hqal");
+SELECT * FROM t1;
+col1	col2	col3	col4	col5	col6	col7	col8	col9
+10	50	40	300	-250	-240	5	0	lope
+100	3240	4000	11	3229	3329	32	0	dskf
+5	400	20	900	-500	-495	80	0	hqal
+SELECT col5 FROM t1;
+col5
+3229
+-250
+-500
+SELECT col6 FROM t1;
+col6
+-495
+-240
+3329
+SELECT col7 FROM t1;
+col7
+5
+32
+80
+ALTER TABLE t1 ADD INDEX idx3 (col7 DESC);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT col7 FROM t1;
+col7
+80
+32
+5
+SELECT col7 FROM t1;
+col7
+80
+32
+5
+ALTER TABLE t1 DROP INDEX idx3, ADD INDEX idx3 (col7 ASC);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT col7 FROM t1;
+col7
+5
+32
+80
+DROP TABLE t1;
+#
+# Bug 25899959 - SERVER CRASH WHILE TRYING TO ADD A VIRTUAL COLUMN AND ADD INDEX ON IT
+#
+CREATE TABLE t1 (doc json DEFAULT NULL);
+ALTER TABLE t1 ADD Name char(52) AS (doc->>"$.Name"), ADD INDEX n (Name);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `doc` json DEFAULT NULL,
+  `Name` char(52) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.Name'))) VIRTUAL,
+  KEY `n` (`Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

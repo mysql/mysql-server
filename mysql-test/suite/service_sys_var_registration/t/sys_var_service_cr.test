@@ -1,0 +1,41 @@
+# Shows that by component registered system variables survive a crash like global or
+# persistent variables.
+
+--source ../include/have_component_test_sys_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_info
+       WHERE VARIABLE_NAME LIKE '%component%'
+       ORDER BY VARIABLE_NAME;
+
+SET GLOBAL test_component.str_sys_var="Before crash";
+SET GLOBAL test_component.int_sys_var=123;
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.int_sys_var;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_info
+       WHERE VARIABLE_NAME LIKE '%component%'
+       ORDER BY VARIABLE_NAME;
+
+SELECT @@test_component.str_sys_var;
+SELECT @@test_component.int_sys_var;
+
+SET PERSIST test_component.int_sys_var=7;
+SELECT @@test_component.int_sys_var;
+
+--source include/kill_and_restart_mysqld.inc
+
+SELECT @@test_component.int_sys_var;
+SELECT @@test_component.str_sys_var;
+
+RESET PERSIST;
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;

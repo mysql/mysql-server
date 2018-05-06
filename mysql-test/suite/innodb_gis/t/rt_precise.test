@@ -3,7 +3,6 @@
 # Since Innodb does not support the spatial key, hence converted
 # Orginal name of the testcase : gis_rt_precise.test
 #*****************************************************************
--- source include/have_geometry.inc
 SET default_storage_engine=InnoDB;
 
 #
@@ -44,7 +43,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  g GEOMETRY NOT NULL
+  g GEOMETRY NOT NULL SRID 0
 ) ENGINE=InnoDB;
 
 --disable_query_log

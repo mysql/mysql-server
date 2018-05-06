@@ -10,11 +10,10 @@ include/start_slave.inc
 select master_pos_wait('master-bin.999999',0,2);
 master_pos_wait('master-bin.999999',0,2)
 -1
-explain extended select master_pos_wait('master-bin.999999',0,2);
+explain select master_pos_wait('master-bin.999999',0,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select master_pos_wait('master-bin.999999',0,2) AS `master_pos_wait('master-bin.999999',0,2)`
 select master_pos_wait('master-bin.999999',0);
 stop slave sql_thread;
@@ -34,7 +33,6 @@ SET @save_sql_mode=@@SESSION.SQL_MODE;
 SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT MASTER_POS_WAIT('master-bin.999999', 4, -1);
 ERROR HY000: Incorrect arguments to MASTER_POS_WAIT.
 SET @@SESSION.SQL_MODE="";
@@ -44,8 +42,6 @@ NULL
 Warnings:
 Warning	1210	Incorrect arguments to MASTER_POS_WAIT.
 SET @@SESSION.SQL_MODE=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
 Earlier(before fix), 0.4 is read as integer value '0' and the function
 hanged forever (or till all the specified gtids are executed).

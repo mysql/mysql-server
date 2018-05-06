@@ -1,0 +1,66 @@
+create table ndb_ddl_test.shadow1 (
+in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow1 values(100);
+show create table ndb_ddl_test.shadow1;
+ERROR 42S02: Table 'ndb_ddl_test.shadow1' doesn't exist
+create table ndb_ddl_test.shadow1 (
+in_NDB_engine int primary key
+) engine = NDB;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+truncate table ndb_ddl_test.shadow1;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+select count(*) = 1 from ndb_ddl_test.shadow1;
+count(*) = 1
+1
+alter table ndb_ddl_test.shadow1 algorithm=copy,
+add column added_by_copying_alter int;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+alter table ndb_ddl_test.shadow1 algorithm=inplace,
+add column added_by_inplace_alter int default NULL column_format DYNAMIC;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+drop table ndb_ddl_test.shadow1;
+select column_name from
+information_schema.columns
+where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+COLUMN_NAME
+in_other_engine
+select count(*) = 1 from ndb_ddl_test.shadow1;
+count(*) = 1
+1
+drop table ndb_ddl_test.shadow1;
+== verify_mysql_dd.inc ==
+create table ndb_ddl_test2.shadow_in_db (
+in_other_engine int primary key
+) engine = InnoDB;
+create table ndb_ddl_test2.table_in_ndb (
+in_NDB_engine int primary key
+) engine = NDB;
+show create table ndb_ddl_test2.shadow_in_db;
+ERROR 42S02: Table 'ndb_ddl_test2.shadow_in_db' doesn't exist
+drop database ndb_ddl_test2;
+use ndb_ddl_test2;
+ERROR 42000: Unknown database 'ndb_ddl_test2'
+use ndb_ddl_test2;
+show create table ndb_ddl_test2.table_in_ndb;
+ERROR 42S02: Table 'ndb_ddl_test2.table_in_ndb' doesn't exist
+drop table ndb_ddl_test2.shadow_in_db;
+drop database ndb_ddl_test2;
+create database ndb_ddl_test2;
+== verify_mysql_dd.inc ==

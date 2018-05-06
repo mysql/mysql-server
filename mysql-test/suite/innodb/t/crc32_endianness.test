@@ -4,17 +4,15 @@
 # are precreated in crc32_endianness.zip which is extracted below.
 #
 
--- source include/have_innodb.inc
 # Since we import a pre-created tablespace with 16k page size, we would get
 # this on InnoDB configured with non-16k page size:
 # ALTER TABLE crc32_big_endian IMPORT TABLESPACE:
 # Schema mismatch (Tablespace to be imported has a different page size than
 # this server. Server page size is 4096, whereas tablespace page size is 16384)
--- source include/have_innodb_16k.inc
 
-CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB
+CREATE TABLE crc32_big_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
 ROW_FORMAT=COMPACT;
-CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB
+CREATE TABLE crc32_little_endian (a VARCHAR(16)) ENGINE=INNODB charset latin1
 ROW_FORMAT=COMPACT;
 
 ALTER TABLE crc32_big_endian DISCARD TABLESPACE;

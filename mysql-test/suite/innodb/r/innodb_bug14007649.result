@@ -12,7 +12,7 @@ t1	CREATE TABLE `t1` (
   `f2` int(11) DEFAULT NULL,
   KEY `i1` (`f1`,`f2`),
   KEY `i2` (`f2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into `t1` (rowid, f1, f2) values (1, 1, 10), (2, 1, NULL);
 start transaction with consistent snapshot;
 start transaction;

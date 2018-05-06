@@ -1,0 +1,58 @@
+##################################################################
+# Test to verify that there are no skew in load distribution of
+# SPJ requests among the available SPJ blocks. (See bug#22627519)
+##################################################################
+
+--source include/have_ndb.inc
+
+# Fill in some test data
+create table test.parent(a int primary key, b int) engine=ndb;
+create table test.child(b int primary key, c int) engine=ndb;
+
+insert into test.parent values
+  (1,2),(2,3),(3,4),(4,5),(5,5),(6,7),(7,8),(8,9);
+insert into test.child values
+  (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+
+
+# Save old mysqld counter values.
+create temporary table counters_at_startup
+  select * from ndbinfo.counters
+  where block_name="DBSPJ";
+
+disable_result_log;
+disable_query_log;
+
+
+###########################################################
+# Execute a SPJ-scan query multiple times.
+# Expectation is that each SPJ block should report the
+# same number of 'TABLE_SCANS_RECEIVED'. Note that this
+# may not be true for a single SPJ scan as a SPJ request is
+# needed for each fragment to be scanned, and number of fragments
+# is generally not dividable by number of SPJ blocks.
+# However, over a sufficent number of requests, this should
+# be evened out.
+############################################################
+
+let $1=150;
+while ($1)
+{
+  select * from parent join child using(b);
+  dec $1;
+}
+
+enable_result_log;
+
+-- echo
+-- echo Report (and fail) if there are too much skew in 'TABLE_SCANS_RECEIVED':
+select "Skewed SPJ load", cnt.counter_name, min(cnt.val-old.val), max(cnt.val-old.val) from 
+  ndbinfo.counters cnt join counters_at_startup old
+    using (node_id,block_name,block_instance,counter_name)
+  where block_name="DBSPJ" and counter_name = "TABLE_SCANS_RECEIVED"
+  GROUP BY counter_name
+  having max(cnt.val-old.val) - min(cnt.val-old.val) > 1;
+  
+drop table counters_at_startup;
+drop table parent,child;
+enable_query_log;

@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -1053,7 +1060,7 @@ int create100Tables(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 t=0; t < 100; t++)
   {
     char tabnameBuff[10];
-    snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
+    BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
     
     NdbDictionary::Table tab;
     tab.setName(tabnameBuff);
@@ -1094,7 +1101,7 @@ int drop100Tables(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 t=0; t < 100; t++)
   {
     char tabnameBuff[10];
-    snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
+    BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
     
     if (pNdb->getDictionary()->dropTable(tabnameBuff) != 0)
     {
@@ -1123,7 +1130,7 @@ int dropTable(NDBT_Context* ctx, NDBT_Step* step, Uint32 num)
     return NDBT_OK;
     
   char tabnameBuff[10];
-  snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", num);
+  BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", num);
   
   if (pNdb->getDictionary()->dropTable(tabnameBuff) != 0)
   {

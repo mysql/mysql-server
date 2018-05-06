@@ -1,11 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
 -- source include/master-slave.inc
+
+connection slave;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
 
 #
 # This is a disgrace...but slave randomly spits out these warnings
@@ -19,4 +19,10 @@ call mtr.add_suppression("Slave: Got error 120 during COMMIT Error_code: 1180");
 let $engine_type = 'NDB';
 -- source extra/rpl_tests/rpl_extra_col_slave.test
 
+connection slave;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+
 --source include/rpl_end.inc
+

@@ -1,0 +1,105 @@
+call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+The --upgrade-system-tables option was used, databases won't be touched.
+Checking server version.
+Running queries to upgrade MySQL server.
+Upgrading system table data.
+The sys schema is already up to date (version 1.6.0).
+Upgrade process completed successfully.
+Checking if update is needed.
+call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+The --upgrade-system-tables option was used, databases won't be touched.
+Checking server version.
+Running queries to upgrade MySQL server.
+Upgrading system table data.
+The sys schema is already up to date (version 1.6.0).
+Upgrade process completed successfully.
+Checking if update is needed.
+First initialize the binlog
+reset master;
+DROP TABLE IF EXISTS t1;
+Test that binlog purging doesn't use table lock on ndb_binlog_index
+Put some real stuff in the Binlog.
+create table test.t1 (
+pk integer primary key auto_increment,
+a varchar(1000)
+) engine=ndb;
+insert into test.t1 values (NULL, repeat('BJC', 300));
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+insert into test.t1 select NULL, a from test.t1;
+select trim(trailing "binlog.000001" from File)
+from mysql.ndb_binlog_index
+where epoch in (select max(epoch) from mysql.ndb_binlog_index)
+into @file_prefix;
+select concat(@file_prefix, "binlog.000001") into @file1;
+Have at least 100 epoch rows
+select count(*)/100 > 0 from mysql.ndb_binlog_index where File=@file1;
+count(*)/100 > 0
+1
+Flush log to get onto the next file...
+FLUSH LOGS;
+select concat(@file_prefix, "binlog.000002") into @file2;
+create table test.files(file1 varchar(255), file2 varchar(255));
+insert into test.files values(@file1, @file2);
+Pick one row from ndb_binlog_index
+CREATE TEMPORARY TABLE my_ndb_binlog_index (
+epoch BIGINT UNSIGNED NOT NULL,
+orig_server_id INT UNSIGNED NOT NULL,
+orig_epoch BIGINT UNSIGNED NOT NULL
+);
+insert into my_ndb_binlog_index
+select epoch, orig_server_id, orig_epoch
+from mysql.ndb_binlog_index
+where File=@file1 limit 1;
+select epoch from my_ndb_binlog_index into @epoch;
+select orig_server_id from my_ndb_binlog_index into @orig_server_id;
+select orig_epoch from my_ndb_binlog_index into @orig_epoch;
+Lock one row to block purge
+start transaction;
+select count(1) from mysql.ndb_binlog_index
+where epoch = @epoch and
+orig_server_id = @orig_server_id and
+orig_epoch = @orig_epoch and
+File=@file1 for update;
+count(1)
+1
+Check that there are no rows in the next file
+select count(*)=0 from mysql.ndb_binlog_index where File=@file2;
+count(*)=0
+1
+Start the purge that will get stuck on one row
+PURGE BINARY LOGS TO 'binlog.000002';
+Wait 10 sec for purge to run into the row lock
+Now we should still have some rows in the first file (since the purge is stuck)
+select count(*)>0 from mysql.ndb_binlog_index where File=@file1;
+count(*)>0
+1
+Insert some more rows
+insert into test.t1 select NULL, a from test.t1;
+Wait for rows to be committed to binlog
+Now we see rows in the next file (which means there is no table lock)
+select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
+count(*)>0
+1
+Release the purge
+commit;
+Purge done
+Now we should have no rows in the first file
+select @result:=count(*)=0 from mysql.ndb_binlog_index where File=@file1;
+@result:=count(*)=0
+1
+Now we still should see rows in the next file
+select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
+count(*)>0
+1
+cleanup
+drop table test.t1, test.files;
+Done

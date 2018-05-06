@@ -1,0 +1,357 @@
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RP_BY_NODE' ENGINE=ndbcluster;
+drop table t1;
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RP_BY_LDM' ENGINE=ndbcluster;
+drop table t1;
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+insert into t1 values
+('1',1), ('2',2), ('3',3), ('4',4),
+('5',5), ('6',6), ('7',7), ('8',8);
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+select partition_name, table_rows > 0
+from information_schema.partitions
+where table_name = 't1';
+partition_name	table_rows > 0
+p0	1
+p1	1
+p2	1
+p3	1
+create temporary table counters_at_startup
+select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name;
+select * from t1 where a = '1';
+a	b
+1	1
+select * from t1 where a = '2';
+a	b
+2	2
+select * from t1 where a = '3';
+a	b
+3	3
+select s1.counter_name, s2.val - s1.val as diff
+from counters_at_startup s1,
+(select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name) s2
+where s1.counter_name = s2.counter_name
+and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
+order by 1;
+counter_name	diff
+LOCAL_READS	3
+READS	3
+drop table counters_at_startup;
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=inplace, add partition partitions 1;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t1 algorithm=copy, add partition partitions 1;
+ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+alter table t1 algorithm=inplace, add column c int column_format dynamic;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t1 algorithm=copy, comment='NDB_TABLE=';
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
+alter table t1 algorithm=copy, comment='NDB_TABLE=READ_BACKUP=1';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1'
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+alter table t1 algorithm=copy, comment='comment text';
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 4
+FragmentCount: 16
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-4
+-- Attributes --
+a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+a(a, b) - OrderedIndex
+a$unique(a, b) - UniqueHashIndex
+b(b, a) - OrderedIndex
+
+NDBT_ProgramExit: 0 - OK
+
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `a` (`a`,`b`),
+  KEY `b` (`b`,`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1 comment text'
+drop table t1;
+create table t1 (
+x int primary key,
+y blob,
+z int,
+unique key (z)
+) engine=ndbcluster;
+alter table t1 algorithm=inplace, comment="NDB_TABLE=FULLY_REPLICATED=1";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Turning FULLY_REPLICATED on after create. Try ALGORITHM=COPY.
+alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
+alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Changing PARTITION_BALANCE with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: READ_BACKUP off with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+drop table t1;
+CREATE TABLE t2 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1'
+  ENGINE=ndbcluster
+partition by key() partitions 2;
+ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 797 'Wrong fragment count for fully replicated table' from NDB
+Error	1296	Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+CREATE TABLE t2 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (a,b),
+key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,READ_BACKUP=0' ENGINE=ndbcluster;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'READ_BACKUP=0 cannot be used for fully replicated tables'
+set session new = 1;
+create table t2 (
+a char(10) NOT NULL,
+b int not null primary key,
+unique (a,b),
+key(b, a)
+)
+ENGINE=ndbcluster
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+PARTITION BY HASH(b);
+ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+create table t1 (
+a char(10) NOT NULL primary key,
+b int not null)
+ENGINE=ndbcluster;
+alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM';
+drop table t1;

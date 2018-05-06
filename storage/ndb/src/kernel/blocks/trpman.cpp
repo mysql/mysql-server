@@ -2,13 +2,20 @@
   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -426,7 +433,7 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
             char *addr_str = Ndb_inet_ntop(AF_INET,
                                            static_cast<void*>(&conn_addr),
                                            addr_buf,
-                                           (socklen_t)sizeof(addr_buf));
+                                           sizeof(addr_buf));
             row.write_string(addr_str);
           }
           else
@@ -675,6 +682,47 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
     }
   }
+  if (arg == 9994 ||  /* Block send to node X */
+      arg == 9995)    /* Unblock send to node X */
+  {
+    bool block = (arg == 9994);
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
+    for (Uint32 n = 1; n < signal->getLength(); n++)
+    {
+      Uint32 nodeId = signal->theData[n];
+      if (!handles_this_node(nodeId))
+        continue;
+
+      if ((nodeId > 0) &&
+          (nodeId < MAX_NODES))
+      {
+        g_eventLogger->info("TRPMAN : Send to %u is %sblocked",
+                            nodeId, 
+                            (globalTransporterRegistry.
+                             isSendBlocked(nodeId)?"":"not "));
+        if (block)
+        {
+          g_eventLogger->info("TRPMAN : Blocking send to node %u", nodeId);
+          globalTransporterRegistry.blockSend(*recvdata, nodeId);
+        }
+        else
+        {
+          g_eventLogger->info("TRPMAN : Unblocking send to node %u", 
+                              nodeId);
+
+          globalTransporterRegistry.unblockSend(*recvdata, nodeId);
+        }
+      }
+      else
+      {
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
+                 arg, nodeId);
+      }
+    }
+
+  }
+
 #endif
 }
 

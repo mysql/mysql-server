@@ -23,7 +23,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varbinary(20) DEFAULT NULL,
   `s2` varbinary(20) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
 select hex(s1), hex(s2) from t1;
 hex(s1)	hex(s2)
@@ -285,5 +285,5 @@ a	b	c	d	e	f
 # Literals should be entirely printed:
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab68) AS `a`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab60) AS `b`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x0f9d04ae61b34468ac798ffcc984ab68) AS `c`,(0x03ffffffffffffffff = 0x03ffffffffffffffff) AS `d`,(0x03ffffffffffffffff = 0x03fffffffffffffffe) AS `e`,(0x03ffffffffffffffff = 0x01ffffffffffffffff) AS `f`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab68) AS `a`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x7f9d04ae61b34468ac798ffcc984ab60) AS `b`,(0x7f9d04ae61b34468ac798ffcc984ab68 = 0x0f9d04ae61b34468ac798ffcc984ab68) AS `c`,(0x03ffffffffffffffff = 0x03ffffffffffffffff) AS `d`,(0x03ffffffffffffffff = 0x03fffffffffffffffe) AS `e`,(0x03ffffffffffffffff = 0x01ffffffffffffffff) AS `f`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;

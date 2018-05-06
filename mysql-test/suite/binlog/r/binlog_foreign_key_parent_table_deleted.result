@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Foreign Key referenced table test.t1 not found for foreign table test.t2");
+call mtr.add_suppression("Foreign Key referenced table test.t1 not found for foreign table test.t2");
 SET @saved_foreign_key_checks= @@session.foreign_key_checks;
 SET @@session.foreign_key_checks= 1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY);

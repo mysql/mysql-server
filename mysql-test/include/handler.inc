@@ -9,7 +9,6 @@
 #                              time available storage engine
 #                              2006-08 MySQL 5.1 MyISAM and MEMORY only
 # have to be set before sourcing this script.
--- source include/not_embedded.inc
 #
 # test of HANDLER ...
 #
@@ -786,7 +785,8 @@ connection default;
 # Bug#44151 using handler commands on information_schema tables crashes server
 #
 USE information_schema;
---error ER_WRONG_USAGE
+--replace_result columns COLUMNS
+--error ER_WRONG_OBJECT
 HANDLER COLUMNS OPEN;
 USE test;
 

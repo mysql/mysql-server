@@ -1,0 +1,1616 @@
+CREATE DATABASE `ytest`;
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest
+
+1 rows affected
+RUN create table xtest.xcoll_ (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN insert into xtest.xcoll_ (doc, _id) values ('{"_id": "1", "name": "banana", "price": 1.20}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into xtest.xcoll_ (doc, _id) values ('{"_id": "2", "name": "apple", "price": 0.25}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into xtest.xcoll_ (doc, _id) values ('{"_id": "3", "name": "tomato", "price": 1.80}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into xtest.xcoll_ (doc, _id) values ('{"_id": "4", "name": "mango", "price": 3.14}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN insert into xtest.xcoll_ (doc, _id) values ('{"_id": "5", "name": "mango", "price": 0.90, "origin":["mexico","philippines"]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update by ARRAY_APPEND
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ARRAY_APPEND
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Update by ARRAY_INSERT
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "origin"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 1
+      }
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "brazil"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Update by ARRAY_INSERT (invalid path)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "origin"
+      }
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "brazil"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: A path expression is not a path to a cell in an array. (code 3165)
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": ["banana", "lemon"], "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "brazil", "philippines"]}	5
+0 rows affected
+test item_replace
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update by ITEM_REPLACE
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Update by ITEM_REPLACE non-existing member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "location"
+      }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "pineapple"
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+Rows matched: 1  Changed: 0  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "lemon", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+test item set
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: ITEM_SET to NULL
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from xtest.xcoll where _id = 1
+doc	_id
+{"_id": "1", "name": null, "price": 1.2}	1
+0 rows affected
+Doc: Update by ITEM_SET twice
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "price"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon for free!"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Update by ITEM_SET non-existing member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "location"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "lemon", "price": "lemon for free!", "location": "lemon"}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+test doc member set
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update a valid document by _id (from field)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "lemon", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update document with illegal _id change
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "_id"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5053
+  msg: "Forbidden update operation on \'$._id\' member"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update non-existing document
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "666"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update multiple documents
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "5"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+4 rows affected
+Rows matched: 4  Changed: 4  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "lemon", "price": 1.2}	1
+{"_id": "2", "name": "lemon", "price": 0.25}	2
+{"_id": "3", "name": "lemon", "price": 1.8}	3
+{"_id": "4", "name": "lemon", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update on an invalid schema (bad)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "ytest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1146
+  msg: "Table \'ytest.xcoll\' doesn\'t exist"
+  sql_state: "42S02"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update on an invalid collection (bad)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "ycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1146
+  msg: "Table \'xtest.ycoll\' doesn\'t exist"
+  sql_state: "42S02"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Update member with column (bad)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      name: "xfield"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5052
+  msg: "Invalid column name to update"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Update member with table name (bad)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      table_name: "xtable"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5052
+  msg: "Invalid column name to update"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Update member with schema name (bad)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      schema_name: "xschema"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5052
+  msg: "Invalid column name to update"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+test doc set
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update by SET (not allowed)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5051
+  msg: "Invalid type of update operation for document"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+test doc remove
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Update by ITEM_REMOVE
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+this one should fail because of bogus param to Remove
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Multiple chained operations
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "5"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "price"
+      }
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "name": "mango", "price": 3.14}	4
+{"_id": "5", "name": "lemon", "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop table if exists xtest.xcoll
+
+0 rows affected
+RUN create table xtest.xcoll as select * from xtest.xcoll_
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+Doc: Merge with another document containing _id
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "5"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+    }
+    operation: ITEM_MERGE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"one\":1, \"two\":\"foo\", \"_id\":1234}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Set item and merge with another document
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "4"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+    }
+    operation: ITEM_MERGE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"two\":\"foo\"}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: Merge with another document and set item
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+    }
+    operation: ITEM_MERGE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"one\":1}"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "one"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Doc: merge with NULL
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+    }
+    operation: ITEM_MERGE
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5050
+  msg: "Invalid data for update operation on document collection table"
+  sql_state: "HY000"
+}
+
+Doc: Merge with non-document
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+    }
+    operation: ITEM_MERGE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "  [1,2,3]"
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5050
+  msg: "Invalid data for update operation on document collection table"
+  sql_state: "HY000"
+}
+
+RUN select * from xtest.xcoll
+doc	_id
+{"_id": "1", "name": "banana", "price": 1.2}	1
+{"_id": "2", "name": "apple", "price": 0.25}	2
+{"_id": "3", "one": "lemon", "name": "tomato", "price": 1.8}	3
+{"_id": "4", "two": "foo", "name": "lemon", "price": 3.14}	4
+{"_id": "5", "one": 1, "two": "foo", "name": "mango", "price": 0.9, "origin": ["mexico", "philippines"]}	5
+0 rows affected
+RUN drop schema xtest
+
+2 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP DATABASE `ytest`;

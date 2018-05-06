@@ -8,7 +8,7 @@ SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES
 SET @old_sql_mode_slave= @@session.sql_mode;
 SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES',''));
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
-CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password AS 'auth_string1';
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password BY 'auth_string1';
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -25,11 +25,7 @@ USER()
 user1@localhost
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
 SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -45,10 +41,6 @@ SELECT USER();
 USER()
 user1@localhost
 SET @@session.sql_mode= @old_sql_mode_slave;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode= @old_sql_mode_master;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP USER 'user1'@'localhost';
 include/rpl_end.inc

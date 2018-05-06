@@ -2,8 +2,11 @@
 # Original Author: JBM                                                      #
 # Original Date: Aug/18/2005                                                #
 # Updated: 08/29/2005  turned on diff and commented out debug SQL statements#
+# Updated: sep/16/2015                                                      #
+#          This testcase requires minimum stack size of 300KB to run on WIN.#
+#          Modified *-master.opt file to increase the thread_stack to 400KB.#
 #############################################################################
-#TEST: SP to test alter table and nested SP calls                           #
+# TEST: SP to test alter table and nested SP calls                          #
 #############################################################################
 
 # Includes

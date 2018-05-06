@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,7 +29,7 @@
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
-#ifdef NDB_WIN
+#ifdef _WIN32
 void *sbrk(int increment)
 {
   return (void*)-1;
@@ -59,14 +66,6 @@ static Uint32 g_random_start_page_id = 0;
 extern void mt_mem_manager_init();
 extern void mt_mem_manager_lock();
 extern void mt_mem_manager_unlock();
-
-#define ZONE_LO 0
-#define ZONE_HI 1
-
-/**
- * POOL_RECORD_BITS == 13 => 32 - 13 = 19 bits for page
- */
-#define ZONE_LO_BOUND (1u << 19)
 
 #include <NdbOut.hpp>
 
@@ -204,6 +203,131 @@ retry:
   return true;
 }
 
+/**
+ * Resource_limits
+ */
+
+Resource_limits::Resource_limits()
+{
+  m_allocated = 0;
+  m_free_reserved = 0;
+  m_in_use = 0;
+  m_spare = 0;
+  m_max_page = 0;
+  memset(m_limit, 0, sizeof(m_limit));
+}
+
+#ifndef VM_TRACE
+inline
+#endif
+void
+Resource_limits::check() const
+{
+#ifdef VM_TRACE
+  const Resource_limit* rl = m_limit;
+  Uint32 curr = 0;
+  Uint32 spare = 0;
+  Uint32 res_alloc = 0;
+  Uint32 shared_alloc = 0;
+  Uint32 sumres = 0;
+  for (Uint32 i = 0; i < MM_RG_COUNT; i++)
+  {
+    curr += rl[i].m_curr;
+    spare += rl[i].m_spare;
+    sumres += rl[i].m_min;
+    // assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
+    if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
+    {
+      shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
+      res_alloc += rl[i].m_min;
+    }
+    else
+    {
+      res_alloc += rl[i].m_curr + rl[i].m_spare;
+    }
+  }
+
+  if(!((curr == get_in_use()) &&
+       (spare == get_spare()) &&
+       (res_alloc + shared_alloc == curr + spare) &&
+       (res_alloc <= sumres) &&
+       (sumres == res_alloc + get_free_reserved()) &&
+       (get_in_use() + get_spare() <= get_allocated())))
+  {
+    dump();
+  }
+
+  assert(curr == get_in_use());
+  assert(spare == get_spare());
+  assert(res_alloc + shared_alloc == curr + spare);
+  assert(res_alloc <= sumres);
+  assert(sumres == res_alloc + get_free_reserved());
+  assert(get_in_use() + get_spare() <= get_allocated());
+#endif
+}
+
+void
+Resource_limits::dump() const
+{
+  printf("ri: global "
+         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u\n",
+         m_max_page,
+         m_free_reserved,
+         m_in_use,
+         m_allocated,
+         m_spare);
+  for (Uint32 i = 0; i < MM_RG_COUNT; i++)
+  {
+    printf("ri: %u id: %u min: %u curr: %u max: %u spare: %u spare_pct: %u\n",
+           i,
+           m_limit[i].m_resource_id,
+           m_limit[i].m_min,
+           m_limit[i].m_curr,
+           m_limit[i].m_max,
+           m_limit[i].m_spare,
+           m_limit[i].m_spare_pct);
+  }
+}
+
+/**
+ *
+ * resource N has following semantics:
+ *
+ * m_min = reserved
+ * m_curr = currently used
+ * m_max = max alloc, 0 = no limit
+ *
+ */
+void
+Resource_limits::init_resource_limit(Uint32 id, Uint32 min, Uint32 max)
+{
+  assert(id > 0);
+  assert(id <= MM_RG_COUNT);
+
+  m_limit[id - 1].m_resource_id = id;
+  m_limit[id - 1].m_curr = 0;
+  m_limit[id - 1].m_max = max;
+
+  m_limit[id - 1].m_min = min;
+
+  Uint32 reserve = min;
+  Uint32 current_reserved = get_free_reserved();
+  set_free_reserved(current_reserved + reserve);
+}
+
+void
+Resource_limits::init_resource_spare(Uint32 id, Uint32 pct)
+{
+  require(m_limit[id - 1].m_spare_pct == 0);
+  m_limit[id - 1].m_spare_pct = pct;
+
+  (void) alloc_resource_spare(id, 0);
+}
+
+/**
+ * Ndbd_mem_manager
+ */
+
 Uint32
 Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
@@ -224,8 +348,7 @@ Ndbd_mem_manager::Ndbd_mem_manager()
 {
   m_base_page = 0;
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
-  memset(m_resource_limit, 0, sizeof(m_resource_limit));
-  
+
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
   {
     g_eventLogger->error("Invalid build, ndbd_malloc_impl.cpp:%d", __LINE__);
@@ -246,42 +369,34 @@ Ndbd_mem_manager::get_memroot() const
 
 /**
  *
- * resource 0 has following semantics:
- *
- * m_min  - remaining reserved for other resources
- * m_curr - sum(m_curr) for other resources (i.e total in use)
- * m_max  - totally allocated from OS
- *
  * resource N has following semantics:
  *
  * m_min = reserved
- * m_curr = currently used
+ * m_curr = currently used including spare pages
  * m_max = max alloc, 0 = no limit
+ * m_spare = pages reserved for restart or special use
  *
  */
 void
 Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 {
-  Uint32 id = rl.m_resource_id;
-  assert(id < XX_RL_COUNT);
-  
-  Uint32 reserve = id ? rl.m_min : 0;
+  require(rl.m_resource_id > 0);
   mt_mem_manager_lock();
-  Uint32 current_reserved = m_resource_limit[0].m_min;
-  
-  m_resource_limit[id] = rl;
-  m_resource_limit[id].m_curr = 0;
-  m_resource_limit[0].m_min = current_reserved + reserve;
+  m_resource_limits.init_resource_limit(rl.m_resource_id, rl.m_min, rl.m_max);
   mt_mem_manager_unlock();
 }
 
 bool
 Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
 {
-  if (id < XX_RL_COUNT)
+  /**
+   * DUMP DumpPageMemory(1000) is agnostic about what resource groups exists.
+   * Allowing use of any id.
+   */
+  if (1 <= id && id <= MM_RG_COUNT)
   {
     mt_mem_manager_lock();
-    rl = m_resource_limit[id];
+    m_resource_limits.get_resource_limit(id, rl);
     mt_mem_manager_unlock();
     return true;
   }
@@ -291,45 +406,13 @@ Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
 bool
 Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
 {
-  if (id < XX_RL_COUNT)
+  assert(id > 0);
+  if (id <= MM_RG_COUNT)
   {
-    rl = m_resource_limit[id];
+    m_resource_limits.get_resource_limit(id, rl);
     return true;
   }
   return false;
-}
-
-static
-inline
-void
-check_resource_limits(Resource_limit* rl)
-{
-#ifdef VM_TRACE
-  Uint32 curr = 0;
-  Uint32 res_alloc = 0;
-  Uint32 shared_alloc = 0;
-  Uint32 sumres = 0;
-  for (Uint32 i = 1; i<XX_RL_COUNT; i++)
-  {
-    curr += rl[i].m_curr;
-    sumres += rl[i].m_min;
-    assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
-    if (rl[i].m_curr > rl[i].m_min)
-    {
-      shared_alloc += rl[i].m_curr - rl[i].m_min;
-      res_alloc += rl[i].m_min;
-    }
-    else
-    {
-      res_alloc += rl[i].m_curr;
-    }
-  }
-  assert(curr == rl[0].m_curr);
-  assert(res_alloc + shared_alloc == curr);
-  assert(res_alloc <= sumres);
-  assert(sumres == res_alloc + rl[0].m_min);
-  assert(rl[0].m_curr <= rl[0].m_max);
-#endif
 }
 
 int
@@ -346,34 +429,22 @@ cmp_chunk(const void * chunk_vptr_1, const void * chunk_vptr_2)
 }
 
 bool
-Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
+Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_memory)
 {
   assert(m_base_page == 0);
+  assert(max_pages > 0);
+  assert(m_resource_limits.get_allocated() == 0);
 
   if (watchCounter)
     *watchCounter = 9;
 
-  Uint32 pages = 0;
+  Uint32 pages = max_pages;
   Uint32 max_page = 0;
-  Uint32 reserved = m_resource_limit[0].m_min;
-  if (m_resource_limit[0].m_max)
-  {
-    pages = m_resource_limit[0].m_max;
-  } 
-  else
-  {
-    pages = m_resource_limit[0].m_min; // reserved
-  }
-  
-  if (m_resource_limit[0].m_min == 0)
-  {
-    m_resource_limit[0].m_min = pages;
-  }
   
   const Uint64 pg = Uint64(sizeof(Alloc_page));
   g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %lluMb initial: %lluMb",
                       alloc_less_memory,
-                      (pg*m_resource_limit[0].m_min)>>20,
+                      (pg*m_resource_limits.get_free_reserved())>>20,
                       (pg*pages) >> 20);
 
   if (pages == 0)
@@ -394,10 +465,10 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   /**
    * In order to find bad-users of page-id's
    *   we add a random offset to the page-id's returned
-   *   however, due to ZONE_LO that offset can't be that big
+   *   however, due to ZONE_19 that offset can't be that big
    *   (since we at get_page don't know if it's a HI/LO page)
    */
-  Uint32 max_rand_start = ZONE_LO_BOUND - 1;
+  Uint32 max_rand_start = ZONE_19_BOUND - 1;
   if (max_rand_start > pages)
   {
     max_rand_start -= pages;
@@ -436,12 +507,12 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
     }
   }
   
-  if (allocated < m_resource_limit[0].m_min)
+  if (allocated < m_resource_limits.get_free_reserved())
   {
     g_eventLogger->
       error("Unable to alloc min memory from OS: min: %lldMb "
             " allocated: %lldMb",
-            (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min) >> 20,
+            (Uint64)(sizeof(Alloc_page)*m_resource_limits.get_free_reserved()) >> 20,
             (Uint64)(sizeof(Alloc_page)*allocated) >> 20);
     return false;
   }
@@ -450,8 +521,8 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
     g_eventLogger->
       warning("Unable to alloc requested memory from OS: min: %lldMb"
               " requested: %lldMb allocated: %lldMb",
-              (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
-              (Uint64)(sizeof(Alloc_page)*m_resource_limit[0].m_max)>>20,
+              (Uint64)(sizeof(Alloc_page)*m_resource_limits.get_free_reserved())>>20,
+              (Uint64)(sizeof(Alloc_page)*max_pages)>>20,
               (Uint64)(sizeof(Alloc_page)*allocated)>>20);
     if (!alloc_less_memory)
       return false;
@@ -479,9 +550,8 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
       max_page = last;
   }
 
-  m_resource_limit[0].m_resource_id = max_page;
-  m_resource_limit[0].m_min = reserved;
-  m_resource_limit[0].m_max = 0;
+  m_resource_limits.set_max_page(max_page);
+  m_resource_limits.set_allocated(0);
 
   return true;
 }
@@ -497,7 +567,7 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
     limit = 0;
     for (Uint32 i = 0; resources[i] ; i++)
     {
-      limit += m_resource_limit[resources[i]].m_min;
+      limit += m_resource_limits.get_resource_reserved(resources[i]);
     }
   }
 
@@ -580,13 +650,21 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
   }
   
   mt_mem_manager_lock();
-  check_resource_limits(m_resource_limit);
+  m_resource_limits.check();
   mt_mem_manager_unlock();
 
   if (resources == 0 && memlock)
   {
     NdbMem_MemLockAll(1);
   }
+}
+
+void
+Ndbd_mem_manager::init_resource_spare(Uint32 id, Uint32 pct)
+{
+  mt_mem_manager_lock();
+  m_resource_limits.init_resource_spare(id, pct);
+  mt_mem_manager_unlock();
 }
 
 #include <NdbOut.hpp>
@@ -651,43 +729,48 @@ found:
   if (cnt)
   {
     mt_mem_manager_lock();
-    m_resource_limit[0].m_curr += cnt;
-    m_resource_limit[0].m_max += cnt;
-    if (start >= ZONE_LO_BOUND)
+    const Uint32 allocated = m_resource_limits.get_allocated();
+    m_resource_limits.set_allocated(allocated + cnt);
+    const Uint64 mbytes = ((Uint64(cnt)*32) + 1023) / 1024;
+    /**
+     * grow first split large page ranges to ranges completely within
+     * a BPP regions.
+     * Boundary between lo and high zone coincide with a BPP region
+     * boundary.
+     */
+    NDB_STATIC_ASSERT((ZONE_19_BOUND & ((1 << BPP_2LOG) - 1)) == 0);
+    if (start < ZONE_19_BOUND)
     {
-      Uint64 mbytes = ((Uint64(cnt) * 32) + 1023) / 1024;
-      g_eventLogger->info("Adding %uMb to ZONE_HI (%u,%u)",
+      require(start + cnt < ZONE_19_BOUND);
+      g_eventLogger->info("Adding %uMb to ZONE_19 (%u, %u)",
                           (Uint32)mbytes,
                           start,
                           cnt);
-      release(start, cnt);
     }
-    else if (start + cnt <= ZONE_LO_BOUND)
+    else if (start < ZONE_27_BOUND)
     {
-      Uint64 mbytes = ((Uint64(cnt)*32) + 1023) / 1024;
-      g_eventLogger->info("Adding %uMb to ZONE_LO (%u,%u)",
+      require(start + cnt < ZONE_27_BOUND);
+      g_eventLogger->info("Adding %uMb to ZONE_27 (%u, %u)",
                           (Uint32)mbytes,
                           start,
                           cnt);
-      release(start, cnt);      
+    }
+    else if (start < ZONE_30_BOUND)
+    {
+      require(start + cnt < ZONE_30_BOUND);
+      g_eventLogger->info("Adding %uMb to ZONE_30 (%u, %u)",
+                          (Uint32)mbytes,
+                          start,
+                          cnt);
     }
     else
     {
-      Uint32 cnt0 = ZONE_LO_BOUND - start;
-      Uint32 cnt1 = start + cnt - ZONE_LO_BOUND;
-      Uint64 mbytes0 = ((Uint64(cnt0)*32) + 1023) / 1024;
-      Uint64 mbytes1 = ((Uint64(cnt1)*32) + 1023) / 1024;
-      g_eventLogger->info("Adding %uMb to ZONE_LO (split %u,%u)",
-                          (Uint32)mbytes0,
+      g_eventLogger->info("Adding %uMb to ZONE_32 (%u, %u)",
+                          (Uint32)mbytes,
                           start,
-                          cnt0);
-      g_eventLogger->info("Adding %uMb to ZONE_HI (split %u,%u)",
-                          (Uint32)mbytes1,
-                          ZONE_LO_BOUND,
-                          cnt1);
-      release(start, cnt0);
-      release(ZONE_LO_BOUND, cnt1);
+                          cnt);
     }
+    release(start, cnt);
     mt_mem_manager_unlock();
   }
 }
@@ -695,25 +778,23 @@ found:
 void
 Ndbd_mem_manager::release(Uint32 start, Uint32 cnt)
 {
-  assert(m_resource_limit[0].m_curr >= cnt);
   assert(start);
-  m_resource_limit[0].m_curr -= cnt;
-  
+
   set(start, start+cnt-1);
-  
-  Uint32 zone = start < ZONE_LO_BOUND ? 0 : 1;
+
+  Uint32 zone = get_page_zone(start);
   release_impl(zone, start, cnt);
 }
 
 void
 Ndbd_mem_manager::release_impl(Uint32 zone, Uint32 start, Uint32 cnt)
 {
-  assert(start);  
+  assert(start);
 
   Uint32 test = check(start-1, start+cnt);
-  if (start != ZONE_LO_BOUND && test & 1)
+  if (test & 1)
   {
-    Free_page_data *fd = get_free_page_data(m_base_page + start - 1, 
+    Free_page_data *fd = get_free_page_data(m_base_page + start - 1,
 					    start - 1);
     Uint32 sz = fd->m_size;
     Uint32 left = start - sz;
@@ -721,48 +802,52 @@ Ndbd_mem_manager::release_impl(Uint32 zone, Uint32 start, Uint32 cnt)
     cnt += sz;
     start = left;
   }
- 
+
   Uint32 right = start + cnt;
-  if (right != ZONE_LO_BOUND && test & 2)
+  if (test & 2)
   {
     Free_page_data *fd = get_free_page_data(m_base_page+right, right);
     Uint32 sz = fd->m_size;
     remove_free_list(zone, right, fd->m_list);
     cnt += sz;
   }
-  
+
   insert_free_list(zone, start, cnt);
 }
 
 void
-Ndbd_mem_manager::alloc(AllocZone zone, 
-                        Uint32* ret, Uint32 *pages, Uint32 min)
+Ndbd_mem_manager::alloc(AllocZone zone,
+                        Uint32* ret,
+                        Uint32 *pages,
+                        Uint32 min)
 {
-  if (zone == NDB_ZONE_ANY)
+  const Uint32 save = * pages;
+  for (Uint32 z = zone; ; z--)
   {
-    Uint32 save = * pages;
-    alloc_impl(ZONE_HI, ret, pages, min);
+    alloc_impl(z, ret, pages, min);
     if (*pages)
+      return;
+    if (z == 0)
       return;
     * pages = save;
   }
-
-  alloc_impl(ZONE_LO, ret, pages, min);
 }
 
 void
-Ndbd_mem_manager::alloc_impl(Uint32 zone, 
-                             Uint32* ret, Uint32 *pages, Uint32 min)
+Ndbd_mem_manager::alloc_impl(Uint32 zone,
+                             Uint32* ret,
+                             Uint32 *pages,
+                             Uint32 min)
 {
   Int32 i;
   Uint32 start;
   Uint32 cnt = * pages;
   Uint32 list = ndb_log2(cnt - 1);
-  
+
   assert(cnt);
   assert(list <= 16);
 
-  for (i = list; i < 16; i++) 
+  for (i = list; i < 16; i++)
   {
     if ((start = m_buddy_lists[zone][i]))
     {
@@ -770,7 +855,7 @@ Ndbd_mem_manager::alloc_impl(Uint32 zone,
 /*       PROPER AMOUNT OF PAGES WERE FOUND. NOW SPLIT THE FOUND     */
 /*       AREA AND RETURN THE PART NOT NEEDED.                       */
 /* ---------------------------------------------------------------- */
-      
+
       Uint32 sz = remove_free_list(zone, start, i);
       Uint32 extra = sz - cnt;
       assert(sz >= cnt);
@@ -784,7 +869,7 @@ Ndbd_mem_manager::alloc_impl(Uint32 zone,
 	clear(start, start+cnt-1);
       }
       * ret = start;
-      assert(m_resource_limit[0].m_curr + cnt <= m_resource_limit[0].m_max);
+      assert(m_resource_limits.get_in_use() + cnt <= m_resource_limits.get_allocated());
       return;
     }
   }
@@ -815,7 +900,7 @@ Ndbd_mem_manager::alloc_impl(Uint32 zone,
 
       * ret = start;
       * pages = sz;
-      assert(m_resource_limit[0].m_curr + sz <= m_resource_limit[0].m_max);
+      assert(m_resource_limits.get_in_use() + sz <= m_resource_limits.get_allocated());
       return;
     }
   }
@@ -891,7 +976,7 @@ void
 Ndbd_mem_manager::dump() const
 {
   mt_mem_manager_lock();
-  for (Uint32 zone = 0; zone < 2; zone ++)
+  for (Uint32 zone = 0; zone < ZONE_COUNT; zone ++)
   {
     for (Uint32 i = 0; i<16; i++)
     {
@@ -899,52 +984,102 @@ Ndbd_mem_manager::dump() const
       Uint32 head = m_buddy_lists[zone][i];
       while(head)
       {
-        Free_page_data* fd = get_free_page_data(m_base_page+head, head); 
-        printf("[ i: %d prev %d next %d list %d size %d ] ", 
+        Free_page_data* fd = get_free_page_data(m_base_page+head, head);
+        printf("[ i: %d prev %d next %d list %d size %d ] ",
                head, fd->m_prev, fd->m_next, fd->m_list, fd->m_size);
         head = fd->m_next;
       }
       printf("EOL\n");
     }
-    
-    for (Uint32 i = 0; i<XX_RL_COUNT; i++)
-    {
-      printf("ri: %d min: %d curr: %d max: %d\n",
-             i, 
-             m_resource_limit[i].m_min,
-             m_resource_limit[i].m_curr,
-             m_resource_limit[i].m_max);
-    }
+
+    m_resource_limits.dump();
   }
   mt_mem_manager_unlock();
 }
 
+void
+Ndbd_mem_manager::lock()
+{
+  mt_mem_manager_lock();
+}
+
+void
+Ndbd_mem_manager::unlock()
+{
+  mt_mem_manager_unlock();
+}
+
 void*
-Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
+Ndbd_mem_manager::alloc_page(Uint32 type,
+                             Uint32* i,
+                             AllocZone zone,
+                             bool locked)
 {
   Uint32 idx = type & RG_MASK;
-  assert(idx && idx < XX_RL_COUNT);
-  mt_mem_manager_lock();
-  Resource_limit tot = m_resource_limit[0];
-  Resource_limit rl = m_resource_limit[idx];
+  assert(idx && idx <= MM_RG_COUNT);
+  if (!locked)
+    mt_mem_manager_lock();
 
   Uint32 cnt = 1;
-  Uint32 res0 = (rl.m_curr < rl.m_min) ? 1 : 0;
-  Uint32 limit = (rl.m_max == 0 || rl.m_curr < rl.m_max) ? 0 : 1; // Over limit
-  Uint32 free = (tot.m_min + tot.m_curr < tot.m_max) ? 1 : 0; // Has free
-  
-  assert(tot.m_min >= res0);
-
-  if (likely(res0 == 1 || (limit == 0 && free == 1)))
+  const Uint32 min = 1;
+  const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
+  if (free_res < cnt)
   {
-    alloc(zone, i, &cnt, 1);
+    const Uint32 free_shr = m_resource_limits.get_free_shared();
+    const Uint32 free = m_resource_limits.get_resource_free(idx);
+    if (free < min || (free_shr + free_res < min))
+    {
+      if (!locked)
+        mt_mem_manager_unlock();
+      return NULL;
+    }
+  }
+  alloc(zone, i, &cnt, min);
+  if (likely(cnt))
+  {
+    const Uint32 spare_taken = m_resource_limits.post_alloc_resource_pages(idx, cnt);
+    if (spare_taken > 0)
+    {
+      require(spare_taken == cnt);
+      release(*i, spare_taken);
+      m_resource_limits.check();
+      if (!locked)
+        mt_mem_manager_unlock();
+      *i = RNIL;
+      return NULL;
+    }
+    m_resource_limits.check();
+    if (!locked)
+      mt_mem_manager_unlock();
+#ifdef NDBD_RANDOM_START_PAGE
+    *i += g_random_start_page_id;
+    return m_base_page + *i - g_random_start_page_id;
+#else
+    return m_base_page + *i;
+#endif
+  }
+  if (!locked)
+    mt_mem_manager_unlock();
+  return 0;
+}
+
+void*
+Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
+{
+  Uint32 idx = type & RG_MASK;
+  assert(idx && idx <= MM_RG_COUNT);
+  mt_mem_manager_lock();
+
+  Uint32 cnt = 1;
+  const Uint32 min = 1;
+  if (m_resource_limits.get_resource_spare(idx) >= min)
+  {
+    alloc(zone, i, &cnt, min);
     if (likely(cnt))
     {
-      m_resource_limit[0].m_curr = tot.m_curr + cnt;
-      m_resource_limit[0].m_min = tot.m_min - res0;
-      m_resource_limit[idx].m_curr = rl.m_curr + cnt;
-
-      check_resource_limits(m_resource_limit);
+      assert(cnt == min);
+      m_resource_limits.post_alloc_resource_spare(idx, cnt);
+      m_resource_limits.check();
       mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
       *i += g_random_start_page_id;
@@ -959,135 +1094,107 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 }
 
 void
-Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
+Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, bool locked)
 {
   Uint32 idx = type & RG_MASK;
-  assert(idx && idx < XX_RL_COUNT);
-  mt_mem_manager_lock();
-  Resource_limit tot = m_resource_limit[0];
-  Resource_limit rl = m_resource_limit[idx];
+  assert(idx && idx <= MM_RG_COUNT);
+  if (!locked)
+    mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
   i -= g_random_start_page_id;
 #endif
 
-  Uint32 sub = (rl.m_curr <= rl.m_min) ? 1 : 0; // Over min ?
   release(i, 1);
-  m_resource_limit[0].m_curr = tot.m_curr - 1;
-  m_resource_limit[0].m_min = tot.m_min + sub;
-  m_resource_limit[idx].m_curr = rl.m_curr - 1;
+  m_resource_limits.post_release_resource_pages(idx, 1);
 
-  check_resource_limits(m_resource_limit);
-  mt_mem_manager_unlock();
+  m_resource_limits.check();
+  if (!locked)
+    mt_mem_manager_unlock();
 }
 
 void
-Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
+Ndbd_mem_manager::alloc_pages(Uint32 type,
+                              Uint32* i,
+                              Uint32 *cnt,
+                              Uint32 min,
+                              AllocZone zone,
+                              bool locked)
 {
   Uint32 idx = type & RG_MASK;
-  assert(idx && idx < XX_RL_COUNT);
-  mt_mem_manager_lock();
-  Resource_limit tot = m_resource_limit[0];
-  Resource_limit rl = m_resource_limit[idx];
+  assert(idx && idx <= MM_RG_COUNT);
+  if (!locked)
+    mt_mem_manager_lock();
 
   Uint32 req = *cnt;
-
-  Uint32 max = rl.m_max - rl.m_curr;
-  Uint32 res0 = rl.m_min - rl.m_curr;
-  Uint32 free_shared = tot.m_max - (tot.m_min + tot.m_curr);
-
-  Uint32 res1;
-  if (rl.m_curr + req <= rl.m_min)
+  const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
+  if (free_res < req)
   {
-    // all is reserved...
-    res0 = req;
-    res1 = 0;
-  }
-  else
-  {
-    req = rl.m_max ? max : req;
-    res0 = (rl.m_curr > rl.m_min) ? 0 : res0;
-    res1 = req - res0;
-    
-    if (unlikely(res1 > free_shared))
+    const Uint32 free = m_resource_limits.get_resource_free(idx);
+    if (free < req)
     {
-      res1 = free_shared;
-      req = res0 + res1;
+      req = free;
+    }
+    const Uint32 free_shr = m_resource_limits.get_free_shared();
+    if (free_shr + free_res < req)
+    {
+      req = free_shr + free_res;
+    }
+    if (req < min)
+    {
+      *cnt = 0;
+      if (!locked)
+        mt_mem_manager_unlock();
+      return;
     }
   }
 
-  // req = pages to alloc
-  // res0 = portion that is reserved
-  // res1 = part that is over reserver
-  assert (res0 + res1 == req);
-  assert (tot.m_min >= res0);
-  
-  if (likely(req))
+  // Hi order allocations can always use any zone
+  alloc(zone, i, &req, min);
+  const Uint32 spare_taken = m_resource_limits.post_alloc_resource_pages(idx, req);
+  if (spare_taken > 0)
   {
-    // Hi order allocations can always use any zone
-    alloc(NDB_ZONE_ANY, i, &req, min); 
-    * cnt = req;
-    if (unlikely(req < res0)) // Got less than what was reserved :-(
-    {
-      res0 = req;
-    }
-    assert(tot.m_min >= res0);
-    assert(tot.m_curr + req <= tot.m_max);
-    
-    m_resource_limit[0].m_curr = tot.m_curr + req;
-    m_resource_limit[0].m_min = tot.m_min - res0;
-    m_resource_limit[idx].m_curr = rl.m_curr + req;
-    check_resource_limits(m_resource_limit);
+    req -= spare_taken;
+    release(*i + req, spare_taken);
+  }
+  if (0 < req && req < min)
+  {
+    release(*i, req);
+    m_resource_limits.post_release_resource_pages(idx, req);
+    req = 0;
+  }
+  * cnt = req;
+  m_resource_limits.check();
+  if (!locked)
     mt_mem_manager_unlock();
-#ifdef NDBD_RANDOM_START_PAGE
-    *i += g_random_start_page_id;
-#endif
-    return ;
-  }
-  mt_mem_manager_unlock();
-  *cnt = req;
 #ifdef NDBD_RANDOM_START_PAGE
   *i += g_random_start_page_id;
 #endif
-  return;
 }
 
 void
-Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
+Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
 {
   Uint32 idx = type & RG_MASK;
-  assert(idx && idx < XX_RL_COUNT);
-  mt_mem_manager_lock();
-  Resource_limit tot = m_resource_limit[0];
-  Resource_limit rl = m_resource_limit[idx];
+  assert(idx && idx <= MM_RG_COUNT);
+  if (!locked)
+    mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
   i -= g_random_start_page_id;
 #endif
 
   release(i, cnt);
-
-  Uint32 currnew = rl.m_curr - cnt;
-  if (rl.m_curr > rl.m_min)
-  {
-    if (currnew < rl.m_min)
-    {
-      m_resource_limit[0].m_min = tot.m_min + (rl.m_min - currnew);
-    }
-  }
-  else
-  {
-    m_resource_limit[0].m_min = tot.m_min + cnt;
-  }
-  m_resource_limit[0].m_curr = tot.m_curr - cnt;
-  m_resource_limit[idx].m_curr = currnew;
-  check_resource_limits(m_resource_limit);
-  mt_mem_manager_unlock();
+  m_resource_limits.post_release_resource_pages(idx, cnt);
+  m_resource_limits.check();
+  if (!locked)
+    mt_mem_manager_unlock();
 }
 
 #ifdef UNIT_TEST
 
 #include <Vector.hpp>
+#include <NdbHost.h>
 
 struct Chunk {
   Uint32 pageId;
@@ -1160,6 +1267,7 @@ main(int argc, char** argv)
   rl.m_min = 0;
   rl.m_max = sz;
   rl.m_curr = 0;
+  rl.m_spare = 0;
   rl.m_resource_id = 0;
   mem.set_resource_limit(rl);
   rl.m_min = sz < 16384 ? sz : 16384;
@@ -1169,7 +1277,7 @@ main(int argc, char** argv)
   
   mem.init(NULL);
   mem.dump();
-  printf("pid: %d press enter to continue\n", getpid());
+  printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
   fgets(buf, sizeof(buf), stdin);
   Vector<Chunk> chunks;
   time_t stop = time(0) + run_time;

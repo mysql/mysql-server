@@ -1,13 +1,13 @@
 set default_storage_engine=innodb;
 # Verify that the client can show JSON data and metadata.
-CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL);
+CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL) CHARSET utf8mb4;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `i` int(11) DEFAULT NULL,
   `j1` json DEFAULT NULL,
   `j2` json NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t VALUES
 (0, NULL, 'null'),
 (1, '1', '1'),

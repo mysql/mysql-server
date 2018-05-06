@@ -1,5 +1,3 @@
---source include/have_partition.inc
---source include/have_innodb.inc
 
 SET @old_autocommit = @@global.autocommit;
 SET @@global.autocommit = 0;

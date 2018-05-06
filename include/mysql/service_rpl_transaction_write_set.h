@@ -1,13 +1,20 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -41,25 +48,20 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   This structure is used to keep the list of the hash values of the records
   changed in the transaction.
 */
-struct st_trans_write_set
-{
-  unsigned int m_flags; // reserved
-  unsigned long write_set_size; // Size of the PKE set of the transaction.
-  unsigned long long* write_set;  // A pointer to the PKE set.
+struct Transaction_write_set {
+  unsigned int m_flags;           // reserved
+  unsigned long write_set_size;   // Size of the PKE set of the transaction.
+  unsigned long long *write_set;  // A pointer to the PKE set.
 };
-typedef struct st_trans_write_set Transaction_write_set;
 
-extern struct transaction_write_set_service_st {
-  Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
-} *transaction_write_set_service;
+extern "C" struct transaction_write_set_service_st {
+  Transaction_write_set *(*get_transaction_write_set)(
+      unsigned long m_thread_id);
+} * transaction_write_set_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -68,12 +70,8 @@ extern struct transaction_write_set_service_st {
 
 #else
 
-Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #define MYSQL_SERVICE_TRANSACTION_WRITE_SET_INCLUDED

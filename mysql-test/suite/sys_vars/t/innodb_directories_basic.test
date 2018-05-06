@@ -1,0 +1,20 @@
+# Can only be set from the command line.
+# show the global and session values;
+
+--echo Valid values are semi-colon separated strings
+select @@global.innodb_directories;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_directories;
+show global variables like 'innodb_directories';
+show session variables like 'innodb_directories';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_directories';
+select * from performance_schema.session_variables where variable_name='innodb_directories';
+--enable_warnings
+
+# Show that it's read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_directories='a;b;c';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_directories=1;
+

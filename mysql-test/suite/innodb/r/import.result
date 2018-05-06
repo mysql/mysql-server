@@ -26,7 +26,7 @@ t1	CREATE TABLE `t1` (
   KEY `ind1` (`c1`(5),`c2`,`c3`),
   KEY `ind2` (`c3`,`c1`(10),`c2`),
   KEY `ind3` (`c2`,`c3`,`c1`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1;
 c1	c2	c3
 Test Data -1	Test Data -2	Test Data -3
@@ -49,7 +49,7 @@ t1	CREATE TABLE `t1` (
   KEY `ind1` (`c1`(5),`c2`,`c3`),
   KEY `ind2` (`c3`,`c1`(10),`c2`),
   KEY `ind3` (`c2`,`c3`,`c1`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1;
 c1	c2	c3
 Test Data -1	Test Data -2	Test Data -3

@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.1.err --log-error-verbosity=3

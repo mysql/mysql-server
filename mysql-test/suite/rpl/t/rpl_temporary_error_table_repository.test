@@ -59,9 +59,10 @@ while ($retry_number < 2)
 
   # Notice the status var accumulates retries over the loop
   --let $retry_counted = `SELECT $retry_counted + $retry_number`
-  --let $status_var = Slave_retried_transactions
-  --let $status_var_value = $retry_counted
-  --source include/wait_for_status_var.inc
+  --let $status_col = count_transactions_retries
+  --let $status_col_value = $retry_counted
+  --let $table = replication_applier_status
+  --source include/wait_for_rpl_pfs_status.inc
 
   --echo ### Timeout error is expected ###
 
@@ -78,10 +79,12 @@ ROLLBACK;
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
+--disable_warnings
 SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout ;
+--enable_warnings
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

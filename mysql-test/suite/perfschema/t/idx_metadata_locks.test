@@ -1,0 +1,75 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = LOCK_TYPE;
+let $table = performance_schema.metadata_locks;
+
+connect(con1, localhost, root,,);
+
+--echo # Connection con1
+--connection con1
+create database explain_test_db;
+create table explain_test_db.explain_test_table(a int);
+lock table explain_test_db.explain_test_table write;
+
+--echo # Connection default
+--connection default
+
+select OBJECT_INSTANCE_BEGIN, OWNER_THREAD_ID, OWNER_EVENT_ID
+   from performance_schema.metadata_locks
+   where OBJECT_TYPE = 'TABLE'
+   and OBJECT_SCHEMA = 'explain_test_db'
+   and OBJECT_NAME = 'explain_test_table'
+   and LOCK_STATUS = 'GRANTED'
+   into @oib, @o_tid, @o_eid;
+
+# Make sure we found the metadata lock to test.
+select @oib is not null, @o_tid is not null, @o_eid is not null;
+
+###########################################################################
+# Test index on OBJECT_INSTANCE_BEGIN
+###########################################################################
+
+let $column_count = 1;
+let $col1 = OBJECT_INSTANCE_BEGIN;
+let $col1_act = @oib;
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
+###########################################################################
+
+let $column_count = 4;
+let $col1 = OBJECT_TYPE;
+let $col2 = OBJECT_SCHEMA;
+let $col3 = OBJECT_NAME;
+let $col4 = COLUMN_NAME;
+let $col1_act = "TABLE";
+let $col2_act = "explain_test_db";
+let $col3_act = "explain_test_table";
+let $col4_act = "a";
+
+--source ../include/idx_explain_test.inc
+
+###########################################################################
+# Test index on OWNER_THREAD_ID, OWNER_EVENT_ID
+###########################################################################
+
+let $column_count = 2;
+let $col1 = OWNER_THREAD_ID;
+let $col2 = OWNER_EVENT_ID;
+let $col1_act = @o_tid;
+let $col2_act = @o_eid;
+
+--source ../include/idx_explain_test.inc
+
+--echo # Connection con1
+--connection con1
+unlock tables;
+drop table explain_test_db.explain_test_table;
+drop database explain_test_db;
+
+--echo # Connection default
+--connection default
+--disconnect con1

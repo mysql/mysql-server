@@ -112,7 +112,7 @@ DROP TABLE t2;
 CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 a	b	c	d
 10	10	10	NULL
 SHOW SESSION STATUS LIKE 'Sort%';
@@ -131,7 +131,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
-DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -160,7 +160,7 @@ CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 a	b	c	d
 10	10	10	NULL
 10	10	10	NULL
@@ -169,6 +169,11 @@ a	b	c	d
 10	10	10	NULL
 10	10	10	NULL
 10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -180,12 +185,12 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	6
+Handler_read_next	11
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -197,14 +202,14 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	6
+Handler_read_next	11
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-## should be 7 (previous LIMIT)
+## should be 12 (previous LIMIT)
 SELECT 677 - COUNT(*) FROM t2 WHERE b = 10;
 677 - COUNT(*)
-7
+12
 DROP TABLE t2;
 #
 # as above + partial index, should use filesort
@@ -322,11 +327,10 @@ Handler_read_next	7
 Handler_read_prev	0
 Handler_read_rnd	4
 Handler_read_rnd_next	0
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 x	x	x	NULL	x	x	x	x	x	x	x	Using sort_union(key1,key2); Using where; Using filesort
 Warnings:
-x	x	x
 x	x	x
 FLUSH STATUS;
 DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -347,11 +351,10 @@ Handler_read_rnd	8
 Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 i	key1	key2
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 x	x	x	NULL	x	x	x	x	x	x	x	Using sort_union(key1,key2); Using where; Using filesort
 Warnings:
-x	x	x
 x	x	x
 DROP TABLE t2;
 #
@@ -666,7 +669,7 @@ DROP TABLE t2;
 CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 a	b	c	d
 10	10	10	NULL
 SHOW SESSION STATUS LIKE 'Sort%';
@@ -685,7 +688,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
-UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 7;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -714,7 +717,7 @@ CREATE TABLE t2(a INT, b INT, c INT, d INT, INDEX(a, b, c));
 INSERT INTO t2 (a, b, c) SELECT i, i, i FROM t1;
 INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 7;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
 a	b	c	d
 10	10	10	NULL
 10	10	10	NULL
@@ -723,6 +726,11 @@ a	b	c	d
 10	10	10	NULL
 10	10	10	NULL
 10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
+10	10	10	NULL
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -734,12 +742,12 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	6
+Handler_read_next	11
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 7;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 12;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -751,14 +759,14 @@ Variable_name	Value
 Handler_read_first	1
 Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	6
+Handler_read_next	11
 Handler_read_prev	0
-Handler_read_rnd	7
+Handler_read_rnd	12
 Handler_read_rnd_next	0
-## should be 7 (previous LIMIT)
+## should be 12 (previous LIMIT)
 SELECT COUNT(*) FROM t2 WHERE b = 10 AND d = 10 ORDER BY a, c;
 COUNT(*)
-7
+12
 DROP TABLE t2;
 #
 # as above + partial index, should use filesort
@@ -878,11 +886,10 @@ Handler_read_next	7
 Handler_read_prev	0
 Handler_read_rnd	4
 Handler_read_rnd_next	0
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 x	x	x	NULL	x	x	x	x	x	x	x	Using sort_union(key1,key2); Using where; Using filesort
 Warnings:
-x	x	x
 x	x	x
 FLUSH STATUS;
 UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -907,11 +914,10 @@ i	key1	key2
 123	11	11
 123	12	12
 123	13	13
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 x	x	x	NULL	x	x	x	x	x	x	x	Using sort_union(key1,key2); Using where; Using filesort
 Warnings:
-x	x	x
 x	x	x
 DROP TABLE t2;
 #

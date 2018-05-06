@@ -1,8 +1,9 @@
 --source include/load_sysvars.inc
 
 --echo #
---echo # WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+--echo # WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
 --echo #
+
 
 --echo #############################################################
 --echo #                 Save initial value                        #
@@ -89,7 +90,7 @@ SET @@global.transaction_read_only = test;
 SET @@session.transaction_read_only = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.transaction_read_only = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.transaction_read_only = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.transaction_read_only = 'OFN';
@@ -112,7 +113,7 @@ SELECT @@session.transaction_read_only;
 
 --disable_warnings
 SELECT IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='transaction_read_only';
 --enable_warnings
 
@@ -122,7 +123,7 @@ WHERE VARIABLE_NAME='transaction_read_only';
 
 --disable_warnings
 SELECT IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='transaction_read_only';
 --enable_warnings
 

@@ -1,4 +1,3 @@
-source include/have_innodb.inc;
 source include/have_log_bin.inc;
 
 #
@@ -17,18 +16,18 @@ set @@global.master_verify_checksum = 1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 reset master;
---echo must be master-bin.000001
+--echo must be binlog.000001
 --source include/show_binary_logs.inc
 
 create table t1 (a int);
 flush logs;
-copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved;
+copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.saved;
 drop table t1;
 
 # Reset GTIDs
 RESET MASTER;
 
---exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/master-bin.saved | $MYSQL
+--exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/binlog.saved | $MYSQL
 --source include/show_binlog_events.inc
 show tables;
 
@@ -37,6 +36,6 @@ show tables;
 drop table t1;
 set @@global.binlog_checksum = @save_binlog_checksum;
 set @@global.master_verify_checksum = @save_master_verify_checksum;
---remove_file $MYSQLD_DATADIR/master-bin.saved
+--remove_file $MYSQLD_DATADIR/binlog.saved
 
 --echo End of the tests

@@ -634,12 +634,14 @@ Jack
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
 extractvalue('<a>Jack</a>','/a[contains(../a,"j")]')
 Jack
+set names latin1;
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin)
 
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]')
 
+set names utf8mb4;
 select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
 ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1')
 test
@@ -680,6 +682,8 @@ ERROR HY000: XPATH syntax error: ''
 select extractValue('<e><a>1</a></e>','/e/');
 ERROR HY000: XPATH syntax error: ''
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r');
 extractValue('<Ñ><r>r</r></Ñ>','/Ñ/r')
 r
@@ -698,9 +702,13 @@ BEGIN
 DECLARE p LONGTEXT CHARACTER SET UTF8 DEFAULT '<Ñ><r>A</r></Ñ>';
 SELECT EXTRACTVALUE(p,'/Ñ/r');
 END//
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2();
 EXTRACTVALUE(p,'/Ñ/r')
 A
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE p2;
 select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
 extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)')
@@ -892,8 +900,6 @@ select ExtractValue('<a><self>test</self></a>', '/a/self');
 ExtractValue('<a><self>test</self></a>', '/a/self')
 test
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @i=1;
 select ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]')
@@ -994,20 +1000,20 @@ CALL spxml('<a><b>b1</b><b>b2</b></a>', '1 and string');
 ExtractValue(xml,'/a/b[$i]')
 b1
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
-Warning	1292	Truncated incorrect INTEGER value: '1 and string    '
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string and 1');
 ExtractValue(xml,'/a/b[$i]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1    '
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
 CALL spxml('<a><b>b1</b><b>b2</b></a>', 'string');
 ExtractValue(xml,'/a/b[$i]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string          '
-Warning	1292	Truncated incorrect INTEGER value: 'string          '
+Warning	1292	Truncated incorrect INTEGER value: 'string'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
 DROP PROCEDURE spxml;
 SET sql_mode = default;
 select UpdateXML('<a>a</a>',repeat('a b ',1000),'');
@@ -1101,6 +1107,8 @@ DROP TABLE t1;
 # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
 REPLACE(EXTRACTVALUE('1', '/a'),'ds','')
 
@@ -1124,10 +1132,13 @@ SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1');
 UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1')
 NULL
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 2: END-OF-INPUT unexpected (ident or '/' wanted)'
 SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
 UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1')
 NULL
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
 #
@@ -1173,8 +1184,10 @@ aa bb
 #              ASSERTION `SRC' FAILED
 #
 set names utf8;
-do weight_string(extractvalue('','/*/a') level 1 reverse);
-do char((weight_string(extractvalue((''),('tX')) level 7 desc)) using cp852);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+do weight_string(extractvalue('','/*/a'));
+do char((weight_string(extractvalue((''),('tX')))) using cp852);
 set names default;
 #
 # Bug#22552615 EXTRACTVALUE RETURNS NULL WHEN NO MATCHING

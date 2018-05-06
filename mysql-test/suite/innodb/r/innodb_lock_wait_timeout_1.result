@@ -68,22 +68,11 @@ drop table t1, t2;
 #
 # Bug#41756 Strange error messages about locks from InnoDB
 #
-drop table if exists t1;
-# In the default transaction isolation mode, and/or with
-# innodb_locks_unsafe_for_binlog=OFF, handler::unlock_row()
-# in InnoDB does nothing.
-# Thus in order to reproduce the condition that led to the
-# warning, one needs to relax isolation by either
-# setting a weaker tx_isolation value, or by turning on
-# the unsafe replication switch.
-# For testing purposes, choose to tweak the isolation level,
-# since it's settable at runtime, unlike
-# innodb_locks_unsafe_for_binlog, which is
-# only a command-line switch.
-#
-set @@session.tx_isolation="read-committed";
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# In the default transaction isolation mode, ha_innodb::unlock_row()
+# does nothing.  Thus in order to reproduce the condition
+# that led to the warning, one needs to relax isolation by
+# setting a weaker transaction_isolation value
+set @@session.transaction_isolation="read-committed";
 # Prepare data. We need a table with a unique index,
 # for join_read_key to be used. The other column
 # allows to control what passes WHERE clause filter.
@@ -374,9 +363,7 @@ delete from t1 where a=3;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Switching to connection default
 commit;
-set @@session.tx_isolation=default;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+set @@session.transaction_isolation=default;
 drop table t1;
 #
 # End of 5.1 tests

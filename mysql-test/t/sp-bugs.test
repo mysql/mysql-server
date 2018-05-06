@@ -368,3 +368,51 @@ delimiter ;|
 SELECT fn1();
 DROP FUNCTION fn1;
 SET sql_mode= default;
+
+--echo #
+--echo # Bug#24401273: PROBLEM WITH STORED FUNCTION WHICH GENERATES
+--echo #               BIGINT UNSIGNED USED IN WHERE CLAUSE
+--echo #
+--echo # Note: The AND TRUE is to work around Bug #24457368.
+--echo #
+
+CREATE FUNCTION crc(_text TEXT) RETURNS BIGINT(20) UNSIGNED DETERMINISTIC
+  RETURN CONV(LEFT(MD5(_text),16),16,10);
+
+CREATE TABLE t1 (
+  id bigint(20) UNSIGNED NOT NULL
+);
+
+INSERT INTO t1 (id) VALUES (crc('photos'));
+INSERT INTO t1 (id) VALUES (crc('photos1'));
+
+ALTER TABLE t1 ADD INDEX idx (id);
+
+SELECT * FROM t1 FORCE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+SELECT * FROM t1 IGNORE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+
+DROP FUNCTION crc;
+DROP TABLE t1;
+
+--echo # Bug#25398451: Segmentation fault in prepare_inner() at sql_call.cc
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+
+DELIMITER |;
+
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+     CALL proc(NEW.a,NEW.b);
+END |
+
+CREATE PROCEDURE proc(IN aa INTEGER)
+BEGIN
+END |
+
+DELIMITER ;|
+
+--error ER_SP_WRONG_NO_OF_ARGS
+INSERT INTO t1 VALUES (1,10);
+
+DROP PROCEDURE proc;
+DROP TABLE t1;

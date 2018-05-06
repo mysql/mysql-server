@@ -1,0 +1,62 @@
+--echo # Verify that restarting the server in --read-only mode skips
+--echo # re-populating character sets and collations. Also verify the
+--echo # same for --innodb-read-only.
+
+--echo # 1. Server restart with --read-only:
+
+--echo # 1.1 Request shutdown and wait for disconnect.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--send_shutdown
+--source include/wait_until_disconnected.inc
+
+--echo # 1.2 Restart the server with --read-only and wait for reconnect.
+--exec echo "restart:--read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # 1.3 Search for, and suppress, the expected warning in the log file.
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skip re-populating collations and character sets tables in read-only mode.
+--source include/search_pattern.inc
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+
+--echo # 2. Server restart with --innodb-read-only:
+
+--echo # 2.1 Request shutdown and wait for disconnect.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--send_shutdown
+--source include/wait_until_disconnected.inc
+
+--echo # 2.2 Restart the server with --innodb-read-only and wait for reconnect.
+--exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # 2.3 Search for, and suppress, the expected warning in the log file.
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skip re-populating collations and character sets tables in InnoDB read-only mode.
+--source include/search_pattern.inc
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skip updating information_schema metadata in InnoDB read-only mode.
+--source include/search_pattern.inc
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skipped updating resource group metadata in InnoDB read only mode.
+# Just suppress this pattern. On MacOS resource groups are unsupported.
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+
+--echo # 3. Clean server restart.
+
+--echo # 3.1 Request shutdown and wait for disconnect.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--send_shutdown
+--source include/wait_until_disconnected.inc
+
+--echo # 3.2 Restart the server with no additional options.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect

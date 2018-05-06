@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,6 +24,9 @@
 
 #include <ndb_global.h>
 #include "tuppage.hpp"
+#include "EventLogger.hpp"
+
+extern EventLogger *g_eventLogger;
 
 #define JAM_FILE_ID 427
 
@@ -34,33 +44,46 @@
  *              L is len of entry
  *              P is pos of entry
  */
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#define loc_assert(x) \
+{ \
+  if (!(x)) \
+  { \
+    g_eventLogger->info("Crash on page_idx = %u", page_idx); \
+    require((x)); \
+  } \
+}
+#define use_assert
+#else
+#define loc_assert(x)
+#endif
 
 Uint32
 Tup_fixsize_page::alloc_record()
 {
-  assert(free_space);
   Uint32 page_idx = next_free_index;
-  assert(page_idx + 1 < DATA_WORDS);
+  loc_assert(free_space);
+  loc_assert(page_idx + 1 < DATA_WORDS);
 
-#ifdef VM_TRACE
+#ifdef use_assert
   Uint32 prev = m_data[page_idx] >> 16;
 #endif
   Uint32 next = m_data[page_idx] & 0xFFFF;
 
-  assert(prev == 0xFFFF);
-  assert(m_data[page_idx + 1] == FREE_RECORD);
+  loc_assert(prev == 0xFFFF);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD);
   
-  m_data[page_idx + 1] = 0;
+  m_data[page_idx + 1] &= (Uint32)~FREE_RECORD;
   if (next != 0xFFFF)
   {
-    assert(free_space > 1);
+    loc_assert(free_space > 1);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == page_idx);
+    loc_assert((nextP >> 16) == page_idx);
     m_data[next] = 0xFFFF0000 | (nextP & 0xFFFF);
   }
   else
   {
-    assert(free_space == 1);
+    loc_assert(free_space == 1);
   }
   
   next_free_index = next;
@@ -71,13 +94,14 @@ Tup_fixsize_page::alloc_record()
 Uint32
 Tup_fixsize_page::alloc_record(Uint32 page_idx)
 {
-  assert(page_idx + 1 < DATA_WORDS);
-  if (likely(free_space && m_data[page_idx + 1] == FREE_RECORD))
+  loc_assert(page_idx + 1 < DATA_WORDS);
+  if (likely(free_space &&
+             (m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD))
   {
     Uint32 prev = m_data[page_idx] >> 16;
     Uint32 next = m_data[page_idx] & 0xFFFF;
     
-    assert(prev != 0xFFFF || (next_free_index == page_idx));
+    loc_assert(prev != 0xFFFF || (next_free_index == page_idx));
     if (prev == 0xFFFF)
     {
       next_free_index = next;
@@ -94,7 +118,7 @@ Tup_fixsize_page::alloc_record(Uint32 page_idx)
       m_data[next] = (prev << 16) | (nextP & 0xFFFF);
     }
     free_space --;
-    m_data[page_idx + 1] = 0;
+    m_data[page_idx + 1] &= (Uint32)~FREE_RECORD;
     return page_idx;
   }
   return ~0;
@@ -105,26 +129,26 @@ Tup_fixsize_page::free_record(Uint32 page_idx)
 {
   Uint32 next = next_free_index;
   
-  assert(page_idx + 1 < DATA_WORDS);
-  assert(m_data[page_idx + 1] != FREE_RECORD);
+  loc_assert(page_idx + 1 < DATA_WORDS);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) != FREE_RECORD);
 
   if (next == 0xFFFF)
   {
-    assert(free_space == 0);
+    loc_assert(free_space == 0);
   }
   else
   {
-    assert(free_space);
-    assert(next + 1 < DATA_WORDS);
+    loc_assert(free_space);
+    loc_assert(next + 1 < DATA_WORDS);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == 0xFFFF);
+    loc_assert((nextP >> 16) == 0xFFFF);
     m_data[next] = (page_idx << 16) | (nextP & 0xFFFF);
-    assert(m_data[next + 1] == FREE_RECORD);
+    loc_assert((m_data[next + 1] & FREE_RECORD) == FREE_RECORD);
   }
 
   next_free_index = page_idx;
   m_data[page_idx] = 0xFFFF0000 | next;
-  m_data[page_idx + 1] = FREE_RECORD;
+  m_data[page_idx + 1] |= FREE_RECORD;
   
   return ++free_space;
 }
@@ -238,7 +262,7 @@ Tup_varsize_page::alloc_record(Uint32 page_idx, Uint32 alloc_size,
       
       * ptr++ = insert_pos + (alloc_size << LEN_SHIFT);
       * ptr = ((* ptr) & ~PREV_MASK) | (END_OF_FREE_LIST << PREV_SHIFT);
-      
+
       next_free_index = hi - 1;
     }
     high_index = hi + 1;
@@ -282,7 +306,8 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
     assert((get_index_word(page_idx) & FREE) == FREE);
     assert(((get_index_word(page_idx) & PREV_MASK) >> PREV_SHIFT) == 
 	   END_OF_FREE_LIST);
-    next_free_index= (get_index_word(page_idx) & NEXT_MASK) >> NEXT_SHIFT;
+    Uint32 next = (get_index_word(page_idx) & NEXT_MASK) >> NEXT_SHIFT;
+    next_free_index = next;
     assert(next_free_index);
     if (next_free_index != END_OF_FREE_LIST)
     {
@@ -311,7 +336,7 @@ Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
   Uint32 entry_len= (index_word & LEN_MASK) >> LEN_SHIFT;
   assert(chain == 0 || chain == CHAIN);
   assert((index_word & CHAIN) == chain);
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   memset(m_data + entry_pos, 0xF2, 4*entry_len);
 #endif
   if (page_idx + 1 == high_index) {

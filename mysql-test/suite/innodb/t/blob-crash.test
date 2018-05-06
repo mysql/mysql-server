@@ -1,9 +1,7 @@
---source include/not_embedded.inc
 --source include/not_crashrep.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES
@@ -131,7 +129,7 @@ let crash = $args --innodb-force-recovery-crash;
 --exec $MYSQLD_CMD $crash=99
 
 let SEARCH_PATTERN = innodb_force_recovery_crash=99;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --source include/start_mysqld.inc
 

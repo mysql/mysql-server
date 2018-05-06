@@ -3,21 +3,20 @@
 #
 # Show InnoDB related content in performance_schema.threads
 
---source include/not_embedded.inc
---source include/have_innodb.inc
---source include/have_perfschema.inc
-
 --source include/turn_off_only_full_group_by.inc
 
 # There are several InnoDB io_handler_threads servicing for read IO, write IO etc.
 # The number of these threads is at least for some types configurable.
 # We suppress here duplicates rows with the goal to avoid that the test fails
 # in case some defaults are changed.
+# Also 'thread/innodb/trx_recovery_rollback_thread' is disabled explicitly
+# because it's a short life thread which results in result mismatch sporadically
 SELECT name, type, processlist_user, processlist_host, processlist_db,
-       processlist_command, processlist_time, processlist_state, processlist_info,
-       parent_thread_id, role, instrumented
+       processlist_command, processlist_state, processlist_info,
+       parent_thread_id, `role`, instrumented
 FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
+AND name NOT LIKE 'thread/innodb/trx\_recovery\_rollback\_thread'
 GROUP BY name;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

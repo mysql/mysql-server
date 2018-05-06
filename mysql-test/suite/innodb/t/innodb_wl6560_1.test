@@ -2,9 +2,6 @@
 # WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
 #
 
---source include/have_innodb.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
@@ -56,15 +53,15 @@ let $MYSQL_TMP_DIR = `select @@tmpdir`;
 #    c) alter inplace/copy on temp table
 SELECT @@global.innodb_file_per_table;
 --replace_column 1 NUM
-SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
+SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ibtmp1*
 
---echo # check no entries made INNODB_SYS_DATAFILES
-SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
+--echo # check no entries made INNODB_DATAFILES
+SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
 
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
 REPEAT('a1',50));

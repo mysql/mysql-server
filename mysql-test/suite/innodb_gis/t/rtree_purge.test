@@ -1,10 +1,7 @@
 # This test case will test R-tree purge.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 # Valgrind takes too much time on PB2 even in the --big-test runs.
@@ -12,16 +9,11 @@
 
 # Temporarily disable it for 4k page size. Since it'll take too long
 # time.
---disable_warnings
-if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value = 4096`)
-{
-  --skip Test requires InnoDB with not 4k Page size.
-}
---enable_warnings
+--source include/not_have_innodb_4k.inc
 
 create table t (
-  a point not null,b point not null,c point,
-  d point not null,e point,f point,
+  a point not null,b point not null SRID 0,c point,
+  d point not null SRID 0,e point,f point,
   spatial key (d),spatial key (b)
 ) engine=innodb;
 

@@ -1,4 +1,4 @@
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 
 --echo #
 --echo # Bug#20693153 : ACCESS DENIED WITH SSL CONNECTION FROM MYSQL CLIENT
@@ -7,7 +7,7 @@
 connection default;
 CREATE USER u_20693153@localhost IDENTIFIED BY 'abcd';
 
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL --protocol=TCP -uu_20693153 -pabcd --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem -e "SHOW STATUS LIKE 'Ssl_cipher';"
 
 DROP USER u_20693153@localhost;

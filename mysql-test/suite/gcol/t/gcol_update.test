@@ -1,7 +1,4 @@
 --source include/have_debug.inc
---source include/have_innodb.inc
-# The embedded server does not support restarting.
---source include/not_embedded.inc
 
 set global innodb_purge_stop_now = 1;
 

@@ -11,24 +11,25 @@
 # Test spatial index with table have no auto_increment
 # Test spatial index with check constraint
 # **********************************************************
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
---source include/have_geometry.inc
-
 
 # Check spatial index functionality on compress table with Primary key
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
+CREATE SPATIAL INDEX idx1 on tab(c2);
+--error ER_WRONG_USAGE
+CREATE SPATIAL INDEX idx2 on tab(c3 ASC) COMMENT 'wl6968';
+--error ER_WRONG_USAGE
 CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=8 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4 
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=8 ;
+--error ER_WRONG_USAGE
+CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=4
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -401,18 +402,19 @@ DROP PROCEDURE proc_wl6968;
 # End of Testcase compress table with Primary key
 
 # Check spatial index functionality on compress table No Primary key
-CREATE TABLE tab(c1 int ,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int ,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
-CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=2 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=8 
+CREATE SPATIAL INDEX idx1 on tab(c2);
+CREATE SPATIAL INDEX idx2 on tab(c3) COMMENT 'wl6968';
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=2 ;
+CREATE SPATIAL INDEX idx4 on tab(c5) KEY_BLOCK_SIZE=8 
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -773,18 +775,19 @@ DROP PROCEDURE proc_wl6968;
 # End of Testcase compress table No Primary key
 
 # Check spatial index functionality on compress table with auto_increment
-CREATE TABLE tab(c1 int AUTO_INCREMENT PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL) 
+CREATE TABLE tab(c1 int AUTO_INCREMENT PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0) 
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 
 # Check spatial index functionality with Create Index clause options
-CREATE SPATIAL INDEX idx1 on tab(c2 ASC);
-CREATE SPATIAL INDEX idx2 on tab(c3 DESC) COMMENT 'wl6968';
-CREATE SPATIAL INDEX idx3 on tab(c4 ASC) KEY_BLOCK_SIZE=16 ;
-CREATE SPATIAL INDEX idx4 on tab(c5 DESC) KEY_BLOCK_SIZE=16 
+CREATE SPATIAL INDEX idx1 on tab(c2);
+CREATE SPATIAL INDEX idx2 on tab(c3) COMMENT 'wl6968';
+CREATE SPATIAL INDEX idx3 on tab(c4) KEY_BLOCK_SIZE=16 ;
+CREATE SPATIAL INDEX idx4 on tab(c5) KEY_BLOCK_SIZE=16 
 COMMENT 'Spatial index on Geometry type column';
 
 # Check index type
+ANALYZE TABLE tab;
 SHOW INDEXES FROM tab;
 
 # Populate some spatial data
@@ -1118,12 +1121,13 @@ DROP TABLE tab;
 # End of Testcase compress table with Auto_increment 
 
 # Test check constraint on spatial column
-CREATE TABLE tab(c1 POINT NOT NULL,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
+CREATE TABLE tab(c1 POINT NOT NULL SRID 0,CONSTRAINT tab_const check(c1 > 0) ) ENGINE=InnoDB;
 
 CREATE SPATIAL INDEX idx1 ON tab(c1) ;
 
 SHOW CREATE TABLE tab;
 
+ANALYZE TABLE tab;
 SHOW INDEX FROM tab;
 
 set @g1 = ST_GeomFromText('POINT(-1 -2)');
@@ -1134,7 +1138,7 @@ DROP table tab;
 
 # repro case for bug#20451454 - FAILING ASSERTION: LOW_MATCH
 # < DTUPLE_GET_N_FIELDS_CMP(TUPLE)
-create table `t1`(`a` geometry not null,`b` linestring not null,
+create table `t1`(`a` geometry not null SRID 0,`b` linestring not null SRID 0,
 primary key (`b`(192),`a`(141)),spatial key (`b`)) engine=innodb;
 insert into `t1` values(
  point(1,1),
@@ -1154,21 +1158,3 @@ select 1 from t1 where st_intersects(
   geometrycollection(point(1,-1)),b
 );
 drop table t1;
-
-# Reproduce case for updating statistic after droping stats info table.
-CREATE TABLE t1(c1 POINT NOT NULL);
-DROP TABLE mysql.innodb_table_stats;
-CALL mtr.add_suppression("InnoDB: Table `mysql`.`innodb_table_stats` not found.");
-CALL mtr.add_suppression("InnoDB: Fetch of persistent statistics requested for table `test`.`t1` but the required system tables mysql.innodb_table_stats and mysql.innodb_index_stats are not present or have unexpected structure. Using transient stats instead.");
-CREATE SPATIAL INDEX idx2 ON t1(c1);
-
-DROP TABLE t1;
-CREATE TABLE mysql.innodb_table_stats (
-  database_name varchar(64) COLLATE utf8_bin NOT NULL,
-  table_name varchar(64) COLLATE utf8_bin NOT NULL,
-  last_update timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  n_rows bigint(20) unsigned NOT NULL,
-  clustered_index_size bigint(20) unsigned NOT NULL,
-  sum_of_other_index_sizes bigint(20) unsigned NOT NULL,
-  PRIMARY KEY (`database_name`,`table_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;

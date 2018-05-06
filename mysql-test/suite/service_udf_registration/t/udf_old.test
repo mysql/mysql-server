@@ -1,0 +1,85 @@
+# This test serves as rough measurement of performance of old UDF creation to ne registration
+# of UDFs. The other test, being functional equivalent to this is "udf_reg_3 funcs".
+# Run both tests with "mtr --repeat=9 --suite=service_udf_registration udf udf_reg_3_func".
+# Then compare the run time. Register/unregister must not be slower in average than old style.
+# Functional equivalence:
+# - Create/register 3 UDFS
+# - Use them in exactly same way in both tests
+# - DROP/unregister 3 UDFs.
+# - Verify, that they are not more available.
+# - Create/register them again.
+# - Use myfunc_int and myfunc_double.
+# - Drop/unregister myfunc_int.
+# - Use myfunc_int and myfunc_double (int must fail).
+# - Drop/unregister UDFs.
+
+--source include/have_udf.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Create 3 UDFS
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+# Use UDFs in exactly same way in both tests
+--error ER_CANT_INITIALIZE_UDF
+SELECT myfunc_double();
+SELECT myfunc_double(1);
+SELECT myfunc_double(78654);
+SELECT myfunc_int();
+SELECT myfunc_int(5);
+SELECT myfunc_int('MySQL V8.0');
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+SELECT myfunc_int(a AS attr_name) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(sum int, price float(24));
+INSERT INTO t1 VALUES(100, 50.00), (100, 100.00);
+SELECT avgcost(sum, price) from t1;
+DELETE from t1;
+INSERT INTO t1 VALUES(100, 54.33), (200, 199.99);
+SELECT avgcost(sum, price) from t1;
+DROP TABLE t1;
+
+# DROP 3 UDFs.
+DROP FUNCTION myfunc_double;
+DROP FUNCTION myfunc_int;
+DROP FUNCTION avgcost;
+
+# Verify, that they are not more available.
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_double(1);
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_int(1);
+
+# Create them again.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION avgcost RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+# Use myfunc_int and myfunc_double.
+SELECT myfunc_double(78654);
+SELECT myfunc_int(5);
+
+# Drop myfunc_int.
+DROP FUNCTION myfunc_int;
+
+# Use myfunc_int and myfunc_double (int must fail).
+SELECT myfunc_double(78654);
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_int(5);
+
+# Drop UDFs.
+DROP FUNCTION myfunc_double;
+DROP FUNCTION avgcost;

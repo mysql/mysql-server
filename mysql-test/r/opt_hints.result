@@ -42,7 +42,7 @@ f1
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
@@ -99,44 +99,44 @@ Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMA
 # NO_ICP hint testing
 set optimizer_switch='index_condition_pushdown=on';
 EXPLAIN SELECT  f2 FROM
-(SELECT f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
-(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
-(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # Expected warning for f1_idx key, unresolved name.
 EXPLAIN SELECT f2 FROM
-(SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using where
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # ICP should still be used.
 EXPLAIN SELECT f2 FROM
-(SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
-WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+(SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 27 AND f3 = 'poiu') AS TD
+WHERE TD.f1 > 27 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	10	100.00	Using index condition
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
-Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
+Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 27) and (`test`.`t3`.`f1` > 27))
 # BKA & NO_BKA hint testing
 set optimizer_switch=default;
 set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
@@ -152,7 +152,7 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_last	0
 Handler_read_next	4
 Handler_read_prev	0
@@ -469,7 +469,7 @@ EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using index condition; Using MRR
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	16	100.00	Using index condition; Using MRR
 Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
@@ -529,9 +529,6 @@ Handler_read_rnd	4
 Handler_read_rnd_next	4
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
-RESET QUERY CACHE;
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
@@ -548,9 +545,6 @@ Handler_read_next	20
 Handler_read_prev	0
 Handler_read_rnd	4
 Handler_read_rnd_next	4
-RESET QUERY CACHE;
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
@@ -805,7 +799,7 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	3
+Handler_read_key	6
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0
@@ -1353,22 +1347,22 @@ SELECT /*+ `@` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '@` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`@` */ 1' at line 1
 SELECT /*+ `@foo` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '@foo` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`@foo` */ 1' at line 1
 SELECT /*+ `foo@bar` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near 'foo@bar` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`foo@bar` */ 1' at line 1
 SELECT /*+ `foo @bar` */ 1;
 1
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near 'foo @bar` */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '`foo @bar` */ 1' at line 1
 SELECT /*+ BKA( @) */ 1;
 1
 1
@@ -1523,8 +1517,6 @@ Warnings:
 Warning	3127	Query block name `select#1` is not found for BKA hint
 DROP TABLE ` quoted name тест`;
 SET SQL_MODE = 'ANSI_QUOTES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE " quoted name тест" (i INT);
 SELECT /*+ BKA(" quoted name тест") */ 1 FROM t1;
 1
@@ -1580,9 +1572,11 @@ EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1064	Optimizer hint syntax error near '`) */ 1' at line 1
+Warning	1064	Optimizer hint syntax error near '``) */ 1' at line 1
 Note	1003	/* select#1 */ select 1 AS `1`
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT /*+ QB_NAME(`�``�`) */ 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1615,7 +1609,7 @@ Warning	3127	Query block name `таблица` is not found for BKA hint
 SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 1
 Warnings:
-Warning	1064	Optimizer hint syntax error near '?`) */ 1 FROM t1' at line 1
+Warning	1064	Optimizer hint syntax error near '`?`) */ 1 FROM t1' at line 1
 DROP TABLE таблица;
 
 # derived tables and other subqueries:
@@ -1753,6 +1747,413 @@ CALL p1();
 Warnings:
 Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
 DROP PROCEDURE p1;
+#
+# WL#9307 MERGE/NO_MERGE hint for derived table, view
+#
+create table t1(a int);
+explain select * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+# Also testing that case of letters is irrelevant.
+explain select /*+ no_mERge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+create view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+# hint is OVERRIDDEN by algorithm=
+create algorithm=merge view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+drop view v1;
+create algorithm=temptable view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+# hint OVERRIDES optimizer_switch
+set optimizer_switch="derived_merge=off";
+explain select * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+explain select /*+ merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(dt) */ * from (select * from t1) as dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) */ `dt`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt`
+create view v1 as (select * from t1);
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+explain select /*+ merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`v1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1`
+explain select /*+ no_merge(v1) */ * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`v1`@`select#1`) */ `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+set optimizer_switch=default;
+# Can apply to certain derived tables
+create table t2(a int, b int);
+create table t3 like t2;
+explain select /*+ no_merge(dt) merge(dt2) */ *
+from (select * from t1) as dt, (select * from t2) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) MERGE(`dt2`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`
+# Or to all:
+explain select /*+ no_merge() */ *
+from (select * from t1) as dt, (select * from t2) as dt2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(@`select#1`) */ `dt`.`a` AS `a`,`dt2`.`a` AS `a`,`dt2`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`) `dt2`
+# And be specified in outer blocks, with naming:
+explain select /*+ no_merge(dt@qb1) merge(dt2@qb1) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+from (select * from t1) as dt, (select * from t2) as dt2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
+# with another syntax:
+explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
+(select /*+ qb_name(qb1) */ 3
+from (select * from t1) as dt, (select * from t2) as dt2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`qb1`) MERGE(`dt2`@`qb1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select /*+ QB_NAME(`qb1`) */ 3 from (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2`))
+# A hint can list more than one table
+explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
+from (select * from t1) as dt, (select * from t2) as dt2,
+(select * from t3) as dt3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+4	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) NO_MERGE(`dt`@`select#1`) NO_MERGE(`dt3`@`select#1`) */ `dt`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) `dt` join `test`.`t2` join (/* select#4 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3`) `dt3`
+# Merge hint OVERRIDES heuristics, for example the one which
+# materializes when user variables are set.
+explain select * from
+(
+select * from t1
+where (1,a,2) =  (
+select @n:=@n+1, t2.a, sum(t2.b)
+from (select @n:=1) as dt, t2
+group by t2.a
+)
+) as dt2
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	UNCACHEABLE SUBQUERY	<derived4>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `dt2`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))) `dt2`
+explain select /*+ merge(dt2) */ * from
+(
+select * from t1
+where (1,a,2) =  (
+select @n:=@n+1, t2.a, sum(t2.b)
+from (select @n:=1) as dt, t2
+group by t2.a
+)
+) as dt2
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+3	UNCACHEABLE SUBQUERY	<derived4>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))
+# ALGORITHM clause overrides heuristics too
+create view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `v1`.`(select t1.a from t1 where t1.a=t2.a)` AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`v1`
+drop view v1;
+create algorithm=merge view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) AS `(select t1.a from t1 where t1.a=t2.a)` from `test`.`t2`
+drop view v1;
+# Hint for index is useless and should be ignored
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1 limit 1) dt;
+1
+Warnings:
+Warning	3128	Unresolved name `dt`@`select#1` `idx1` for NO_MRR hint
+select /*+ no_mrr(dt idx1) */ * from (select 1 from t1) dt;
+1
+Warnings:
+Warning	3128	Unresolved name `dt`@`select#1` `idx1` for NO_MRR hint
+# Hint for UPDATE
+insert into t1 values(1),(2);
+create view v1 as
+select  * from t1 where a <> 0;
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update /*+ no_merge(v1) */ t3, v1 set t3.a=v1.a+10 where t3.a-v1.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+# Update v1
+delete from t3;
+insert into t3 values(1,1),(2,2);
+delete from t1;
+insert into t1 values(1),(2);
+explain update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+select * from t1;
+a
+11
+12
+delete from t1;
+insert into t1 values(1),(2);
+update /*+ no_merge(v1) */ t3, v1 set v1.a=t3.a+10 where t3.a-v1.a=0;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+select * from t1;
+a
+1
+2
+# A derived table in UPDATE
+delete from t1;
+insert into t1 values(1),(2);
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+update /*+ no_merge(dt) */ t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
+select * from t3;
+a	b
+11	1
+12	2
+# A derived table in first-level subquery of UPDATE, the update
+# target not being in the derived table. Before the WL, the
+# derived table would always be materialized; now it's only
+# heuristic and can be overridden.
+delete from t1;
+insert into t1 values(1),(2);
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t1 where a>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+# A derived table in UPDATE, the update target being in the
+# derived table.
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	NULL
+3	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+update t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+select * from t3;
+a	b
+1	1
+2	NULL
+delete from t3;
+insert into t3 values(1,1),(2,2);
+# The heuristic which materializes, intends to allow the query;
+# if you disable it, the query cannot run:
+update /*+ merge(dt@sub) */ t3 set b=NULL
+where a in (select /*+ qb_name(sub) */ a
+from (select * from t3 where b>1) dt);
+ERROR HY000: You can't specify target table 't3' for update in FROM clause
+select * from t3;
+a	b
+1	1
+2	2
+# DELETE.
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain delete t3.* from t3, v1 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+delete t3.* from t3, v1 where t3.a-v1.a=0;
+select * from t3;
+a	b
+delete from t3;
+insert into t3 values(1,1),(2,2);
+explain delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+delete /*+ no_merge(v1) */ t3.* from t3, v1 where t3.a-v1.a=0;
+select * from t3;
+a	b
+drop view v1;
+drop table t1,t2,t3;
 #
 # Unbalanced commentary test
 #

@@ -1,1 +1,2 @@
---slave-skip-errors=3002
+--slave-skip-errors=13113
+--log-error-verbosity=3

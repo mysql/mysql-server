@@ -57,6 +57,12 @@
 --exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/t/ndb_error_reporter.ini mysql --fs --connection-timeout=1 --skip-nodegroup=0 --dry-scp 2>&1 | grep -v ndb_error_reporter.ini
 
 --echo #######################################################
+--echo Running ndb_error_reporter with a junk config file
+--echo #######################################################
+--replace_regex /2[0-9][0-9][0-9]+/x/
+--exec perl $NDB_ERROR_REPORTER $MYSQL_TEST_DIR/suite/ndb/include/ndb_error_reporter.inc --dry-scp 2>&1 | grep -v ndb_error_reporter.inc | grep -v ERROR
+
+--echo #######################################################
 --echo Cleaning up ndb_error_report_YYYYMMDDHHMMSS.tar.bz2 
 --echo #######################################################
 --remove_files_wildcard $MYSQL_TEST_DIR ndb_error_report_*.tar.bz2

@@ -2,8 +2,6 @@
 --source include/no_valgrind_without_big.inc
 # Some bugs have MyISAM specific tests
 
--- source include/have_ucs2.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -12,11 +10,12 @@ SET @test_character_set= 'ucs2';
 SET @test_collation= 'ucs2_general_ci';
 -- source include/ctype_common.inc
 
+# Ordering below is important, since 'SET CHARACTER SET' implicitly sets
+# character_set_connection to character_set_database.
 SET NAMES latin1;
+SET CHARACTER SET koi8r;
 SET character_set_connection=ucs2;
 -- source include/endspace.inc
-
-SET CHARACTER SET koi8r;
 
 #
 # BUG#49028, error in LIKE with ucs2
@@ -121,7 +120,7 @@ drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 --source include/ctype_like.inc
-
+--character_set koi8r
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
 INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏÌÄÖ'),('æÙ×ÁÐÒÏÌÄÖ'),('Æù×ÁÐÒÏÌÄÖ'),('ÆÙ÷ÁÐÒÏÌÄÖ');
@@ -132,7 +131,7 @@ SELECT * FROM t1 WHERE a LIKE '%Æù×%';
 SELECT * FROM t1 WHERE a LIKE 'Æù×Á%';
 SELECT * FROM t1 WHERE a LIKE 'Æù×Á%' COLLATE ucs2_bin;
 DROP TABLE t1;
-
+--character_set utf8mb4
 #
 # Bug 1181
 #
@@ -342,6 +341,7 @@ execute stmt1 using @ivar;
 # Check that ucs2 works with ENUM and SET type
 #
 set names latin1;
+--character_set latin1
 create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
 insert into t1 values ('x');
@@ -367,6 +367,7 @@ insert into t1 values ('x,y');
 insert into t1 values ('x,y,z,Ä,Ö,Ü');
 select a, hex(a) from t1 order by a;
 drop table t1;
+--character_set utf8mb4
 
 #
 # Bug#7302 UCS2 data in ENUM fields get truncated when new column is added
@@ -542,17 +543,6 @@ DROP TABLE t1,t2;
 #   anyway it is removed.
 # select password(name) from bug20536;
 # select old_password(name) from bug20536;
-
-# Disable test case as encrypt relies on 'crypt' function.
-# "decrypt" is noramlly tested in func_crypt.test which have a
-# "have_crypt.inc" test
---disable_parsing
-# ENCRYPT relies on OS function crypt() which takes a NUL-terminated string; it
-# doesn't return good results for strings with embedded 0 bytes.  It won't be
-# fixed unless we choose to re-implement the crypt() function ourselves to take
-# an extra size_t string_length argument.
-select encrypt(name, 'SALT') from bug20536;
---enable_parsing
 
 # QUOTE doesn't work with UCS2 data.  It would require a total rewrite
 # of Item_func_quote::val_str(), which isn't worthwhile until UCS2 is
@@ -782,12 +772,10 @@ SET sql_mode = default;
 set collation_connection=ucs2_general_ci;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set collation_connection=ucs2_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Bug #36418 Character sets: crash if char(256 using utf32)
@@ -844,3 +832,10 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo # Bug#27419181 UBSAN: MY_STRNTOLL_MB2_OR_MB4 - NAUGHTY NEGATIVES
+--echo #
+
+SELECT CONVERT('-9223372036854775808' USING utf16le) & 0;
+SELECT CONVERT('-9223372036854775808' USING utf8mb4) & 0;

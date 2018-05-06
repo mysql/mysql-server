@@ -2,10 +2,8 @@
 # CREATE TABLESPACE related tests requiring a debug build.
 #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
-# Restarting and killing mysqld is not supported in embedded
---source include/not_embedded.inc
+--source include/not_valgrind.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
@@ -23,6 +21,7 @@ SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # MYSQLD_DATADIR/
 --list_files $MYSQLD_DATADIR/ *.ibd
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE s_def;
 
 --echo #
@@ -104,13 +103,32 @@ SHOW CREATE TABLE tr4;
 DROP TABLE tr1,tr2,tr3,tr4;
 DROP TABLESPACE s1;
 
+
+# Test for WL#5989 Support InnoDB tablespace version in se_private_data of mysql.tablespaces
+# Check every row has version=<num> format , we not extracting exact <num> for comparison.
+# [We are checking version is correct through information_schema.innodb_tablespaces]
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) INTO @dd_tbs_row_cnt FROM mysql.tablespaces;
+SELECT count(*) INTO @matching_dd_tbs_row_cnt FROM mysql.tablespaces WHERE se_private_data RLIKE 'version=[0-9]+;';
+# This should return 1
+SELECT @dd_tbs_row_cnt = @matching_dd_tbs_row_cnt ;
+# Extract version
+SELECT CONCAT(sys.version_major(),".",sys.version_minor(),".",sys.version_patch()) INTO @server_version;
+SELECT count(*) INTO @is_tbs_row_cnt FROM information_schema.innodb_tablespaces;
+# match version in information_schema.innodb_tablespaces and confirm all rows has same version
+SELECT count(*) INTO @matching_is_tbs_row_cnt FROM information_schema.innodb_tablespaces WHERE server_version LIKE CONCAT('%',@server_version,'%');
+# This should return 1
+SELECT @is_tbs_row_cnt = @matching_is_tbs_row_cnt ;
+
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\].* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\].* The error means that another program is using InnoDB's files");
+call mtr.add_suppression("\\[ERROR\\].* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\].* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\].* Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\].* File .*s_def.ibd: 'delete' returned OS error [0-9]*");
+call mtr.add_suppression("\\[ERROR\\].* Failed to delete the datafile of tablespace [0-9]+, file '.*s_def.ibd'!");
+call mtr.add_suppression("\\[ERROR\\].* Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
+call mtr.add_suppression("\\[ERROR\\].* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name '.*test.*t[0-9]+', unable to open file '.*test.*t[0-4]+.ibd' - Data structure corruption");
 --enable_query_log

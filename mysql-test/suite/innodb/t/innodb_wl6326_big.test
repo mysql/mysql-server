@@ -22,15 +22,14 @@
 #
 
 # WL#6326 is about the sx locks (InnoDB feature only).
---source include/have_innodb.inc
 # Runtime properties:
 # Notebook i5 dual core with HT, MySQL binaries compiled with debug,
 #          max_row_count=10000 rows
 # vardir on tmpfs : ~ 375
 # vardir on disk  : ~ 546
+
 --source include/big_test.inc
-# We go with "--send" and "--reap" and that fails with the embedded server.
---source include/not_embedded.inc
+
 # Its intentional to not take the risk that a run with valgrind times out.
 --source include/not_valgrind.inc
 
@@ -192,7 +191,7 @@ CREATE TABLE t1 (
    col_char2 VARCHAR(30),
    col_char3 VARCHAR(30),
    col_char4 VARCHAR(30)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 # Use many indexes with mostly significant size in order to cause
 # some heavy use of sx locks during data generation.

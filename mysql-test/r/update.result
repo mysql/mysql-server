@@ -194,22 +194,22 @@ INSERT INTO t2 VALUES (3,4433,10005,493,500);
 INSERT INTO t2 VALUES (3,4433,10005,492,500);
 UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
 Warnings:
+Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
 Warning	1062	Duplicate entry '3-4433-10005-496' for key 'PRIMARY'
 Warning	1062	Duplicate entry '3-4433-10005-497' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-495' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-494' for key 'PRIMARY'
-Warning	1062	Duplicate entry '3-4433-10005-493' for key 'PRIMARY'
 SELECT * FROM t2;
 colC	colA	colD	colE	colF
+3	4433	10005	492	500
+3	4433	10005	493	500
+3	4433	10005	494	500
 3	4433	10005	495	500
 3	4433	10005	496	500
+3	4433	10005	498	0
 3	4433	10009	495	0
 3	4433	10011	495	0
-3	4433	10005	498	0
 3	4433	10013	490	0
-3	4433	10005	494	500
-3	4433	10005	493	500
-3	4433	10005	492	500
 DROP TABLE t1;
 DROP TABLE t2;
 create table t1 (c1 int, c2 char(6), c3 int);
@@ -278,7 +278,7 @@ a
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -290,46 +290,48 @@ update t1 set b=9999 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	0
+Handler_read_key	4
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	2
-Handler_read_rnd_next	0
+Handler_read_rnd_next	18
 flush status;
 delete from t1 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	0
-Handler_read_last	0
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-flush status;
-delete from t1 order by a desc limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
-Handler_read_last	1
-Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	0
-alter table t1 disable keys;
-flush status;
-delete from t1 order by a limit 1;
-show status like 'handler_read%';
-Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	1
 Handler_read_rnd_next	9
+flush status;
+delete from t1 order by a desc limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_next	8
+alter table t1 disable keys;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+flush status;
+delete from t1 order by a limit 1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	3
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 select * from t1;
 a	b
 0	0
@@ -380,7 +382,7 @@ update t2 set a=3 where a=2;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	1
 Handler_read_prev	0
@@ -393,11 +395,9 @@ update t1 set `*f2`=1;
 drop table t1;
 create table t1(f1 int);
 update t1 set f2=1 order by f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 request_id int unsigned NOT NULL auto_increment,
 user_id varchar(12) default NULL,
@@ -553,8 +553,6 @@ DROP VIEW v1;
 # Bug#54734 assert in Diagnostics_area::set_ok_status
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
 DROP VIEW IF EXISTS v1;
@@ -581,32 +579,33 @@ INSERT INTO t2 SELECT i, i, i, i FROM t1;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	1
+SET @binlog_handler_update= IF(@@global.log_bin AND @@global.binlog_format != 'STATEMENT', 1, 0);
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+1
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	1
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+1
 ROLLBACK;
 Same test with a different UPDATE.
 ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	5
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+5
 ROLLBACK;
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
-SHOW STATUS LIKE 'HANDLER_UPDATE';
-Variable_name	Value
-Handler_update	5
+SELECT VARIABLE_VALUE + @binlog_handler_update FROM performance_schema.session_status WHERE VARIABLE_NAME = 'HANDLER_UPDATE';
+VARIABLE_VALUE + @binlog_handler_update
+5
 ROLLBACK;
 DROP TABLE t1, t2;
 # Bug#18439019 Assert in mysql_multi_update with ordered view
@@ -622,6 +621,10 @@ INSERT INTO t1 VALUES (NULL, 0);
 INSERT INTO t1 SELECT NULL, 0 FROM t1;
 INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -672,9 +675,15 @@ KEY key1 (a,b,c)
 );
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET c = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -688,7 +697,7 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET d = 72 WHERE a = 2 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
@@ -701,9 +710,12 @@ a	b	c	d
 5	6	7	3
 5	7	9	9
 INSERT INTO t1 (a,b,c,d) VALUES (5, 5, 1, 1), (5, 5, 2, 1), (5, 5, 4, 1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	5	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using temporary
 UPDATE t1 SET c = 3 WHERE a = 5 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
@@ -718,22 +730,25 @@ a	b	c	d
 5	5	3	1
 5	5	3	1
 5	5	3	1
-explain UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	key1	key1	5	const	10	100.00	Using where; Using filesort
-UPDATE t1 SET c = 62 WHERE a > 1 ORDER BY b ASC LIMIT 3;
+1	UPDATE	t1	NULL	range	key1	key1	5	const	#	100.00	Using where; Using filesort
+UPDATE t1 SET c = 62 WHERE a > 4 ORDER BY b ASC LIMIT 3;
 SELECT * FROM t1;
 a	b	c	d
 1	1	1	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 INSERT INTO t1 (a,b,c,d) VALUES (1, 1, 1, 4), (2, 2, 2, 5), (2, 3, 4, 7),
 (3, 3, 3, 9), (4, 4, 4, 0), (5, 5, 5, 1), (5, 6, 7, 3), (5, 7, 9, 9);
@@ -742,20 +757,20 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	1	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 1	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -767,20 +782,20 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 UPDATE t1 SET a = 82 ORDER BY b ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	4	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -792,20 +807,20 @@ a	b	c	d
 5	7	9	9
 explain UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	Using filesort
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 UPDATE t1 SET b = 82 ORDER BY d ASC LIMIT 1;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	82	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	1	4
 2	2	2	5
@@ -824,20 +839,20 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	2	100.00	Using temporary
+1	UPDATE	t1	NULL	index	NULL	key1	15	NULL	#	100.00	Using temporary
 UPDATE t1 SET c = 82 ORDER BY a ASC LIMIT 2;
 SELECT * FROM t1;
 a	b	c	d
 82	1	82	4
-2	2	62	72
-2	3	62	7
-3	3	62	9
+2	2	72	72
+2	3	4	7
+3	3	3	9
 4	82	4	0
-5	5	5	1
+5	5	62	1
 5	6	7	3
 5	7	9	9
-5	5	3	1
-5	5	3	1
+5	5	62	1
+5	5	62	1
 5	5	3	1
 1	1	82	4
 2	2	2	5
@@ -866,6 +881,13 @@ a	b	c	d
 DROP TABLE t1;
 # End of test for Bug#18698556
 #
+# Bug#21944866: REFACTORING: REMOVE KILL_BAD_DATA
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b DATE);
+UPDATE t1 SET b= NULL WHERE a < '00:38:47.008761';
+ERROR 22007: Truncated incorrect DOUBLE value: '00:38:47.008761'
+DROP TABLE t1;
+#
 # Bug#21032418: PERFORMANCE REGRESSION IN 5.6: UPDATE DOES NOT USE INDEX
 #
 CREATE TABLE t1(
@@ -874,10 +896,10 @@ token VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (id),
 KEY token (token)
 )DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1

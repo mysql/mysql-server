@@ -89,7 +89,7 @@ SHOW VARIABLES LIKE 'sql_mode';
 delimiter //;
 CREATE PROCEDURE sp2()
 BEGIN
-   SET @@sql_mode='MAXDB';
+   SET @@sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE';
    SHOW VARIABLES LIKE 'sql_mode';
 END//
 delimiter ;//

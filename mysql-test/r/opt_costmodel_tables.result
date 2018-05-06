@@ -1,113 +1,113 @@
 SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
+cost_name	cost_value	last_update	comment	default_value
+disk_temptable_create_cost	NULL	#	NULL	20
+disk_temptable_row_cost	NULL	#	NULL	0.5
+key_compare_cost	NULL	#	NULL	0.05
+memory_temptable_create_cost	NULL	#	NULL	1
+memory_temptable_row_cost	NULL	#	NULL	0.1
+row_evaluate_cost	NULL	#	NULL	0.1
 SHOW INDEX FROM mysql.server_cost;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-server_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+server_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE			YES
 SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-default	0	memory_block_read_cost	NULL	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	NULL	#	NULL	1
+default	0	memory_block_read_cost	NULL	#	NULL	0.25
 SHOW INDEX FROM mysql.engine_cost;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-engine_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE		
-engine_cost	0	PRIMARY	2	engine_name	A	#	NULL	NULL		BTREE		
-engine_cost	0	PRIMARY	3	device_type	A	#	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+engine_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE			YES
+engine_cost	0	PRIMARY	2	engine_name	A	#	NULL	NULL		BTREE			YES
+engine_cost	0	PRIMARY	3	device_type	A	#	NULL	NULL		BTREE			YES
 UPDATE mysql.server_cost
 SET cost_value=0.1
 WHERE cost_name="row_evaluate_cost";
 SELECT *
 FROM mysql.server_cost
 WHERE cost_name="row_evaluate_cost";
-cost_name	cost_value	last_update	comment
-row_evaluate_cost	0.1	#	NULL
+cost_name	cost_value	last_update	comment	default_value
+row_evaluate_cost	0.1	#	NULL	0.1
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT
 WHERE cost_name="row_evaluate_cost";
 SELECT *
 FROM mysql.server_cost
 WHERE cost_name="row_evaluate_cost";
-cost_name	cost_value	last_update	comment
-row_evaluate_cost	NULL	#	NULL
+cost_name	cost_value	last_update	comment	default_value
+row_evaluate_cost	NULL	#	NULL	0.1
 INSERT INTO mysql.server_cost
-VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important");
+VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important", DEFAULT);
 SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-lunch_cost	NULL	#	Lunch is important
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
+cost_name	cost_value	last_update	comment	default_value
+disk_temptable_create_cost	NULL	#	NULL	20
+disk_temptable_row_cost	NULL	#	NULL	0.5
+key_compare_cost	NULL	#	NULL	0.05
+lunch_cost	NULL	#	Lunch is important	NULL
+memory_temptable_create_cost	NULL	#	NULL	1
+memory_temptable_row_cost	NULL	#	NULL	0.1
+row_evaluate_cost	NULL	#	NULL	0.1
 DELETE FROM mysql.server_cost
 WHERE cost_name="lunch_cost";
 INSERT INTO mysql.server_cost
-VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
+VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU", DEFAULT);
 ERROR 23000: Duplicate entry 'row_evaluate_cost' for key 'PRIMARY'
 INSERT INTO mysql.server_cost
-VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
+VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU", DEFAULT);
 ERROR 23000: Duplicate entry 'ROW_EVALUATE_COST' for key 'PRIMARY'
 SELECT * FROM mysql.server_cost;
-cost_name	cost_value	last_update	comment
-disk_temptable_create_cost	NULL	#	NULL
-disk_temptable_row_cost	NULL	#	NULL
-key_compare_cost	NULL	#	NULL
-memory_temptable_create_cost	NULL	#	NULL
-memory_temptable_row_cost	NULL	#	NULL
-row_evaluate_cost	NULL	#	NULL
+cost_name	cost_value	last_update	comment	default_value
+disk_temptable_create_cost	NULL	#	NULL	20
+disk_temptable_row_cost	NULL	#	NULL	0.5
+key_compare_cost	NULL	#	NULL	0.05
+memory_temptable_create_cost	NULL	#	NULL	1
+memory_temptable_row_cost	NULL	#	NULL	0.1
+row_evaluate_cost	NULL	#	NULL	0.1
 UPDATE mysql.engine_cost
 SET cost_value=0.1
 WHERE cost_name="io_block_read_cost";
 SELECT *
 FROM mysql.engine_cost
 WHERE cost_name="io_block_read_cost";
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	0.1	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	0.1	#	NULL	1
 UPDATE mysql.engine_cost
 SET cost_value=DEFAULT
 WHERE cost_name="io_block_read_cost";
 SELECT *
 FROM mysql.engine_cost
 WHERE cost_name="io_block_read_cost";
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	NULL	#	NULL	1
 INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1"),
-("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2");
+VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1", DEFAULT),
+("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2", DEFAULT);
 SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-InnoDB	2	lunch_cost1	NULL	#	Lunch 1
-InnoDB	2	lunch_cost2	NULL	#	Lunch 2
-default	0	memory_block_read_cost	NULL	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	NULL	#	NULL	1
+InnoDB	2	lunch_cost1	NULL	#	Lunch 1	NULL
+InnoDB	2	lunch_cost2	NULL	#	Lunch 2	NULL
+default	0	memory_block_read_cost	NULL	#	NULL	0.25
 DELETE FROM mysql.engine_cost
 WHERE cost_name LIKE "lunch_cost%";
 INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
+VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch", DEFAULT);
 INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
+VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch", DEFAULT);
 ERROR 23000: Duplicate entry 'lunch_cost-default-0' for key 'PRIMARY'
 SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-default	0	lunch_cost	NULL	#	Lunch
-default	0	memory_block_read_cost	NULL	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	NULL	#	NULL	1
+default	0	lunch_cost	NULL	#	Lunch	NULL
+default	0	memory_block_read_cost	NULL	#	NULL	0.25
 DELETE FROM mysql.engine_cost
 WHERE cost_name="lunch_cost";
 INSERT INTO mysql.engine_cost
 VALUES ("default", 0, "IO_BLOCK_READ_COST", DEFAULT, CURRENT_TIMESTAMP,
-"Lunch");
+"Lunch", DEFAULT);
 ERROR 23000: Duplicate entry 'IO_BLOCK_READ_COST-default-0' for key 'PRIMARY'
 SELECT * FROM mysql.engine_cost;
-engine_name	device_type	cost_name	cost_value	last_update	comment
-default	0	io_block_read_cost	NULL	#	NULL
-default	0	memory_block_read_cost	NULL	#	NULL
+engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
+default	0	io_block_read_cost	NULL	#	NULL	1
+default	0	memory_block_read_cost	NULL	#	NULL	0.25
 CREATE TABLE server_cost_tmp (
 cost_name VARCHAR(64) NOT NULL,
 last_update TIMESTAMP
@@ -145,3 +145,18 @@ UPDATE mysql.engine_cost
 SET cost_value=DEFAULT
 WHERE cost_name="io_block_read_cost";
 DROP TABLE server_cost_tmp, engine_cost_tmp;
+
+WL#10128:  Add defaults column to optimizer cost tables
+
+Verify that default values are defined for all cost constants
+SELECT COUNT(*) FROM mysql.server_cost WHERE default_value IS NULL;
+COUNT(*)
+0
+SELECT COUNT(*) FROM mysql.engine_cost WHERE default_value IS NULL;
+COUNT(*)
+0
+Verify that default_value columns can not be updated
+UPDATE mysql.server_cost SET default_value = 1.0;
+ERROR HY000: The value specified for generated column 'default_value' in table 'server_cost' is not allowed.
+UPDATE mysql.engine_cost SET default_value = 1.0;
+ERROR HY000: The value specified for generated column 'default_value' in table 'engine_cost' is not allowed.

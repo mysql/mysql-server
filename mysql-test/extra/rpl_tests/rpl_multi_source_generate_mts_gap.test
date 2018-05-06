@@ -21,7 +21,7 @@
 --eval CREATE TABLE d2_$ch_id.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
 
 #sync the slave with server_$ch_id
---let $rpl_channel_name= channel_$ch_id
+--let $rpl_channel_name= 'channel_$ch_id'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 connect(slave_con_channel$ch_id,127.0.0.1,root,,test,$SLAVE_MYPORT);
@@ -39,7 +39,7 @@ BEGIN;
 --eval INSERT INTO d2_$ch_id.t VALUES (3, 'T4'); # This will be a gap when executed on slave
 --eval INSERT INTO d1_$ch_id.t VALUES (2, 'T5');
 
---let $rpl_channel_name= channel_$ch_id
+--let $rpl_channel_name= 'channel_$ch_id'
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 --let $table=d1_$ch_id.t

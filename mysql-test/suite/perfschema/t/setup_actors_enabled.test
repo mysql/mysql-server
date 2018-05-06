@@ -2,8 +2,6 @@
 # performance_schema.setup_actors.
 
 --source include/not_windows.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # The initial number of rows is 1. The initial row always looks like this:
 # mysql> select * from performance_schema.setup_actors;
@@ -22,11 +20,9 @@ values ('localhost', 'user1', '%', 'YES', 'YES');
 insert into performance_schema.setup_actors
 values ('localhost', 'user2', '%', 'NO', 'NO');
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost, user2@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
-set sql_mode= @orig_sql_mode;
 
 flush privileges;
 

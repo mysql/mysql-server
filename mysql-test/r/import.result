@@ -1,0 +1,487 @@
+#
+# Testing WL#7524 - Import from SDI files
+#
+# Setup test environment
+#
+# IM-NEG-1: Schema missing/wrong schema name in SDI
+#
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT I FROM s1.t1 ORDER BY i;
+I
+abc
+DEF
+Ghi
+ghI
+FLUSH TABLES WITH READ LOCK;
+# Copy s1.t1 files to tmp dir
+UNLOCK TABLES;
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+CREATE SCHEMA s2;
+# Copy t1 files into s2
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+IMPORT TABLE FROM 's2/t1*.sdi';
+ERROR HY000: Schema 's1', referenced in SDI, does not exist.
+DROP SCHEMA s2;
+# Clean $EXPORT_DIR
+#
+# IM-NEG-1.1: Verfy that import using relative path to .sdi file
+# fails when not having a default schema.
+#
+# Connect without schema
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR 3D000: No database selected
+# Don't need the current schema in this case, but check_access()
+# requires it
+IMPORT TABLE FROM 's1/t1_*.sdi';
+ERROR 3D000: No database selected
+#
+# IM-NEG-2: Table already exists in schema
+#
+CREATE TABLE t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT i FROM t1 ORDER BY i;
+i
+abc
+DEF
+Ghi
+ghI
+IMPORT TABLE FROM 't1*.sdi';
+ERROR HY000: Table 'test.t1', referenced in SDI, already exists.
+DROP TABLE t1;
+#
+# IM-NEG-3: Detection/diagnosis of non-matching pattern.
+#
+IMPORT TABLE FROM 'pattern_which_matches_nothing';
+ERROR HY000: No SDI files matched the pattern 'pattern_which_matches_nothing'
+#
+# IM-NEG-4: Detection/diagnosis of access to path not permitted by
+# --secure-file-priv setting
+IMPORT TABLE FROM 'MYSQL_TEST_DIR/t/import.test';
+Got one of the listed errors
+#
+# IM-NEG-5: Detection/diagnosis of corrupted SDI
+#
+CREATE TABLE t1 (i int) ENGINE MYISAM;
+IMPORT TABLE FROM 't1.MYD';
+ERROR HY000: Incorrect File Name 't1.MYD'.
+IMPORT TABLE FROM 't1.sdi';
+ERROR HY000: Invalid JSON data provided to function deserialize(): The document is empty.
+DROP TABLE t1;
+#
+# IM-NEG-5.1: Verfy that import of an .sdi file which is valid json, but
+# corrupt at the application level is handled correctly.
+#
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+# Save SDI file in export dir
+DROP TABLE t1;
+# Create new version of t1
+CREATE TABLE t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO t1 VALUES ('AAA'), ('BBB'), ('CCC');
+FLUSH TABLES WITH READ LOCK;
+# Export .MYD and .MYI of the new t1
+UNLOCK TABLES;
+DROP TABLE t1;
+# First attempt to import without having copied back the data files,
+# which will fail
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR HY000: Can't find file: './test/t1.MYD' (errno: 2 - No such file or directory)
+# Restore .MYD and .MYI of the new t1
+# Import t1 using the old SDI file. Will succeed with warning since
+# we cannot open the imported table
+IMPORT TABLE FROM 't1_*.sdi';
+Warnings:
+Warning	1034	Incorrect key file for table 't1'; try to repair it
+# Try to repair table as suggested in warning (will not work in
+# this case)
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Incorrect key file for table 't1'; try to repair it
+test.t1	repair	error	Corrupt
+DROP TABLE t1;
+# Clean datadir and $EXPORT_DIR
+#
+# IM-NEG-6: Verify that concurrent use (from other threads)
+# of names of objects involved in import are detected,
+# and rejected as appropriate.
+#
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+LOCK TABLES t1 WRITE;
+# Start new connection which will attempt to import locked table
+SET @@session.lock_wait_timeout= 1;
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Switch back to default and disconnect import connection
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# IM-NEG-7: Verify that SDI version mismatch is
+# diagnosed appropriately.
+#
+CREATE TABLE t1(i INT) ENGINE=MYISAM;
+# Copy SDI file to export dir
+# Use perl to patch sdi_version in SDI file
+# Copy SDI file back into data dir
+IMPORT TABLE FROM 't1_.sdi';
+ERROR HY000: Imported sdi version (42) is not compatible with current (1)
+DROP TABLE t1;
+#
+# IM-NEG-8 Verify that CREATE and FILE privileges are required
+# for IMPORT
+#
+# Create schema which does not match test* pattern which has special
+# privileges
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i INT) ENGINE MYISAM;
+# Create user without any privileges.
+CREATE USER noimportforyou@localhost;
+REVOKE ALL ON *.* FROM noimportforyou@localhost;
+# Connect as user noimportforyou@localhost;
+# Should fail due to missing privileges
+IMPORT TABLE FROM 's1/t1_*.sdi';
+ERROR 28000: Access denied for user 'noimportforyou'@'localhost' (using password: NO)
+# Disconnect and switch back to default connection
+GRANT FILE ON *.* TO noimportforyou@localhost;
+# Connect as user noimportforyou@localhost - now with FILE privilege
+# Should fail due to missing CREATE privilege
+IMPORT TABLE FROM 's1/t1_*.sdi';
+ERROR 42000: CREATE command denied to user 'noimportforyou'@'localhost' for table 't1'
+# Disconnect and switch back to default connection
+# Grant general CREATE privilege
+GRANT CREATE ON *.* TO noimportforyou@localhost;
+# Connect as user noimportforyou@localhost - now with FILE & CREATE
+# privilege
+# Should have sufficient privileges, but fail because t1 already exist
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR HY000: Table 's1.t1', referenced in SDI, already exists.
+# Disconnect and switch back to default connection
+# Revoke general CREATE privilege
+REVOKE CREATE ON *.* FROM noimportforyou@localhost;
+# Grant CREATE privilege on s1 schema
+GRANT CREATE ON s1.* TO noimportforyou@localhost;
+# Connect as user noimportforyou@localhost - now with FILE & CREATE
+# privilege on s1.*
+# Should have sufficient privileges, but fail because t1 already exist
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR HY000: Table 's1.t1', referenced in SDI, already exists.
+# Disconnect and switch back to default connection
+# Revoke CREATE privilege on s1 schema
+REVOKE CREATE ON s1.* FROM noimportforyou@localhost;
+# Grant CREATE privilege on s1.t1
+GRANT CREATE ON s1.t1 TO noimportforyou@localhost;
+# Connect as user noimportforyou@localhost - now with FILE & CREATE
+# privilege on test.t1
+# Should have sufficient privileges, but fail because t1 already exist
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR HY000: Table 's1.t1', referenced in SDI, already exists.
+# Disconnect and switch back to default connection
+# Revoke FILE privilege
+REVOKE FILE ON *.* FROM noimportforyou@localhost;
+# Connect as user noimportforyou@localhost - now with only CREATE
+# privilege on test.t1
+# Should fail due to missing FILE privilege
+IMPORT TABLE FROM 't1_*.sdi';
+ERROR 28000: Access denied for user 'noimportforyou'@'localhost' (using password: NO)
+# Disconnect and switch back to default connection
+DROP USER noimportforyou@localhost;
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+#
+# IM-POS-2: Export, drop and import back table
+#
+CREATE TABLE t1 (i INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1;
+i
+1
+3
+5
+CREATE TABLE t2 (i INT) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (2), (4), (6);
+SELECT * FROM t2;
+i
+2
+4
+6
+CREATE VIEW v2 AS SELECT * FROM t2;
+SELECT * FROM v2;
+i
+2
+4
+6
+FLUSH TABLES WITH READ LOCK;
+# Copy t1 files to export dir
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLE t2;
+# Check that the view is now invalid.
+CHECK TABLE v2;
+Table	Op	Msg_type	Msg_text
+test.v2	check	Error	Table 'test.t2' doesn't exist
+test.v2	check	Error	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+test.v2	check	error	Corrupt
+# Copy files back into datadir
+IMPORT TABLE FROM 't1_*.sdi', 't2_*.sdi';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+i
+1
+3
+5
+SELECT * FROM t2;
+i
+2
+4
+6
+# Check that the view is now valid.
+CHECK TABLE v2;
+Table	Op	Msg_type	Msg_text
+test.v2	check	status	OK
+SELECT * FROM v2;
+i
+2
+4
+6
+DROP VIEW v2;
+DROP TABLE t1;
+DROP TABLE t2;
+# Clean SDI files in $EXPORT_DIR
+#
+# IM-POS-3: Verfiy that the .sdi file can be manually edited
+# (e.g. the schema name is changed, the name of a column).
+#
+CREATE TABLE t1 (i INT) ENGINE MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1 ORDER BY i;
+i
+1
+3
+5
+FLUSH TABLES WITH READ LOCK;
+# Copy t1 files to export dir
+UNLOCK TABLES;
+DROP TABLE t1;
+# Use perl to rename and patch SDI file
+t1.MYD
+t1.MYI
+t1.sdi
+t1_.sdi
+IMPORT TABLE FROM 't1_.sdi';
+SELECT * FROM t1 ORDER BY k;
+k
+1
+3
+5
+DROP TABLE t1;
+# Clean $EXPORT_DIR
+# Clean $DATA_DIR/test
+#
+# IM-POS-4: Verify that at table can be imported into a schema
+# with a different collation id
+#
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT I FROM s1.t1 ORDER BY i;
+I
+abc
+DEF
+Ghi
+ghI
+FLUSH TABLES WITH READ LOCK;
+# Copy s1.t1 to export dir
+UNLOCK TABLES;
+DROP TABLE s1.t1;
+ALTER SCHEMA s1 DEFAULT COLLATE latin1_bin;
+Copy MYD and MYI back into datadir
+IMPORT TABLE FROM 's1/t1*.sdi';
+t1.MYD
+t1.MYI
+t1_XXX.sdi
+# Verfy that collation for t1 has not changed
+SELECT i FROM s1.t1 ORDER BY i;
+i
+abc
+DEF
+Ghi
+ghI
+SHOW CREATE TABLE s1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` varchar(32) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Create new table which will get the s1's new default collation
+CREATE TABLE s1.t2(i VARCHAR(32));
+INSERT INTO s1.t2 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+# Verify that the collation for t2 is different
+SELECT I FROM s1.t2 ORDER BY i;
+I
+DEF
+Ghi
+abc
+ghI
+SHOW CREATE TABLE s1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(32) COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+# Clean $EXPORT_DIR
+#
+# IM-POS-5: Verify that concurrent DROP SCHEMA|DATABASE, after the
+# data and index files to import have been placed in the schema dir,
+# fails because it is unable to delete the schema directory. Verify
+# that manual intervention can fix the problem.
+#
+CREATE SCHEMA s1;
+CREATE TABLE s1.t1(i VARCHAR(32)) ENGINE MYISAM;
+INSERT INTO s1.t1 VALUES ('abc'), ('DEF'), ('Ghi'), ('ghI');
+SELECT i FROM s1.t1 ORDER BY i;
+i
+abc
+DEF
+Ghi
+ghI
+FLUSH TABLES WITH READ LOCK;
+# Copy t1 to tmp dir
+UNLOCK TABLES;
+DROP TABLE s1.t1;
+# Copy t1 files back into s1
+# Drop s1 which is empty in DD, but which has files in directory
+DROP SCHEMA s1;
+Warnings:
+Warning	3607	Problem while dropping database. Can't remove database directory (Error dropping database (can't rmdir './s1', errno: ## - ...). Please remove it manually.
+# Show offending files
+t1.MYD
+t1.MYI
+# Manual intervention which removes files...
+CREATE SCHEMA s1;
+Copy t1 files back into s1
+IMPORT TABLE FROM 's1/t1*.sdi';
+SELECT i FROM s1.t1 ORDER BY i;
+i
+abc
+DEF
+Ghi
+ghI
+DROP TABLE s1.t1;
+DROP SCHEMA s1;
+# Clean $EXPORT_DIR
+#
+# IM-POS-6: Import into server with l_c_t_n=true
+#
+CREATE TABLE T_CASE(i INT) ENGINE MYISAM;
+INSERT INTO T_CASE VALUES (1), (3), (5);
+SELECT * FROM T_CASE ORDER BY i;
+i
+1
+3
+5
+FLUSH TABLES WITH READ LOCK;
+# Copy T_CASE files to export dir
+UNLOCK TABLES;
+DROP TABLE T_CASE;
+# Use perl to rename and patch SDI file
+t_case.MYD
+t_case.MYI
+t_case.sdi
+IMPORT TABLE FROM 't_case.sdi';
+SELECT i FROM t_case ORDER BY i;
+i
+1
+3
+5
+DROP TABLE t_case;
+#
+# Start new server with --lower_case_table_names and import t_case there
+#
+# 0. Shut server down.
+# 1. Create bootstrap file.
+# 2. First start the server with --initialize
+# 3. Restart the server against DDIR - should succeed.
+# 4. Import file created on server without lctn
+# Copying exported t_case files into $DDIR/test
+# Listing $DDIR/test:
+t_case.MYD
+t_case.MYI
+t_case.sdi
+IMPORT TABLE FROM 't_case.sdi';
+SELECT i FROM t_case ORDER BY i;
+i
+1
+3
+5
+DROP TABLE t_case;
+# 5. Shut server down.
+# 6. Cleanup: Restarting the server against default datadir.
+# Delete $DDIR
+# Delete sql files
+# Delete log files
+# Delete expect files
+#
+# Bug#25792649: SDI DESERIALIZE MISSING COLUMNIMPL::M_NUMERIC_SCALE_NULL
+# Export, drop and import back table with columns that have attributes
+# which are null by default
+#
+CREATE TABLE t1 (i INT DEFAULT 42, dt DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+de DECIMAL(10,2), j INT GENERATED ALWAYS AS (42+i)) ENGINE=MYISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '42',
+  `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+  `de` decimal(10,2) DEFAULT NULL,
+  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(dt,de) VALUES ('2017-03-28 18:48:01', 1.1),
+('2017-03-28 18:48:02', 1.2),
+('2017-03-28 18:48:03', 1.5);
+SELECT * FROM t1;
+i	dt	de	j
+42	2017-03-28 18:48:01.000	1.10	84
+42	2017-03-28 18:48:02.000	1.20	84
+42	2017-03-28 18:48:03.000	1.50	84
+FLUSH TABLES WITH READ LOCK;
+# Copy t1 files to export dir
+UNLOCK TABLES;
+DROP TABLE t1;
+# Copy files back into datadir
+IMPORT TABLE FROM 't1_*.sdi';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '42',
+  `dt` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+  `de` decimal(10,2) DEFAULT NULL,
+  `j` int(11) GENERATED ALWAYS AS ((42 + `i`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+i	dt	de	j
+42	2017-03-28 18:48:01.000	1.10	84
+42	2017-03-28 18:48:02.000	1.20	84
+42	2017-03-28 18:48:03.000	1.50	84
+DROP TABLE t1;
+# Clean SDI files in $EXPORT_DIR
+# Remove 'export' folder created at the beginning of test file.
+#
+# Bug#25914953 ASSERTION FAILED: M_THD->GET_TRANSACTION()->
+# IS_EMPTY(TRANSACTION_CTX::STMT)
+#
+# Need to commit any existing txn before using Disable_autocommit_guard
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+IMPORT TABLE FROM '';
+ERROR HY000: No SDI files matched the pattern ''

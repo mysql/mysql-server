@@ -1,0 +1,61 @@
+--echo #
+--echo # Testing WL#7524 - Import from SDI files with --secure-file-priv=''
+--echo #
+
+--echo # Setup test environment
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--perl
+chdir $ENV{'MYSQL_TMP_DIR'};
+mkdir "export";
+EOF
+let $EXPORT_DIR= $MYSQL_TMP_DIR/export;
+
+--echo # IM-NEG-4: Must obey the secure_file_priv setting, e.g. for .sdi
+--echo # files outside the schema directory.
+
+--echo # Verify that access to non-existent directories is detected
+--echo # and diagnosed appropriately (as this can only be done when
+--echo # secure_file_priv is empty)
+--replace_regex /IMPORT TABLE FROM '.*'/IMPORT TABLE FROM '...'/
+--error ER_CANT_READ_DIR,0
+--eval IMPORT TABLE FROM '$MYSQL_TMP_DIR/no/such/path'
+
+
+--echo #
+--echo # IM-POS-2: Export, drop and import back table
+--echo #
+
+CREATE TABLE t1 (i int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1;
+CREATE TABLE t2 (i int) ENGINE=MYISAM;
+INSERT INTO t2 VALUES (2), (4), (6);
+SELECT * FROM t2;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLE t2;
+--echo # Copy MYD and MYI back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1.*
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t2.*
+
+--echo # Verify that importing the same file twice, triggers error
+--replace_regex /IMPORT TABLE FROM .*/IMPORT TABLE FROM '...', '...'/
+--error ER_IMP_TABLE_ALREADY_EXISTS
+--eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.sdi', '$EXPORT_DIR/t1_*.sdi'
+
+--replace_regex /IMPORT TABLE FROM .*/IMPORT TABLE FROM '...', '...'/
+--eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.sdi', '$EXPORT_DIR/t2_*.sdi'
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t1*
+--echo # Remove \$EXPORT_DIR
+--force-rmdir $EXPORT_DIR

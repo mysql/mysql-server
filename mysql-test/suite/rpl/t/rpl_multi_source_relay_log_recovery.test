@@ -35,6 +35,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/force_restart.inc
 --source include/have_binlog_format_statement.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/only_mts_slave_parallel_workers.inc
 --source include/only_mts_slave_parallel_type_database.inc
 
@@ -80,7 +82,7 @@ CALL mtr.add_suppression("Recovery from master pos");
 --source include/kill_mysqld.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off
 --source include/rpl_start_server.inc
 
 --let $rpl_connection_name= server_2
@@ -96,7 +98,7 @@ START SLAVE;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -104,7 +106,7 @@ START SLAVE;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -114,7 +116,7 @@ START SLAVE;
 --connection server_1
 DROP DATABASE d1_1;
 DROP DATABASE d2_1;
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -122,7 +124,7 @@ DROP DATABASE d2_1;
 --connection server_3
 DROP DATABASE d1_3;
 DROP DATABASE d2_3;
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 

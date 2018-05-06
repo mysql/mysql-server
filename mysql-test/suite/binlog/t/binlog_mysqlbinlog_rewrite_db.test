@@ -42,24 +42,24 @@ UPDATE t1 SET i= i+1;
 DELETE FROM t1 WHERE i=2;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
 
 # Using the new option to apply the row event on some other database (from db1 -> new_db1 in the current case)
 
 --echo [Syntax error in the use of the new option: The from database name is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="->new_db1" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="->new_db1" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [Syntax error in the use of the new option: The '->' is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1 new_db1" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1 new_db1" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [Syntax error in the use of the new option: The to database name is missing]
 --error 1
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --echo [VALID SYNTAX,The from->to database names is correctly mentioned]
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->new_db1" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->new_db1" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 

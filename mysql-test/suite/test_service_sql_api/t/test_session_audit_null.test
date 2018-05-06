@@ -1,5 +1,8 @@
---source include/not_embedded.inc
---source include/have_null_audit_plugin.inc
+# This test requires more than one plugin, below inc file checks if the plugins
+# exists and in the same directory.
+--let plugins= AUDIT_NULL,TEST_SESSION_IN_THD
+--source include/check_plugin_dir.inc
+
 
 --echo ##########################################
 --echo # Run audit_null plugin

@@ -205,7 +205,7 @@ AND gp1 . col_varchar_nokey = 'b'
 HAVING g1 > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	p1	NULL	const	col_varchar_key,col_varchar_key_2	col_varchar_key	4	const	1	100.00	NULL
+1	SIMPLE	p1	NULL	const	col_varchar_key,col_varchar_key_2	col_varchar_key	10	const	1	100.00	NULL
 1	SIMPLE	p2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.p1.col_int_key	1	100.00	Using index; FirstMatch(gp1)
 1	SIMPLE	gp2	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
@@ -275,7 +275,7 @@ pk >= 8
 HAVING x > '2000-02-06'
 ORDER BY col_time_nokey, pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	c	NULL	index_merge	PRIMARY,col_varchar_key,col_int_key_2,col_varchar_key_2,col_int_key_7	col_varchar_key,PRIMARY	4,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where
+1	SIMPLE	c	NULL	index_merge	PRIMARY,col_varchar_key,col_int_key_2,col_varchar_key_2,col_int_key_7	col_varchar_key,PRIMARY	10,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`c`.`col_varchar_key`) AS `x` from `test`.`c` where ((`test`.`c`.`col_varchar_key` in ('rr','rr')) or ((`test`.`c`.`col_int_nokey` <> 9) and (`test`.`c`.`pk` >= 8))) having (`x` > '2000-02-06')
 SELECT COUNT(DISTINCT col_varchar_key) AS x
@@ -410,7 +410,7 @@ INSERT INTO v (a,c) VALUES (1,1);
 EXPLAIN SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where 0
@@ -536,14 +536,12 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS ((`a` or `b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
 1	1	1
 SET SQL_MODE=PIPES_AS_CONCAT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1;
 a	b	c
 1	1	1
@@ -559,7 +557,7 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
@@ -576,8 +574,6 @@ DROP TABLE t1;
 # Bug#22018999: gcols: assertion failed: !error
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (a INTEGER AS (SUBSTR('','a',1))) engine=innodb;
 ERROR 22007: Truncated incorrect INTEGER value: 'a'
 CREATE TABLE t (a INTEGER) engine=innodb;
@@ -585,8 +581,26 @@ ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
 ERROR 22007: Truncated incorrect INTEGER value: 'a'
 DROP TABLE t;
 set sql_mode= @save_old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOWLY..
+#
+set @s:=concat("CREATE TABLE t(a LONGBLOB GENERATED ALWAYS AS
+('",REPEAT("a",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
+#
+# Bug#22239803 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
+#              BUT TOO SLOW (II)
+#
+set @s:=concat("CREATE TABLE t(w INT, A INT GENERATED ALWAYS
+AS('",REPEAT("\\0",1024*1024),"') STORED) ENGINE=INNODB;");
+PREPARE r FROM @s;
+EXECUTE r;
+DEALLOCATE PREPARE r;
+DROP TABLE t;
 # Bug#21875520 Problems with virtual column indexes
 CREATE TABLE t(
 a TIMESTAMP,
@@ -627,7 +641,150 @@ SELECT 1 FROM t WHERE c GROUP BY b;
 COMMIT;
 DROP TABLE t;
 #
-# Bug #25793677	INNODB: FAILING ASSERTION: CLUST_TEMPL_FOR_SEC || LEN ....
+# bug#21982792: TOO MUCH SPAM: 'GOT ERROR 1 WHEN READING TABLE'
+#
+CREATE TABLE t (
+a INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+b DATE GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+KEY(b)
+);
+SET @old_sql_mode=@@sql_mode;
+SET sql_mode='';
+INSERT INTO t VALUES();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SET sql_mode= STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+DROP TABLE t;
+SET sql_mode=@old_sql_mode;
+CREATE TABLE t (
+a INT,
+b INT GENERATED ALWAYS AS (1),
+KEY i(a,b)
+);
+INSERT INTO t (a) VALUES(1), (2);
+SELECT 1 FROM t a RIGHT JOIN t USING(b)
+WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;
+# Bug#22748217 gcols: assert in Item_func_in::resolve_type
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode="";
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+ERROR 22007: Incorrect datetime value: '1' for column 'a' at row 1
+DROP TABLE t;
+SET sql_mode= @old_sql_mode;
+#
+# Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
+#               ALTER_CHANGE_COLUMN_DEFAULT FLAG
+#
+CREATE TABLE t1(
+a INTEGER DEFAULT 5,
+b INTEGER NOT NULL,
+gc1 INTEGER AS (a + DEFAULT(a)) VIRTUAL,
+gc2 INTEGER AS (a + DEFAULT(a)) STORED,
+KEY k1(gc1)
+);
+INSERT INTO t1(a, b) VALUES (1 ,1);
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	6	6
+SELECT gc1 FROM t1;
+gc1
+6
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 6;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	7	7
+SELECT gc1 FROM t1;
+gc1
+7
+ALTER TABLE t1 MODIFY COLUMN b INTEGER NULL;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT * FROM t1;
+a	b	gc1	gc2
+1	1	7	7
+SELECT gc1 FROM t1;
+gc1
+7
+DROP TABLE t1;
+#
+# Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+# ON EACH TABLE REBUILD
+#
+CREATE TABLE t1 (
+a TEXT CHARSET utf16,
+b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+# Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT HEX(b) FROM t1;
+HEX(b)
+004100420043006100620063
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
+  `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT
+length( convert( b USING utf8 ) ),
+char_length ( convert( b USING utf8 ) )
+FROM t1;
+length( convert( b USING utf8 ) )	char_length ( convert( b USING utf8 ) )
+12	12
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT
+length( convert( b USING utf16 ) ),
+char_length ( convert( b USING utf16 ) )
+FROM t1;
+length( convert( b USING utf16 ) )	char_length ( convert( b USING utf16 ) )
+12	6
+SELECT
+length( convert( b USING latin1 ) ),
+char_length ( convert( b USING latin1 ) )
+FROM t1;
+length( convert( b USING latin1 ) )	char_length ( convert( b USING latin1 ) )
+12	12
+DROP TABLE t1;
+#
+# Bug#25615803: ASSERT IN SQL/FIELD.CC:...
+#               VIRTUAL STRING* FIELD_VARSTRING::VAL_STR
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+d INT GENERATED ALWAYS AS ( b + 1 ) STORED
+)
+PARTITION BY RANGE( a ) ( PARTITION p0 VALUES LESS THAN (1) );
+INSERT INTO t1 ( b ) VALUES ( 1 );
+UPDATE t1 SET c = d;
+DROP TABLE t1;
+#
+# Bug #25793677 INNODB: FAILING ASSERTION: CLUST_TEMPL_FOR_SEC || LEN ....
 #
 CREATE TABLE v (
 a INT,
@@ -639,3 +796,75 @@ SELECT (SELECT MAX(c) FROM v);
 (SELECT MAX(c) FROM v)
 1
 DROP TABLE v;
+# Bug#23021693 gcol:assertion '!table->in_use->is_error()' failed
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+c1 INTEGER,
+gc1 INTEGER GENERATED ALWAYS AS (c1+c1) VIRTUAL,
+gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+c2 VARCHAR(5),
+gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+PRIMARY KEY (pk DESC),
+KEY(gc1),
+KEY(gc3),
+UNIQUE KEY (gc1, gc3),
+UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+INSERT INTO t1 (c1, c2) VALUES (3, 'cek'),(3,'eks');
+CREATE TABLE t2 (
+pk INTEGER AUTO_INCREMENT,
+c1 INTEGER,
+gc1 INTEGER GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+c2 VARCHAR(5),
+gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+PRIMARY KEY (pk DESC),
+KEY(gc1),
+KEY(gc3),
+UNIQUE KEY (gc1, gc3),
+UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+INSERT INTO t2 (c1, c2) VALUES
+(3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
+(NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
+DELETE outr1.*
+FROM t2 AS outr1 INNER JOIN t1 AS outr2
+ON outr1.gc4 = outr2.gc4
+WHERE outr1.pk > (SELECT innr1.gc2 AS y
+FROM t1 AS innr1
+WHERE innr1.pk = 5 OR outr2.pk <> 7
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;
+#
+# Bug#23321196: GCOLS: ASSERTION FAILURE:
+#               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+#
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1048	Column 'gc' cannot be null
+SELECT * FROM t;
+gc
+
+DELETE FROM t;
+SELECT * FROM t;
+gc
+DROP TABLE t;
+#
+# Bug #27041382: ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED.
+#
+CREATE TABLE t1 (c1 VARCHAR(100),
+c2 VARCHAR(400) GENERATED ALWAYS AS (CONCAT(c1,c1)));
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+INSERT INTO t1  VALUES (),();
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+INSERT INTO t1(c1)  SELECT 1 FROM DUAL;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
+ INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+DROP TABLE t1;

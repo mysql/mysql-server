@@ -3,7 +3,6 @@
 # http://bugs.mysql.com/42101
 #
 
--- source include/have_innodb.inc
 
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_commit_concurrency=0;

@@ -1,6 +1,0 @@
-# List the tests that are to be disabled temporarily.
-# Separate the test name and the comment with ':'.
-#   <testname> : <......>
-# Do not use any TAB characters for whitespace.
-# If the test is disabled due to a bug, start the comment with BUG#<bugnumber>
-

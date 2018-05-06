@@ -15,6 +15,8 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --echo #
 --echo # Set up masters server_1 and server_3 with server_2 being a slave.
 --echo #
@@ -193,7 +195,7 @@ if ( `select @@GLOBAL.slave_parallel_workers > 0`)
 --echo #
 --echo #  Stop the slave on channel_1 and verify that rows are still instact
 --echo #
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/stop_slave.inc
 
 --echo #
@@ -261,7 +263,7 @@ if ($w_rows == 0)
 --echo #
 --echo # Test case 7: Delete channel_3 and count the number of rows in each table.
 --echo #
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
 
@@ -349,4 +351,5 @@ RESET SLAVE ALL;
 --let $rpl_skip_sync= 1
 --let $rpl_skip_delete_channels= 1
 --let $rpl_only_running_threads= 1
+--let $rpl_group_replication= 1
 --source include/rpl_end.inc

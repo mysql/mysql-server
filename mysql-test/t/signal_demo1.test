@@ -114,7 +114,7 @@ begin
       set msg= concat('No such person type:', person_type);
       SIGNAL SQLSTATE '45000' SET
         MESSAGE_TEXT = msg,
-        MYSQL_ERRNO = 20000;
+        MYSQL_ERRNO = 50000;
     end;
   end case;
 end
@@ -255,32 +255,32 @@ call po_add_order_line (@my_po, 1, 100, 1);
 call po_add_order_line (@my_po, 2, 101, 4);
 
 /* Marry Smith wants a coffee table */
-call po_create_order("P", 2, @my_po);
+  call po_create_order("P", 2, @my_po);
 
-call po_add_order_line (@my_po, 1, 200, 1);
+  call po_add_order_line (@my_po, 1, 200, 1);
 
---echo #
---echo # Entering bad data in an order
---echo #
+  --echo #
+  --echo # Entering bad data in an order
+  --echo #
 
 # There is no item 999 in in_inventory
---error 10000
-call po_add_order_line (@my_po, 1, 999, 1);
+  --error 10000
+  call po_add_order_line (@my_po, 1, 999, 1);
 
---echo #
---echo # Entering bad data in an unknown order
---echo #
+  --echo #
+  --echo # Entering bad data in an unknown order
+  --echo #
 
 # There is no order 99 in po_order
---error 10000
-call po_add_order_line (99, 1, 100, 1);
+  --error 10000
+  call po_add_order_line (99, 1, 100, 1);
 
---echo #
---echo # Entering an order for an unknown company
---echo #
+  --echo #
+  --echo # Entering an order for an unknown company
+  --echo #
 
 # There is no moral person of id 7
---error 10000
+  --error 10000
 call po_create_order("M", 7, @my_po);
 
 --echo #
@@ -288,7 +288,7 @@ call po_create_order("M", 7, @my_po);
 --echo #
 
 # There is no person of type X
---error 20000
+--error 50000
 call po_create_order("X", 1, @my_po);
 
 /* The local school wants 10 class tables and 20 chairs */
@@ -300,9 +300,6 @@ call po_add_order_line (@my_po, 2, 301, 20);
 # Raw data
 select * from po_order;
 select * from po_order_line;
-
-SELECT * FROM ab_physical_person;
-SELECT * FROM ab_moral_person;
 
 # Creative reporting ...
 

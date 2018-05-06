@@ -1,0 +1,43 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB
+TABLESPACE ts1
+STORAGE DISK;
+INSERT INTO t1 VALUES (1, "MySQL Server with NDB");
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	MySQL Server with NDB
+UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	MySQL Server with NDB test
+REPLACE t1 (a, b) VALUES (1, "Another layer");
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+a	b
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1
+SELECT b FROM t1 WHERE b LIKE "MySQL%";
+b
+DELETE FROM t1 ORDER BY b DESC;
+DROP TABLE t1;
+# Need to implement rename in handlerton::alter_tablespace
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... RENAME TO
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;

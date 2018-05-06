@@ -1,0 +1,41 @@
+################################################################################
+# Verify that on a full operational group, a group with 3 members, DBA cannot
+# force a new group membership of 2 members using the
+# group_replication_force_members.
+#
+# Steps:
+#   0) The test requires three servers: M1, M2 and M3.
+#   1) Create a group with 3 members.
+#   2) If majority is reachable can't change group_replication_force_members.
+#   3) Clean up.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Create a group with 3 members.
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. If majority is reachable can't
+--echo #    change group_replication_force_members.
+SET sql_log_bin=0;
+call mtr.add_suppression("force_members can only be updated when Group Replication is running*");
+SET sql_log_bin=1;
+
+--disable_query_log
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_force_members= "127.0.0.1:10000"
+--enable_query_log
+
+--let $assert_text= group_replication_force_members is empty
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source include/group_replication_end.inc

@@ -2,7 +2,6 @@
 # WL#6469: Optimizing CREATE/DROP performance for temporary tables
 #
 
---source include/have_innodb.inc
 
 # Must have debug code to use SET SESSION debug
 --source include/have_debug.inc
@@ -10,8 +9,6 @@
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 --source include/not_valgrind.inc
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
 #########################################################################
 #									#
@@ -25,7 +22,6 @@
 # create test-bed.
 #
 let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
 set global innodb_file_per_table = 0;
 
 #------------------------------------------------------------
@@ -39,7 +35,7 @@ call mtr.add_suppression("Cannot create file");
 
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 
 #

@@ -12,6 +12,8 @@ PRIMARY KEY (id,time)
 /*!50100 PARTITION BY RANGE(TO_DAYS(time))
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
 PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (time,id2) VALUES ('2011-07-24',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
@@ -28,11 +30,11 @@ t1	CREATE TABLE `t1` (
   `id2` bigint(20) NOT NULL,
   PRIMARY KEY (`id`,`time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8
-/*!50100 PARTITION BY RANGE (TO_DAYS(time))
+/*!50100 PARTITION BY RANGE (to_days(`time`))
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` .* Partition.* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
@@ -44,15 +46,14 @@ user_num CHAR(10)
 KEY_BLOCK_SIZE=4
 PARTITION BY HASH(id) PARTITIONS 1;
 t1#P#p0.ibd
-t1.frm
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=4
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 1 */
 SET GLOBAL innodb_file_per_table = OFF;
 # Connection con2
@@ -62,7 +63,6 @@ LOCK TABLE t1 WRITE;
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 t1#P#p0.ibd
-t1.frm
 # This SET is not needed to reproduce the bug,
 # it is here just to make the test case more realistic
 SET innodb_strict_mode = OFF;
@@ -74,7 +74,6 @@ Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
-t1.frm
 ALTER TABLE t1 REBUILD PARTITION p0;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
@@ -86,8 +85,8 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=4
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 3 */
 DROP TABLE t1;
 # Connection default

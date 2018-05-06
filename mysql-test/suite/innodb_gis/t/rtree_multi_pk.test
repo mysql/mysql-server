@@ -1,10 +1,9 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test basic R-tree support features.
 
---source include/have_innodb.inc
 
 # Create table with R-tree index.
-create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;
+create table t1 (i int, i2 char(10), g geometry not null SRID 0, primary key (i, i2), spatial index (g))engine=innodb;
 
 # Insert values.
 insert into t1 values (1, "111", POINT(1,1));
@@ -35,6 +34,7 @@ check table t1;
 select ST_astext(t1.g) from t1;
 
 # Show index.
+analyze table t1;
 --replace_column 7 #
 show indexes from t1;
 
@@ -42,7 +42,7 @@ show indexes from t1;
 drop table t1;
 
 # Test functions.
-create table t1 (name VARCHAR(100), square GEOMETRY not null, spatial index (square))engine=innodb;
+create table t1 (name VARCHAR(100), square GEOMETRY not null SRID 0, spatial index (square))engine=innodb;
 
 
 INSERT INTO t1 VALUES("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
@@ -99,7 +99,7 @@ SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 DROP TABLE t1;
 
 # Inplace create spatial index is not supported
-create table t1 (i int not null, g geometry not null)engine=innodb;
+create table t1 (i int not null, g geometry not null SRID 0)engine=innodb;
 
 # Insert values.
 insert into t1 values (1, POINT(1,1));
@@ -122,4 +122,3 @@ show create table t1;
 drop index idx on t1;
 
 drop table t1;
-

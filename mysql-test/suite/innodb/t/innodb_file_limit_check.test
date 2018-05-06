@@ -1,17 +1,17 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/big_test.inc
 
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 
-CREATE TABLE t1 (a INT)ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS 1024;
---echo # Setting innodb_open_files to a very high value to achieve synchronicity across various platforms
+CREATE TABLE t1 (a INT)ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS
+1024;
+
+--echo #Setting innodb_open_files to a common value to have synchronicity across platforms
 let $restart_parameters = restart: --innodb_open_files=1000000;
 -- source include/restart_mysqld.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN= \[Warning\] InnoDB: innodb_open_files should not be greater than the open_files_limit.;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= \[Warning\] .*MY-\\d+.* innodb_open_files should not be greater than the open_files_limit.;
+--source include/search_pattern.inc
 
 SELECT 1 UNION SELECT * FROM t1  UNION SELECT * FROM t1  UNION
 SELECT * FROM t1  UNION SELECT * FROM t1  UNION SELECT * FROM

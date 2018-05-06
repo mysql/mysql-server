@@ -1,0 +1,1994 @@
+# In-memory tmp tables
+set big_tables=0;
+# WL#883 Non-recursive WITH clause (common table expression)
+flush status;
+create table t1(a int, b int, c int);
+insert into t1 values(null,null,null),(2,3,4);
+WITH qn AS (SELECT a FROM t1)
+SELECT 1 FROM dual;
+1
+1
+# two query names
+WITH qn AS (SELECT a FROM t1), qn2 as (select b from t1)
+SELECT 1 FROM dual;
+1
+1
+# duplicate query names
+WITH qn AS (SELECT a FROM t1), qn as (select b from t1)
+SELECT 1 FROM qn;
+ERROR 42000: Not unique table/alias: 'qn'
+#  multiple refs
+WITH qn AS (SELECT b as a FROM t1)
+SELECT qn.a, qn2.a  FROM qn, qn as qn2;
+a	a
+NULL	NULL
+3	NULL
+NULL	3
+3	3
+WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.c  FROM qn, qn2;
+a	c
+NULL	NULL
+NULL	4
+3	NULL
+3	4
+# qn2 ref qn:
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a FROM qn)
+SELECT * from qn2;
+3*a
+NULL
+60
+WITH qn AS (SELECT a FROM t1), qn2 AS (SELECT a FROM qn)
+SELECT * from qn2;
+a
+NULL
+2
+WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.a  FROM qn, qn2;
+a	a
+NULL	NULL
+NULL	3
+3	NULL
+3	3
+EXPLAIN WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.a  FROM qn, qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where (isnull(`test`.`t1`.`b`) or (`test`.`t1`.`b` > 0))
+# forward ref (should error)
+WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
+qn AS (SELECT b as a FROM t1)
+SELECT qn2.a  FROM qn2;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn1 as (with qn3 as (select * from qn2) select * from qn3),
+qn2 as (select 1)
+select * from qn1;
+ERROR 42S02: Table 'test.qn2' doesn't exist
+# This is valid; it is to test moving boundaries.
+# When we resolve qn3, resolving qn1 moves the right bound to
+# qn0, but the bound is properly restored so that we can later
+# resolve qn2.
+with qn0 as (select 1), qn1 as (select * from qn0), qn2 as (select 1), qn3 as (select 1 from qn1, qn2) select 1 from qn3;
+1
+1
+# No ref
+explain with qn as (select 1) select 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 2 AS `2`
+with qn as (select 1) select 2;
+2
+2
+# circular ref
+WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
+qn AS (SELECT b as a FROM qn2)
+SELECT qn.a  FROM qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+# recursive
+WITH qn AS (SELECT a FROM qn)
+SELECT qn.a FROM qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+WITH qn1 AS (SELECT a FROM qn3),
+qn2 AS (SELECT a FROM qn1),
+qn3 AS (SELECT a FROM t1),
+qn4 AS (SELECT a FROM qn2)
+SELECT a FROM qn4;
+ERROR 42S02: Table 'test.qn3' doesn't exist
+# ref from subq
+with qn as (select * from t1) select (select max(a) from qn);
+(select max(a) from qn)
+2
+# QN defined in subq
+SELECT (WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2 LIMIT 1)
+FROM t1;
+(WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2 LIMIT 1)
+NULL
+NULL
+SELECT *
+FROM (WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2)
+AS dt;
+b
+NULL
+60
+# WITH in WITH
+with qn as
+(with qn2 as (select "qn2" as a from t1) select "qn", a from qn2)
+select * from qn;
+qn	a
+qn	qn2
+qn	qn2
+# outer ref to a table, placed in a QN in a subq (later)
+# QN defined in view
+CREATE VIEW v AS
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM v;
+b
+NULL
+60
+DROP VIEW v;
+# CREATE INSERT SELECT
+CREATE TABLE t2
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM t2;
+b
+NULL
+60
+INSERT INTO t2
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM t2;
+b
+NULL
+60
+NULL
+60
+DROP TABLE t2;
+# Double use of QN in two subqueries.
+explain with qn as (select * from t1 limit 10)
+select (select max(a) from qn where a=0),
+(select min(b) from qn where b=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	NULL
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` limit 10) /* select#1 */ select (/* select#2 */ select max(`qn`.`a`) from `qn` where (`qn`.`a` = 0)) AS `(select max(a) from qn where a=0)`,(/* select#4 */ select min(`qn`.`b`) from `qn` where (`qn`.`b` = 3)) AS `(select min(b) from qn where b=3)`
+with qn as (select * from t1 limit 10)
+select (select max(a) from qn where a=0),
+(select min(b) from qn where b=3);
+(select max(a) from qn where a=0)	(select min(b) from qn where b=3)
+NULL	3
+# when QN, when table.
+create table qn select "base";
+select * from qn;
+base
+base
+with qn as (select "with") select * from qn;
+with
+with
+# In a non-recursive WITH, the scope of the QN doesn't extend to its
+# subquery, so "qn" inside AS() is the base table.
+WITH qn AS (select * from qn) select * from qn;
+base
+base
+# View doesn't look out to external QNs
+create view v as select * from qn;
+select * from v;
+base
+base
+with qn as (select "with") select * from v;
+base
+base
+with qn as (select * from v) select * from qn;
+base
+base
+# Even if the base table is temporarily dropped
+drop table qn;
+with qn as (select "with") select * from v;
+ERROR HY000: View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+with qn as (select * from v) select * from qn;
+ERROR HY000: View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+create table qn select "base" as a;
+# Neither does SP
+create function f() returns varchar(10)
+return (select * from qn);
+select f();
+f()
+base
+with qn as (select "with") select f();
+f()
+base
+with qn as (select f()) select * from qn;
+f()
+base
+# QN shadows tmp table
+create temporary table qn select "tmp" as a;
+select * from qn;
+a
+tmp
+with qn as (select "with") select * from qn;
+with
+with
+drop function f;
+drop view v;
+# DT shadows QN:
+with qn as (select "with") select * from (select "dt") as qn;
+dt
+dt
+# QN of subq shadows outer QN
+WITH qn AS (select "outer" as a)
+SELECT (WITH qn AS (SELECT "inner" as a) SELECT a from qn),
+qn.a
+FROM qn;
+(WITH qn AS (SELECT "inner" as a) SELECT a from qn)	a
+inner	outer
+# Qualified name isn't allowed after WITH:
+with test.qn as (select "with") select * from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.qn as (select "with") select * from test.qn' at line 1
+# Adding a db. prefix to a field still resolves to the QN; it's a bit awkward as
+# the QN doesn't belong to a db, but it's the same with derived table:
+select test.qn.a from (select "with" as a) qn;
+a
+with
+# OTOH, db. prefix in FROM doesn't resolve to QN, which is good
+with qn as (select "with") select * from qn;
+with
+with
+with qn as (select "with") select * from test.qn;
+a
+tmp
+with qn as (select "with" as a) select a from qn;
+a
+with
+with qn as (select "with" as a) select qn.a from qn;
+a
+with
+with qn as (select "with" as a) select test.qn.a from qn;
+a
+with
+with qn as (select "with" as a) select a from test.qn;
+a
+tmp
+with qn as (select "with" as a) select qn.a from test.qn;
+a
+tmp
+with qn as (select "with" as a) select test.qn.a from test.qn;
+a
+tmp
+drop temporary table qn;
+with qn as (select "with" as a) select a from test.qn;
+a
+base
+with qn as (select "with" as a) select qn.a from test.qn;
+a
+base
+with qn as (select "with" as a) select test.qn.a from test.qn;
+a
+base
+drop table qn;
+with qn as (select "with" as a) select a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn as (select "with" as a) select qn.a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn as (select "with" as a) select test.qn.a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+# Unions
+WITH qn AS (SELECT b as a FROM t1 UNION SELECT b+5 FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a FROM qn
+UNION SELECT qn2.a FROM qn2 WHERE qn2.a>3;
+a
+NULL
+3
+8
+# No double WITH
+with qn as (select "with" as a)
+with qn2 as (select "with" as a)
+select a from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+select a from test.qn' at line 2
+# with comma
+with qn as (select "with" as a),
+with qn2 as (select "with" as a)
+select a from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+select a from test.qn' at line 2
+# ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
+explain
+with qn as (select a from t1 order by 1)
+select a from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+explain
+with qn as (select a from t1 order by 1)
+select qn.a from qn, t1 as t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2`
+explain
+with qn as (select a from t1 order by 1 limit 10)
+select qn.a from qn, t1 as t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 10) /* select#1 */ select `qn`.`a` AS `a` from `qn` join `test`.`t1` `t2`
+# Merge hint
+explain
+with qn as (select a from t1),
+qn2 as (select b from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn2` as (/* select#3 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qn2`.`b` AS `b` from `test`.`t1` join `qn2`
+explain
+with qn as (select a from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn2.a from qn, qn as qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `qn2`.`a` AS `a` from `test`.`t1` join `qn` `qn2`
+# FD detection
+with qn as (select a, b from t1)
+select b from qn group by a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'qn.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+with qn as (select a, b from t1 where a=b)
+select b from qn group by a;
+b
+with qn as (select a, sum(b) as s from t1 group by a)
+select s from qn group by a;
+s
+NULL
+3
+# CTEs work if used in SET
+set @myvar=
+(with qn as (select a, sum(b) as s from t1 group by a)
+select s from qn group by a having s is not null);
+select @myvar;
+@myvar
+3
+# CTE works with semijoin
+explain with cte as (select * from t1 as t2 limit 1)
+select * from t1 where t1.a in (select a+0 from cte);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `cte` as (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` `t2` limit 1) /* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`cte`) where (`test`.`t1`.`a` = (`cte`.`a` + 0))
+with cte as (select * from t1 as t2 limit 1)
+select * from t1 where t1.a in (select a+0 from cte);
+a	b	c
+explain with cte as (select * from t1 as t2)
+select * from t1 where t1.a in (select a+0 from cte);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t1` `t2`) where (`test`.`t1`.`a` = (`test`.`t2`.`a` + 0))
+with cte as (select * from t1 as t2)
+select * from t1 where t1.a in (select a+0 from cte);
+a	b	c
+2	3	4
+# Column names
+# empty list
+with qn () as (select 1) select * from qn, qn qn1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') as (select 1) select * from qn, qn qn1' at line 1
+# Materialization
+with qn (foo, bar) as (select 1) select * from qn, qn qn1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+explain with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` (`foo`,`bar`) as (/* select#2 */ select 1 AS `1`,2 AS `2` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar`,`qn1`.`foo` AS `foo`,`qn1`.`bar` AS `bar` from `qn` join `qn` `qn1`
+with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select 1 as col, 2 as coll from t1 limit 2) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select 1 as col, 2 as coll union
+select a,b from t1) select qn1.bar from qn qn1;
+bar
+2
+NULL
+3
+with qn (foo, bar) as (select a, b from t1 limit 2) select qn.bar,foo from qn;
+bar	foo
+NULL	NULL
+3	2
+create table t3
+with qn (foo, bar) as (select a, b from t1 limit 2) select bar,foo from qn;
+desc t3;
+Field	Type	Null	Key	Default	Extra
+bar	int(11)	YES		NULL	
+foo	int(11)	YES		NULL	
+drop table t3;
+# Merge
+with qn (foo, bar) as (select 1 from t1) select * from qn, qn qn1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+explain with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `foo`,2 AS `bar`,1 AS `foo`,2 AS `bar` from `test`.`t1` join `test`.`t1`
+with qn (foo, bar) as (select 1 as col, 2 as coll from t1) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select a, b from t1) select qn1.bar,foo from qn qn1;
+bar	foo
+NULL	NULL
+3	2
+create table t3
+with qn (foo, bar) as (select a, b from t1) select bar,foo from qn;
+desc t3;
+Field	Type	Null	Key	Default	Extra
+bar	int(11)	YES		NULL	
+foo	int(11)	YES		NULL	
+drop table t3;
+# Disambiguates same-name expressions
+with qn as (select 1,1) select * from qn;
+ERROR 42S21: Duplicate column name '1'
+with qn (foo, bar) as (select 1,1) select * from qn;
+foo	bar
+1	1
+with qn as (select 1,1 from t1) select * from qn;
+ERROR 42S21: Duplicate column name '1'
+with qn (foo, bar) as (select 1,1 from t1) select * from qn;
+foo	bar
+1	1
+1	1
+# Duplicate names are forbidden
+with qn (foo, foo) as (select 1,2) select * from qn;
+ERROR 42S21: Duplicate column name 'foo'
+# Derived tables support this too
+select * from (select '1', 1) dt(foo,bar);
+foo	bar
+1	1
+select * from (select a,b from t1) dt(foo,bar);
+foo	bar
+NULL	NULL
+2	3
+select * from (select a from t1) dt(foo,bar);
+ERROR HY000: View's SELECT and view's field list have different column counts
+# Column names for QN/DT are printed
+create view v1 as
+with qn (foo, bar) as (select 1,1) select * from qn;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+show fields from v1;
+Field	Type	Null	Key	Default	Extra
+foo	int(1)	NO		0	
+bar	int(1)	NO		0	
+select * from v1;
+foo	bar
+1	1
+drop view v1;
+create view v1 as
+select * from (select 1,1) dt(foo,bar);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+drop view v1;
+create view v1 as
+with qn (foo, bar) as (select 1,1 from t1) select * from qn;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+1	1
+drop view v1;
+create view v1 as
+select * from (select 1,1 from t1) dt(foo,bar);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+1	1
+drop view v1;
+# printing with back-quoting is necessary, when using a
+# reserved word as column name.
+create view v1 as
+select * from (select 1) dt(`select`);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+select
+1
+drop view v1;
+# Works for views too. Using testcase of:
+# Bug#23265335 SPECIFYING A NAME FOR VIEW'S COLUMN IN CREATE VIEW MAKES SELECT FAIL
+create view v1 (bar) as
+select 1 as foo group by foo union select 2 order by foo;
+select * from v1;
+bar
+1
+2
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	utf8mb4	utf8mb4_0900_ai_ci
+# The column's name for the view
+select TABLE_NAME,COLUMN_NAME from information_schema.columns
+where TABLE_SCHEMA='test' and TABLE_NAME='v1';
+TABLE_NAME	COLUMN_NAME
+v1	bar
+# is different from the alias in the defining SELECT
+select VIEW_DEFINITION from information_schema.views
+where TABLE_SCHEMA='test' and TABLE_NAME='v1';
+VIEW_DEFINITION
+select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`
+drop view v1;
+create view v1 (bar) as
+select 1, 2 from t1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+drop table t1;
+# Prove that a materialized QN is shared among all references:
+create table t1(a int);
+insert into t1 values(1),(2),(3),(4);
+flush status;
+with qn as (select 123 as col)
+select * from qn;
+col
+123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	1
+flush status;
+with qn as (select 123 as col)
+select * from qn, qn as qn1;
+col	col
+123	123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	1
+create view qn as select 123 as col;
+flush status;
+select * from qn, qn as qn1;
+col	col
+123	123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+drop view qn;
+drop table t1;
+# Printing of WITH to DD for view
+create view v as
+select (with qn as (select "with") select * from qn) as scal_subq
+from dual;
+show create view v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v;
+scal_subq
+with
+drop view v;
+create view v as select * from (with qn as (select "with") select * from qn) as dt;
+show create view v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v;
+with
+with
+drop view v;
+# Printing of merged/materialized QN, with or without alias
+create table t1 (a int);
+explain with qne as (select a from t1),
+qnm as (select a from t1),
+qnea as (select a from t1),
+qnma as (select a from t1)
+select /*+ merge(qne) no_merge(qnm) merge(alias1) no_merge(alias2) */
+qne.a,qnm.a,alias1.a,alias2.a
+from qne, qnm, qnea as alias1, qnma as alias2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	with `qnm` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`), `qnma` as (/* select#5 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qne`@`select#1`) NO_MERGE(`qnm`@`select#1`) MERGE(`alias1`@`select#1`) NO_MERGE(`alias2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qnm`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`alias2`.`a` AS `a` from `test`.`t1` join `qnm` join `test`.`t1` join `qnma` `alias2`
+drop table t1;
+# Automatic index creation if materialized
+create table t1 (a int);
+insert into t1(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# EXPLAIN should not fill the tmp table
+flush status;
+# Should use auto_key0 and ref access.
+explain with tt as (select * from t1)
+select /*+ no_merge(tt) */ tt.a
+from t1 straight_join tt where t1.a=tt.a
+limit 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	100.00	Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+Warnings:
+Note	1003	with `tt` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`tt`@`select#1`) */ `tt`.`a` AS `a` from `test`.`t1` straight_join `tt` where (`tt`.`a` = `test`.`t1`.`a`) limit 1
+show status like "handler_write";
+Variable_name	Value
+Handler_write	0
+flush status;
+with tt as (select * from t1)
+select /*+ no_merge(tt) */ tt.a
+from t1 straight_join tt where t1.a=tt.a
+limit 1;
+a
+1
+show status like "handler_write";
+Variable_name	Value
+Handler_write	10
+# With two references
+with tt as (select * from t1)
+select /*+ no_merge(tt) no_merge(tt_)*/ tt.a
+from t1 straight_join tt straight_join tt as tt_
+where t1.a=tt.a and tt.a=tt_.a
+limit 1;
+a
+1
+# One merged, one materialized: index creation on the second
+# should of course ignore the first
+with q as (select * from t1)
+select /*+ merge(q) no_merge(q1) */ * from q, q q1 where q.a=1 and q1.a=2;
+a	a
+1	2
+drop table t1;
+# Must not create more than 64 indexes.
+(select max(c1) from qn where qn.c1=1)	(select max(c2) from qn where qn.c2=1)	(select max(c3) from qn where qn.c3=1)	(select max(c4) from qn where qn.c4=1)	(select max(c5) from qn where qn.c5=1)	(select max(c6) from qn where qn.c6=1)	(select max(c7) from qn where qn.c7=1)	(select max(c8) from qn where qn.c8=1)	(select max(c9) from qn where qn.c9=1)	(select max(c10) from qn where qn.c10=1)	(select max(c11) from qn where qn.c11=1)	(select max(c12) from qn where qn.c12=1)	(select max(c13) from qn where qn.c13=1)	(select max(c14) from qn where qn.c14=1)	(select max(c15) from qn where qn.c15=1)	(select max(c16) from qn where qn.c16=1)	(select max(c17) from qn where qn.c17=1)	(select max(c18) from qn where qn.c18=1)	(select max(c19) from qn where qn.c19=1)	(select max(c20) from qn where qn.c20=1)	(select max(c21) from qn where qn.c21=1)	(select max(c22) from qn where qn.c22=1)	(select max(c23) from qn where qn.c23=1)	(select max(c24) from qn where qn.c24=1)	(select max(c25) from qn where qn.c25=1)	(select max(c26) from qn where qn.c26=1)	(select max(c27) from qn where qn.c27=1)	(select max(c28) from qn where qn.c28=1)	(select max(c29) from qn where qn.c29=1)	(select max(c30) from qn where qn.c30=1)	(select max(c31) from qn where qn.c31=1)	(select max(c32) from qn where qn.c32=1)	(select max(c33) from qn where qn.c33=1)	(select max(c34) from qn where qn.c34=1)	(select max(c35) from qn where qn.c35=1)	(select max(c36) from qn where qn.c36=1)	(select max(c37) from qn where qn.c37=1)	(select max(c38) from qn where qn.c38=1)	(select max(c39) from qn where qn.c39=1)	(select max(c40) from qn where qn.c40=1)	(select max(c41) from qn where qn.c41=1)	(select max(c42) from qn where qn.c42=1)	(select max(c43) from qn where qn.c43=1)	(select max(c44) from qn where qn.c44=1)	(select max(c45) from qn where qn.c45=1)	(select max(c46) from qn where qn.c46=1)	(select max(c47) from qn where qn.c47=1)	(select max(c48) from qn where qn.c48=1)	(select max(c49) from qn where qn.c49=1)	(select max(c50) from qn where qn.c50=1)	(select max(c51) from qn where qn.c51=1)	(select max(c52) from qn where qn.c52=1)	(select max(c53) from qn where qn.c53=1)	(select max(c54) from qn where qn.c54=1)	(select max(c55) from qn where qn.c55=1)	(select max(c56) from qn where qn.c56=1)	(select max(c57) from qn where qn.c57=1)	(select max(c58) from qn where qn.c58=1)	(select max(c59) from qn where qn.c59=1)	(select max(c60) from qn where qn.c60=1)	(select max(c61) from qn where qn.c61=1)	(select max(c62) from qn where qn.c62=1)	(select max(c63) from qn where qn.c63=1)	(select max(c64) from qn where qn.c64=1)	(select max(c65) from qn where qn.c65=1)	(select max(c66) from qn where qn.c66=1)	(select max(c67) from qn where qn.c67=1)	(select max(c68) from qn where qn.c68=1)	(select max(c69) from qn where qn.c69=1)	(select max(c70) from qn where qn.c70=1)	(select max(c71) from qn where qn.c71=1)	(select max(c72) from qn where qn.c72=1)	(select max(c73) from qn where qn.c73=1)	(select max(c74) from qn where qn.c74=1)	(select max(c75) from qn where qn.c75=1)	(select max(c76) from qn where qn.c76=1)	(select max(c77) from qn where qn.c77=1)	(select max(c78) from qn where qn.c78=1)	(select max(c79) from qn where qn.c79=1)	(select max(c80) from qn where qn.c80=1)	(select max(c81) from qn where qn.c81=1)	(select max(c82) from qn where qn.c82=1)	(select max(c83) from qn where qn.c83=1)	(select max(c84) from qn where qn.c84=1)	(select max(c85) from qn where qn.c85=1)	(select max(c86) from qn where qn.c86=1)	(select max(c87) from qn where qn.c87=1)	(select max(c88) from qn where qn.c88=1)	(select max(c89) from qn where qn.c89=1)	(select max(c90) from qn where qn.c90=1)	(select max(c91) from qn where qn.c91=1)	(select max(c92) from qn where qn.c92=1)	(select max(c93) from qn where qn.c93=1)	(select max(c94) from qn where qn.c94=1)	(select max(c95) from qn where qn.c95=1)	(select max(c96) from qn where qn.c96=1)	(select max(c97) from qn where qn.c97=1)	(select max(c98) from qn where qn.c98=1)	(select max(c99) from qn where qn.c99=1)	(select max(c100) from qn where qn.c100=1)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+drop table t;
+# Choice between two auto_key:
+create table t1(a int, b int);
+insert into t1 values (null, 6), (null, 10);
+# Test the covering key; note that MEMORY doesn't use a
+# covering key (always reads the "data file"). But InnoDB does.
+EXPLAIN with t2 as
+(select * from t1)
+SELECT /*+ no_merge(t2) */ * FROM t2
+WHERE (a = a OR b <= 6) AND (a IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and isnull(`t2`.`a`))
+with t2 as
+(select * from t1)
+SELECT /*+ no_merge(t2) */ * FROM t2
+WHERE (a = a OR b <= 6) AND (a IS NULL);
+a	b
+NULL	6
+drop table t1;
+# QN referencing view of same name isn't a "recursive view",
+# shouldn't cause ER_VIEW_RECURSIVE
+create view v1 as select "with";
+with v1 as (select * from v1) select * from v1;
+with
+with
+drop view v1;
+# QN inside view
+create view v1 as
+with qn as (select 1 as col) select * from qn;
+select * from v1;
+col
+1
+drop view v1;
+create table t1(a int, b int);
+# Alas merge hints are ignored in views (filed Bug#23017428)
+create view v1 as
+with qn as (select a from t1),
+qn2 as (select b from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
+Warnings:
+Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t1`
+drop view v1;
+# Materializing view doesn't impose materializing query name
+create algorithm=temptable view v1 as
+with qn as (select a from t1)
+select qn.a  from qn;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+drop table t1;
+# CTE referenced four times, including in subqueries in other CTEs
+create table sales_days(day_of_sale DATE, amount INT);
+insert into sales_days values
+('2015-01-02', 100), ('2015-01-05', 200),
+('2015-02-02', 10),  ('2015-02-10', 100),
+('2015-03-02', 10),  ('2015-03-18', 1);
+with
+# first CTE: one row per month, with amount sold on all days of month
+sales_by_month(month,total) as
+(select month(day_of_sale), sum(amount) from sales_days
+where year(day_of_sale)=2015
+group by month(day_of_sale)),
+# second CTE: best month
+best_month(month, total, award) as
+(select month, total, "best" from sales_by_month
+where total=(select max(total) from sales_by_month)),
+# 3rd CTE: worst month
+worst_month(month, total, award) as
+(select month, total, "worst" from sales_by_month
+where total=(select min(total) from sales_by_month))
+# Now show results:
+select * from best_month union all select * from worst_month;
+month	total	award
+1	300	best
+3	11	worst
+drop table sales_days;
+# Tmp table cannot be MyISAM
+set global internal_tmp_disk_storage_engine=myisam;
+with qn as (select 1) select * from qn;
+ERROR HY000: 'Materialization of a Common Table Expression' requires @@internal_tmp_disk_storage_engine=InnoDB
+set global internal_tmp_disk_storage_engine=default;
+# Special parser command not allowed to users.
+parse_cte ( select 1 ) ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'parse_cte ( select 1 )' at line 1
+# Query names are a partial workaround to the problem that
+# user-created temp tables can't be referenced twice.
+create temporary table tmp(a int) as select 1;
+select * from tmp, tmp tmp1;
+ERROR HY000: Can't reopen table: 'tmp'
+# the workaround works if the temp table's life is necessary
+# only for a single statement:
+with qn as (select 1) select * from qn, qn qn1;
+1	1
+1	1
+# If the tmp table is necessary, wrapping it in a query name doesn't
+# help:
+with qn as (select * from tmp) select /*+ merge(qn,qn1) */ * from qn, qn qn1;
+ERROR HY000: Can't reopen table: 'tmp'
+with qn as (select * from tmp) select /*+ no_merge(qn,qn1) */ * from qn, qn qn1;
+ERROR HY000: Can't reopen table: 'tmp'
+drop temporary table tmp;
+# Using a query name in UPDATE
+create table t1(a int, b int);
+insert into t1 values(1,2),(3,4);
+create table t2 select * from t1;
+set autocommit=0;
+# Multi-table syntax
+with qn as (select a, b from t1) update t1, qn set qn.a=qn.a+10;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+select * from t1;
+a	b
+1	2
+3	4
+rollback;
+explain with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+# Two references to query name
+explain with qn as (select a+2 as a, b from t2)
+update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+with qn as (select a+2 as a, b from t2)
+update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+# Single-table syntax
+explain with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+NULL	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+NULL	2
+13	4
+rollback;
+# Using a query name in DELETE
+# Multi-table syntax
+with qn as (select a, b from t1) delete qn from t1,qn;
+ERROR HY000: The target table qn of the DELETE is not updatable
+select * from t1;
+a	b
+1	2
+3	4
+rollback;
+explain with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2)
+delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+with qn as (select a+2 as a, b from t2)
+delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
+select * from t1;
+a	b
+1	2
+rollback;
+# Single-table syntax
+explain with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+1	2
+rollback;
+drop table t1,t2;
+set autocommit=default;
+# No default db
+select database();
+database()
+test
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+select database();
+database()
+NULL
+with qn as (select 1) select * from qn;
+1
+1
+# Back to usual db 'test'
+use test;
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+# On-disk tmp tables
+set big_tables=1;
+# WL#883 Non-recursive WITH clause (common table expression)
+flush status;
+create table t1(a int, b int, c int);
+insert into t1 values(null,null,null),(2,3,4);
+WITH qn AS (SELECT a FROM t1)
+SELECT 1 FROM dual;
+1
+1
+# two query names
+WITH qn AS (SELECT a FROM t1), qn2 as (select b from t1)
+SELECT 1 FROM dual;
+1
+1
+# duplicate query names
+WITH qn AS (SELECT a FROM t1), qn as (select b from t1)
+SELECT 1 FROM qn;
+ERROR 42000: Not unique table/alias: 'qn'
+#  multiple refs
+WITH qn AS (SELECT b as a FROM t1)
+SELECT qn.a, qn2.a  FROM qn, qn as qn2;
+a	a
+NULL	NULL
+3	NULL
+NULL	3
+3	3
+WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.c  FROM qn, qn2;
+a	c
+NULL	NULL
+NULL	4
+3	NULL
+3	4
+# qn2 ref qn:
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a FROM qn)
+SELECT * from qn2;
+3*a
+NULL
+60
+WITH qn AS (SELECT a FROM t1), qn2 AS (SELECT a FROM qn)
+SELECT * from qn2;
+a
+NULL
+2
+WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.a  FROM qn, qn2;
+a	a
+NULL	NULL
+NULL	3
+3	NULL
+3	3
+EXPLAIN WITH qn AS (SELECT b as a FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a, qn2.a  FROM qn, qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where (isnull(`test`.`t1`.`b`) or (`test`.`t1`.`b` > 0))
+# forward ref (should error)
+WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
+qn AS (SELECT b as a FROM t1)
+SELECT qn2.a  FROM qn2;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn1 as (with qn3 as (select * from qn2) select * from qn3),
+qn2 as (select 1)
+select * from qn1;
+ERROR 42S02: Table 'test.qn2' doesn't exist
+# This is valid; it is to test moving boundaries.
+# When we resolve qn3, resolving qn1 moves the right bound to
+# qn0, but the bound is properly restored so that we can later
+# resolve qn2.
+with qn0 as (select 1), qn1 as (select * from qn0), qn2 as (select 1), qn3 as (select 1 from qn1, qn2) select 1 from qn3;
+1
+1
+# No ref
+explain with qn as (select 1) select 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select 2 AS `2`
+with qn as (select 1) select 2;
+2
+2
+# circular ref
+WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
+qn AS (SELECT b as a FROM qn2)
+SELECT qn.a  FROM qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+# recursive
+WITH qn AS (SELECT a FROM qn)
+SELECT qn.a FROM qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+WITH qn1 AS (SELECT a FROM qn3),
+qn2 AS (SELECT a FROM qn1),
+qn3 AS (SELECT a FROM t1),
+qn4 AS (SELECT a FROM qn2)
+SELECT a FROM qn4;
+ERROR 42S02: Table 'test.qn3' doesn't exist
+# ref from subq
+with qn as (select * from t1) select (select max(a) from qn);
+(select max(a) from qn)
+2
+# QN defined in subq
+SELECT (WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2 LIMIT 1)
+FROM t1;
+(WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2 LIMIT 1)
+NULL
+NULL
+SELECT *
+FROM (WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2)
+AS dt;
+b
+NULL
+60
+# WITH in WITH
+with qn as
+(with qn2 as (select "qn2" as a from t1) select "qn", a from qn2)
+select * from qn;
+qn	a
+qn	qn2
+qn	qn2
+# outer ref to a table, placed in a QN in a subq (later)
+# QN defined in view
+CREATE VIEW v AS
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM v;
+b
+NULL
+60
+DROP VIEW v;
+# CREATE INSERT SELECT
+CREATE TABLE t2
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM t2;
+b
+NULL
+60
+INSERT INTO t2
+WITH qn AS (SELECT 10*a as a FROM t1),
+qn2 AS (SELECT 3*a AS b FROM qn)
+SELECT * from qn2;
+SELECT * FROM t2;
+b
+NULL
+60
+NULL
+60
+DROP TABLE t2;
+# Double use of QN in two subqueries.
+explain with qn as (select * from t1 limit 10)
+select (select max(a) from qn where a=0),
+(select min(b) from qn where b=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	const	1	100.00	NULL
+2	SUBQUERY	<derived3>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	NULL
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` limit 10) /* select#1 */ select (/* select#2 */ select max(`qn`.`a`) from `qn` where (`qn`.`a` = 0)) AS `(select max(a) from qn where a=0)`,(/* select#4 */ select min(`qn`.`b`) from `qn` where (`qn`.`b` = 3)) AS `(select min(b) from qn where b=3)`
+with qn as (select * from t1 limit 10)
+select (select max(a) from qn where a=0),
+(select min(b) from qn where b=3);
+(select max(a) from qn where a=0)	(select min(b) from qn where b=3)
+NULL	3
+# when QN, when table.
+create table qn select "base";
+select * from qn;
+base
+base
+with qn as (select "with") select * from qn;
+with
+with
+# In a non-recursive WITH, the scope of the QN doesn't extend to its
+# subquery, so "qn" inside AS() is the base table.
+WITH qn AS (select * from qn) select * from qn;
+base
+base
+# View doesn't look out to external QNs
+create view v as select * from qn;
+select * from v;
+base
+base
+with qn as (select "with") select * from v;
+base
+base
+with qn as (select * from v) select * from qn;
+base
+base
+# Even if the base table is temporarily dropped
+drop table qn;
+with qn as (select "with") select * from v;
+ERROR HY000: View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+with qn as (select * from v) select * from qn;
+ERROR HY000: View 'test.v' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+create table qn select "base" as a;
+# Neither does SP
+create function f() returns varchar(10)
+return (select * from qn);
+select f();
+f()
+base
+with qn as (select "with") select f();
+f()
+base
+with qn as (select f()) select * from qn;
+f()
+base
+# QN shadows tmp table
+create temporary table qn select "tmp" as a;
+select * from qn;
+a
+tmp
+with qn as (select "with") select * from qn;
+with
+with
+drop function f;
+drop view v;
+# DT shadows QN:
+with qn as (select "with") select * from (select "dt") as qn;
+dt
+dt
+# QN of subq shadows outer QN
+WITH qn AS (select "outer" as a)
+SELECT (WITH qn AS (SELECT "inner" as a) SELECT a from qn),
+qn.a
+FROM qn;
+(WITH qn AS (SELECT "inner" as a) SELECT a from qn)	a
+inner	outer
+# Qualified name isn't allowed after WITH:
+with test.qn as (select "with") select * from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.qn as (select "with") select * from test.qn' at line 1
+# Adding a db. prefix to a field still resolves to the QN; it's a bit awkward as
+# the QN doesn't belong to a db, but it's the same with derived table:
+select test.qn.a from (select "with" as a) qn;
+a
+with
+# OTOH, db. prefix in FROM doesn't resolve to QN, which is good
+with qn as (select "with") select * from qn;
+with
+with
+with qn as (select "with") select * from test.qn;
+a
+tmp
+with qn as (select "with" as a) select a from qn;
+a
+with
+with qn as (select "with" as a) select qn.a from qn;
+a
+with
+with qn as (select "with" as a) select test.qn.a from qn;
+a
+with
+with qn as (select "with" as a) select a from test.qn;
+a
+tmp
+with qn as (select "with" as a) select qn.a from test.qn;
+a
+tmp
+with qn as (select "with" as a) select test.qn.a from test.qn;
+a
+tmp
+drop temporary table qn;
+with qn as (select "with" as a) select a from test.qn;
+a
+base
+with qn as (select "with" as a) select qn.a from test.qn;
+a
+base
+with qn as (select "with" as a) select test.qn.a from test.qn;
+a
+base
+drop table qn;
+with qn as (select "with" as a) select a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn as (select "with" as a) select qn.a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+with qn as (select "with" as a) select test.qn.a from test.qn;
+ERROR 42S02: Table 'test.qn' doesn't exist
+# Unions
+WITH qn AS (SELECT b as a FROM t1 UNION SELECT b+5 FROM t1),
+qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
+SELECT qn.a FROM qn
+UNION SELECT qn2.a FROM qn2 WHERE qn2.a>3;
+a
+NULL
+3
+8
+# No double WITH
+with qn as (select "with" as a)
+with qn2 as (select "with" as a)
+select a from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+select a from test.qn' at line 2
+# with comma
+with qn as (select "with" as a),
+with qn2 as (select "with" as a)
+select a from test.qn;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'qn2 as (select "with" as a)
+select a from test.qn' at line 2
+# ORDER BY removed unless there is LIMIT or single table (check "Using filesort")
+explain
+with qn as (select a from t1 order by 1)
+select a from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
+explain
+with qn as (select a from t1 order by 1)
+select qn.a from qn, t1 as t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t1` `t2`
+explain
+with qn as (select a from t1 order by 1 limit 10)
+select qn.a from qn, t1 as t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1003	with `qn` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 10) /* select#1 */ select `qn`.`a` AS `a` from `qn` join `test`.`t1` `t2`
+# Merge hint
+explain
+with qn as (select a from t1),
+qn2 as (select b from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn2` as (/* select#3 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qn2`.`b` AS `b` from `test`.`t1` join `qn2`
+explain
+with qn as (select a from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn2.a from qn, qn as qn2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qn`@`select#1`) NO_MERGE(`qn2`@`select#1`) */ `qn2`.`a` AS `a` from `test`.`t1` join `qn` `qn2`
+# FD detection
+with qn as (select a, b from t1)
+select b from qn group by a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'qn.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+with qn as (select a, b from t1 where a=b)
+select b from qn group by a;
+b
+with qn as (select a, sum(b) as s from t1 group by a)
+select s from qn group by a;
+s
+NULL
+3
+# CTEs work if used in SET
+set @myvar=
+(with qn as (select a, sum(b) as s from t1 group by a)
+select s from qn group by a having s is not null);
+select @myvar;
+@myvar
+3
+# CTE works with semijoin
+explain with cte as (select * from t1 as t2 limit 1)
+select * from t1 where t1.a in (select a+0 from cte);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `cte` as (/* select#3 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` `t2` limit 1) /* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`cte`) where (`test`.`t1`.`a` = (`cte`.`a` + 0))
+with cte as (select * from t1 as t2 limit 1)
+select * from t1 where t1.a in (select a+0 from cte);
+a	b	c
+explain with cte as (select * from t1 as t2)
+select * from t1 where t1.a in (select a+0 from cte);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t1` `t2`) where (`test`.`t1`.`a` = (`test`.`t2`.`a` + 0))
+with cte as (select * from t1 as t2)
+select * from t1 where t1.a in (select a+0 from cte);
+a	b	c
+2	3	4
+# Column names
+# empty list
+with qn () as (select 1) select * from qn, qn qn1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') as (select 1) select * from qn, qn qn1' at line 1
+# Materialization
+with qn (foo, bar) as (select 1) select * from qn, qn qn1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+explain with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `qn` (`foo`,`bar`) as (/* select#2 */ select 1 AS `1`,2 AS `2` from `test`.`t1` limit 2) /* select#1 */ select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar`,`qn1`.`foo` AS `foo`,`qn1`.`bar` AS `bar` from `qn` join `qn` `qn1`
+with qn (foo, bar) as (select 1, 2 from t1 limit 2) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select 1 as col, 2 as coll from t1 limit 2) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select 1 as col, 2 as coll union
+select a,b from t1) select qn1.bar from qn qn1;
+bar
+NULL
+2
+3
+with qn (foo, bar) as (select a, b from t1 limit 2) select qn.bar,foo from qn;
+bar	foo
+NULL	NULL
+3	2
+create table t3
+with qn (foo, bar) as (select a, b from t1 limit 2) select bar,foo from qn;
+desc t3;
+Field	Type	Null	Key	Default	Extra
+bar	int(11)	YES		NULL	
+foo	int(11)	YES		NULL	
+drop table t3;
+# Merge
+with qn (foo, bar) as (select 1 from t1) select * from qn, qn qn1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+explain with qn (foo, bar) as (select 1, 2 from t1) select * from qn, qn qn1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `foo`,2 AS `bar`,1 AS `foo`,2 AS `bar` from `test`.`t1` join `test`.`t1`
+with qn (foo, bar) as (select 1 as col, 2 as coll from t1) select * from qn, qn qn1;
+foo	bar	foo	bar
+1	2	1	2
+1	2	1	2
+1	2	1	2
+1	2	1	2
+with qn (foo, bar) as (select a, b from t1) select qn1.bar,foo from qn qn1;
+bar	foo
+NULL	NULL
+3	2
+create table t3
+with qn (foo, bar) as (select a, b from t1) select bar,foo from qn;
+desc t3;
+Field	Type	Null	Key	Default	Extra
+bar	int(11)	YES		NULL	
+foo	int(11)	YES		NULL	
+drop table t3;
+# Disambiguates same-name expressions
+with qn as (select 1,1) select * from qn;
+ERROR 42S21: Duplicate column name '1'
+with qn (foo, bar) as (select 1,1) select * from qn;
+foo	bar
+1	1
+with qn as (select 1,1 from t1) select * from qn;
+ERROR 42S21: Duplicate column name '1'
+with qn (foo, bar) as (select 1,1 from t1) select * from qn;
+foo	bar
+1	1
+1	1
+# Duplicate names are forbidden
+with qn (foo, foo) as (select 1,2) select * from qn;
+ERROR 42S21: Duplicate column name 'foo'
+# Derived tables support this too
+select * from (select '1', 1) dt(foo,bar);
+foo	bar
+1	1
+select * from (select a,b from t1) dt(foo,bar);
+foo	bar
+NULL	NULL
+2	3
+select * from (select a from t1) dt(foo,bar);
+ERROR HY000: View's SELECT and view's field list have different column counts
+# Column names for QN/DT are printed
+create view v1 as
+with qn (foo, bar) as (select 1,1) select * from qn;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+show fields from v1;
+Field	Type	Null	Key	Default	Extra
+foo	int(1)	NO		0	
+bar	int(1)	NO		0	
+select * from v1;
+foo	bar
+1	1
+drop view v1;
+create view v1 as
+select * from (select 1,1) dt(foo,bar);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+drop view v1;
+create view v1 as
+with qn (foo, bar) as (select 1,1 from t1) select * from qn;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+1	1
+drop view v1;
+create view v1 as
+select * from (select 1,1 from t1) dt(foo,bar);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+foo	bar
+1	1
+1	1
+drop view v1;
+# printing with back-quoting is necessary, when using a
+# reserved word as column name.
+create view v1 as
+select * from (select 1) dt(`select`);
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	utf8mb4	utf8mb4_0900_ai_ci
+select * from v1;
+select
+1
+drop view v1;
+# Works for views too. Using testcase of:
+# Bug#23265335 SPECIFYING A NAME FOR VIEW'S COLUMN IN CREATE VIEW MAKES SELECT FAIL
+create view v1 (bar) as
+select 1 as foo group by foo union select 2 order by foo;
+select * from v1;
+bar
+1
+2
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	utf8mb4	utf8mb4_0900_ai_ci
+# The column's name for the view
+select TABLE_NAME,COLUMN_NAME from information_schema.columns
+where TABLE_SCHEMA='test' and TABLE_NAME='v1';
+TABLE_NAME	COLUMN_NAME
+v1	bar
+# is different from the alias in the defining SELECT
+select VIEW_DEFINITION from information_schema.views
+where TABLE_SCHEMA='test' and TABLE_NAME='v1';
+VIEW_DEFINITION
+select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`
+drop view v1;
+create view v1 (bar) as
+select 1, 2 from t1;
+ERROR HY000: View's SELECT and view's field list have different column counts
+drop table t1;
+# Prove that a materialized QN is shared among all references:
+create table t1(a int);
+insert into t1 values(1),(2),(3),(4);
+flush status;
+with qn as (select 123 as col)
+select * from qn;
+col
+123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	1
+flush status;
+with qn as (select 123 as col)
+select * from qn, qn as qn1;
+col	col
+123	123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	1
+create view qn as select 123 as col;
+flush status;
+select * from qn, qn as qn1;
+col	col
+123	123
+show status like "handler_write";
+Variable_name	Value
+Handler_write	2
+drop view qn;
+drop table t1;
+# Printing of WITH to DD for view
+create view v as
+select (with qn as (select "with") select * from qn) as scal_subq
+from dual;
+show create view v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v;
+scal_subq
+with
+drop view v;
+create view v as select * from (with qn as (select "with") select * from qn) as dt;
+show create view v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	utf8mb4	utf8mb4_0900_ai_ci
+select * from v;
+with
+with
+drop view v;
+# Printing of merged/materialized QN, with or without alias
+create table t1 (a int);
+explain with qne as (select a from t1),
+qnm as (select a from t1),
+qnea as (select a from t1),
+qnma as (select a from t1)
+select /*+ merge(qne) no_merge(qnm) merge(alias1) no_merge(alias2) */
+qne.a,qnm.a,alias1.a,alias2.a
+from qne, qnm, qnea as alias1, qnma as alias2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	with `qnm` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`), `qnma` as (/* select#5 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ MERGE(`qne`@`select#1`) NO_MERGE(`qnm`@`select#1`) MERGE(`alias1`@`select#1`) NO_MERGE(`alias2`@`select#1`) */ `test`.`t1`.`a` AS `a`,`qnm`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`alias2`.`a` AS `a` from `test`.`t1` join `qnm` join `test`.`t1` join `qnma` `alias2`
+drop table t1;
+# Automatic index creation if materialized
+create table t1 (a int);
+insert into t1(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# EXPLAIN should not fill the tmp table
+flush status;
+# Should use auto_key0 and ref access.
+explain with tt as (select * from t1)
+select /*+ no_merge(tt) */ tt.a
+from t1 straight_join tt where t1.a=tt.a
+limit 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	#	100.00	Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+Warnings:
+Note	1003	with `tt` as (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`tt`@`select#1`) */ `tt`.`a` AS `a` from `test`.`t1` straight_join `tt` where (`tt`.`a` = `test`.`t1`.`a`) limit 1
+show status like "handler_write";
+Variable_name	Value
+Handler_write	0
+flush status;
+with tt as (select * from t1)
+select /*+ no_merge(tt) */ tt.a
+from t1 straight_join tt where t1.a=tt.a
+limit 1;
+a
+1
+show status like "handler_write";
+Variable_name	Value
+Handler_write	10
+# With two references
+with tt as (select * from t1)
+select /*+ no_merge(tt) no_merge(tt_)*/ tt.a
+from t1 straight_join tt straight_join tt as tt_
+where t1.a=tt.a and tt.a=tt_.a
+limit 1;
+a
+1
+# One merged, one materialized: index creation on the second
+# should of course ignore the first
+with q as (select * from t1)
+select /*+ merge(q) no_merge(q1) */ * from q, q q1 where q.a=1 and q1.a=2;
+a	a
+1	2
+drop table t1;
+# Must not create more than 64 indexes.
+(select max(c1) from qn where qn.c1=1)	(select max(c2) from qn where qn.c2=1)	(select max(c3) from qn where qn.c3=1)	(select max(c4) from qn where qn.c4=1)	(select max(c5) from qn where qn.c5=1)	(select max(c6) from qn where qn.c6=1)	(select max(c7) from qn where qn.c7=1)	(select max(c8) from qn where qn.c8=1)	(select max(c9) from qn where qn.c9=1)	(select max(c10) from qn where qn.c10=1)	(select max(c11) from qn where qn.c11=1)	(select max(c12) from qn where qn.c12=1)	(select max(c13) from qn where qn.c13=1)	(select max(c14) from qn where qn.c14=1)	(select max(c15) from qn where qn.c15=1)	(select max(c16) from qn where qn.c16=1)	(select max(c17) from qn where qn.c17=1)	(select max(c18) from qn where qn.c18=1)	(select max(c19) from qn where qn.c19=1)	(select max(c20) from qn where qn.c20=1)	(select max(c21) from qn where qn.c21=1)	(select max(c22) from qn where qn.c22=1)	(select max(c23) from qn where qn.c23=1)	(select max(c24) from qn where qn.c24=1)	(select max(c25) from qn where qn.c25=1)	(select max(c26) from qn where qn.c26=1)	(select max(c27) from qn where qn.c27=1)	(select max(c28) from qn where qn.c28=1)	(select max(c29) from qn where qn.c29=1)	(select max(c30) from qn where qn.c30=1)	(select max(c31) from qn where qn.c31=1)	(select max(c32) from qn where qn.c32=1)	(select max(c33) from qn where qn.c33=1)	(select max(c34) from qn where qn.c34=1)	(select max(c35) from qn where qn.c35=1)	(select max(c36) from qn where qn.c36=1)	(select max(c37) from qn where qn.c37=1)	(select max(c38) from qn where qn.c38=1)	(select max(c39) from qn where qn.c39=1)	(select max(c40) from qn where qn.c40=1)	(select max(c41) from qn where qn.c41=1)	(select max(c42) from qn where qn.c42=1)	(select max(c43) from qn where qn.c43=1)	(select max(c44) from qn where qn.c44=1)	(select max(c45) from qn where qn.c45=1)	(select max(c46) from qn where qn.c46=1)	(select max(c47) from qn where qn.c47=1)	(select max(c48) from qn where qn.c48=1)	(select max(c49) from qn where qn.c49=1)	(select max(c50) from qn where qn.c50=1)	(select max(c51) from qn where qn.c51=1)	(select max(c52) from qn where qn.c52=1)	(select max(c53) from qn where qn.c53=1)	(select max(c54) from qn where qn.c54=1)	(select max(c55) from qn where qn.c55=1)	(select max(c56) from qn where qn.c56=1)	(select max(c57) from qn where qn.c57=1)	(select max(c58) from qn where qn.c58=1)	(select max(c59) from qn where qn.c59=1)	(select max(c60) from qn where qn.c60=1)	(select max(c61) from qn where qn.c61=1)	(select max(c62) from qn where qn.c62=1)	(select max(c63) from qn where qn.c63=1)	(select max(c64) from qn where qn.c64=1)	(select max(c65) from qn where qn.c65=1)	(select max(c66) from qn where qn.c66=1)	(select max(c67) from qn where qn.c67=1)	(select max(c68) from qn where qn.c68=1)	(select max(c69) from qn where qn.c69=1)	(select max(c70) from qn where qn.c70=1)	(select max(c71) from qn where qn.c71=1)	(select max(c72) from qn where qn.c72=1)	(select max(c73) from qn where qn.c73=1)	(select max(c74) from qn where qn.c74=1)	(select max(c75) from qn where qn.c75=1)	(select max(c76) from qn where qn.c76=1)	(select max(c77) from qn where qn.c77=1)	(select max(c78) from qn where qn.c78=1)	(select max(c79) from qn where qn.c79=1)	(select max(c80) from qn where qn.c80=1)	(select max(c81) from qn where qn.c81=1)	(select max(c82) from qn where qn.c82=1)	(select max(c83) from qn where qn.c83=1)	(select max(c84) from qn where qn.c84=1)	(select max(c85) from qn where qn.c85=1)	(select max(c86) from qn where qn.c86=1)	(select max(c87) from qn where qn.c87=1)	(select max(c88) from qn where qn.c88=1)	(select max(c89) from qn where qn.c89=1)	(select max(c90) from qn where qn.c90=1)	(select max(c91) from qn where qn.c91=1)	(select max(c92) from qn where qn.c92=1)	(select max(c93) from qn where qn.c93=1)	(select max(c94) from qn where qn.c94=1)	(select max(c95) from qn where qn.c95=1)	(select max(c96) from qn where qn.c96=1)	(select max(c97) from qn where qn.c97=1)	(select max(c98) from qn where qn.c98=1)	(select max(c99) from qn where qn.c99=1)	(select max(c100) from qn where qn.c100=1)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+drop table t;
+# Choice between two auto_key:
+create table t1(a int, b int);
+insert into t1 values (null, 6), (null, 10);
+# Test the covering key; note that MEMORY doesn't use a
+# covering key (always reads the "data file"). But InnoDB does.
+EXPLAIN with t2 as
+(select * from t1)
+SELECT /*+ no_merge(t2) */ * FROM t2
+WHERE (a = a OR b <= 6) AND (a IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and isnull(`t2`.`a`))
+with t2 as
+(select * from t1)
+SELECT /*+ no_merge(t2) */ * FROM t2
+WHERE (a = a OR b <= 6) AND (a IS NULL);
+a	b
+NULL	6
+drop table t1;
+# QN referencing view of same name isn't a "recursive view",
+# shouldn't cause ER_VIEW_RECURSIVE
+create view v1 as select "with";
+with v1 as (select * from v1) select * from v1;
+with
+with
+drop view v1;
+# QN inside view
+create view v1 as
+with qn as (select 1 as col) select * from qn;
+select * from v1;
+col
+1
+drop view v1;
+create table t1(a int, b int);
+# Alas merge hints are ignored in views (filed Bug#23017428)
+create view v1 as
+with qn as (select a from t1),
+qn2 as (select b from t1)
+select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
+Warnings:
+Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t1`
+drop view v1;
+# Materializing view doesn't impose materializing query name
+create algorithm=temptable view v1 as
+with qn as (select a from t1)
+select qn.a  from qn;
+explain select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
+drop view v1;
+drop table t1;
+# CTE referenced four times, including in subqueries in other CTEs
+create table sales_days(day_of_sale DATE, amount INT);
+insert into sales_days values
+('2015-01-02', 100), ('2015-01-05', 200),
+('2015-02-02', 10),  ('2015-02-10', 100),
+('2015-03-02', 10),  ('2015-03-18', 1);
+with
+# first CTE: one row per month, with amount sold on all days of month
+sales_by_month(month,total) as
+(select month(day_of_sale), sum(amount) from sales_days
+where year(day_of_sale)=2015
+group by month(day_of_sale)),
+# second CTE: best month
+best_month(month, total, award) as
+(select month, total, "best" from sales_by_month
+where total=(select max(total) from sales_by_month)),
+# 3rd CTE: worst month
+worst_month(month, total, award) as
+(select month, total, "worst" from sales_by_month
+where total=(select min(total) from sales_by_month))
+# Now show results:
+select * from best_month union all select * from worst_month;
+month	total	award
+1	300	best
+3	11	worst
+drop table sales_days;
+# Tmp table cannot be MyISAM
+set global internal_tmp_disk_storage_engine=myisam;
+with qn as (select 1) select * from qn;
+ERROR HY000: 'Materialization of a Common Table Expression' requires @@internal_tmp_disk_storage_engine=InnoDB
+set global internal_tmp_disk_storage_engine=default;
+# Special parser command not allowed to users.
+parse_cte ( select 1 ) ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'parse_cte ( select 1 )' at line 1
+# Query names are a partial workaround to the problem that
+# user-created temp tables can't be referenced twice.
+create temporary table tmp(a int) as select 1;
+select * from tmp, tmp tmp1;
+ERROR HY000: Can't reopen table: 'tmp'
+# the workaround works if the temp table's life is necessary
+# only for a single statement:
+with qn as (select 1) select * from qn, qn qn1;
+1	1
+1	1
+# If the tmp table is necessary, wrapping it in a query name doesn't
+# help:
+with qn as (select * from tmp) select /*+ merge(qn,qn1) */ * from qn, qn qn1;
+ERROR HY000: Can't reopen table: 'tmp'
+with qn as (select * from tmp) select /*+ no_merge(qn,qn1) */ * from qn, qn qn1;
+ERROR HY000: Can't reopen table: 'tmp'
+drop temporary table tmp;
+# Using a query name in UPDATE
+create table t1(a int, b int);
+insert into t1 values(1,2),(3,4);
+create table t2 select * from t1;
+set autocommit=0;
+# Multi-table syntax
+with qn as (select a, b from t1) update t1, qn set qn.a=qn.a+10;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+select * from t1;
+a	b
+1	2
+3	4
+rollback;
+explain with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t1) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t2) update t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+with qn as (select a+2 as a, b from t2) update /*+ no_merge(qn) */ t1, qn set t1.a=qn.a+10 where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+# Two references to query name
+explain with qn as (select a+2 as a, b from t2)
+update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+with qn as (select a+2 as a, b from t2)
+update t1, qn, qn as qn2 set t1.a=qn.a+10 where t1.a-qn.a=0 and qn.b=qn2.b;
+select * from t1;
+a	b
+1	2
+13	4
+rollback;
+# Single-table syntax
+explain with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+NULL	2
+13	4
+rollback;
+explain with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2) update t1
+set t1.a=(select /*+ merge(qn) */ qn.a+10 from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+NULL	2
+13	4
+rollback;
+# Using a query name in DELETE
+# Multi-table syntax
+with qn as (select a, b from t1) delete qn from t1,qn;
+ERROR HY000: The target table qn of the DELETE is not updatable
+select * from t1;
+a	b
+1	2
+3	4
+rollback;
+explain with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t1) delete t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+with qn as (select a+2 as a, b from t2) delete t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+with qn as (select a+2 as a, b from t2) delete /*+ no_merge(qn) */ t1 from t1, qn where t1.a-qn.a=0;
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2)
+delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+with qn as (select a+2 as a, b from t2)
+delete t1 from t1, qn, qn as qn2 where t1.a-qn.a=0 and qn.b=qn2.b;
+select * from t1;
+a	b
+1	2
+rollback;
+# Single-table syntax
+explain with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select qn.a from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+1	2
+rollback;
+explain with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+with qn as (select a+2 as a, b from t2)
+delete from t1 where t1.a=(select /*+ merge(qn) */ qn.a from qn where t1.a-qn.a=0 limit 1);
+select * from t1;
+a	b
+1	2
+rollback;
+drop table t1,t2;
+set autocommit=default;
+# No default db
+select database();
+database()
+test
+create database mysqltest1;
+use mysqltest1;
+drop database mysqltest1;
+select database();
+database()
+NULL
+with qn as (select 1) select * from qn;
+1
+1
+# Back to usual db 'test'
+use test;
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	23

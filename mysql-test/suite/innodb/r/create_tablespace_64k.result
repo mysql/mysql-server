@@ -57,9 +57,9 @@ Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size >
 Error	1528	Failed to create TABLESPACE s_32k
 Error	1031	Table storage engine for 's_32k' doesn't have this option
 CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_64k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_64k.ibd
+s_64k	General	DEFAULT	0	Any	s_64k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
@@ -121,11 +121,7 @@ INSERT INTO t_dyn_in_64k VALUES (1,'a'),(2,'b'),(3,'c');
 # Try to drop a tablespace which is not empty
 #
 DROP TABLESPACE s_64k;
-ERROR HY000: Failed to drop TABLESPACE s_64k
-SHOW WARNINGS;
-Level	Code	Message
-Error	1529	Failed to drop TABLESPACE s_64k
-Error	3120	Tablespace `s_64k` is not empty.
+ERROR HY000: Tablespace `s_64k` is not empty.
 #
 # Add more data to the existing Tables
 #
@@ -136,18 +132,19 @@ INSERT INTO t_dyn_in_64k VALUES (4,'d');
 # Restart the server and make sure that everything is OK.
 #
 # restart
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-s_64k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_64k.ibd
+s_64k	General	DEFAULT	0	Any	s_64k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_64k	s_64k	129	5	Compact	0	General
 test/t_dyn_in_64k	s_64k	161	5	Dynamic	0	General
 test/t_red_in_64k	s_64k	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
+mysql.ibd
 s_64k.ibd
 # Directory of MYSQLD_DATADIR/test/
 #

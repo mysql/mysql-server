@@ -1,27 +1,31 @@
-############## mysql-test\t\bulk_insert_buffer_size_basic.test #################
-#                                                                              #
-# Variable Name: bulk_insert_buffer_size                                       #
-# Scope: GLOBAL & SESSION                                                      #
-# Access Type: Dynamic                                                         #
-# Data Type: Numeric                                                           #
-# Default Value: 8388608                                                       #
-# Range: 0 - 4294967295                                                        #
-#                                                                              #
-#                                                                              #
-# Creation Date: 2008-02-07                                                    #
-# Author:  Salman Rawala                                                       #
-#                                                                              #
-# Description: Test Cases of Dynamic System Variable "bulk_insert_buffer_size" #
-#              that checks behavior of this variable in the following ways     #
-#              * Default Value                                                 #
-#              * Valid & Invalid values                                        #
-#              * Scope & Access method                                         #
-#              * Data Integrity                          .                     #
-#                                                                              #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           # 
-#   server-system-variables.html#option_mysqld_bulk_insert_buffer_size         #
-#                                                                              #
-################################################################################
+############### mysql-test\t\bulk_insert_buffer_size_basic.test ##################
+#                                                                                #
+# Variable Name: bulk_insert_buffer_size                                         #
+# Scope: GLOBAL & SESSION                                                        #
+# Access Type: Dynamic                                                           #
+# Data Type: Numeric                                                             #
+# Default Value: 8388608                                                         #
+# Range: 0 - 4294967295/18446744073709551615                                     #
+#                                                                                #
+#                                                                                #
+# Creation Date: 2008-02-07                                                      #
+# Author:  Salman Rawala                                                         #
+#                                                                                #
+# Description: Test Cases of Dynamic System Variable "bulk_insert_buffer_size"   #
+#              that checks behavior of this variable in the following ways       #
+#              * Default Value                                                   #
+#              * Valid & Invalid values                                          #
+#              * Scope & Access method                                           #
+#              * Data Integrity                                                  #
+#                                                                                #
+# Modified:    Pavan Naik, 2015-11-24                                            #
+#              Added boundary value test cases according to the type of the      #
+#              server binary.                                                    #
+#                                                                                #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                             #
+#            server-system-variables.html#option_mysqld_bulk_insert_buffer_size  #
+#                                                                                #
+##################################################################################
 
 --source include/load_sysvars.inc
 
@@ -78,6 +82,22 @@ SELECT @@global.bulk_insert_buffer_size;
 SET @@global.bulk_insert_buffer_size = 429496;
 SELECT @@global.bulk_insert_buffer_size;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@global.bulk_insert_buffer_size = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@global.bulk_insert_buffer_size;
+}
 
 --echo '#--------------------FN_DYNVARS_007_04-------------------------#'
 ###############################################################################
@@ -93,14 +113,26 @@ SELECT @@session.bulk_insert_buffer_size;
 SET @@session.bulk_insert_buffer_size = 429496;
 SELECT @@session.bulk_insert_buffer_size;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@session.bulk_insert_buffer_size = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@session.bulk_insert_buffer_size;
+}
 
 --echo '#------------------FN_DYNVARS_007_05-----------------------#'
 ###################################################################
 # Change the value of bulk_insert_buffer_size to an invalid value #
 ###################################################################
 
-SET @@global.bulk_insert_buffer_size = 42949672950;
-SELECT @@global.bulk_insert_buffer_size;
 SET @@global.bulk_insert_buffer_size = -1024;
 SELECT @@global.bulk_insert_buffer_size;
 
@@ -111,8 +143,22 @@ SET @@global.bulk_insert_buffer_size = ON;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.bulk_insert_buffer_size = 429496.10;
 
-SET @@session.bulk_insert_buffer_size = 42949672950;
-SELECT @@session.bulk_insert_buffer_size;
+if($mach32)
+{
+  SET @@global.bulk_insert_buffer_size = 4294967296;
+  SELECT @@global.bulk_insert_buffer_size;
+
+  SET @@global.bulk_insert_buffer_size = 42949672950;
+  SELECT @@global.bulk_insert_buffer_size;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.bulk_insert_buffer_size = 18446744073709551616;
+  SELECT @@global.bulk_insert_buffer_size;
+}
+
 SET @@session.bulk_insert_buffer_size = -2;
 SELECT @@session.bulk_insert_buffer_size;
 
@@ -121,6 +167,21 @@ SET @@session.bulk_insert_buffer_size = test;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.bulk_insert_buffer_size = 429496.10;
 
+if($mach32)
+{
+  SET @@session.bulk_insert_buffer_size = 4294967296;
+  SELECT @@session.bulk_insert_buffer_size;
+
+  SET @@session.bulk_insert_buffer_size = 42949672950;
+  SELECT @@session.bulk_insert_buffer_size;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@session.bulk_insert_buffer_size = 18446744073709551616;
+  SELECT @@session.bulk_insert_buffer_size;
+}
 
 --echo '#------------------FN_DYNVARS_007_06-----------------------#'
 ####################################################################
@@ -129,7 +190,7 @@ SET @@session.bulk_insert_buffer_size = 429496.10;
 
 --disable_warnings
 SELECT @@global.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 --enable_warnings
 
@@ -140,7 +201,7 @@ WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 
 --disable_warnings
 SELECT @@session.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 --enable_warnings
 

@@ -3,7 +3,6 @@
 # 2010-01-25 - Added
 #
 
---source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_change_buffering;
 SELECT @start_global_value;
@@ -19,8 +18,8 @@ select @@session.innodb_change_buffering;
 show global variables like 'innodb_change_buffering';
 show session variables like 'innodb_change_buffering';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 --enable_warnings
 
 #
@@ -29,14 +28,14 @@ select * from information_schema.session_variables where variable_name='innodb_c
 set global innodb_change_buffering='none';
 select @@global.innodb_change_buffering;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 --enable_warnings
 set @@global.innodb_change_buffering='inserts';
 select @@global.innodb_change_buffering;
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 --enable_warnings
 --error ER_GLOBAL_VARIABLE
 set session innodb_change_buffering='some';
@@ -48,9 +47,9 @@ set @@session.innodb_change_buffering='some';
 #
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1.1;
---error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1;
---error ER_WRONG_TYPE_FOR_VAR
+SELECT @@global.innodb_change_buffering;
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_change_buffering=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1e1;

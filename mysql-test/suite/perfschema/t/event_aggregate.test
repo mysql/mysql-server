@@ -1,7 +1,5 @@
 # Tests for the performance schema
-#
-## To skip the test with QC enabled till BUG#14830950 is fixed.
--- source include/have_QC_Disabled.inc
+
 --source ../include/event_aggregate_setup.inc
 --source ../include/event_aggregate_load.inc
 --source ../include/event_aggregate_cleanup.inc

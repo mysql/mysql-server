@@ -1,0 +1,497 @@
+#
+# Set up masters server_1, server_3, server_4, server_5
+# and server_6 with server_2 being a slave.
+#
+include/rpl_init.inc [topology=1->2,3->2,4->2,5->2,6->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+#
+# 0. Verify that if the user specifies a per-channel replication filter
+# through a command-line option (or in a configuration file) for default
+# channel which is not exist/configured as of now (i.e not present in
+# slave info tables yet), then the per-channel replication filter is
+# discarded with a warning.
+#
+include/assert_grep.inc [Found the expected warning "There are per-channel replication filter(s) configured for channel '' which does not exist. The filter(s) have been discarded.]
+#
+# 1. Verify that all channels but default channel
+# which is not configured would copy global_db.t1
+# to its per-channel replication filter rule on
+# --replicate-ignore-table with the following setting:
+# --replicate-ignore-table=global_db.t1
+#
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx);
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL 'channel_1' first.
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx) FOR CHANNEL 'channel_1';
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL 'channel_1' first.
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+include/rpl_stop_slaves.inc
+#
+# 2. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> acts on the specified channel
+# removing any existing replication filter if it has the same
+# filter type as one of specified replication filters, and
+# replacing them with the specified ones. Filter types that
+# were not explicitly listed in the statement are not modified.
+#
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db%.t1%') FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db%.t1%') FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db4,db44)) FOR CHANNEL 'channel_4';
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_DO_DB	db1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_1	REPLICATE_WILD_DO_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_IGNORE_DB	db33	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_WILD_IGNORE_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+include/rpl_start_slaves.inc
+#
+# Create databases and tables on server_1
+#
+[connection server_1]
+CREATE DATABASE db1;
+CREATE DATABASE db11;
+CREATE DATABASE db111;
+USE db1;
+CREATE TABLE db1.t1 (c1 int);
+INSERT INTO db1.t1 VALUES (1);
+CREATE TABLE db1.t11 (c1 int);
+INSERT INTO db1.t11 VALUES (1);
+CREATE TABLE db1.t2 (c1 int);
+INSERT INTO db1.t2 VALUES (1);
+#
+# Create databases and tables on server_3
+#
+[connection server_3]
+CREATE DATABASE db3;
+CREATE DATABASE db33;
+CREATE DATABASE db333;
+USE db3;
+CREATE TABLE db3.t1 (c1 int);
+INSERT INTO db3.t1 VALUES (1);
+CREATE TABLE db3.t11 (c1 int);
+CREATE TABLE db3.t2 (c1 int);
+INSERT INTO db3.t2 VALUES (1);
+USE db333;
+CREATE TABLE db333.t1 (c1 int);
+INSERT INTO db333.t1 VALUES (1);
+#
+# Create databases and tables on server_3
+#
+[connection server_4]
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE db4.t4 (c1 int);
+#
+# Create databases and tables on server_5
+#
+[connection server_5]
+CREATE DATABASE db5;
+CREATE DATABASE db55;
+USE db5;
+CREATE TABLE db5.t1 (c1 int);
+INSERT INTO db5.t1 VALUES (1);
+CREATE TABLE db5.t2 (c1 int);
+INSERT INTO db5.t2 VALUES (1);
+USE db55;
+CREATE TABLE db55.t1 (c1 int);
+INSERT INTO db55.t1 VALUES (1);
+#
+# Create databases and tables on server_6
+#
+[connection server_6]
+CREATE DATABASE db6;
+CREATE DATABASE db66;
+USE db6;
+CREATE TABLE db6.t1 (c1 int);
+INSERT INTO db6.t1 VALUES (1);
+CREATE TABLE db6.t2 (c1 int);
+INSERT INTO db6.t2 VALUES (1);
+USE db66;
+CREATE TABLE db66.t1 (c1 int);
+INSERT INTO db66.t1 VALUES (1);
+#
+# Sync the slave (server_2) with all masters
+#
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+[connection server_4]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_4']
+[connection server_5]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_5']
+[connection server_6]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_6']
+#
+# Check that db1 is replicated and both db11 and db111 are
+# filtered out on channel_1 with CHANGE REPLICATION FILTER
+# REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1'.
+# Check that db33 is filtered out and both db3 and db333 are
+# replicated on channel_3 with CHANGE REPLICATION FILTER
+# REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3'.
+#
+SHOW DATABASES;
+Database
+db1
+db3
+db333
+db4
+db5
+db55
+db6
+db66
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+#
+# 3. All matched tables (t1, t11) from db1 are replicated, but
+# unmatched t2 on channel_1 with
+# CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%)
+# FOR CHANNEL 'channel_1';
+#
+SHOW TABLES FROM db1;
+Tables_in_db1
+t1
+t11
+include/assert.inc [Slave should have 1 row in db1.t1 on channel_1]
+include/assert.inc [Slave should have 1 row in db1.t11 on channel_1]
+#
+# 4. All matched tables db3.t1, db3.t11 and db333.t1 are filtered
+# out, but db3.t2 on channel_3 with
+# CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%)
+# FOR CHANNEL 'channel_3';
+#
+SHOW TABLES FROM db3;
+Tables_in_db3
+t2
+SHOW TABLES FROM db333;
+Tables_in_db333
+include/assert.inc [Slave should have 1 row in db3.t2 on channel_3]
+#
+# 5. Table t4 in db4 is replicated and there is no db44 created on
+# channel_4 with CHANGE REPLICATION FILTER
+# REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
+#
+SHOW TABLES FROM db4;
+Tables_in_db4
+t4
+SHOW TABLES FROM db44;
+ERROR 42000: Unknown database 'db44'
+#
+# 6. The matched table db5.t1 is replicated, other tables
+# are filtered out on channel_5 with
+# CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1)
+# FOR CHANNEL 'channel_5';
+#
+SHOW TABLES FROM db5;
+Tables_in_db5
+t1
+SHOW TABLES FROM db55;
+Tables_in_db55
+include/assert.inc [Slave should have 1 row in db5.t1 on channel_5]
+#
+# 7. The matched table db6.t1 is filtered out, other tables
+# are replicated on channel_6 with
+# CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1)
+# FOR CHANNEL 'channel_6';
+#
+SHOW TABLES FROM db6;
+Tables_in_db6
+t2
+SHOW TABLES FROM db66;
+Tables_in_db66
+t1
+include/assert.inc [Slave should have 1 row in db6.t2 on channel_6]
+include/assert.inc [Slave should have 1 row in db66.t1 on channel_6]
+#
+# Stop slave (on server_2).
+#
+include/rpl_stop_slaves.inc
+#
+# 8. SHOW SLAVE STATUS FOR CHANNEL 'channel_2' throws an error, since
+# the channel does not exist.
+#
+SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
+ERROR HY000: Slave channel 'channel_2' does not exist.
+#
+# 9.1 SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays replication
+# filters set by the following commands:
+# CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
+# CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
+#
+Replicate_Do_DB = 'db1'
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = 'global_db.t1'
+Replicate_Wild_Do_Table = 'db%.t1%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+#
+# 9.2 SHOW SLAVE STATUS FOR CHANNEL 'channel_3' displays replication
+# filters set by the following commands:
+# CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
+# CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
+#
+Replicate_Do_DB = ''
+Replicate_Ignore_DB = 'db33'
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = 'global_db.t1'
+Replicate_Wild_Do_Table = ''
+Replicate_Wild_Ignore_Table = 'db%.t1%'
+Replicate_Rewrite_DB = ''
+#
+# 9.3 SHOW SLAVE STATUS FOR CHANNEL 'channel_4' displays replication
+# filters set by the following command:
+# CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
+#
+Replicate_Do_DB = ''
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = 'global_db.t1'
+Replicate_Wild_Do_Table = ''
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = '(db4,db44)'
+#
+# 9.4 SHOW SLAVE STATUS FOR CHANNEL 'channel_5' displays replication
+# filters set by the following command:
+# CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
+#
+Replicate_Do_DB = ''
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = 'db5.t1'
+Replicate_Ignore_Table = 'global_db.t1'
+Replicate_Wild_Do_Table = ''
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+#
+# 9.5 SHOW SLAVE STATUS FOR CHANNEL 'channel_6' displays replication
+# filters set by the following command:
+# CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
+#
+Replicate_Do_DB = ''
+Replicate_Ignore_DB = ''
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = 'db6.t1'
+Replicate_Wild_Do_Table = ''
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+#
+# 10. Verify that performance_schema.replication_applier_filters can
+# display correct replication filters for all channels.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+11
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_DO_DB	db1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	7
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_1	REPLICATE_WILD_DO_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	4
+channel_3	REPLICATE_IGNORE_DB	db33	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_WILD_IGNORE_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	5
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+#
+# 11. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> acts on the specified channel
+# removing any existing replication filter if it has the same
+# filter type as one of specified replication filters, and
+# replacing them with the specified ones. Filter types that
+# were not explicitly listed in the statement are not modified.
+#
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(`db3`.initfilet3) FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('initfiled%.t%') FOR CHANNEL 'channel_1';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db2,`db32`,`db,3`), REPLICATE_DO_DB = (db1,my_db3,my_db4), Replicate_Ignore_DB = (my_initfiledb3) FOR CHANNEL 'channel_1';
+#
+# 12. Verify that SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays
+# the following filters:
+# Replicate_Do_DB = 'db1,my_db3,my_db4'
+# Replicate_Ignore_DB = 'my_initfiledb3'
+# Replicate_Do_Table = ''
+# Replicate_Ignore_Table = 'db3.initfilet3'
+# Replicate_Wild_Do_Table = 'initfiled%.t%'
+# Replicate_Wild_Ignore_Table = ''
+# Replicate_Rewrite_DB = ''
+#
+Replicate_Do_DB = 'db1,my_db3,my_db4'
+Replicate_Ignore_DB = 'my_initfiledb3'
+Replicate_Do_Table = ''
+Replicate_Ignore_Table = 'db3.initfilet3'
+Replicate_Wild_Do_Table = 'initfiled%.t%'
+Replicate_Wild_Ignore_Table = ''
+Replicate_Rewrite_DB = ''
+#
+# 13. Verify that performance_schema.replication_applier_filters can
+# display correct replication filters for all channels after
+# executing CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name>.
+#
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+12
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_DO_DB	db1,my_db3,my_db4	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_WILD_DO_TABLE	initfiled%.t%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_IGNORE_DB	db33	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_WILD_IGNORE_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	5
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+#
+# 14. Verify that CHANGE REPLICATION FILTER filter [, filter...]
+# FOR CHANNEL <channel_name> works well, REPLICATE_DO_DB is
+# changed on 'channel_1' channel.
+#
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=() FOR CHANNEL 'channel_1';
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+12
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_DO_DB		CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_WILD_DO_TABLE	initfiled%.t%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_IGNORE_DB	db33	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_WILD_IGNORE_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	5
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+#
+# 15. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+# clause does the following, both for every configured slave replication
+# channel's per-channel filter and for the global filters: For every
+# filter type, if the filter type is listed in the statement, then any
+# existing filter rules of that type are replaced by the filter rules
+# specified in the statement, otherwise the old value of the type is
+# retained.
+#
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbB), REPLICATE_IGNORE_DB=(dbC), REPLICATE_IGNORE_DB=(dbD);
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+COUNT(*)
+19
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER	0
+channel_1	REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER	0
+channel_1	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_1	REPLICATE_WILD_DO_TABLE	initfiled%.t%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER	0
+channel_3	REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_WILD_IGNORE_TABLE	db%.t1%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	5
+channel_4	REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER	0
+channel_4	REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER	0
+channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_4	REPLICATE_REWRITE_DB	(db4,db44)	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	1
+channel_5	REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER	0
+channel_5	REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER	0
+channel_5	REPLICATE_DO_TABLE	db5.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_6	REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER	0
+channel_6	REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER	0
+channel_6	REPLICATE_IGNORE_TABLE	db6.t1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	2
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+COUNT(*)
+3
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+FILTER_NAME	FILTER_RULE	CONFIGURED_BY
+REPLICATE_DO_DB	dbB	CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER
+REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS
+#
+# 16. Verify that CHANGE REPLICATION FILTER filter [, filter...] FOR
+# CHANNEL <channel_name> throws an error 'ER_SLAVE_CONFIGURATION'
+# if the specified channel is not configured.
+#
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbA) FOR CHANNEL '';
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+#
+# 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
+# error 'ER_SLAVE_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
+#
+RESET SLAVE FOR CHANNEL 'channel_2';
+ERROR HY000: Slave channel 'channel_2' does not exist.
+include/rpl_start_slaves.inc
+connection_server_1
+DROP DATABASE db1;
+DROP DATABASE db11;
+DROP DATABASE db111;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+connection_server_3
+DROP DATABASE db3;
+DROP DATABASE db33;
+DROP DATABASE db333;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+connection_server_4
+DROP DATABASE db4;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_4']
+connection_server_5
+DROP DATABASE db5;
+DROP DATABASE db55;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_5']
+connection_server_6
+DROP DATABASE db6;
+DROP DATABASE db66;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_6']
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_4';
+RESET SLAVE ALL FOR CHANNEL 'channel_5';
+RESET SLAVE ALL FOR CHANNEL 'channel_6';

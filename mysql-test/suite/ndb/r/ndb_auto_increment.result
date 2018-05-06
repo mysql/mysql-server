@@ -509,7 +509,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int primary key auto_increment, b int) auto_increment=5
 engine=ndb;
@@ -520,7 +520,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=32000000 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=32000000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 (
 id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

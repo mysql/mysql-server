@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -30,7 +37,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *  External interface: 
  *      mcc.gui.clusterdef.showClusterDefinition: Show/edit stored information
  *      mcc.gui.clusterdef.saveClusterDefinition: Save entered information
- *      mcc.gui.clusterdef.getSSHPwd: : Get password for ssh
+ *      mcc.gui.clusterdef.getSSHPwd: Get password for ssh
+ *      mcc.gui.clusterdef.getSSHUser: Get ClusterLvL user from variable rather than iterate storage.
+ *      mcc.gui.clusterdef.getSSHkeybased: Get ClusterLvL key-based auth from variable rather than iterate storage.
+ *      mcc.gui.clusterdef.getOpenFW: Same as above.
+ *      mcc.gui.clusterdef.getInstallCl: Same as above.
  *
  *  External data: 
  *      None
@@ -68,16 +79,42 @@ dojo.require("mcc.storage");
 mcc.gui.clusterdef.showClusterDefinition = showClusterDefinition;
 mcc.gui.clusterdef.saveClusterDefinition = saveClusterDefinition;
 mcc.gui.clusterdef.getSSHPwd = getSSHPwd;
+mcc.gui.clusterdef.getSSHUser = getSSHUser;
+mcc.gui.clusterdef.getSSHkeybased = getSSHkeybased;
+mcc.gui.clusterdef.getOpenFW = getOpenFW;
+mcc.gui.clusterdef.getInstallCl = getInstallCl;
 
 /******************************* Internal data ********************************/
 
 var ssh_pwd = "";
-
+var ssh_user = "";
+var ssh_keybased = false;
+var openFW = false;
+var installCl = "NONE";
 /****************************** Implementation  *******************************/
-
-// Get SSH password
+// Get SSH password.
 function getSSHPwd() {
     return ssh_pwd;
+}
+
+// Get (ClusterLvL) user.
+function getSSHUser() {
+    return ssh_user;
+}
+
+// Get (ClusterLvL) is auth key-based.
+function getSSHkeybased() {
+    return ssh_keybased;
+}
+
+// Get (ClusterLvL) OpenFW ports.
+function getOpenFW() {
+    return openFW;
+}
+
+// Get (ClusterLvL) "Install Cluster".
+function getInstallCl() {
+    return installCl;
 }
 
 // Save data from widgets into the cluster data object
@@ -104,8 +141,9 @@ function saveClusterDefinition() {
         // If there was a change in credentials, try to connect to all hosts
         var old_user = cluster.getValue("ssh_user");
         var old_keybased = cluster.getValue("ssh_keybased");
-        var old_pwd = ssh_pwd; 
-
+        //var old_pwd = ssh_pwd; 
+        var old_pwd = cluster.getValue("ssh_pwd");
+        
         if (old_user != dijit.byId("sd_user").getValue() ||
             old_keybased != dijit.byId("sd_keybased").getValue() ||
             old_pwd != dijit.byId("sd_pwd").getValue()) {
@@ -115,25 +153,35 @@ function saveClusterDefinition() {
                     dijit.byId("sd_keybased").getValue());
             cluster.setValue("ssh_user", 
                     dijit.byId("sd_user").getValue());
+            cluster.setValue("ssh_pwd", 
+                    dijit.byId("sd_pwd").getValue());
 
-            // The password is not stored in cluster store, only as a variable
             ssh_pwd = dijit.byId("sd_pwd").getValue();
-
-            // Try to reconnect all hosts to get resource information
-            mcc.util.dbg("Re-fetch resource information");
+            ssh_user = dijit.byId("sd_user").getValue();
+            ssh_keybased = dijit.byId("sd_keybased").getValue();
+           
+            // Try to reconnect all hosts to get resource information.
+            mcc.util.dbg("Re-fetch host(s) resource information.");
             hostStorage.forItems({}, function (host) {
                 if (!host.getValue("anyHost")) {
                     mcc.util.dbg("Re-fetch resource information for host " + 
                             host.getValue("name"));
                     mcc.storage.getHostResourceInfo(host.getValue("name"), 
-                            host.getId(), false);
+                            host.getId(), false, false);
                 }
             });
         }
 
         // Cluster details
-        cluster.setValue("name", 
-                dijit.byId("cd_name").getValue());
+        cluster.setValue("installCluster", 
+            dijit.byId("sd_installCluster").textbox.value);
+
+        cluster.setValue("openfw", 
+                dijit.byId("sd_openfw").getValue());
+
+        // Update global vars for later.
+        openFW = dijit.byId("sd_openfw").getValue();
+        installCl = dijit.byId("sd_installCluster").textbox.value;
 
         // Warn if web app or realtime
         if (cluster.getValue("apparea") == "simple testing" &&
@@ -157,6 +205,30 @@ function saveClusterDefinition() {
 
     // Make array of host list
     var newHosts = dijit.byId("cd_hosts").getValue().split(",");
+    mcc.util.dbg("newhosts is " + newHosts);
+    // Exclude localhost AND 127.0.0.1
+    if (dijit.byId("cd_hosts").getValue().indexOf("localhost") >= 0 && 
+        dijit.byId("cd_hosts").getValue().indexOf("127.0.0.1") >= 0) {
+        alert("localhost is already in the list!");
+        return;
+    }
+    // Do check:
+    var notProperIP = 0;
+    var properIP = 0;
+    for (var i in newHosts) {
+        if ((newHosts[i].trim()).length > 0) {
+            if (newHosts[i].trim() == "localhost" || newHosts[i].trim() == "127.0.0.1") {
+                notProperIP += 1;
+            } else {
+                properIP += 1;
+            }
+        }
+    };
+    if ((notProperIP > 1) || (notProperIP > 0 && properIP > 0)) {
+        alert("Mixing localhost with remote hosts is not allowed!\nPlease change localhost/127.0.0.1 to a proper IP address\nif you want to use your box.");
+        document.getElementById("cd_hosts").focus();
+        return;
+    };
 
     // Strip leading/trailing spaces
     for (var i in newHosts) {
@@ -215,7 +287,12 @@ function showClusterDefinition(initialize) {
                 cluster.getValue("ssh_keybased"));
         dijit.byId("sd_user").setValue(
                 cluster.getValue("ssh_user"));
-        dijit.byId("sd_pwd").setValue(ssh_pwd);
+        dijit.byId("sd_pwd").setValue(
+                cluster.getValue("ssh_pwd"));
+        
+        ssh_pwd = cluster.getValue("ssh_pwd");
+        ssh_user = cluster.getValue("ssh_user");
+        ssh_keybased = cluster.getValue("ssh_keybased");
 
         // Cluster details
         dijit.byId("cd_name").setValue(
@@ -224,22 +301,65 @@ function showClusterDefinition(initialize) {
                 cluster.getValue("apparea"));
         dijit.byId("cd_writeload").setValue(
                 cluster.getValue("writeload"));
+
+        // Installation details
+        if (cluster.getValue("installCluster")) {
+            dijit.byId("sd_installCluster").textbox.value = 
+                cluster.getValue("installCluster");
+            installCl = cluster.getValue("installCluster");
+        } else {
+            //First run, set to NONE
+            dijit.byId("sd_installCluster").textbox.value = "NONE";
+            cluster.setValue("installCluster", "NONE");
+        }
+        if (cluster.getValue("openfw")) {
+            dijit.byId("sd_openfw").setValue(
+                cluster.getValue("openfw"));
+            openFW = cluster.getValue("openfw");
+        } else {
+            //First run, set to NONE
+            dijit.byId("sd_openfw").setValue(false);
+            cluster.setValue("openfw", false);
+        }
+
     });
 
     // If hosts exist, set value
     hostStorage.getItems({anyHost: false}).then(function (hosts) {
         var hostlist = "";
         if ((!hosts || hosts.length == 0) && initialize) {
-            hostlist = "127.0.0.1";
         } else {
             for (var i in hosts) {
                 if (i > 0) {
                     hostlist += ", ";
-                } 
+                }
                 hostlist += hosts[i].getValue("name");
             }
         }
-        dijit.byId("cd_hosts").setValue(hostlist);
+        if (hostlist) {
+            // Do check:
+            var notProperIP = 0;
+            var properIP = 0;
+            var ar = hostlist.split(",");
+            for (var i in ar) {
+                if ((ar[i].trim()).length > 0) {
+                    if (ar[i].trim() == "localhost" || ar[i].trim() == "127.0.0.1") {
+                        notProperIP += 1;
+                    } else {
+                        properIP += 1;
+                    }
+                }
+            };
+            if ((notProperIP > 1) || (notProperIP > 0 && properIP > 0)) {
+                // This is actually invalid configuration read from store...
+                alert("Mixing localhost with remote hosts is not allowed!\nInvalid configuration read from store.");
+                document.getElementById("cd_hosts").focus();
+            } else {
+                dijit.byId("cd_hosts").setValue(hostlist);
+            }
+        } else {
+            document.getElementById("cd_hosts").focus();
+        }
     });
 }
 
@@ -265,7 +385,7 @@ function clusterDefinitionSetup() {
         baseClass: "content-grid-header",
         autoHeight: true,
         structure: [{
-            name: 'SSH property',
+            name: 'SSH property (Cluster-wide)',
             width: '30%'
         },
         {
@@ -275,12 +395,28 @@ function clusterDefinitionSetup() {
     }, "sshDetailsHeader");
     sshDetailsHeader.startup();
 
+    var installDetailsHeader = new dojox.grid.DataGrid({
+        baseClass: "content-grid-header",
+        autoHeight: true,
+        structure: [{
+            name: 'Install properties (Cluster-wide)',
+            width: '30%'
+        },
+        {
+            name: 'Value',
+            width: '70%'
+        }]
+    }, "installDetailsHeader");
+    installDetailsHeader.startup();
+
     // Setup all the required widgets and connect them to the save function
     var cd_name = new dijit.form.TextBox({style: "width: 120px"}, "cd_name");
-    dojo.connect(cd_name, "onChange", saveClusterDefinition);
+    //dojo.connect(cd_name, "onChange", saveClusterDefinition);
+    cd_name.set("disabled", "disabled");
     var cd_name_tt = new dijit.Tooltip({
         connectId: ["cd_name", "cd_name_qm"],
-        label: "Cluster name"
+        label: "Cluster name",
+        destroyOnHide: true
     });
 
     var cd_hosts = new dijit.form.TextBox({style: "width: 250px"}, "cd_hosts");
@@ -288,7 +424,8 @@ function clusterDefinitionSetup() {
     var cd_hosts_tt = new dijit.Tooltip({
         connectId: ["cd_hosts", "cd_hosts_qm"],
         label: "Comma separated list of names or ip addresses of the hosts \
-                to use for running MySQL cluster"
+                to use for running MySQL Cluster",
+        destroyOnHide: true
     });
 
     var cd_apparea = new dijit.form.FilteringSelect({style: "width: 120px", 
@@ -298,7 +435,8 @@ function clusterDefinitionSetup() {
         connectId: ["cd_apparea", "cd_apparea_qm"],
         label: "Intended use of the application. \
                 This information is used for determining the appropriate \
-                value of various configuration parameters."
+                value of various configuration parameters.",
+        destroyOnHide: true
     });
 
     var cd_writeload = new dijit.form.FilteringSelect({style: "width: 120px", 
@@ -308,7 +446,8 @@ function clusterDefinitionSetup() {
         connectId: ["cd_writeload", "cd_writeload_qm"],
         label: "Write load for the application. \
                 This information is used for determining the appropriate \
-                value of various configuration parameters."
+                value of various configuration parameters.",
+        destroyOnHide: true
     });
 
     var sd_keybased = new dijit.form.CheckBox({}, "sd_keybased");
@@ -316,7 +455,8 @@ function clusterDefinitionSetup() {
     var sd_keybased_tt = new dijit.Tooltip({
         connectId: ["sd_keybased", "sd_keybased_qm"],
         label: "Check this box if key based ssh login is enabled \
-                on the hosts running MySQL Cluster."
+                on the hosts running MySQL Cluster.",
+        destroyOnHide: true
     });
 
     var sd_user = new dijit.form.TextBox({style: "width: 120px"}, "sd_user");
@@ -324,7 +464,8 @@ function clusterDefinitionSetup() {
     var sd_user_tt = new dijit.Tooltip({
         connectId: ["sd_user", "sd_user_qm"],
         label: "User name for ssh login \
-                to the hosts running MySQL Cluster."
+                to the hosts running MySQL Cluster.",
+        destroyOnHide: true
     });
 
     var sd_pwd = new dijit.form.TextBox({
@@ -335,7 +476,34 @@ function clusterDefinitionSetup() {
     var sd_pwd_tt = new dijit.Tooltip({
         connectId: ["sd_pwd", "sd_pwd_qm"],
         label: "Password for ssh login \
-                to the hosts running MySQL Cluster."
+                to the hosts running MySQL Cluster.",
+        destroyOnHide: true
+    });
+
+    var sd_installCluster = new dijit.form.FilteringSelect({}, "sd_installCluster");
+    var options=[];
+    options.push({label: "BOTH", value: "BOTH", selected:false});
+    options.push({label: "DOCKER", value: "DOCKER", selected:false});
+    options.push({label: "REPO", value: "REPO", selected:false});
+    options.push({label: "NONE", value: "NONE", selected:true});
+    sd_installCluster.set("labelAttr", "label")
+    sd_installCluster.set("searchAttr", "value");
+    sd_installCluster.set("idProperty", "value");
+    sd_installCluster.store.setData(options);
+    dojo.connect(sd_installCluster, "onChange", saveClusterDefinition);
+    var sd_installCluster_tt = new dijit.Tooltip({
+        connectId: ["sd_installCluster", "sd_installCluster_qm"],
+        label: "Try installing MySQL Cluster \
+                on hosts using repo/docker or both.",
+        destroyOnHide: true
+    });
+
+    var sd_openfw = new dijit.form.CheckBox({}, "sd_openfw");
+    dojo.connect(sd_openfw, "onChange", saveClusterDefinition);
+    var sd_openfw_tt = new dijit.Tooltip({
+        connectId: ["sd_openfw", "sd_openfw_qm"],
+        label: "Open necessary firewall ports for running MySQL Cluster.",
+        destroyOnHide: true
     });
 }
 

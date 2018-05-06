@@ -1,0 +1,261 @@
+drop table if exists t1_min;
+Warnings:
+Note	1051	Unknown table 'test.t1_min'
+drop table if exists t1_max;
+Warnings:
+Note	1051	Unknown table 'test.t1_max'
+drop table if exists t1_part;
+Warnings:
+Note	1051	Unknown table 'test.t1_part'
+drop table if exists t1_subpart;
+Warnings:
+Note	1051	Unknown table 'test.t1_subpart'
+create table t1_min(
+c01 TINYINT,
+c02 TINYINT UNSIGNED,
+c03 SMALLINT,
+c04 SMALLINT UNSIGNED,
+c05 MEDIUMINT,
+c06 MEDIUMINT UNSIGNED,
+c07 INT,
+c08 INT UNSIGNED,
+c09 BIGINT,
+c10 BIGINT UNSIGNED,
+PRIMARY KEY(c01, c02, c03, c04, c05, c06, c07, c08, c09, c10)
+) ENGINE=INNODB;
+create table t1_max(
+c01 TINYINT,
+c02 TINYINT UNSIGNED,
+c03 SMALLINT,
+c04 SMALLINT UNSIGNED,
+c05 MEDIUMINT,
+c06 MEDIUMINT UNSIGNED,
+c07 INT,
+c08 INT UNSIGNED,
+c09 BIGINT,
+c10 BIGINT UNSIGNED,
+PRIMARY KEY(c01, c02, c03, c04, c05, c06, c07, c08, c09, c10)
+) ENGINE=INNODB;
+create table t1_part(
+a int,
+b int,
+c int,
+PRIMARY KEY(a, b, c)
+) ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS 4;
+create table t1_subpart(
+a int,
+b int,
+c int,
+PRIMARY KEY (a, b, c)
+) ENGINE=INNODB
+PARTITION BY RANGE( a )
+SUBPARTITION BY HASH( b ) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0,
+SUBPARTITION s1
+),
+PARTITION p1 VALUES LESS THAN (2000) (
+SUBPARTITION s2,
+SUBPARTITION s3
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION s4,
+SUBPARTITION s5
+)
+);
+insert into t1_min values
+(-128, 0,
+-32768, 0,
+-8388608, 0,
+-2147483648, 0,
+-9223372036854775808, 0);
+insert into t1_max values
+(127, 255,
+32767, 65535,
+8388607, 16777215,
+2147483647, 4294967295,
+9223372036854775807, 18446744073709551615);
+insert into t1_part values (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+insert into t1_subpart values (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+SET autocommit=0;
+select * from t1_min for update;
+c01	c02	c03	c04	c05	c06	c07	c08	c09	c10
+-128	0	-32768	0	-8388608	0	-2147483648	0	-9223372036854775808	0
+select * from t1_max for update;
+c01	c02	c03	c04	c05	c06	c07	c08	c09	c10
+127	255	32767	65535	8388607	16777215	2147483647	4294967295	9223372036854775807	18446744073709551615
+select * from t1_part for update;
+a	b	c
+4	4	4
+1	1	1
+2	2	2
+3	3	3
+select * from t1_subpart for update;
+a	b	c
+2	2	2
+4	4	4
+1	1	1
+3	3	3
+select * from t1_min for update;
+select * from t1_max for update;
+insert into t1_min values (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+insert into t1_max values (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+select * from t1_part for update;
+select * from t1_subpart for update;
+select
+ENGINE,
+OBJECT_SCHEMA, OBJECT_NAME,
+PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+LOCK_TYPE, LOCK_MODE, LOCK_STATUS, LOCK_DATA
+from performance_schema.data_locks
+order by OBJECT_SCHEMA, OBJECT_NAME,
+PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+LOCK_TYPE, LOCK_MODE, LOCK_STATUS, LOCK_DATA;
+ENGINE	OBJECT_SCHEMA	OBJECT_NAME	PARTITION_NAME	SUBPARTITION_NAME	INDEX_NAME	LOCK_TYPE	LOCK_MODE	LOCK_STATUS	LOCK_DATA
+INNODB	test	t1_max	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_max	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_max	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_max	NULL	NULL	PRIMARY	RECORD	X	GRANTED	127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615
+INNODB	test	t1_max	NULL	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_max	NULL	NULL	PRIMARY	RECORD	X	WAITING	127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615
+INNODB	test	t1_max	NULL	NULL	PRIMARY	RECORD	X,GAP	WAITING	127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295, 9223372036854775807, 18446744073709551615
+INNODB	test	t1_min	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_min	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_min	NULL	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_min	NULL	NULL	PRIMARY	RECORD	X	GRANTED	-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0
+INNODB	test	t1_min	NULL	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_min	NULL	NULL	PRIMARY	RECORD	X	WAITING	-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0
+INNODB	test	t1_min	NULL	NULL	PRIMARY	RECORD	X	WAITING	supremum pseudo-record
+INNODB	test	t1_part	p0	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_part	p0	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_part	p0	NULL	PRIMARY	RECORD	X	GRANTED	4, 4, 4
+INNODB	test	t1_part	p0	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_part	p0	NULL	PRIMARY	RECORD	X	WAITING	4, 4, 4
+INNODB	test	t1_part	p1	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_part	p1	NULL	PRIMARY	RECORD	X	GRANTED	1, 1, 1
+INNODB	test	t1_part	p1	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_part	p2	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_part	p2	NULL	PRIMARY	RECORD	X	GRANTED	2, 2, 2
+INNODB	test	t1_part	p2	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_part	p3	NULL	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_part	p3	NULL	PRIMARY	RECORD	X	GRANTED	3, 3, 3
+INNODB	test	t1_part	p3	NULL	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p0	s0	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p0	s0	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p0	s0	PRIMARY	RECORD	X	GRANTED	2, 2, 2
+INNODB	test	t1_subpart	p0	s0	PRIMARY	RECORD	X	GRANTED	4, 4, 4
+INNODB	test	t1_subpart	p0	s0	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p0	s0	PRIMARY	RECORD	X	WAITING	2, 2, 2
+INNODB	test	t1_subpart	p0	s1	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p0	s1	PRIMARY	RECORD	X	GRANTED	1, 1, 1
+INNODB	test	t1_subpart	p0	s1	PRIMARY	RECORD	X	GRANTED	3, 3, 3
+INNODB	test	t1_subpart	p0	s1	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p1	s2	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p1	s2	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p1	s3	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p1	s3	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p2	s4	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p2	s4	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+INNODB	test	t1_subpart	p2	s5	NULL	TABLE	IX	GRANTED	NULL
+INNODB	test	t1_subpart	p2	s5	PRIMARY	RECORD	X	GRANTED	supremum pseudo-record
+select ENGINE, ENGINE_LOCK_ID, ENGINE_TRANSACTION_ID
+from performance_schema.data_locks
+where (ENGINE = "INNODB")
+and (ENGINE_TRANSACTION_ID not in
+(select trx_id from information_schema.innodb_trx));
+ENGINE	ENGINE_LOCK_ID	ENGINE_TRANSACTION_ID
+select
+dl.ENGINE,
+dl.OBJECT_SCHEMA,
+dl.OBJECT_NAME,
+dl.PARTITION_NAME,
+dl.SUBPARTITION_NAME,
+dl.INDEX_NAME,
+dl.LOCK_TYPE,
+dl.LOCK_MODE,
+dl.LOCK_STATUS,
+dl.LOCK_DATA,
+it.trx_state,
+it.trx_weight,
+it.trx_query,
+it.trx_operation_state,
+it.trx_tables_in_use,
+it.trx_tables_locked,
+it.trx_lock_structs,
+it.trx_rows_locked,
+it.trx_rows_modified,
+it.trx_concurrency_tickets,
+it.trx_isolation_level,
+it.trx_unique_checks,
+it.trx_foreign_key_checks,
+it.trx_last_foreign_key_error,
+it.trx_adaptive_hash_latched,
+it.trx_adaptive_hash_timeout,
+it.trx_is_read_only,
+it.trx_autocommit_non_locking
+from performance_schema.data_locks dl inner join information_schema.innodb_trx it
+on dl.ENGINE_TRANSACTION_ID = it.TRX_ID
+order by ENGINE,
+OBJECT_SCHEMA, OBJECT_NAME,
+PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+trx_query, lock_status, LOCK_DATA;
+ENGINE	INNODB
+OBJECT_SCHEMA	test
+OBJECT_NAME	t1_subpart
+PARTITION_NAME	p0
+SUBPARTITION_NAME	s0
+INDEX_NAME	NULL
+LOCK_TYPE	TABLE
+LOCK_MODE	IX
+LOCK_STATUS	GRANTED
+LOCK_DATA	NULL
+trx_state	LOCK WAIT
+trx_weight	2
+trx_query	select * from t1_subpart for update
+trx_operation_state	starting index read
+trx_tables_in_use	1
+trx_tables_locked	1
+trx_lock_structs	2
+trx_rows_locked	1
+trx_rows_modified	0
+trx_concurrency_tickets	0
+trx_isolation_level	REPEATABLE READ
+trx_unique_checks	1
+trx_foreign_key_checks	1
+trx_last_foreign_key_error	NULL
+trx_adaptive_hash_latched	0
+trx_adaptive_hash_timeout	0
+trx_is_read_only	0
+trx_autocommit_non_locking	0
+ENGINE	INNODB
+OBJECT_SCHEMA	test
+OBJECT_NAME	t1_subpart
+PARTITION_NAME	p0
+SUBPARTITION_NAME	s0
+INDEX_NAME	PRIMARY
+LOCK_TYPE	RECORD
+LOCK_MODE	X
+LOCK_STATUS	WAITING
+LOCK_DATA	2, 2, 2
+trx_state	LOCK WAIT
+trx_weight	2
+trx_query	select * from t1_subpart for update
+trx_operation_state	starting index read
+trx_tables_in_use	1
+trx_tables_locked	1
+trx_lock_structs	2
+trx_rows_locked	1
+trx_rows_modified	0
+trx_concurrency_tickets	0
+trx_isolation_level	REPEATABLE READ
+trx_unique_checks	1
+trx_foreign_key_checks	1
+trx_last_foreign_key_error	NULL
+trx_adaptive_hash_latched	0
+trx_adaptive_hash_timeout	0
+trx_is_read_only	0
+trx_autocommit_non_locking	0
+drop table t1_min;
+drop table t1_max;
+drop table t1_part;
+drop table t1_subpart;

@@ -2,7 +2,6 @@
 # innodb_stats_persistent
 #
 
--- source include/have_innodb.inc
 
 # show the default value
 SELECT @@innodb_stats_persistent;

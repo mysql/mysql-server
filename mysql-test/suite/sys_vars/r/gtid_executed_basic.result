@@ -3,209 +3,26 @@ SET @start_global_value = @@global.gtid_executed;
 SELECT @start_global_value;
 @start_global_value
 
-SET @start_show_compatibility_56= @@GLOBAL.SHOW_COMPATIBILITY_56;
-SELECT @start_show_compatibility_56;
-@start_show_compatibility_56
-1
-SELECT @@GLOBAL.GTID_EXECUTED;
-@@GLOBAL.GTID_EXECUTED
+select @@global.gtid_executed;
+@@global.gtid_executed
 
-SET @@GLOBAL.SHOW_COMPATIBILITY_56= OFF;
-SELECT * FROM performance_schema.global_variables;
-SHOW WARNINGS;
-Level	Code	Message
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-VARIABLE_NAME	VARIABLE_VALUE
-gtid_executed	
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_VALUE
-gtid_executed	
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_owned	
-gtid_purged	
-SHOW GLOBAL VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SELECT * FROM information_schema.global_variables;
-SHOW GLOBAL VARIABLES LIKE 'gtid_executed';
+select @@session.gtid_executed;
+ERROR HY000: Variable 'gtid_executed' is a GLOBAL variable
+show global variables like 'gtid_executed';
 Variable_name	Value
 gtid_executed	
-SHOW GLOBAL VARIABLES LIKE 'gtid_%';
+show session variables like 'gtid_executed';
 Variable_name	Value
 gtid_executed	
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_owned	
-gtid_purged	
-SET @@GLOBAL.SHOW_COMPATIBILITY_56= ON;
-SHOW GLOBAL VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SELECT * FROM information_schema.global_variables;
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SHOW GLOBAL VARIABLES LIKE 'gtid_executed';
-Variable_name	Value
+select * from performance_schema.global_variables where variable_name='gtid_executed';
+VARIABLE_NAME	VARIABLE_VALUE
 gtid_executed	
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
+select * from performance_schema.session_variables where variable_name='gtid_executed';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_EXECUTED	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SHOW GLOBAL VARIABLES LIKE 'gtid_%';
-Variable_name	Value
 gtid_executed	
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_owned	
-gtid_purged	
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_VALUE
-GTID_EXECUTED	
-GTID_EXECUTED_COMPRESSION_PERIOD	1000
-GTID_MODE	OFF
-GTID_OWNED	
-GTID_PURGED	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'xyz';
-VARIABLE_NAME	VARIABLE_VALUE
-SHOW GLOBAL VARIABLES LIKE 'xyz';
-Variable_name	Value
-SET GLOBAL SHOW_COMPATIBILITY_56= ON;
-SHOW GLOBAL VARIABLES LIKE 'xyz';
-Variable_name	Value
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME LIKE 'xyz';
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-#
-# gtid_executed deprecation warnings are issued
-#
-SELECT @@SESSION.GTID_EXECUTED;
-@@SESSION.GTID_EXECUTED
+select @@global.gtid_executed;
+@@global.gtid_executed
 
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-SELECT @@SESSION.GTID_EXECUTED, @@SESSION.GTID_EXECUTED;
-@@SESSION.GTID_EXECUTED	@@SESSION.GTID_EXECUTED
-	
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-SET @my_gtid_executed= @@SESSION.GTID_EXECUTED;
-Warnings:
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-#
-# gtid_executed deprecation warnings are NOT issued
-#
-SET GLOBAL SHOW_COMPATIBILITY_56= ON;
-SHOW VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SHOW SESSION VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SELECT * FROM information_schema.session_variables;
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
-SHOW VARIABLES LIKE 'gtid_executed';
-Variable_name	Value
-gtid_executed	
-SHOW SESSION VARIABLES LIKE 'gtid_executed';
-Variable_name	Value
-gtid_executed	
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-VARIABLE_NAME	VARIABLE_VALUE
-GTID_EXECUTED	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
-SHOW VARIABLES LIKE 'gtid_%';
-Variable_name	Value
-gtid_executed	
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_next	AUTOMATIC
-gtid_owned	
-gtid_purged	
-SHOW SESSION VARIABLES LIKE 'gtid_%';
-Variable_name	Value
-gtid_executed	
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_next	AUTOMATIC
-gtid_owned	
-gtid_purged	
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_VALUE
-GTID_EXECUTED	
-GTID_EXECUTED_COMPRESSION_PERIOD	1000
-GTID_MODE	OFF
-GTID_NEXT	AUTOMATIC
-GTID_OWNED	
-GTID_PURGED	
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
-SHOW VARIABLES LIKE 'xyz';
-Variable_name	Value
-SHOW SESSION VARIABLES LIKE 'xyz';
-Variable_name	Value
-SELECT * FROM information_schema.session_variables WHERE VARIABLE_NAME LIKE 'xyz';
-VARIABLE_NAME	VARIABLE_VALUE
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
-#
-# @@session.gtid_executed is not present in P_S table and no deprecation
-# warnings ar issued
-#
-SET GLOBAL SHOW_COMPATIBILITY_56= OFF;
-SELECT * FROM performance_schema.session_variables;
-SHOW WARNINGS;
-Level	Code	Message
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_executed';
-VARIABLE_NAME	VARIABLE_VALUE
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'gtid_%' ORDER BY VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_VALUE
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_next	AUTOMATIC
-gtid_owned	
-gtid_purged	
-SHOW VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SHOW SESSION VARIABLES;
-SHOW WARNINGS;
-Level	Code	Message
-SHOW VARIABLES LIKE 'gtid_executed';
-Variable_name	Value
-SHOW SESSION VARIABLES LIKE 'gtid_executed';
-Variable_name	Value
-SHOW VARIABLES LIKE 'gtid_%';
-Variable_name	Value
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_next	AUTOMATIC
-gtid_owned	
-gtid_purged	
-SHOW SESSION VARIABLES LIKE 'gtid_%';
-Variable_name	Value
-gtid_executed_compression_period	1000
-gtid_mode	OFF
-gtid_next	AUTOMATIC
-gtid_owned	
-gtid_purged	
-SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'xyz';
-VARIABLE_NAME	VARIABLE_VALUE
-SHOW VARIABLES LIKE 'xyz';
-Variable_name	Value
-SHOW SESSION VARIABLES LIKE 'xyz';
-Variable_name	Value
-SET GLOBAL SHOW_COMPATIBILITY_56= @start_show_compatibility_56;
 set @@global.gtid_executed = '';
 ERROR HY000: Variable 'gtid_executed' is a read only variable
 set @@session.gtid_executed = '';

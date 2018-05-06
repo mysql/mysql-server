@@ -1,0 +1,106 @@
+###############################################################################
+#                                                                             #
+# Variable Name: original_commit_timestamp                                    #
+# Scope: session                                                              #
+# Data Type: integer                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-10-29                                                   #
+# Author : Shivji Kumar Jha                                                   #
+#                                                                             #
+#                                                                             #
+# Description: Test Cases of variable original_commit_timestamp that checks   #
+#              the scope of this variable.                                    #
+###############################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@GLOBAL.original_commit_timestamp;
+
+SELECT @@SESSION.original_commit_timestamp;
+
+####################################################################
+#   Verify that SHOW VARIABLES works                               #
+####################################################################
+SHOW VARIABLES LIKE 'original_commit_timestamp';
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--error ER_LOCAL_VARIABLE
+SET @@GLOBAL.original_commit_timestamp=123456;
+
+SET @@SESSION.original_commit_timestamp=123456;
+SELECT @@SESSION.original_commit_timestamp;
+
+##########################################################################################
+#   Check errors for wrong values (different type or not in the range of allowed values) #
+##########################################################################################
+
+# This will generate a warning
+SET @@SESSION.original_commit_timestamp= -123456;
+SELECT @@SESSION.original_commit_timestamp;
+
+# Should be accepted.
+SET @@SESSION.original_commit_timestamp= 0;
+SELECT @@SESSION.original_commit_timestamp;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.original_commit_timestamp= 123456789012345678901;
+SELECT @@SESSION.original_commit_timestamp;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.original_commit_timestamp= 'xyz';
+SELECT @@SESSION.original_commit_timestamp;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.original_commit_timestamp= xyz;
+SELECT @@SESSION.original_commit_timestamp;
+
+# Should give a warning and truncate the value and set it to the maximum value.
+SET @@SESSION.original_commit_timestamp= 36028797018963969;
+SELECT @@SESSION.original_commit_timestamp;
+
+# Should give a warning and truncate the value and set it to the maximum value.
+SET @@SESSION.original_commit_timestamp= 18446744073709551615;
+SELECT @@SESSION.original_commit_timestamp;
+
+# Should give a error
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.original_commit_timestamp= 18446744073709551616;
+SELECT @@SESSION.original_commit_timestamp;
+
+
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT @@SESSION.original_commit_timestamp = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='original_commit_timestamp';
+
+SELECT COUNT(@@SESSION.original_commit_timestamp);
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='original_commit_timestamp';
+
+################################################################################
+#   Check if original_commit_timestamp can be accessed with @@ sign            #
+################################################################################
+
+SELECT COUNT(@@original_commit_timestamp);
+
+SELECT COUNT(@@SESSION.original_commit_timestamp);
+
+################################################################################
+# Check that it's read-only to a NON super privileged                          #
+################################################################################
+
+# Create new user without super privilege
+CREATE USER nosuper;
+connect (conn_nosuper,localhost,nosuper,,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION original_commit_timestamp= 0;
+--disconnect conn_nosuper
+--connection default
+DROP USER nosuper;

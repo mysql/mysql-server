@@ -2,7 +2,6 @@
 #
 # Setup
 # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 #
 #-------------------------------------------------------------------------
 #
@@ -13,14 +12,6 @@ CALL mtr.add_suppression("InnoDB:");
 #-------------------------------------------------------------------------
 #
 # Clean-up
-#
-#-------------------------------------------------------------------------
-#
-# Initialize the server with mysql_install_db
-# Execution of mysql_install_db starts............
-# Execution of mysql_install_db ends..............
-# Check data directory permission. Expected value : 0750
-# Data directory permission with mysql_install_db : 0750
 #
 #-------------------------------------------------------------------------
 #

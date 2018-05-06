@@ -1,9 +1,8 @@
 # This is the basic function tests for innodb FTS
 
--- source include/have_innodb.inc
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table not_defined does not exist.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table test/user_stopword_session does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table not_defined does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table test/user_stopword_session does not exist.");
 
 select * from information_schema.innodb_ft_default_stopword;
 
@@ -669,4 +668,3 @@ DROP TABLE articles,user_stopword,user_stopword_1,server_stopword;
 eval SET SESSION innodb_ft_enable_stopword=$innodb_ft_enable_stopword_orig;
 eval SET GLOBAL innodb_ft_server_stopword_table=default;
 eval SET SESSION innodb_ft_user_stopword_table=default;
-

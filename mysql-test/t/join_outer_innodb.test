@@ -2,14 +2,13 @@
 # test of left outer join for tests that depends on innodb
 #
 
---source include/have_innodb.inc
 
 #
 # Test for bug #17164: ORed FALSE blocked conversion of outer join into join
 # 
 
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
-                 INDEX (name)) ENGINE=InnoDB;
+                 INDEX (name)) charset utf8mb4 ENGINE=InnoDB;
 CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
                  FOREIGN KEY (fkey) REFERENCES t2(id)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');

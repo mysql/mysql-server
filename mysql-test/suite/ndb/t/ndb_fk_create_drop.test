@@ -23,7 +23,9 @@ alter table child add constraint fk1 foreign key (a) references parent(a);
 alter table child add constraint fk2 foreign key (b) references parent(a);
 alter table child add constraint fk3 foreign key (c) references parent(a);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 # Parent uk
 # child pk, uk, oi
@@ -31,7 +33,9 @@ alter table child add constraint fk4 foreign key (a) references parent(b);
 alter table child add constraint fk5 foreign key (b) references parent(b);
 alter table child add constraint fk6 foreign key (c) references parent(b);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 # Parent oi
 # child pk, uk, oi
@@ -88,6 +92,131 @@ create table child (
   constraint fk6 foreign key(c) references parent (b)
 ) engine=ndbcluster;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 drop table child, parent;
 
+--echo #
+--echo # Bug#24666177 : PARENT TABLE'S HANDLER NOT UPDATED AFTER ADDING A FK DEPENDENCY
+--echo #
+
+--echo #Setup tables
+create table parent(
+  id int unique key
+) engine ndb;
+
+create table child(
+  ref int
+) engine ndb;
+
+insert into parent values(1), (2), (3);
+insert into child  values(1), (2), (3);
+
+--echo #Show create table on parent.
+--echo #This will now load the m_fk_data of parent on handler
+show create table parent;
+
+--echo #Now create a foreign key dependency
+alter table child add foreign key fk1(ref) references parent(id);
+
+--echo #Now run a alter engine query.
+--echo #m_fk_data of parent should be reloaded now and the query should fail
+--error ER_ROW_IS_REFERENCED
+alter table parent engine = innodb;
+
+show create table parent;
+
+--echo #Repeat same with truncate
+truncate table child;
+--error ER_ROW_IS_REFERENCED
+alter table parent engine = innodb;
+
+show create table parent;
+
+--echo #Repeat same test for dropping FK
+alter table child drop foreign key fk1;
+
+--echo # Now this should succeed
+alter table parent engine = innodb;
+
+show create table parent;
+
+--echo #Cleanup
+drop table parent, child;
+
+--echo #
+--echo # Bug#25859977 : WRONG ERROR MESSAGE SHOWN AFTER ALTER ADD FK FAILURE
+--echo #
+
+--echo # Setup
+create table parent (
+  a int unique,
+  b int,
+  c int,
+  key b_key(b),
+  key c_key(c),
+  constraint fk_p1 foreign key (b) references parent(a)
+) engine ndb;
+
+create table child (
+  a int,
+  b int,
+  key a_key(a),
+  key b_key(b),
+  constraint fk_c1 foreign key (a) references parent(a)
+) engine ndb;
+
+--echo # Try creating fk with already exisiting names. Should fail.
+--error ER_FK_DUP_NAME
+alter table parent add constraint fk_p1 foreign key (c) references parent(a);
+show warnings;
+
+--error ER_FK_DUP_NAME
+alter table child add constraint fk_c1 foreign key (b) references parent(a);
+show warnings;
+
+--echo # Check if error is thrown when creating table
+--error ER_FK_DUP_NAME
+create table test_fail (
+  a int,
+  b int,
+  key a_key(a),
+  key b_key(b),
+  constraint fk_t1 foreign key (a) references parent(a),
+  constraint fk_t1 foreign key (b) references parent(a)
+) engine ndb;
+show warnings;
+
+--echo # Using distinct names should work
+alter table parent add foreign key fk_p2(b) references parent(a);
+alter table parent add foreign key fk_p3(c) references parent(a);
+alter table child  add foreign key fk_c2(b) references parent(a);
+
+--echo #Show create tables
+show create table parent;
+show create table child;
+
+--echo # Cleanup
+drop table child, parent;
+
+--echo #
+--echo # Bug#25882950 : CACHED INDEX IN NDBAPI'S DICT CACHE NOT CLEARED AFTER `CREATE TABLE` FAILURE
+--echo #
+
+--echo # Create a table with bad fk reference
+--error ER_CANNOT_ADD_FOREIGN
+create table test(
+  a int,
+  foreign key fk1(a) references bogus_table(a)
+) engine ndb;
+
+--echo # Now create a table with proper reference - it should pass
+create table test (
+  a int unique,
+  b int,
+  foreign key fk1(b) references test(a)
+) engine ndb;
+
+--echo #Cleanup
+drop table test;

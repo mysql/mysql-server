@@ -40,7 +40,7 @@ DELETE FROM db2.t1 WHERE i=4;
 
 # Using the new option to apply the row event on some other database (from db1 -> db3 in the current case)
 
---exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db3" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db3" $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
 call mtr.add_suppression("Slave SQL: Error executing row event:*");
 
 --echo Dropping the database db1 creating the new database db3.

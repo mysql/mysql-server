@@ -32,7 +32,9 @@ create table T2 (
 alter table T2
   add constraint foreign key MYfk2 (b) references test.t1 (a);
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 values (2,1);
@@ -54,7 +56,9 @@ alter table t2
   drop foreign key myFK2,
   algorithm=copy;
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo # test upper case parent database and table
 
@@ -70,7 +74,9 @@ create table T2 (
 alter table T2
   add constraint foreign key MYfk2 (b) references TEST.T1 (a);
 
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 values (2,1);

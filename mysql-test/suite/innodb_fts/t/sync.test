@@ -2,10 +2,8 @@
 # BUG#22516559 MYSQL INSTANCE STALLS WHEN SYNCING FTS INDEX
 #
 
---source include/have_innodb.inc
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 --source include/not_crashrep.inc
 --source include/not_log_bin.inc
 --source include/count_sessions.inc
@@ -109,19 +107,19 @@ DROP TABLE t1;
 --let $_expect_file_name=$MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 
 CREATE TABLE t1 (
-        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	id    INT,
         title VARCHAR(200),
         FULLTEXT(title)
 ) ENGINE = InnoDB;
 
-INSERT INTO t1(title) VALUES('database');
+INSERT INTO t1(id, title) VALUES(1, 'database');
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
 
 --error 2013
-INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(id, title) VALUES(2, 'mysql');
 
 --source include/start_mysqld.inc
 
@@ -130,7 +128,7 @@ SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
 
 SET SESSION debug="+d,fts_instrument_sync_debug";
 
-INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(id, title) VALUES(3, 'mysql');
 
 SET SESSION debug="-d,fts_instrument_sync_debug";
 

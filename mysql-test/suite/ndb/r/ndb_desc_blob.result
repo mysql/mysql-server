@@ -1,0 +1,293 @@
+# bug#14695968
+"ndb_desc -pb with tinyblob column"
+CREATE TABLE test.t1 (a int primary key, b tinyblob)engine=ndbcluster;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Blob(256,0,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- Per partition info for t1 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+
+NDBT_ProgramExit: 0 - OK
+
+"ndb_desc -pb with all types of blob and text columns"
+CREATE TABLE test.t2 (a int primary key, b tinyblob, c mediumblob,
+d blob, e longblob,f tinytext, g text, h mediumtext, i longtext)
+engine=ndbcluster;
+-- t2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 9
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Blob(256,0,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
+c Blob(256,4000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_2
+d Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_3
+e Blob(256,13948,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_4
+f Text(256,0,0;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
+g Text(256,2000,0;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_6
+h Text(256,4000,0;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_7
+i Text(256,13948,0;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+-- Per partition info for t2 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+-- NDB$BLOB_XX_2 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(4000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_2 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+-- NDB$BLOB_XX_3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_3 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+-- NDB$BLOB_XX_4 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(13948) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_4 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+
+-- NDB$BLOB_XX_6 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarchar(2000;binary) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_6 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+-- NDB$BLOB_XX_7 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarchar(4000;binary) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_7 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+-- NDB$BLOB_XX_8 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 8
+FragmentCount: 8
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarchar(13948;binary) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, NDB$PART) - UniqueHashIndex
+-- Per partition info for NDB$BLOB_XX_8 -- 
+Partition	Row count	Commit count	Frag fixed memory	Frag varsized memory	Extent_space	Free extent_space	
+
+
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;

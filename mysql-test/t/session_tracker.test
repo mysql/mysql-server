@@ -1,5 +1,5 @@
--- source include/not_embedded.inc
 -- source include/have_validate_password_plugin.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 
 --echo #
@@ -110,19 +110,6 @@ SET @@session.sql_mode='invalid';
 SET @@session.session_track_system_variables='*';
 --echo # Expect change info.
 SET @@session.sql_mode= @sql_mode_saved;
---echo # Expect change info.
-SET @@old_passwords=0;
---echo # Expect change info.
-SET @@session.sql_mode= @sql_mode_saved;
-
---echo # Test the wildcard value for tracking.
-SET @@session.session_track_system_variables='*,old_passwords';
---echo # Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
---echo # Expect change info.
-SET @@old_passwords=0;
---echo # Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
 
 --echo # Switch off the session system variables tracker (using empty string).
 SET @@session.session_track_system_variables='';
@@ -149,7 +136,8 @@ SELECT @@session.sql_mode;
 --echo # Testing with stored procedure.
 --echo
 
-SET @@session.session_track_system_variables='autocommit,time_zone,tx_isolation';
+SET @@session.session_track_system_variables='autocommit,time_zone,
+                                              transaction_isolation';
 SELECT @@session.session_track_system_variables;
 --echo
 
@@ -157,7 +145,7 @@ DELIMITER |;
 CREATE PROCEDURE my_proc() BEGIN
   SET @@session.autocommit=OFF;
   SET @@session.time_zone='-6:00';
-  SET @@session.tx_isolation='READ-COMMITTED';
+  SET @@session.transaction_isolation='READ-COMMITTED';
 END;|
 
 DELIMITER ;|
@@ -491,11 +479,11 @@ SET @@session.session_track_state_change='';
 --echo
 
 --echo # CASE1: with session_track_system_variables
-SET @@session.session_track_system_variables='time_zone,tx_isolation';
+SET @@session.session_track_system_variables='time_zone,transaction_isolation';
 SET @@session.time_zone='-6:00';
 SET @@session.session_track_state_change=1;
 --echo # expect 1 as well in OK packet
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 --echo # expect 1 as well in OK packet
 SET @var2= 20;
 
@@ -518,7 +506,7 @@ USE test;
 --echo # CASE4: check for trackers itself
 SET @@session.session_track_state_change=1;
 --echo # expect 1
-SET @@session.session_track_system_variables='tx_isolation';
+SET @@session.session_track_system_variables='transaction_isolation';
 --echo # expect 1
 SET @@session.session_track_schema=1;
 --echo # we dont send the boolean tracker for the tracker itself
@@ -546,4 +534,3 @@ connection default;
 
 --echo
 --echo # End of tests
-

@@ -1,6 +1,5 @@
 # Testing of "strict" mode
 
--- source include/have_innodb.inc
 
 set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
@@ -813,7 +812,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
 INSERT INTO t1 VALUES (-2.2E-307,0),(2E-307,0),(+1.7E+308,+1.7E+308);
 INSERT INTO t1 VALUES ('-2.2E-307',0),('-2E-307',0),('+1.7E+308','+1.7E+308');
-# We don't give warnings for underflow
+# We do not give warnings for underflow
 INSERT INTO t1 (col1) VALUES (-2.2E-330);
 --error 1367,1264
 INSERT INTO t1 (col1) VALUES (+1.7E+309);
@@ -1102,7 +1101,7 @@ DROP TABLE t1;
 
 set @@sql_mode='traditional';
 --error 1074
-create table t1(a varchar(65537));
+create table t1(a varchar(65537)) charset latin1;
 --error 1074
 create table t1(a varbinary(65537));
 

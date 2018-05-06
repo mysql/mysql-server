@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value: 64                                                           #
+# Default Value: 1024                                                         #
 # Range: 0-65535                                                              #
 #                                                                             #
 #                                                                             #
@@ -60,10 +60,10 @@ SELECT @@session.max_error_count;
 ##################################################################
 
 SET @@global.max_error_count = DEFAULT;
-SELECT @@global.max_error_count = 64;
+SELECT @@global.max_error_count = 1024;
 
 SET @@session.max_error_count = DEFAULT;
-SELECT @@session.max_error_count = 64;
+SELECT @@session.max_error_count = 1024;
 
 
 --echo '#--------------------FN_DYNVARS_076_03-------------------------#'
@@ -149,7 +149,7 @@ SELECT @@session.max_error_count;
 
 --disable_warnings
 SELECT @@global.max_error_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_error_count';
 --enable_warnings
 
@@ -160,7 +160,7 @@ WHERE VARIABLE_NAME='max_error_count';
 
 --disable_warnings
 SELECT @@session.max_error_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_error_count';
 --enable_warnings
 

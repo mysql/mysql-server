@@ -3,8 +3,15 @@
 --echo # installation, where all plugins are in the same directory.
 --echo #
 
---source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
---source suite/query_rewrite_plugins/include/have_plugin_rewrite_example.inc
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+--source include/no_opt_trace_protocol.inc
+--source include/no_explain_protocol.inc
+--source include/no_json_explain_protocol.inc
+
+--let plugins= REWRITER,REWRITE_EXAMPLE
+--source include/check_plugin_dir.inc
 
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc

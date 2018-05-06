@@ -1,15 +1,21 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -48,7 +54,9 @@ struct PropertyImpl{
   PropertyImpl(const char * name, Uint64 value);
   PropertyImpl(const char * name, const char * value);
   PropertyImpl(const char * name, const Properties * value);
-  
+
+  bool append(const char * value);
+
   static PropertyImpl * copyPropertyImpl(const PropertyImpl &);
 };
 
@@ -80,7 +88,6 @@ public:
   void remove(const char * name);
   
   Uint32 getPackedSize(Uint32 pLen) const;
-  bool pack(Uint32 *& buf, const char * prefix, Uint32 prefixLen) const;
   bool unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top, int items);
   
   Uint32 getTotalItems() const;
@@ -173,7 +180,6 @@ put(PropertiesImpl * impl, const char * name, T value, bool replace){
   return (tmp->put(new PropertyImpl(short_name, value)) != 0);
 }
 
-
 bool
 Properties::put(const char * name, Uint32 value, bool replace){
   return ::put(impl, name, value, replace);
@@ -187,6 +193,32 @@ Properties::put64(const char * name, Uint64 value, bool replace){
 bool 
 Properties::put(const char * name, const char * value, bool replace){
   return ::put(impl, name, value, replace);
+}
+
+bool
+Properties::append(const char * name, const char * value)
+{
+  PropertyImpl * nvp = impl->get(name);
+  if (nvp == NULL)
+  {
+    setErrno(E_PROPERTIES_NO_SUCH_ELEMENT);
+    return false;
+  }
+
+  if (nvp->valueType != PropertiesType_char)
+  {
+    setErrno(E_PROPERTIES_INVALID_TYPE);
+    return false;
+  }
+
+  if (!nvp->append(value))
+  {
+    setErrno(E_PROPERTIES_ERROR_MALLOC_WHILE_UNPACKING);
+    return false;
+  }
+
+  setErrno(E_PROPERTIES_OK);
+  return true;
 }
 
 bool 
@@ -420,26 +452,6 @@ computeChecksum(const Uint32 * buf, Uint32 words){
     sum ^= htonl(buf[i]);
   
   return sum;
-}
-
-bool
-Properties::pack(Uint32 * buf) const {
-  Uint32 * bufStart = buf;
-  
-  memcpy(buf, version, sizeof(version));
-  
-  // Note that version must be a multiple of 4
-  buf += (sizeof(version) / 4); 
-  
-  * buf = htonl(impl->getTotalItems());
-  buf++;
-  bool res = impl->pack(buf, "", 0);
-  if(!res)
-    return res;
-
-  * buf = htonl(computeChecksum(bufStart, Uint32(buf - bufStart)));
-
-  return true;
 }
 
 bool
@@ -730,98 +742,6 @@ struct CharBuf {
 };
 
 bool
-PropertiesImpl::pack(Uint32 *& buf, const char * prefix, Uint32 pLen) const {
-  CharBuf charBuf;
-  
-  for(unsigned int i = 0; i<items; i++){
-    const int strLenName      = (int)strlen(content[i]->name);
-    
-    if(content[i]->valueType == PropertiesType_Properties){
-      charBuf.clear();
-      if(!charBuf.add(prefix, pLen)){
-	properties->setErrno(E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING,
-			     errno);
-	return false;
-      }
-      
-      if(!charBuf.add(content[i]->name, strLenName)){
-	properties->setErrno(E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING,
-			     errno);
-	return false;
-      }
-
-      if(!charBuf.add(Properties::delimiter)){
-	properties->setErrno(E_PROPERTIES_ERROR_MALLOC_WHILE_PACKING,
-			     errno);
-	return false;
-      }
-      
-      if(!((Properties*)(content[i]->value))->impl->pack(buf, 
-							 charBuf.buffer,
-							 charBuf.contentLen)){
-	
-	return false;
-      }
-      continue;
-    }
-    
-    Uint32 valLenData  = 0;
-    Uint32 valLenWrite = 0;
-    Uint32 sz = 4 + 4 + 4 + mod4(pLen + strLenName);
-    switch(content[i]->valueType){
-    case PropertiesType_Uint32:
-      valLenData  = 4;
-      break;
-    case PropertiesType_Uint64:
-      valLenData  = 8;
-      break;
-    case PropertiesType_char:
-      valLenData  = Uint32(strlen((char *)content[i]->value));
-      break;
-    case PropertiesType_Properties:
-      assert(0);
-    }
-    valLenWrite = mod4(valLenData);
-    sz += valLenWrite;
-    
-    * (buf + 0) = htonl(content[i]->valueType);
-    * (buf + 1) = htonl(pLen + strLenName);
-    * (buf + 2) = htonl(valLenData);
-
-    char * valBuf  = (char*)(buf + 3);
-    char * nameBuf = (char*)(buf + 3 + (valLenWrite / 4));
-    
-    memset(valBuf, 0, sz-12);
-
-    switch(content[i]->valueType){
-    case PropertiesType_Uint32:
-      * (Uint32 *)valBuf = htonl(* (Uint32 *)content[i]->value);
-      break;
-    case PropertiesType_Uint64:{
-      Uint64 val =  * (Uint64 *)content[i]->value;
-      Uint32 hi = (Uint32)(val >> 32);
-      Uint32 lo = (Uint32)(val & 0xFFFFFFFF);
-      * (Uint32 *)valBuf = htonl(hi);
-      * (Uint32 *)(valBuf + 4) = htonl(lo);
-    }
-      break;
-    case PropertiesType_char:
-      memcpy(valBuf, content[i]->value, strlen((char*)content[i]->value));
-      break;
-    case PropertiesType_Properties:
-      assert(0);
-    }
-    if(pLen > 0)
-      memcpy(nameBuf, prefix, pLen);
-    memcpy(nameBuf + pLen, content[i]->name, strLenName);
-    
-    buf += (sz / 4);
-  }
-
-  return true;
-}
-
-bool
 PropertiesImpl::unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top,
 		       int _items){
   CharBuf charBuf;
@@ -947,7 +867,26 @@ PropertyImpl::PropertyImpl(const char * _name, const char * _value){
   this->name = f_strdup(_name);
   this->value = f_strdup(_value);
   this->valueType = PropertiesType_char;
+}
 
+bool
+PropertyImpl::append(const char * value)
+{
+  assert(this->valueType == PropertiesType_char);
+  assert(this->value != NULL);
+  assert(value != NULL);
+
+  const size_t old_len = strlen(reinterpret_cast<char*>(this->value));
+  const size_t new_len = old_len + strlen(value);
+  char * new_value = reinterpret_cast<char*>(realloc(this->value, new_len + 1));
+  if (new_value == NULL)
+  {
+    return false;
+  }
+  const size_t append_len = new_len + 1 - old_len;
+  memcpy(new_value + old_len, value, append_len);
+  this->value = new_value;
+  return true;
 }
 
 PropertyImpl::PropertyImpl(const char * _name, const Properties * _value){

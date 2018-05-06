@@ -3,13 +3,16 @@
 #	    MySQL Optimizer
 #
 
---source include/have_innodb.inc
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
+
+# There are expected differences in explain output when run with and without
+# binary logging. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=MIXED and STATEMENT, since it mismatches
+# result file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
 
 # Optimizer plan are printed as part of the test-case and changing page
 # size will affect the optimizer plan numbers. so enable it only for 16K
---source include/have_innodb_16k.inc
 
 
 ################################################################################
@@ -39,7 +42,18 @@ let $restart_parameters = restart: --big-tables=1;
 #
 # Workload in read-only mode.
 #
-let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+
+# Suppress warning regarding re-populating charsets and collations.
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# # refuse startup, in case there exist buffered changes from earlier tests.
+SET GLOBAL innodb_fast_shutdown = 0;
+let $restart_parameters = restart: --big-tables=1 --innodb-read-only;
 --source include/restart_mysqld.inc
 
 --source suite/innodb/include/query_workload_itt.inc
@@ -57,7 +71,7 @@ let $big_tables = `select @@big_tables`;
 create table t0 (m int, n int, key(m)) engine=innodb;
 begin;
 select count(*) from t0;
-set @@session.sql_mode = MAXDB;
+set @@session.sql_mode = ANSI;
 set @@session.tmp_table_size = 0;
 set @@session.big_tables = 1;
 select @@big_tables;
@@ -94,7 +108,7 @@ SET @@session.max_heap_table_size=0;
 SET @@global.innodb_thread_concurrency=1;
 --echo # Executing I_S query which will create and do index read on
 --echo # intrinsic temporary tables
-let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_sys_tables`;
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
 
 --echo # Switch to connection con1
 connect (con1, localhost, root);
@@ -118,7 +132,7 @@ SET @@session.max_heap_table_size=0;
 SET @@global.innodb_thread_concurrency=1;
 --echo # Executing I_S query which will create and do index read on
 --echo # intrinsic temporary tables
-let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_sys_tables`;
+let $DISCARD_OUTPUT=`SELECT COUNT(*) FROM information_schema.innodb_tables`;
 select convert_tz(0,'a','a');
 # Cleanup
 SET @@session.max_heap_table_size = default;

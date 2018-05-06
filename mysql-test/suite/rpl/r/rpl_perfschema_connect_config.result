@@ -27,24 +27,11 @@ include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should b
 include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Interval should be same.]
 include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Count should be same.]
 
-# Heartbeat_Interval is part of I_S and P_S. We will compare the
-# two to make sure both match.
-
-include/assert.inc [Value returned by IS and PS table for Heartbeat_Interval should be same.]
-
 # Change configuration parameters and verify that these changes
 # are shown correctly by SELECTs from PS table.
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-grant replication slave on *.* to replssl@localhost require ssl;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 change master to

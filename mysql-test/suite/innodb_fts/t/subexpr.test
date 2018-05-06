@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug #20028323 INNODB FULLTEXT BOOLEAN SEARCH INCORRECTLY HANDLES

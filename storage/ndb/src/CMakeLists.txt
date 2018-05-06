@@ -1,19 +1,52 @@
 # Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(libutils)
+
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter"
+          # Missing falltrough in switch/case/break statements
+          "implicit-fallthrough"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized"
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 ADD_SUBDIRECTORY(common)
 ADD_SUBDIRECTORY(mgmapi)
@@ -52,22 +85,6 @@ SET(NDBCLIENT_LIBS
 MERGE_CONVENIENCE_LIBRARIES(
   ndbclient_static ${NDBCLIENT_LIBS} COMPONENT Development)
 
-SET(KNOWN_CONVENIENCE_LIBRARIES
-  ${KNOWN_CONVENIENCE_LIBRARIES} ndbclient_static CACHE INTERNAL "" FORCE)
-
-# Generate a cmake file which will save the name of the library.
-CONFIGURE_FILE(
-  ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
-  ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
-  @ONLY)
-ADD_CUSTOM_COMMAND(TARGET ndbclient_static POST_BUILD
-  COMMAND ${CMAKE_COMMAND}
-  -DTARGET_NAME=ndbclient_static
-  -DTARGET_LOC=$<TARGET_FILE:ndbclient_static>
-  -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
-  -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
-  )
-
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
@@ -84,8 +101,16 @@ NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MINOR minor)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_BUILD build)
 SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
+               ${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver)
+
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 IF(MSVC)
 # All "convenience" libraries are now well-known, we *could* do this:
@@ -147,10 +172,12 @@ ELSE()
   ENDFOREACH()
   IF(NDBCLIENT_SYSTEM_LIBS)
     LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+    MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
+    TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
+      ${NDBCLIENT_SYSTEM_LIBS})
+  ELSE()
+    MESSAGE(STATUS "System libs used by ndbclient_so: [none]")
   ENDIF()
-  MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
-  TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
-    ${NDBCLIENT_SYSTEM_LIBS})
 
   # Prepend any special linker flags(like -m64) for shared library
   GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
@@ -158,8 +185,20 @@ ELSE()
     # Avoid LINK_FLAGS-NOTFOUND
     SET(ndbclient_so_link_flags)
   ENDIF()
-  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
-    LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
+  SET(ndbclient_so_link_flags
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
+  IF(LINK_FLAG_NO_UNDEFINED)
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
+  ENDIF()
+  IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} ${CMAKE_CXX_LINK_FLAGS}")
+  ENDIF()
+  SET_TARGET_PROPERTIES(ndbclient_so
+    PROPERTIES LINK_FLAGS "${ndbclient_so_link_flags}")
 ENDIF()
 
 

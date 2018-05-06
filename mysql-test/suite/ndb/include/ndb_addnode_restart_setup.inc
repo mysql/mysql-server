@@ -1,8 +1,5 @@
 --source include/have_ndb.inc
 
-# Test does not need to run with embedded
-# since mysqld/libmysqld is not involved
---source include/not_embedded.inc
 
 # Test configs should be cleared and
 # servers should be restarted in case of retries

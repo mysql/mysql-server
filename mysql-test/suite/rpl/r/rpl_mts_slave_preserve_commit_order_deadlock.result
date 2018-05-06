@@ -102,10 +102,12 @@ SET debug = "";
 # Test Case 4: Innodb internal transaction deadlock
 #
 [connection master]
-CREATE TABLE t2 LIKE mysql.innodb_table_stats;
+CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+CREATE TABLE t2(database_name VARCHAR(200), table_name VARCHAR(200));
+INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-CALL mtr.add_suppression(".*InnoDB: Cannot save table statistics for table.*");
+CALL mtr.add_suppression(".* Cannot save table statistics for table.*");
 LOCK TABLE t1 WRITE;
 [connection master]
 TRUNCATE t2;
@@ -113,7 +115,7 @@ SET debug = "d,set_commit_parent_100";
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-INSERT INTO t2 SELECT * FROM mysql.innodb_table_stats;
+INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 [connection slave]
 include/start_slave_sql.inc
 UNLOCK TABLES;

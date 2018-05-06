@@ -1,0 +1,131 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the sql delay is being applied correctly in a multi-source
+# topology.
+#
+# ==== Implementation ====
+# In server_1->server_2, server_3->server_2 topology
+# The SQL_Delay in server_2 is set to 5 seconds and 8 seconds with respect to
+# server_1 and server_3. For each for the six different transactions executed
+# (two DDL, three DML and one multi-statement DML), the test verifies if the
+# delay was the expected using replication timestamp infrastructure introduced
+# by WL#7319.
+#
+# ==== References ====
+#
+# WL#7318 Delayed Replication: GTID based and relative to immediate master commit
+
+--source include/big_test.inc
+--source include/have_debug.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--let $rpl_topology=1->2,3->2
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--let $delay_1= 5
+--let $delay_2= 8
+--let $slave_sleep_1= 1
+--let $slave_sleep_2= 2
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--eval CHANGE MASTER TO MASTER_DELAY= $delay_1 for channel 'channel_1';
+--let $rpl_channel_name= 'channel_1'
+--source include/start_slave.inc
+
+--eval CHANGE MASTER TO MASTER_DELAY= $delay_2 for channel 'channel_3';
+--let $rpl_channel_name= 'channel_3'
+--source include/start_slave.inc
+
+--let $master= server_1
+--let $slave= server_2
+--let $rpl_channel_name= 'channel_1'
+--let $slave_sleep= $slave_sleep_1
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (a INT);
+--let $trx_num= 1
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+INSERT INTO t1 VALUES (1);
+--let $trx_num= 2
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+UPDATE t1 SET a=2;
+--let $trx_num= 3
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+DELETE FROM t1 WHERE a=2;
+--let $trx_num= 4
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+--let $trx_num= 5
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+DROP TABLE t1;
+--let $trx_num= 6
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+
+#Do the transactions on the second master server_3
+
+--let $master= server_3
+--let $slave= server_2
+--let $rpl_channel_name= 'channel_3'
+--let $slave_sleep= $slave_sleep_2
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+CREATE TABLE t2 (a INT);
+--let $trx_num= 1
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+INSERT INTO t2 VALUES (1);
+--let $trx_num= 2
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+UPDATE t2 SET a=2;
+--let $trx_num= 3
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+DELETE FROM t2 WHERE a=2;
+--let $trx_num= 4
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+START TRANSACTION;
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+COMMIT;
+--let $trx_num= 5
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+DROP TABLE t2;
+--let $trx_num= 6
+--source extra/rpl_tests/check_slave_delay_multi_source.inc
+
+# Cleanup
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name=
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_1';
+CHANGE MASTER TO MASTER_DELAY= 0 For channel 'channel_3';
+--source include/start_slave_sql.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

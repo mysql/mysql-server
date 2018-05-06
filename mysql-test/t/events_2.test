@@ -1,8 +1,6 @@
 
 # changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
 #
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
 
 --disable_warnings
 drop database if exists events_test;
@@ -15,7 +13,7 @@ use events_test;
 #
 
 create event e_26 on schedule at '2037-01-01 00:00:00' disable do set @a = 5;
-select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
+select  event_definition, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from information_schema.events;
 drop event e_26;
 --error ER_WRONG_VALUE
 create event e_26 on schedule at NULL disable do set @a = 5;
@@ -28,11 +26,13 @@ drop event задачка;
 
 --echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
 set global event_scheduler=off;
-select definer, name, db from mysql.event;
+--source include/no_running_event_scheduler.inc
+
+select definer, event_name from information_schema.events;
 select get_lock("test_lock1", 20);
 create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
 --echo "Should return 1 row"
-select definer, name, db from mysql.event;
+select definer, event_name from information_schema.events;
 
 --echo "Should be only 0 process"
 select /*1*/ user, host, db, command, state, info
@@ -42,13 +42,14 @@ select /*1*/ user, host, db, command, state, info
 select release_lock("test_lock1");
 drop event закачка;
 --echo "Should have 0 events"
-select count(*) from mysql.event;
+select count(*) from information_schema.events;
 
 #
 #
 #
 --echo "ENABLE the scheduler and get a lock"
 set global event_scheduler=on;
+--source include/running_event_scheduler.inc
 select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
@@ -83,7 +84,6 @@ let $wait_condition= select count(*) = 0 from information_schema.processlist
 ## 5. kill the scheduler, it will wait for the child to stop
 ## 6. both processes should be there on show processlist
 ## 7. release the lock and sleep, both scheduler and child should end
-set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 
@@ -100,6 +100,7 @@ select /*3*/ user, host, db, command, state, info
   order by info;
 
 set global event_scheduler=off;
+--source include/no_running_event_scheduler.inc
 
 let $wait_condition= select count(*) =1 from information_schema.processlist
   where (info like "select get_lock%" OR user='event_scheduler');
@@ -116,6 +117,9 @@ let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
+# Set event_scheduler ON by default
+set global event_scheduler = ON;
+--source include/running_event_scheduler.inc
 
 ####
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
@@ -182,7 +186,7 @@ drop event e1;
 ##select sleep(2);
 ##--replace_column 1 # 6 #
 ##show processlist;
-##select count(*) from mysql.event;
+##select count(*) from information_schema.events;
 
 #
 # Test wrong syntax
@@ -199,9 +203,9 @@ SHOW EVENTS FROM `events\\test`;
 #
 --echo
 --echo LOCK TABLES mode.
---echo 
+--echo
 #
-# SHOW CREATE EVENT and INFORMATION_SCHEMA.events are available and 
+# SHOW CREATE EVENT and INFORMATION_SCHEMA.events are available and
 # cause an implicit lock/unlock of mysql.event table, regardless of the
 # currently locked tables.
 #
@@ -224,86 +228,13 @@ drop event e2;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 drop event e1;
 unlock tables;
-#
-lock table t1 write;
-#
---replace_regex /STARTS '[^']+'/STARTS '#'/
-show create event e1;
-select event_name from information_schema.events;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-create event e2 on schedule every 10 hour do select 1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 disable;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 rename to e3;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e2;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
 drop event e1;
-unlock tables;
-#
-lock table t1 read, mysql.event read;
-#
---replace_regex /STARTS '[^']+'/STARTS '#'/
-show create event e1;
-select event_name from information_schema.events;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-create event e2 on schedule every 10 hour do select 1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 disable;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 rename to e3;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e2;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e1;
-unlock tables;
-#
-lock table t1 write, mysql.event read;
-#
---replace_regex /STARTS '[^']+'/STARTS '#'/
-show create event e1;
-select event_name from information_schema.events;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-create event e2 on schedule every 10 hour do select 1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 disable;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 rename to e3;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e2;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e1;
-unlock tables;
-#
---error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-lock table t1 read, mysql.event write;
-#
---error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-lock table t1 write, mysql.event write;
-#
-lock table mysql.event write;
---replace_regex /STARTS '[^']+'/STARTS '#'/
-show create event e1;
-select event_name from information_schema.events;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-create event e2 on schedule every 10 hour do select 1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 disable;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-alter event e2 rename to e3;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e3;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-drop event e1;
-unlock tables;
-drop event e1;
---echo Make sure we have left no events 
+--echo Make sure we have left no events
 select event_name from information_schema.events;
 --echo
 --echo Events in sub-statements, events and prelocking
---echo 
---echo 
+--echo
+--echo
 create event e1 on schedule every 10 hour do select 1;
 delimiter |;
 --error ER_SP_NO_RETSET
@@ -327,8 +258,7 @@ end|
 create trigger trg before insert on t1 for each row
 begin
   select event_name from information_schema.events;
-end|
---error ER_EVENT_RECURSION_FORBIDDEN
+end|                                                                                                                                                    --error ER_EVENT_RECURSION_FORBIDDEN
 create function f1() returns int
 begin
   create event e2 on schedule every 10 hour do select 1;
@@ -365,13 +295,6 @@ insert into t1 (a) values (1)|
 drop procedure p1|
 create procedure p1()
 begin
-  show create event e1; 
-end|
---error ER_SP_NO_RETSET
-insert into t1 (a) values (1)|
-drop procedure p1|
-create procedure p1()
-begin
   create temporary table tmp select event_name from information_schema.events;
 end|
 --echo expected to work, since we redirect the output into a tmp table
@@ -395,7 +318,7 @@ insert into t1 (a) values (1)|
 drop table t1|
 drop event e1|
 delimiter ;|
-
+                                                                             
 #
 # Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #

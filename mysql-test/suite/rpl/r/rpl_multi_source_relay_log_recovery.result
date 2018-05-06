@@ -24,7 +24,7 @@ CREATE DATABASE d1_1;;
 CREATE DATABASE d2_1;;;
 CREATE TABLE d1_1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
 CREATE TABLE d2_1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection slave_con_channel1]
 BEGIN;
 INSERT INTO d2_1.t VALUES (2, 'Slave local'); # Hold T3;
@@ -46,7 +46,7 @@ CREATE DATABASE d1_3;;
 CREATE DATABASE d2_3;;;
 CREATE TABLE d1_3.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
 CREATE TABLE d2_3.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 [connection slave_con_channel3]
 BEGIN;
 INSERT INTO d2_3.t VALUES (2, 'Slave local'); # Hold T3;
@@ -62,23 +62,23 @@ INSERT INTO d1_3.t VALUES (2, 'T5');;
 [connection server_2]
 CALL mtr.add_suppression("Recovery from master pos");
 # Kill the server
-include/rpl_start_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+include/rpl_start_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --gtid-mode=off]
 [connection server_2]
 START SLAVE;
 # channel 1
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # channel 3
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 connection_server_1
 DROP DATABASE d1_1;
 DROP DATABASE d2_1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 connection_server_3
 DROP DATABASE d1_3;
 DROP DATABASE d2_3;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

@@ -1,22 +1,29 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(libutils)
 INCLUDE(cmake_parse_arguments)
 
-SET(JAVAC_TARGET "1.6")
+SET(JAVAC_TARGET "1.7")
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
@@ -148,25 +155,6 @@ MACRO(CREATE_JAR)
       )
     ENDIF()
   ENDFOREACH()
-
-  # Enhance
-  IF(EXISTS ${ARG_ENHANCE})
-    SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
-
-    SET(OLD_MARKER ${MARKER})
-    MATH(EXPR COUNTER "${COUNTER} + 1")
-    SET(MARKER "${MARKER_BASE}.${COUNTER}")
-
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${MARKER}
-      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
-      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
-      
-      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
-      DEPENDS ${OLD_MARKER}
-      COMMENT "Enhancing objects for ${TARGET}.jar"
-    )
-  ENDIF()
 
   # Unpack extra jars
   FOREACH(_J ${ARG_MERGE_JARS})

@@ -631,7 +631,8 @@ void CodedOutputStream::WriteRaw(const void* data, int size) {
     if (!Refresh()) return;
   }
 
-  memcpy(buffer_, data, size);
+  if (size > 0)
+    memcpy(buffer_, data, size);
   Advance(size);
 }
 

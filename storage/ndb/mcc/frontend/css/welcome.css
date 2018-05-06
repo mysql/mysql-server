@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -69,6 +76,14 @@ h1 {
 	font-weight: bold;
 }
 
+label {
+    color: #B4886B;
+    font-weight: bold;
+    font-size: 1.15em;
+    display: block;
+    width: 150px;
+    float: left;
+}
 /************************ Configuration box styling ***************************/
 
 #configure-box-wrapper {
@@ -78,8 +93,8 @@ h1 {
 }
 
 #configure-box {
-  width: 336px;
-  height: 285px;
+  width: 436px;
+  height: 220px;
   margin-left: auto;
   margin-right: 50px;
   background: url(../img/box-bg.png);
@@ -87,12 +102,6 @@ h1 {
   text-align: center;
   padding-top: 20px;
   box-shadow: 1px 1px 2px 2px rgba(0,0,0,0.4);
-}
-
-#configure-box table {
-  width: 280px;
-  margin-left:auto; 
-  margin-right:auto;
 }
 
 .configure-item {
@@ -116,6 +125,9 @@ h1 {
   vertical-align: top;
 }
 
+#configListContainer {
+    font-size: 1.15em;
+}
 /********************* Content links at bottom of page ************************/
 
 #content-links {
@@ -157,10 +169,18 @@ h1 {
 /******************* Button without background or border **********************/
 
 .iconButton .dijitButtonNode {
-    border: none;
     background: transparent;
+    font-weight: bold;
+    font-size: 1.5em;
+    padding: 10px;
+    border: none;
 }
 
+.dijitButtonNode {
+    font-weight: bold;
+    font-size: 1.5em;
+    padding: 10px;
+}
 /****************************** Various icons *********************************/
 
 .newClusterIcon {
@@ -177,4 +197,17 @@ h1 {
     width: 60px;
     height: 40px;
 } 
-
+.continueClusterDisabledIcon {
+    background-image: url('../img/icon_continue_cluster_disabled.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+.viewConfigIcon {
+    background-image: url('../img/icons8-view-50.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+}

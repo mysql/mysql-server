@@ -1,0 +1,152 @@
+################################################################################
+# It tests the cases where the dump thread returns an error to the client.
+################################################################################
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
+--sync_slave_with_master
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+--echo #
+--echo # Error: binlog file doesn't exist
+--echo #
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server not-exist.000001
+
+--echo #
+--echo # Error: master doesn't set server_id
+--echo #
+--let $master_debug= `SELECT @@GLOBAL.debug`
+SET GLOBAL debug= 'd,simulate_no_server_id';
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server not-exist.000001
+
+--echo #
+--echo # Error: Error while sending faked rotate event
+--echo #
+SET GLOBAL debug= 'd,simulate_send_error';
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
+
+eval SET GLOBAL debug= '$master_debug';
+
+--echo #
+--echo # Error: Fail to open binlog file
+--echo #
+FLUSH BINARY LOGS;
+--let $datadir= `SELECT @@datadir`
+--move_file $datadir/master-bin.000002 $datadir/master-bin-bak.000002
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server --stop-never master-bin.000001
+--move_file $datadir/master-bin-bak.000002 $datadir/master-bin.000002
+
+--echo #
+--echo # Error: Could not find Format_Description_Event
+--echo #
+--move_file $datadir/master-bin.000001 $datadir/master-bin-bak.000001
+--copy_file $MYSQLTEST_VARDIR/std_data/binlog_no_fd_event.000001 $datadir/master-bin.000001
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
+
+--echo #
+--echo # Error: Fail on reading Previous_gtid_log_event
+--echo #
+--remove_file $datadir/master-bin.000001
+--copy_file $MYSQLTEST_VARDIR/std_data/binlog_truncated_prev_gtid_event.000001 $datadir/master-bin.000001
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS master-bin.000001
+
+--echo #
+--echo # Error: Fail on reading event
+--echo #
+--remove_file $datadir/master-bin.000001
+--copy_file $MYSQLTEST_VARDIR/std_data/binlog_truncated_event.000001 $datadir/master-bin.000001
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
+
+--move_file $datadir/master-bin-bak.000001 $datadir/master-bin.000001
+
+--echo #
+--echo # Error: Client requests from a position less than 4
+--echo #
+--source include/rpl_connection_slave.inc
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--source include/stop_slave.inc
+--let $slave_debug= `SELECT @@debug`
+SET GLOBAL debug= 'd,request_master_log_pos_3';
+
+START SLAVE IO_THREAD;
+--let $slave_io_errno= 13114
+call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
+--source include/wait_for_slave_io_error.inc
+
+SET GLOBAL debug= '$slave_debug';
+
+--echo #
+--echo # Error: Binary log is not open on master
+--echo #
+
+# Need to restart master without binlog
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --disable-log-bin --gtid-mode=off
+--source include/rpl_restart_server.inc
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001
+
+--echo #
+--echo # Error: master's gtid_mode is not on
+--echo #
+# Need to restart master without gtid
+--let $rpl_server_parameters= --gtid-mode=off
+--source include/rpl_restart_server.inc
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS master-bin.000001
+
+--let $rpl_server_parameters=
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # Error: Dump thread is killed
+--echo #
+
+--source include/rpl_connection_master.inc
+RESET MASTER;
+CREATE TABLE t1(c1 INT);
+
+SET GLOBAL debug= 'd,simulate_kill_dump';
+
+# 'stop-never' will cause test timeout if 'kill dump thread' doesn't work well.
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-server master-bin.000001 --stop-never
+
+--echo #
+--echo # Error: Fail to send heartbeat with an net error
+--echo #
+--let $exclude_gtids= `SELECT @@GLOBAL.gtid_executed`
+INSERT INTO t1 VALUES(1);
+
+SET GLOBAL debug= 'd,simulate_flush_error';
+
+--error 1
+--exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS --exclude-gtids=$exclude_gtids master-bin.000001
+
+eval SET GLOBAL debug= '$master_debug';
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+RESET MASTER;
+RESET SLAVE;
+--source include/start_slave.inc
+--source include/rpl_end.inc

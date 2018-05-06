@@ -1,5 +1,3 @@
-
--- source include/not_embedded.inc
 -- source include/have_log_bin.inc
 
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
@@ -206,6 +204,7 @@ drop table t1;
 # SHOW TABLE STATUS test
 #
 create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+analyze table t1;
 prepare stmt1 from ' show table status from test like ''t1%'' ';
 --replace_column 8 4294967295 12 # 13 # 14 #
 execute stmt1;
@@ -273,9 +272,11 @@ set names utf8;
 prepare `Ã¼` from 'select 1234';
 execute `Ã¼` ;
 set names latin1;
+--character_set latin1
 execute `ü`;
 deallocate prepare `ü`;
 set names default;
+--character_set utf8mb4
 
 
 # 
@@ -313,8 +314,8 @@ drop table t1;
 # check the same for timestamps
 #
 create table t1 (a timestamp not null);
-prepare stmt from "insert into t1 (a) values (?)";
-execute stmt using @var;
+prepare stmt from "insert into t1 (a) values (CURRENT_TIMESTAMP)";
+execute stmt;
 --disable_result_log ONCE
 select * from t1;
 deallocate prepare stmt;
@@ -753,13 +754,13 @@ prepare stmt from "select @@time_zone";
 execute stmt;
 set @@time_zone:='Japan';
 execute stmt;
-prepare stmt from "select @@tx_isolation";
+prepare stmt from "select @@transaction_isolation";
 execute stmt;
 set transaction isolation level read committed;
 execute stmt;
 set transaction isolation level serializable;
 execute stmt;
-set @@tx_isolation=default;
+set @@transaction_isolation=default;
 execute stmt;
 deallocate prepare stmt;
 
@@ -1684,21 +1685,6 @@ while ($iterations)
 --enable_result_log
 
 #
-# Bug 19764:  SHOW commands end up in the slow log as table scans
-#
-
-flush status;
-prepare sq from 'show status like "slow_queries"';
-execute sq;
-prepare no_index from 'select 1 from information_schema.tables limit 1';
-execute sq;
-execute no_index;
-execute sq;
-deallocate prepare no_index;
-deallocate prepare sq;
-
-
-#
 # Bug 25027: query with a single-row non-correlated subquery
 #            and IS NULL predicate
 #
@@ -2023,26 +2009,6 @@ DROP TABLE t1;
 # Bug #20665: All commands supported in Stored Procedures should work in
 # Prepared Statements
 #
-create procedure proc_1() reset query cache;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int deterministic begin reset query cache; return 1; end|
-create function func_1() returns int deterministic begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "reset query cache";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
 create procedure proc_1() reset master;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -2192,24 +2158,32 @@ deallocate prepare abc;
 
 create procedure proc_1() flush tables;
 flush tables;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 flush tables;
 delimiter |;
@@ -2229,24 +2203,31 @@ drop procedure proc_1;
 flush tables;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 --enable_ps_protocol
 
 prepare abc from "flush tables";
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 flush tables;
 deallocate prepare abc;
@@ -2286,26 +2267,6 @@ select func_1(), func_1(), func_1() from dual;
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "flush status";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
-create procedure proc_1() flush des_key_file;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush des_key_file; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush des_key_file";
 execute abc;
 execute abc;
 execute abc;
@@ -2841,17 +2802,6 @@ prepare abc from "show warnings";
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
 #
 
-set @my_password="password";
-set @my_data="clear text to encode";
-
-prepare stmt1 from 'select decode(encode(?, ?), ?)';
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_data="more text to encode";
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_password="new password";
-execute stmt1 using @my_data, @my_password, @my_password;
-deallocate prepare stmt1;
-
 set @to_format="123456789.123456789";
 set @dec=0;
 
@@ -2974,41 +2924,6 @@ deallocate prepare stmt;
 drop table t1, t2;
 
 --echo #
---echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
---echo # after PREPARE
---echo #
---echo # This part of the test doesn't work in embedded server, this is
---echo # why it's here. For the main test see ps_ddl*.test
---echo
---disable_warnings ONCE
-drop table if exists t1;
-create table t1 (a int);
-prepare stmt from "show events where (1) in (select * from t1)";
-execute stmt;
-drop table t1;
-create table t1 (x int);
-execute stmt;
-drop table t1;
-deallocate prepare stmt;
-
---echo #
---echo # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
---echo #
-
-prepare encode from "select encode(?, ?) into @ciphertext";
-prepare decode from "select decode(?, ?) into @plaintext";
-set @str="abc", @key="cba";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-set @str="bcd", @key="dcb";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-deallocate prepare encode;
-deallocate prepare decode;
-
---echo #
 --echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 --echo #
 CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
@@ -3023,11 +2938,11 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo #
---echo # Bug#54494 crash with explain extended and prepared statements
+--echo # Bug#54494 crash with explain and prepared statements
 --echo #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
-PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
+PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -3319,7 +3234,7 @@ FROM
   SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
   ) AS t2
 WHERE t2.c2 = t1.c2
-GROUP BY c1, c2
+GROUP BY c1 ASC, c2 ASC
 ";
 
 --echo
@@ -3339,7 +3254,7 @@ FROM
   SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
   ) AS t2
 WHERE t2.c2 = t1.c2
-GROUP BY c1, c2;
+GROUP BY c1 ASC, c2 ASC;
 --echo
 EXECUTE s1;
 
@@ -3360,7 +3275,7 @@ FROM
   SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
   ) AS t2
 WHERE t2.c2 = t1.c2
-GROUP BY c1, c2;
+GROUP BY c1 ASC, c2 ASC;
 --echo
 EXECUTE s1;
 
@@ -3381,7 +3296,7 @@ FROM
   SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
   ) AS t2
 WHERE t2.c2 = t1.c2
-GROUP BY c1, c2;
+GROUP BY c1 ASC, c2 ASC;
 --echo
 EXECUTE s1;
 
@@ -3515,7 +3430,6 @@ PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=absent.absent";
 
 DROP TABLE t1, t2;
 
-
 --echo #
 --echo # Bug#19894382 - SERVER SIDE PREPARED STATEMENTS LEADS TO POTENTIAL OFF-BY-SECOND
 --echo #                TIMESTAMP ON SLAVE.
@@ -3535,8 +3449,7 @@ INSERT INTO bug19894382 SELECT * FROM client_test_db.bug19894382;
 
 --echo # Replay binlog events
 let $MYSQLD_DATADIR= `select @@datadir`;
---let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1)
---exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/$master_log_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
+--exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog"
 
 --echo # Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.

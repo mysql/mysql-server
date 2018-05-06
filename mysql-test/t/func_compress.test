@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
--- source include/have_compress.inc
 #
 # Test for compress and uncompress functions:
 #
@@ -14,13 +8,13 @@ select @test_compress_string:='string for test compress function aaaaaaaaaaaaaaa
 select length(@test_compress_string);
 
 select uncompress(compress(@test_compress_string));
-explain extended select uncompress(compress(@test_compress_string));
+explain select uncompress(compress(@test_compress_string));
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
-explain extended select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
+explain select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 select uncompressed_length(compress(@test_compress_string));
 select length(compress(@test_compress_string))<length(@test_compress_string);
 
-create table t1 (a text, b char(255), c char(4)) engine=myisam;
+create table t1 (a blob, b binary(255), c char(4)) engine=myisam;
 insert into t1 (a,b,c) values (compress(@test_compress_string),compress(@test_compress_string),'d ');
 select uncompress(a) from t1;
 select uncompress(b) from t1;
@@ -36,7 +30,7 @@ select uncompressed_length("");
 # errors
 #
 
-create table t1 (a text);
+create table t1 (a blob);
 insert t1 values (compress(null)), ('A\0\0\0BBBBBBBB'), (compress(space(50000))), (space(50000));
 select length(a) from t1;
 select length(uncompress(a)) from t1;
@@ -87,6 +81,7 @@ drop table t1;
 #
 create table t1 (a varchar(32) not null);
 insert into t1 values ('foo');
+analyze table t1;
 explain select * from t1 where uncompress(a) is null;
 select * from t1 where uncompress(a) is null;
 explain select *, uncompress(a) from t1;
@@ -109,7 +104,7 @@ SELECT UNCOMPRESS(c1), UNCOMPRESSED_LENGTH(c1) FROM t1;
 
 # We do not need the results, just make sure there are no valgrind errors
 --disable_result_log
-EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
+EXPLAIN SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 --enable_result_log
 
 DROP TABLE t1;

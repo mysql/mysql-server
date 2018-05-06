@@ -1,7 +1,5 @@
-CREATE USER u1@localhost IDENTIFIED BY 'secret';
-GRANT SELECT ON test.* TO u1@localhost REQUIRE SSL;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;
+GRANT SELECT ON test.* TO u1@localhost;
 Variable_name	Value
 have_openssl	YES
 have_ssl	YES
@@ -11,5 +9,6 @@ ssl_cert	MYSQL_TEST_DIR/std_data/server-cert-sha512.pem
 ssl_cipher	DHE-RSA-AES256-SHA
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/server-key-sha512.pem
 DROP USER u1@localhost;

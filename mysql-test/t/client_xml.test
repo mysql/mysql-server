@@ -1,7 +1,4 @@
 
-# Can't run with embedded server
--- source include/not_embedded.inc
-
 # Disable concurrent inserts to avoid test failures when reading
 # data from concurrent connections (insert might return before
 # the data is actually in the table).

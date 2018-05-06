@@ -37,7 +37,7 @@ call test.p_init(4000, 32);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	1
+Binlog_cache_use	3
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
@@ -52,7 +52,7 @@ flush status;
 create table t2(a int auto_increment primary key, data VARCHAR(12288)) ENGINE=Innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	1
+Binlog_cache_use	2
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
@@ -67,7 +67,7 @@ flush status;
 create table t3(a int auto_increment primary key, data VARCHAR(8192)) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	1
+Binlog_cache_use	2
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
@@ -107,7 +107,7 @@ call test.p1(1000);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	1
+Binlog_cache_use	2
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value

@@ -245,7 +245,7 @@ drop table t1;
 # Test for TIMESTAMP columns which are able to store NULLs
 #
 
-# Unlike for default TIMESTAMP fields we don't interpret first field
+# Unlike for default TIMESTAMP fields we do not interpret first field
 # in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
 create table t1 (a timestamp null, b timestamp null);
 
@@ -303,21 +303,6 @@ create table t1 (a char(2), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UP
 insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
                       ('b', '2004-02-01 00:00:00');
 select max(t) from t1 group by a;
-drop table t1;
-
-#
-# Test for bug #7418 "TIMESTAMP not always converted to DATETIME in MAXDB
-# mode". TIMESTAMP columns should be converted DATETIME columns in MAXDB
-# mode regardless of whether a display width is given.
-#
-set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
-
-#Replace default engine value with static engine string 
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-# restore default mode
-set sql_mode='';
 drop table t1;
 
 #
@@ -413,7 +398,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 
-CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
+CREATE TABLE t2 ( a TIMESTAMP, KEY ( a ) );
 
 INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
 INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );

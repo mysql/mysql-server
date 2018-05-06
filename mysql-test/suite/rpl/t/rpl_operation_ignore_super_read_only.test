@@ -27,6 +27,8 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/master-slave.inc
 
 --let $autocommit_opt= ON

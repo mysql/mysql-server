@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -131,9 +138,16 @@ struct TransporterReceiveData
 
   /**
    * Bitmask of transporters having received corrupted or unsupported
-   * message.  No more unpacking and delivery of messages allowed.
+   * message. No more unpacking and delivery of messages allowed.
    */
   NodeBitmask m_bad_data_transporters;
+
+  /**
+   * Last node received from if unable to complete all transporters
+   * in previous ::performReceive(). Next ::performReceive will
+   * resume from first transporter after this.
+   */
+  Uint32 m_last_nodeId;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
@@ -153,7 +167,8 @@ struct TransporterReceiveData
  * @class TransporterRegistry
  * @brief ...
  */
-class TransporterRegistry : private TransporterSendBufferHandle {
+class TransporterRegistry 
+{
   friend class SHM_Transporter;
   friend class SHM_Writer;
   friend class Transporter;
@@ -164,7 +179,6 @@ public:
   */
   TransporterRegistry(TransporterCallback *callback,
                       TransporterReceiveHandle * receiveHandle,
-                      bool use_default_send_buffer = true,
 		      unsigned maxTransporters = MAX_NTRANSPORTERS);
 
   /**
@@ -332,28 +346,16 @@ public:
   bool configureTransporter(TransporterConfiguration * config);
 
   /**
-   * Allocate send buffer for default send buffer handling.
-   *
-   * Upper layer that implements their own TransporterSendBufferHandle do not
-   * use this, instead they manage their own send buffers.
-   *
-   * Argument is the value of config parameter TotalSendBufferMemory. If 0,
-   * a default will be used of sum(max send buffer) over all transporters.
-   * The second is the config parameter ExtraSendBufferMemory
-   */
-  void allocate_send_buffers(Uint64 total_send_buffer,
-                             Uint64 extra_send_buffer);
-
-  /**
    * Get sum of max send buffer over all transporters, to be used as a default
    * for allocate_send_buffers eg.
    *
    * Must be called after creating all transporters for returned value to be
    * correct.
    */
-  Uint64 get_total_max_send_buffer() { return m_total_max_send_buffer; }
-
-  bool get_using_default_send_buffer() const{ return m_use_default_send_buffer;}
+  Uint64 get_total_max_send_buffer() {
+    DBUG_ASSERT(m_total_max_send_buffer > 0);
+    return m_total_max_send_buffer;
+  } 
 
   /**
    * Get transporter's connect count
@@ -389,54 +391,46 @@ public:
    *
    * When IOState is HaltOutput or HaltIO do not send or insert any 
    * signals in the SendBuffer, unless it is intended for the remote 
-   * CMVMI block (blockno 252)
+   * QMGR block (blockno 252)
    * Perform prepareSend on the transporter. 
    *
    * NOTE signalHeader->xxxBlockRef should contain block numbers and 
    *                                not references
    */
+
+private:
+  template <typename AnySectionArg>
+  SendStatus prepareSendTemplate(
+                         TransporterSendBufferHandle *sendHandle,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         AnySectionArg section);
+
+
+public:
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 const LinearSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         const LinearSectionPtr ptr[3]);
 
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId, 
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3]);
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
+                         NodeId nodeId,
+                         class SectionSegmentPool & pool,
+                         const SegmentedSectionPtr ptr[3]);
+
   SendStatus prepareSend(TransporterSendBufferHandle *sendHandle,
-                         const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
+                         const SignalHeader *signalHeader,
+                         Uint8 prio,
+                         const Uint32 *signalData,
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3]);
-  /**
-   * Backwards compatiple methods with default send buffer handling.
-   */
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 const LinearSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
-  }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-			 const Uint32 * const signalData,
-			 NodeId nodeId,
-			 class SectionSegmentPool & pool,
-			 const SegmentedSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, pool, ptr);
-  }
-  SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
-                         const Uint32 * const signalData,
-                         NodeId nodeId,
-                         const GenericSectionPtr ptr[3])
-  {
-    return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
-  }
   
   /**
    * external_IO
@@ -448,13 +442,6 @@ public:
 
   bool performSend(NodeId nodeId);
   void performSend();
-
-  /**
-   * Force sending if more than or equal to sendLimit
-   * number have asked for send. Returns 0 if not sending
-   * and 1 if sending.
-   */
-  int forceSendCheck(int sendLimit);
   
 #ifdef DEBUG_TRANSPORTER
   void printState();
@@ -469,16 +456,17 @@ public:
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
 		  		 int s_port);	// signed port. <0 is dynamic
-  Transporter* get_transporter(NodeId nodeId);
+
+  int get_transporter_count() const;
+  Transporter* get_transporter(NodeId nodeId) const;
   struct in_addr get_connect_address(NodeId node_id) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
-protected:
   
 private:
-  TransporterCallback *callbackObj;
-  TransporterReceiveHandle * receiveHandle;
+  TransporterCallback *const callbackObj;
+  TransporterReceiveHandle *const receiveHandle;
 
   NdbMgmHandle m_mgm_handle;
 
@@ -497,6 +485,8 @@ private:
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
+
+  Bitmask<MAX_NTRANSPORTERS/32> m_sendBlocked;
 
   Uint32 m_mixology_level;
 #endif
@@ -601,81 +591,17 @@ private:
   NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
   void consume_extra_sockets();
 
-
   Uint32 *getWritePtr(TransporterSendBufferHandle *handle,
                       NodeId node, Uint32 lenBytes, Uint32 prio);
   void updateWritePtr(TransporterSendBufferHandle *handle,
                       NodeId node, Uint32 lenBytes, Uint32 prio);
 
 public:
-  /**
-   * TransporterSendBufferHandle implementation.
-   *
-   * Used for default send buffer handling, when the upper layer does not
-   * want to do special buffer handling itself.
-   */
-  virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                              Uint32 max_use);
-  virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
-  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  virtual bool forceSend(NodeId node);
-
-
   /* Various internal */
   void inc_overload_count(Uint32 nodeId);
   void inc_slowdown_count(Uint32 nodeId);
-private:
-  /* Send buffer pages. */
-  struct SendBufferPage {
-    /* This is the number of words that will fit in one page of send buffer. */
-    static const Uint32 PGSIZE = 32768;
-    static Uint32 max_data_bytes()
-    {
-      return PGSIZE - offsetof(SendBufferPage, m_data);
-    }
-
-    /* Send buffer for one transporter is kept in a single-linked list. */
-    struct SendBufferPage *m_next;
-
-    /* Bytes of send data available in this page. */
-    Uint16 m_bytes;
-    /* Start of unsent data */
-    Uint16 m_start;
-
-    /* Data; real size is to the end of one page. */
-    char m_data[2];
-  };
-
-  /* Send buffer for one transporter. */
-  struct SendBuffer {
-    /* Total size of data in buffer, from m_offset_start_data to end. */
-    Uint32 m_used_bytes;
-    /* Linked list of active buffer pages with first and last pointer. */
-    SendBufferPage *m_first_page;
-    SendBufferPage *m_last_page;
-  };
-
-  SendBufferPage *alloc_page();
-  void release_page(SendBufferPage *page);
 
 private:
-  /* True if we are using the default send buffer implementation. */
-  bool m_use_default_send_buffer;
-  /* Send buffers. */
-  SendBuffer *m_send_buffers;
-  /**
-   * Make sure m_send_buffers array (read-only) is not using same
-   * cacheline as the data below which is often updated.
-   */
-  char unused[NDB_CL];
-
-  /* Linked list of free pages. */
-  SendBufferPage *m_page_freelist;
-  /* Original block of memory for pages (so we can free it at exit). */
-  unsigned char *m_send_buffer_memory;
-  
-  Uint64 m_tot_send_buffer_memory;
-  Uint64 m_tot_used_buffer_memory;
   /**
    * Sum of max transporter memory for each transporter.
    * Used to compute default send buffer size.
@@ -683,14 +609,6 @@ private:
   Uint64 m_total_max_send_buffer;
 
 public:
-  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, Uint32 bytes);
-  bool has_data_to_send(NodeId node);
-
-  void reset_send_buffer(NodeId node, bool should_be_empty);
-
-  void print_transporters(const char* where, NdbOut& out = ndbout);
-
   /**
    * Receiving
    */
@@ -718,6 +636,11 @@ public:
   bool isBlocked(NodeId nodeId);
   void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
   void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
+  bool isSendBlocked(NodeId nodeId) const;
+  void blockSend(TransporterReceiveHandle& recvdata,
+                 NodeId nodeId);
+  void unblockSend(TransporterReceiveHandle& recvdata,
+                   NodeId nodeId);
 
   /* Testing interleaving of signal processing */
   Uint32 getMixologyLevel() const;

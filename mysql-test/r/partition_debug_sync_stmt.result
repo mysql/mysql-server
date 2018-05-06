@@ -1,7 +1,7 @@
 #
 # Test Auto increment generation and release of overbooked values.
 #
-call mtr.add_suppression(".Warning. Unsafe statement written .* = STATEMENT.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Unsafe statement written .* = STATEMENT.");
 CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
 PARTITION BY KEY ALGORITHM = 1 () PARTITIONS 3;
 INSERT INTO t1 VALUES (10);
@@ -12,12 +12,18 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 14
 SET DEBUG_SYNC="now SIGNAL release";
 # Default
 # Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 12
@@ -31,6 +37,9 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 15
@@ -52,6 +61,9 @@ INSERT INTO t1 SELECT * FROM t2;
 # Con1
 SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 12
@@ -74,6 +86,9 @@ SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
 INSERT INTO t1 VALUES (NULL);
 # Not really a bug, since no row has been assigned the number between
 # this and the next auto_inc value.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 AUTO_INCREMENT
 13

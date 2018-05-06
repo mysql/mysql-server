@@ -1,5 +1,3 @@
---source include/have_innodb.inc
---source include/have_partition.inc
 --source include/no_valgrind_without_big.inc
 --vertical_results
 let $engine_type= 'innodb';

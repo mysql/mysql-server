@@ -5,18 +5,12 @@ CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
 CREATE TABLE t2 ( c1 VARCHAR(10) );
 INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Insert some rewrite rules in the plugin
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM test.t2',
 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Check a query that doesn't have a rewrite rule doesn't get rewritten.
 SELECT c2 FROM test.t1;
 c2
@@ -49,10 +43,6 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Check that a query that doesn't have a rewrite rule doesn't get
 # rewritten.

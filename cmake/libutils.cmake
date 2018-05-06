@@ -1,26 +1,31 @@
 # Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 
 # This file exports macros that emulate some functionality found  in GNU libtool
 # on Unix systems. One such feature is convenience libraries. In this context,
 # convenience library is a static library that can be linked to shared library
 # On systems that force position-independent code, linking into shared library
-# normally requires compilation with a special flag (often -fPIC). To enable 
-# linking static libraries to shared, we compile source files that come into 
-# static library with the PIC flag (${CMAKE_SHARED_LIBRARY_C_FLAGS} in CMake)
+# normally requires compilation with a special flag (often -fPIC).
 # Some systems, like Windows or OSX do not need special compilation (Windows 
 # never uses PIC and OSX always uses it). 
 #
@@ -31,17 +36,9 @@
 # libraries (we need it for mysqlclient) and to create shared library out of 
 # convenience libraries(again, for mysqlclient)
 
-# Important global flags 
-# - WITH_PIC : If set, it is assumed that everything is compiled as position
-# independent code (that is CFLAGS/CMAKE_C_FLAGS contain -fPIC or equivalent)
-# If defined, ADD_CONVENIENCE_LIBRARY does not add PIC flag to compile flags
-#
-# - DISABLE_SHARED: If set, it is assumed that shared libraries are not produced
-# during the build. ADD_CONVENIENCE_LIBRARY does not add anything to compile flags
-
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-IF(WIN32 OR APPLE OR WITH_PIC OR DISABLE_SHARED OR NOT CMAKE_SHARED_LIBRARY_C_FLAGS)
+IF(WIN32 OR APPLE OR DISABLE_SHARED)
  SET(_SKIP_PIC 1)
 ENDIF()
 
@@ -51,7 +48,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # Returns a list of extra files that should be linked into the library
 # (in the variable pointed to by VAR).
 MACRO(CREATE_EXPORT_FILE VAR TARGET API_FUNCTIONS)
-  SET(DUMMY ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_dummy.cc)
+  SET(DUMMY ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_dummy.c)
   CONFIGURE_FILE_CONTENT("" ${DUMMY})
   IF(WIN32)
     SET(EXPORTS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_exports.def)
@@ -69,16 +66,11 @@ ENDMACRO()
 
 # ADD_CONVENIENCE_LIBRARY(name source1...sourceN)
 # Create static library that can be merged with other libraries.
-# On systems that force position-independent code, adds -fPIC or 
-# equivalent flag to compile flags.
 MACRO(ADD_CONVENIENCE_LIBRARY)
   SET(TARGET ${ARGV0})
   SET(SOURCES ${ARGN})
   LIST(REMOVE_AT SOURCES 0)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
-  IF(NOT _SKIP_PIC)
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  ENDIF()
 
   # Collect all static libraries in the same directory
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
@@ -179,6 +171,21 @@ MACRO(MERGE_LIBRARIES_SHARED)
       ADD_VERSION_INFO(${TARGET} SHARED SRC)
     ENDIF()
     ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
+
+    # Collect all dynamic libraries in the same directory
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+    IF(WIN32_CLANG AND WITH_ASAN)
+      TARGET_LINK_LIBRARIES(${TARGET} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    ENDIF()
+
+    IF(WIN32)
+      # This must be a cmake bug on windows ...
+      # Anyways, with this the .dll ends up in the desired directory.
+      SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+    ENDIF()
+
     TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
     IF(ARG_OUTPUT_NAME)
       SET_TARGET_PROPERTIES(
@@ -187,15 +194,37 @@ MACRO(MERGE_LIBRARIES_SHARED)
     SET_TARGET_PROPERTIES(
       ${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
 
+    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+        COMMAND install_name_tool -change
+                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+                $<TARGET_SONAME_FILE:${TARGET}>
+        COMMAND install_name_tool -change
+                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+                $<TARGET_SONAME_FILE:${TARGET}>
+        )
+      # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
+      # Create a symlink so that this works for Xcode also.
+      IF(NOT BUILD_IS_SINGLE_CONFIG)
+        ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E create_symlink
+                  $<TARGET_SONAME_FILE_DIR:${TARGET}> lib
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+          )
+      ENDIF()
+    ENDIF()
+
   IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT}) 
+    ENDIF()
+    IF(LINUX_INSTALL_RPATH_ORIGIN)
+      SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "\$ORIGIN/")
     ENDIF()
 
     MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
 
   ENDIF()
-  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_INTERFACE_LIBRARIES "")
 ENDMACRO()
 
 
@@ -228,15 +257,9 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
   SET(LIBS ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT LIBS 0)
 
-  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES TARGET ${TARGET}")
-  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES LIBS ${LIBS}")
-
   SET(SOURCE_FILE
     ${CMAKE_BINARY_DIR}/archive_output_directory/${TARGET}_depends.c)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
-  IF(ARG_OUTPUT_NAME)
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
-  ENDIF()
 
   # Collect all static libraries in the same directory
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
@@ -253,8 +276,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
       LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
       IF(FOUNDIT LESS 0)
-        MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
         MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
+        MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
       ELSE()
         ADD_DEPENDENCIES(${TARGET} ${LIB})
         GET_TARGET_PROPERTY(loc ${LIB} IMPORTED_LOCATION)
@@ -303,6 +326,7 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     COMMAND ${CMAKE_COMMAND}
     -DTARGET_NAME=${TARGET}
     -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
+    -DTARGET_LINK_FLAGS=$<TARGET_PROPERTY:${TARGET},LINK_FLAGS>
     -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
     -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_merge_${TARGET}.cmake
     COMMENT "Merging library ${TARGET}"
@@ -312,6 +336,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT})
     ENDIF()
-    MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+    IF(INSTALL_STATIC_LIBRARIES)
+      MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+    ENDIF()
   ENDIF()
 ENDMACRO()

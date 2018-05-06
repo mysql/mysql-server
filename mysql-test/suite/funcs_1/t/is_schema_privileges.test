@@ -16,11 +16,7 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
@@ -131,7 +127,7 @@ GRANT SELECT ON db_datadict_4.*  TO 'testuser2'@'localhost';
 --echo # FIXME
 eval $my_select;
 eval $show_testuser1;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $show_testuser2;
 
 --echo # Establish connection testuser2 (user=testuser2)
@@ -143,7 +139,7 @@ connect (testuser2, localhost, testuser2, , test);
 --echo # Root granted SELECT db_datadict_3. to me    -> visible
 --echo # testuser1 granted SELECT db_datadict_4. to me  -> visible
 eval $my_select;
---error ER_DBACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 eval $show_testuser1;
 eval $show_testuser2;
 

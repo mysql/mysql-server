@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 
 # default value
 
@@ -16,8 +14,8 @@ select @@session.enforce_gtid_consistency;
 show global variables like 'enforce_gtid_consistency';
 show session variables like 'enforce_gtid_consistency';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='enforce_gtid_consistency';
-select * from information_schema.session_variables where variable_name='enforce_gtid_consistency';
+select * from performance_schema.global_variables where variable_name='enforce_gtid_consistency';
+select * from performance_schema.session_variables where variable_name='enforce_gtid_consistency';
 --enable_warnings
 
 #
@@ -30,49 +28,49 @@ select * from information_schema.session_variables where variable_name='enforce_
 set global enforce_gtid_consistency= 1;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= 0;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= 2;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= ON;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= OFF;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= TRUE;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= FALSE;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 set global enforce_gtid_consistency= WARN;
 select @@global.enforce_gtid_consistency;
 show variables like 'enforce_gtid_consistency';
-select variable_value from information_schema.global_variables
+select variable_value from performance_schema.global_variables
   where variable_name= 'enforce_gtid_consistency';
 
 --enable_warnings

@@ -1,3 +1,69 @@
+SELECT ST_ISSIMPLE(NULL);
+ST_ISSIMPLE(NULL)
+NULL
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))'));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))'))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 4326))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT((0 0))', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 0 1))', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 0, 0 0))', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 0, 0 0)))', 3857))
+1
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 3857));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), POINT(0 1))', 3857))
+1
 # Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
@@ -109,7 +175,7 @@ SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=110;
 ST_ISSIMPLE(g)
 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0)'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0)'))
 0
@@ -147,7 +213,7 @@ SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=114;
 ST_ISSIMPLE(g)
 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,1 1,1 1))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,1 1,1 1))'))
 0
@@ -291,18 +357,18 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,1
 #====================================================================================
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
 SELECT ST_ISSIMPLE(g) FROM gis_geometrycollection WHERE fid=115;
 ST_ISSIMPLE(g)
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))
 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
 1
@@ -323,19 +389,19 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),MULTILINEST
 0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),POINT(10 10))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),POINT(10 10))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),POINT(10 10)))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),POINT(10 10)))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10),POINT(5 5))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10),POINT(5 5))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(5 0,5 10),POLYGON((0 0,0 10,10 10,10 0,0 0)))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(5 0,5 10),POLYGON((0 0,0 10,10 10,10 0,0 0)))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10,10 0),POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'))
 1
@@ -365,7 +431,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,1
                                                       'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 15,15 15,15 10,10 10))))'));
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
                                                       'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 15,15 15,15 10,10 10))))'))
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
@@ -373,7 +439,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
@@ -383,7 +449,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
@@ -392,7 +458,7 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(
 ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                          'MULTIPOINT(0 0,10 10)),'
                                                       'GEOMETRYCOLLECTION(
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
                                                       'LINESTRING(0 0,0 1,1 1,1 0,0 0),'
                                                       'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
@@ -403,7 +469,7 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
                                                       'LINESTRING(0 0,0 1,1 1,1 0,0 0),'
                                                       'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
              
-1
+0
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
                                                       'LINESTRING(0 0,1 1,1 0,0 1),'
                                                       'POLYGON((0 0,0 10,10 10,10 0,0 0)),'
@@ -452,29 +518,19 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
 # ST_ISSIMPLE(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0))
 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326))
 1
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star,123456789))
-1
-SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
-1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -484,65 +540,57 @@ SELECT ST_ISSIMPLE(NULL);
 ST_ISSIMPLE(NULL)
 NULL
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON((()))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(a 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(! 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(12,34 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,4 4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,2 2,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5)),((0 0,2 2,3 3)))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ISSIMPLE(0x000000000200000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISSIMPLE(0x010100000001000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISSIMPLE(0x010100000002000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR 22023: Invalid GIS data provided to function st_issimple.
 SELECT ST_ISSIMPLE(0x000000000600000001000000000200000002000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR 22023: Invalid GIS data provided to function st_issimple.
 SELECT ST_ISSIMPLE(0x000000000200000001000000050000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISSIMPLE(0x010300000002000000010300000002000000050000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISSIMPLE(0x010400000002000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR 22023: Invalid GIS data provided to function st_issimple.
 # Clean up
 DROP TABLE gis_geometrycollection;
 #
@@ -557,11 +605,32 @@ PREPARE stmt FROM 'SELECT ST_IsSimple(g) AS a1
 FROM t1 RIGHT OUTER JOIN t2 ON (t1.id > t2.id) GROUP BY a1';
 EXECUTE stmt;
 a1
-NULL
 1
+NULL
 EXECUTE stmt;
 a1
-NULL
 1
+NULL
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 0))
+1
+# Projected SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
+1
+# Geographic SRS (should pass)
+SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
+1
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_ISSIMPLE(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

@@ -66,7 +66,6 @@ if (!$rpl_skip_log_bin)
   call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
   CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 }
---source include/not_gtid_enabled.inc
 
 --let $rpl_gtid_utils= 1
 --let $rpl_topology= none
@@ -126,7 +125,7 @@ while ($i < 2)
   --let $gtid2= ANONYMOUS
   --source extra/binlog_tests/gtid_next_xa.test
 
-  --let $error= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GROUP)
+  --let $error= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
   --let $gtid1= $uuida:$xid
   --let $gtid2= none
   --source extra/binlog_tests/gtid_next_xa.test

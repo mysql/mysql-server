@@ -61,66 +61,6 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
-CREATE TABLE t1(
-class   INT,
-id      INT,
-title   VARCHAR(100)
-) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
-SET SESSION debug="+d,crash_commit_before";
-CREATE INDEX idx_title ON t1(title);
-ERROR HY000: Lost connection to MySQL server during query
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-10000
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
-SELECT * FROM t1 WHERE title = 'a10';
-class	id	title
-10	10	a10
-SELECT * FROM t1 WHERE title = 'a5000';
-class	id	title
-5000	5000	a5000
-SELECT * FROM t1 WHERE title = 'a10000';
-class	id	title
-10000	10000	a10000
-SELECT * FROM t1 WHERE title = 'a10010';
-class	id	title
-DROP TABLE t1;
-# Test Blob
-CREATE TABLE t1(
-a INT PRIMARY KEY,
-b TEXT,
-c TEXT) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
-INSERT INTO t1 VALUES
-(1, REPEAT('a',10000), 'a'),
-(2, REPEAT('b',20000), 'b'),
-(3, REPEAT('c',40000), 'c'),
-(4, REPEAT('d',60000), 'd');
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-SET SESSION debug="+d,crash_commit_before";
-ALTER TABLE t1 DROP COLUMN c;
-ERROR HY000: Lost connection to MySQL server during query
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-DROP TABLE t1;
 DROP PROCEDURE populate_t1;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -175,66 +115,6 @@ CHAR_LENGTH(b)
 60000
 ALTER TABLE t1 DROP COLUMN c;
 # restart
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-DROP TABLE t1;
-CREATE TABLE t1(
-class   INT,
-id      INT,
-title   VARCHAR(100)
-) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-SET SESSION debug="+d,crash_commit_before";
-CREATE INDEX idx_title ON t1(title);
-ERROR HY000: Lost connection to MySQL server during query
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-10000
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
-SELECT * FROM t1 WHERE title = 'a10';
-class	id	title
-10	10	a10
-SELECT * FROM t1 WHERE title = 'a5000';
-class	id	title
-5000	5000	a5000
-SELECT * FROM t1 WHERE title = 'a10000';
-class	id	title
-10000	10000	a10000
-SELECT * FROM t1 WHERE title = 'a10010';
-class	id	title
-DROP TABLE t1;
-# Test Blob
-CREATE TABLE t1(
-a INT PRIMARY KEY,
-b TEXT,
-c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-INSERT INTO t1 VALUES
-(1, REPEAT('a',10000), 'a'),
-(2, REPEAT('b',20000), 'b'),
-(3, REPEAT('c',40000), 'c'),
-(4, REPEAT('d',60000), 'd');
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-SET SESSION debug="+d,crash_commit_before";
-ALTER TABLE t1 DROP COLUMN c;
-ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -309,66 +189,6 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
-CREATE TABLE t1(
-class   INT,
-id      INT,
-title   VARCHAR(100)
-) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-SET SESSION debug="+d,crash_commit_before";
-CREATE INDEX idx_title ON t1(title);
-ERROR HY000: Lost connection to MySQL server during query
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-10000
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
-SELECT * FROM t1 WHERE title = 'a10';
-class	id	title
-10	10	a10
-SELECT * FROM t1 WHERE title = 'a5000';
-class	id	title
-5000	5000	a5000
-SELECT * FROM t1 WHERE title = 'a10000';
-class	id	title
-10000	10000	a10000
-SELECT * FROM t1 WHERE title = 'a10010';
-class	id	title
-DROP TABLE t1;
-# Test Blob
-CREATE TABLE t1(
-a INT PRIMARY KEY,
-b TEXT,
-c TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-INSERT INTO t1 VALUES
-(1, REPEAT('a',10000), 'a'),
-(2, REPEAT('b',20000), 'b'),
-(3, REPEAT('c',40000), 'c'),
-(4, REPEAT('d',60000), 'd');
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-SET SESSION debug="+d,crash_commit_before";
-ALTER TABLE t1 DROP COLUMN c;
-ERROR HY000: Lost connection to MySQL server during query
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-DROP TABLE t1;
 DROP PROCEDURE populate_t1;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -425,68 +245,6 @@ CHAR_LENGTH(b)
 60000
 ALTER TABLE t1 DROP COLUMN c;
 # restart
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-DROP TABLE t1;
-SET GLOBAL innodb_file_per_table=1;
-CREATE TABLE t1(
-class   INT,
-id      INT,
-title   VARCHAR(100)
-) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-SET SESSION debug="+d,crash_commit_before";
-CREATE INDEX idx_title ON t1(title);
-ERROR HY000: Lost connection to MySQL server during query
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-10000
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
-SELECT * FROM t1 WHERE title = 'a10';
-class	id	title
-10	10	a10
-SELECT * FROM t1 WHERE title = 'a5000';
-class	id	title
-5000	5000	a5000
-SELECT * FROM t1 WHERE title = 'a10000';
-class	id	title
-10000	10000	a10000
-SELECT * FROM t1 WHERE title = 'a10010';
-class	id	title
-DROP TABLE t1;
-# Test Blob
-SET GLOBAL innodb_file_per_table=1;
-CREATE TABLE t1(
-a INT PRIMARY KEY,
-b TEXT,
-c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-INSERT INTO t1 VALUES
-(1, REPEAT('a',10000), 'a'),
-(2, REPEAT('b',20000), 'b'),
-(3, REPEAT('c',40000), 'c'),
-(4, REPEAT('d',60000), 'd');
-SELECT CHAR_LENGTH(b) FROM t1;
-CHAR_LENGTH(b)
-10000
-20000
-40000
-60000
-SET SESSION debug="+d,crash_commit_before";
-ALTER TABLE t1 DROP COLUMN c;
-ERROR HY000: Lost connection to MySQL server during query
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

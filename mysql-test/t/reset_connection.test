@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_profiling.inc
 
@@ -54,23 +53,28 @@ SELECT @a;
 # set variables to default
 --reset_connection
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
 set autocommit=0;
-set tx_isolation='SERIALIZABLE';
+set transaction_isolation='SERIALIZABLE';
 set names 'big5';
 set max_join_size=100;
+# Setting max_join_size value to 1000 to fetch the below session variables as the 
+# rows returned are > 100
+set max_join_size=1000;
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
+# Restoring max_join_size value back to 100.
+set max_join_size=100;
 --reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
-SHOW SESSION VARIABLES like 'tx_isolation';
+SHOW SESSION VARIABLES like 'transaction_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
@@ -93,7 +97,9 @@ INSERT INTO newt VALUES (1),(2);
 SELECT * FROM newt ORDER BY 1;
 DELETE FROM newt;
 DROP TABLE newt;
+--replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Table_open_cache_hits';
+--replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Opened_tables';
 --reset_connection
 --echo resetconnection;
@@ -157,10 +163,8 @@ DROP DATABASE wl6797;
 --echo # FOR ERROR CASES
 --echo
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user 'user_wl6797'@'localhost';
 grant all privileges on *.* to  'user_wl6797'@'localhost';
-set sql_mode= @orig_sql_mode;
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 --error 1
 --exec echo "connect(con1, localhost, user_wl6797, , test); --reset_connection " | $MYSQL_TEST 2>&1

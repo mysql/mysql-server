@@ -1,16 +1,10 @@
 #
 # Test of how rewritten queries are logged.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
 VALUES ( 'SELECT"The_original_query"', 'SELECT"The_rewritten_query"');
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SET @old_log_output=          @@global.log_output;
 SET @old_general_log=         @@global.general_log;
 SET @old_general_log_file=    @@global.general_log_file;

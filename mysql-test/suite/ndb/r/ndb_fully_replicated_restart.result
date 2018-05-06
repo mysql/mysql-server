@@ -1,0 +1,507 @@
+CREATE TABLE t1 (
+a int,
+b varchar(255),
+c int,
+d blob,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb character set latin1 comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE' partition by key(a) ;
+show warnings;
+Level	Code	Message
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int,
+d blob,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=JUNK' partition by key(a) ;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM' partition by key(a) ;
+DROP TABLE t2;
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int not null,
+primary key (a,b),
+unique key (b,a)
+) engine=ndb
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+alter table t2 algorithm=inplace, add unique index (c);
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 2
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+PartitionCount: 1
+FragmentCount: 2
+PartitionBalance: FOR_RA_BY_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-1
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY
+d Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_3
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+PRIMARY(a, b) - OrderedIndex
+c(c) - OrderedIndex
+c$unique(c) - UniqueHashIndex
+b(b) - OrderedIndex
+-- t1/PRIMARY --
+Version: Any
+Base table: t1
+Number of attributes: 2
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+a Int NOT NULL AT=FIXED ST=MEMORY
+b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+-- IndexTable XX/PRIMARY --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+a Int NOT NULL DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/b --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+-- IndexTable XX/b --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+b Varchar(255;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/c --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+-- Attributes --
+c Int NULL AT=FIXED ST=MEMORY
+-- IndexTable XX/c --
+Version: Any
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 2
+FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+-- Attributes --
+c Int NULL AT=FIXED ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(NDB$TNODE) - UniqueHashIndex
+
+-- t1/c$unique --
+Version: Any
+Base table: t1
+Number of attributes: 1
+Logging: 1
+Index type: UniqueHashIndex
+Index status: Retrieved
+-- Attributes --
+c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+-- IndexTable XX/c$unique --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+PartitionCount: 1
+FragmentCount: 2
+PartitionBalance: FOR_RA_BY_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-1
+-- Attributes --
+c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+NDB$PK Unsigned [66] NOT NULL AT=3? ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(c) - UniqueHashIndex
+
+-- NDB$BLOB_XX_3 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 5
+Number of primary keys: 3
+Length of frm data: XXX
+Max Rows: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 0
+PartitionCount: 1
+FragmentCount: 2
+PartitionBalance: FOR_RA_BY_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options: readbackup, fullyreplicated
+HashMap: DEFAULT-HASHMAP-3840-1
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
+NDB$PART Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
+NDB$PKID Unsigned NOT NULL AT=FIXED ST=MEMORY
+NDB$DATA Longvarbinary(2000) NOT NULL AT=MEDIUM_VAR ST=MEMORY
+-- Indexes -- 
+PRIMARY KEY(a, b, NDB$PART) - UniqueHashIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+insert into t1 values
+(0, "row 0", 0, REPEAT("qubit#0",500)),
+(1, "row 1", 1, REPEAT("qubit#1",500)),
+(2, "row 2", 2, REPEAT("qubit#2",500)),
+(3, "row 3", 3, REPEAT("qubit#3",500)),
+(4, "row 4", 4, REPEAT("qubit#4",500)),
+(5, "row 5", 5, REPEAT("qubit#5",500)),
+(6, "row 6", 6, REPEAT("qubit#6",500)),
+(7, "row 7", 7, REPEAT("qubit#7",500)),
+(8, "row 8", 8, REPEAT("qubit#8",500)),
+(9, "row 9", 9, REPEAT("qubit#9",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+5	row 5	5	3500
+6	row 6	6	3500
+7	row 7	7	3500
+8	row 8	8	3500
+9	row 9	9	3500
+begin;
+select a,b,c,LENGTH(d) from t1 where a = 7;
+a	b	c	LENGTH(d)
+7	row 7	7	3500
+select a,b,c,LENGTH(d) from t1 where c = 9;
+a	b	c	LENGTH(d)
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+5	row 5	5	3500
+6	row 6	6	3500
+7	row 7	7	3500
+8	row 8	8	3500
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+rollback;
+"Stop node 1"
+begin;
+select a,b,c,LENGTH(d) from t1 where a = 7;
+a	b	c	LENGTH(d)
+7	row 7	7	3500
+select a,b,c,LENGTH(d) from t1 where c = 9;
+a	b	c	LENGTH(d)
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+5	row 5	5	3500
+6	row 6	6	3500
+7	row 7	7	3500
+8	row 8	8	3500
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+rollback;
+"Start node 1"
+begin;
+select a,b,c,LENGTH(d) from t1 where a = 7;
+a	b	c	LENGTH(d)
+7	row 7	7	3500
+select a,b,c,LENGTH(d) from t1 where c = 9;
+a	b	c	LENGTH(d)
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+5	row 5	5	3500
+6	row 6	6	3500
+7	row 7	7	3500
+8	row 8	8	3500
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+rollback;
+drop table t1,t2;
+CREATE TABLE t1 (
+a int,
+b varchar(255),
+c int,
+d blob,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int not null,
+primary key (a,b),
+unique key (b,a)
+) engine=ndb
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+  partition by key(a);
+alter table t2 algorithm=inplace, add unique index (c);
+insert into t1 values
+(0, "row 0", 0, REPEAT("qubit#0",500)),
+(1, "row 1", 1, REPEAT("qubit#1",500)),
+(2, "row 2", 2, REPEAT("qubit#2",500)),
+(3, "row 3", 3, REPEAT("qubit#3",500)),
+(4, "row 4", 4, REPEAT("qubit#4",500)),
+(5, "row 5", 5, REPEAT("qubit#5",500)),
+(6, "row 6", 6, REPEAT("qubit#6",500)),
+(7, "row 7", 7, REPEAT("qubit#7",500)),
+(8, "row 8", 8, REPEAT("qubit#8",500)),
+(9, "row 9", 9, REPEAT("qubit#9",500));
+"Restart cluster"
+"Wait reconnect"
+begin;
+select a,b,c,LENGTH(d) from t1 where a = 7;
+a	b	c	LENGTH(d)
+7	row 7	7	3500
+select a,b,c,LENGTH(d) from t1 where c = 9;
+a	b	c	LENGTH(d)
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+5	row 5	5	3500
+6	row 6	6	3500
+7	row 7	7	3500
+8	row 8	8	3500
+9	row 9	9	3500
+select a,b,c,LENGTH(d) from t1 where a < 5 order by a;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+2	row 2	2	3500
+3	row 3	3	3500
+4	row 4	4	3500
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+insert into t1 values (0, "row 0", 0, REPEAT("qubit#0",500)),(1, "row 1", 1, REPEAT("qubit#1",500));
+select a,b,c,LENGTH(d) from t1 order by 1;
+a	b	c	LENGTH(d)
+0	row 0	0	3500
+1	row 1	1	3500
+5	row 5	15	3500
+6	uk update	16	3500
+8	row 8	18	3500
+9	row 9	19	3500
+rollback;
+drop table t1,t2;

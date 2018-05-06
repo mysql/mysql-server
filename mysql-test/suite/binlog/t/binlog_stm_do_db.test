@@ -19,7 +19,7 @@
 #
 #  The test is implemented as follows:
 #
-#     i) set tx_isolation to read-committed.
+#     i) set transaction_isolation to read-committed.
 #
 #    ii) create two databases (one filtered other not - using
 #        binlog-do-db)
@@ -35,11 +35,10 @@
 #
 
 -- source include/have_log_bin.inc
--- source include/have_innodb.inc
 -- source include/have_binlog_format_statement.inc
 
-SET @old_isolation_level= @@session.tx_isolation;
-SET @@session.tx_isolation= 'READ-COMMITTED';
+SET @old_isolation_level= @@session.transaction_isolation;
+SET @@session.transaction_isolation= 'READ-COMMITTED';
 
 -- let $engine= InnoDB
 -- let $filtered= b42829_filtered
@@ -87,4 +86,4 @@ source include/show_binlog_events.inc;
 
 -- eval DROP DATABASE $not_filtered
 -- eval DROP DATABASE $filtered
-SET @@session.tx_isolation= @old_isolation_level;
+SET @@session.transaction_isolation= @old_isolation_level;

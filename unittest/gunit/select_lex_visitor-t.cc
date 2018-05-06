@@ -1,67 +1,68 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <stddef.h>
 
-#include "parsertest.h"
-#include "test_utils.h"
-#include "select_lex_visitor.h"
-#include "sql_optimizer.h"
-#include "sql_lex.h"
+#include "my_inttypes.h"
+#include "sql/current_thd.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_optimizer.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace select_lex_visitor_unittest {
 
 using my_testing::Server_initializer;
 using std::vector;
 
-class SelectLexVisitorTest : public ParserTest
-{
-protected:
+class SelectLexVisitorTest : public ParserTest {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 };
 
-
 /// A visitor that remembers what it has seen.
-class Remembering_visitor : public Select_lex_visitor
-{
-public:
+class Remembering_visitor : public Select_lex_visitor {
+ public:
   vector<int> seen_items;
 
-  Remembering_visitor() :
-    m_saw_select_lex(false),
-    m_saw_select_lex_unit(false)
-  {}
+  Remembering_visitor()
+      : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
 
-  virtual bool visit_union(SELECT_LEX_UNIT *)
-  {
-    m_saw_select_lex_unit= true;
+  virtual bool visit_union(SELECT_LEX_UNIT *) {
+    m_saw_select_lex_unit = true;
     return false;
   }
 
-  virtual bool visit_query_block(SELECT_LEX *)
-  {
-    m_saw_select_lex= true;
+  virtual bool visit_query_block(SELECT_LEX *) {
+    m_saw_select_lex = true;
     return false;
   }
 
-  virtual bool visit_item(Item *item)
-  {
+  virtual bool visit_item(Item *item) {
     seen_items.push_back(item->val_int());
     return false;
   }
@@ -71,10 +72,9 @@ public:
 
   ~Remembering_visitor() {}
 
-private:
+ private:
   bool m_saw_select_lex, m_saw_select_lex_unit;
 };
-
 
 /**
   Google mock only works for objects allocated on the stack, and the Item
@@ -84,29 +84,23 @@ private:
   how to use it.
 */
 template <class Item_class>
-class Stack_allocated_item : public Item_class
-{
-public:
-  Stack_allocated_item(int value) : Item_class(value)
-  {
+class Stack_allocated_item : public Item_class {
+ public:
+  Stack_allocated_item(int value) : Item_class(value) {
     // Undo what Item::Item() does.
-    THD *thd= current_thd;
-    thd->free_list= this->next;
-    this->next= NULL;
+    THD *thd = current_thd;
+    thd->free_list = this->next;
+    this->next = NULL;
   }
 };
 
-
-class Mock_item_int : public Stack_allocated_item<Item_int>
-{
-public:
+class Mock_item_int : public Stack_allocated_item<Item_int> {
+ public:
   Mock_item_int() : Stack_allocated_item<Item_int>(42) {}
   MOCK_METHOD3(walk, bool(Item_processor, Item::enum_walk, uchar *));
 };
 
-
-TEST_F(SelectLexVisitorTest, SelectLex)
-{
+TEST_F(SelectLexVisitorTest, SelectLex) {
   using ::testing::_;
 
   Mock_item_int where;
@@ -114,9 +108,7 @@ TEST_F(SelectLexVisitorTest, SelectLex)
   EXPECT_CALL(where, walk(_, _, _)).Times(1);
   EXPECT_CALL(having, walk(_, _, _)).Times(1);
 
-  SELECT_LEX query_block(NULL, NULL, &where, &having, NULL, NULL);
-  Item *ref_ptrs[5]= { NULL, NULL, NULL, NULL, NULL };
-  query_block.ref_pointer_array= Ref_ptr_array(ref_ptrs, 5);
+  SELECT_LEX query_block(&where, &having);
 
   SELECT_LEX_UNIT unit(CTX_NONE);
 
@@ -124,20 +116,18 @@ TEST_F(SelectLexVisitorTest, SelectLex)
   query_block.include_down(&lex, &unit);
   List<Item> items;
   JOIN join(thd(), &query_block);
-  join.where_cond= &where;
-  join.having_for_explain= &having;
+  join.where_cond = &where;
+  join.having_for_explain = &having;
 
-  query_block.join= &join;
+  query_block.join = &join;
   Remembering_visitor visitor;
   unit.accept(&visitor);
   EXPECT_TRUE(visitor.saw_select_lex());
   EXPECT_TRUE(visitor.saw_select_lex_unit());
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertList)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2, 3)", 0);
+TEST_F(SelectLexVisitorTest, InsertList) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -148,10 +138,8 @@ TEST_F(SelectLexVisitorTest, InsertList)
   EXPECT_EQ(3, visitor.seen_items[2]);
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertList2)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
+TEST_F(SelectLexVisitorTest, InsertList2) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -163,10 +151,8 @@ TEST_F(SelectLexVisitorTest, InsertList2)
   EXPECT_EQ(4, visitor.seen_items[3]);
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertSet)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t SET a=1, b=2, c=3", 0);
+TEST_F(SelectLexVisitorTest, InsertSet) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -177,4 +163,4 @@ TEST_F(SelectLexVisitorTest, InsertSet)
   EXPECT_EQ(3, visitor.seen_items[2]);
 }
 
-}
+}  // namespace select_lex_visitor_unittest

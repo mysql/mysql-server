@@ -42,7 +42,7 @@ Field 3,'Field 4|
 |Field 5' ,'Field 6|	NULL
 |Field 6|	| 'Field 7'|
 drop table t1;
-create table t1 (a int, b char(10));
+create table t1 (a int, b char(10)) charset latin1;
 load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
 Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
@@ -70,8 +70,6 @@ a	b
 0	
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(id integer not null auto_increment primary key);
 insert into t1 values(0);
 select * from t1;
@@ -81,8 +79,6 @@ select * from t1;
 id
 0
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a varchar(20), b varchar(20));
 load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
@@ -222,15 +218,11 @@ drop table t1, t2;
 create table t1(f1 int);
 insert into t1 values(1),(null);
 create table t2(f2 int auto_increment primary key);
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select * from t2;
 f2
 1
 2
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1,t2;
 create table t1(f1 int, f2 timestamp not null default current_timestamp);
 create table t2(f1 int);
@@ -352,8 +344,6 @@ SET SESSION character_set_connection=latin1;
 SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 test LOAD DATA INFILE
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT '1 \\aa\n' INTO DUMPFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt';
 CREATE TABLE t1 (id INT, val1 CHAR(3));
 SET sql_mode = 'NO_BACKSLASH_ESCAPES';
@@ -465,8 +455,6 @@ LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
 5 	tab
 
 set session sql_mode=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1,t2;
 #
 # Bug #51893: crash with certain characters given to load_file 
@@ -575,6 +563,8 @@ SELECT HEX(val) FROM t1;
 HEX(val)
 22525420406E696F757A656368756E3A20E7A781E381AFE3838FE38383E38394E383BCE382A8E383B3E38389E58EA8E381AAE38293E381A0E38191E3828CE381A9E38081E382A2E383B3E3838FE38383E38394E383BCE382A8E383B3E38389E38284E683A8E58A87E79A84E381AAE3818AE8A9B1E38292E38182E381BEE3828AE7A98DE6A5B5E79A84E381ABE69182E58F96E38197E381AAE38184E79086E794B1E381AFE38081E78FBEE5AE9FE381AEE4BABAE7949FE381AFE59FBAE69CACE79A84E381ABE38186E381BEE3818FE38184E3818BE381AAE38184E38197E4B88DE5B9B3E7AD89E381A0E38197E79086E4B88DE5B0BDE381A0E38197E8BE9BE38184
 CREATE DATABASE d2 CHARSET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE d2;
 CREATE TABLE t1 (val TEXT);
 LOAD DATA INFILE '../../std_data/bug20683959loaddata.txt' INTO TABLE t1;
@@ -618,3 +608,28 @@ SELECT HEX(a) FROM t1;
 HEX(a)
 815C825C
 DROP TABLE t1;
+#
+# Regression test added in WL#8063
+#
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+CREATE TABLE t1(a VARCHAR(20));
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 ();
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_mb.dat' INTO TABLE t1 IGNORE 20 LINES;
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_escape.dat' INTO TABLE t1 IGNORE 20 LINES;
+CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 0A000: LOAD DATA is not allowed in stored procedures
+SET @save_local_infile = @@local_infile;
+SET GLOBAL local_infile = OFF;
+LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 42000: The used command is not allowed with this MySQL version
+SET GLOBAL local_infile = @save_local_infile;
+DROP TABLE t1;
+CREATE TABLE t2(a BLOB);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t2 FIELDS TERMINATED BY '' LINES TERMINATED BY '';
+ERROR 42000: You can't use fixed rowlength with BLOBs; please use 'fields terminated by'
+DROP TABLE t2;
+CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
+ERROR 23000: Column 'i' cannot be null
+DROP TABLE t3;

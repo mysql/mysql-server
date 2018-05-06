@@ -1,0 +1,42 @@
+#
+# Bug#27014083 - 8.0 CRASH RECOVERY FAILS FOR UPGRADED 5.7 COMPRESSED TABLES WITH SIZE < 96K
+#
+# Set different paths for --datadir
+# Check that the file exists in the working folder.
+# Extract 5.7 datadir
+# These files are added to test error scenario, delete from for upgrade testing.
+# Remove myisam partitioned tables. There are used for negative testing.
+# start mysqld on the 5.7 datadir
+# restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
+# Execute mysql_upgrade
+SELECT * FROM test.t_compressed;
+c1	c2
+SHOW CREATE TABLE test.t_compressed;
+Table	Create Table
+t_compressed	CREATE TABLE `t_compressed` (
+  `c1` int(11) NOT NULL,
+  `c2` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+# Disable background threads that disturb.
+SET GLOBAL innodb_log_checkpoint_now=ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+INSERT INTO test.t_compressed VALUES (1, 'hello'), (2, 'hi');
+INSERT INTO test.t_compressed VALUES (3, 'satya'), (4, 'bodapati');
+INSERT INTO test.t_blob VALUES ('hello', 'hi', 'satya', 'bodapati');
+INSERT INTO test.t_blob VALUES ('hi', 'hello', 'satya', 'bodapati');
+# Kill and restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
+SELECT * FROM test.t_compressed;
+c1	c2
+1	hello
+2	hi
+3	satya
+4	bodapati
+SELECT * FROM test.t_blob;
+a	b	c	d
+hello	hi	satya	bodapati
+hi	hello	satya	bodapati
+# Restart the server with default options.
+# restart

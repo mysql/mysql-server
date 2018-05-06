@@ -1,0 +1,403 @@
+#
+# WL#6391: Hide DD tables.
+#
+# Prohibit access to the DD tables from user submitted
+# SQL statements, but allow DD initialization to execute
+# such statements.
+#
+# DD schema DDL
+DROP SCHEMA mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+CREATE SCHEMA mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+# DD tablespace DDL
+DROP TABLESPACE mysql;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+# Create a non- white listed table in the DD tablespace
+CREATE TABLE table_not_white_listed (pk INTEGER PRIMARY KEY) TABLESPACE mysql;
+ERROR HY000: The table 'table_not_white_listed' may not be created in the reserved tablespace 'mysql'.
+USE mysql;
+CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER mysql.dd_properties OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.dd_properties' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE mysql.dd_properties (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab LIKE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+ALTER TABLE mysql.dd_properties ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+TRUNCATE TABLE mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE mysql.dd_properties TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE t TO mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+DELETE FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+UPDATE mysql.dd_properties SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+INSERT INTO mysql.dd_properties VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM mysql.dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE mysql.dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+PREPARE ps FROM 'SELECT * FROM mysql.dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON mysql.dd_properties FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.dd_properties (id);;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER dd_properties OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'dd_properties' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE dd_properties (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab LIKE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE TABLE new_tab SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+ALTER TABLE dd_properties ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+TRUNCATE TABLE dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE dd_properties TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+RENAME TABLE t TO dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+DELETE FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+UPDATE dd_properties SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+INSERT INTO dd_properties VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM dd_properties;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM dd_properties);
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+PREPARE ps FROM 'SELECT * FROM dd_properties';;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON dd_properties FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES dd_properties (id);;
+ERROR HY000: Access to data dictionary table 'mysql.dd_properties' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER mysql.indexes OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'mysql.indexes' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE mysql.indexes (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab LIKE mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab SELECT * FROM mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+ALTER TABLE mysql.indexes ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+TRUNCATE TABLE mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+RENAME TABLE mysql.indexes TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+RENAME TABLE t TO mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM mysql.indexes);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+DELETE FROM mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+UPDATE mysql.indexes SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+INSERT INTO mysql.indexes VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM mysql.indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM mysql.indexes);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE mysql.indexes';;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+PREPARE ps FROM 'SELECT * FROM mysql.indexes';;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON mysql.indexes FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES mysql.indexes (id);;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in LOAD statements.
+#
+LOAD DATA INFILE 'no_such_file' INTO TABLE indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in HANDLER statements.
+#
+HANDLER indexes OPEN;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table visibility in I_S.
+#
+# A SELECT statement will not fail, since the table names are submitted as strings in WHERE clauses.
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'indexes' AND TABLE_SCHEMA = 'mysql';
+COUNT(*)
+0
+# A SHOW statement will fail because the table name is interpreted as a table name, not as a string.
+SHOW CREATE TABLE indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in DDL.
+#
+DROP TABLE indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE indexes (i INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab LIKE indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE TABLE new_tab SELECT * FROM indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+ALTER TABLE indexes ADD COLUMN (new_col INTEGER);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+TRUNCATE TABLE indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+RENAME TABLE indexes TO new_tab;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+RENAME TABLE t TO indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access in DML.
+#
+SELECT * from indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+SELECT * from t WHERE t.pk = (SELECT COUNT(*) FROM indexes);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+DELETE FROM indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+UPDATE indexes SET id= 0 WHERE ID= 1;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+INSERT INTO indexes VALUES (1);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from views.
+#
+CREATE VIEW new_view AS SELECT * FROM indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from stored programs.
+#
+CREATE PROCEDURE dd_access() SELECT * FROM indexes;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+CREATE FUNCTION dd_access() RETURNS INTEGER RETURN (SELECT COUNT(*) FROM indexes);
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from prepared statements (the '?' placeholders cannot be used for meta data).
+#
+PREPARE ps FROM 'DROP TABLE indexes';;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+PREPARE ps FROM 'SELECT * FROM indexes';;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from triggers
+#
+CREATE TRIGGER trg BEFORE INSERT ON indexes FOR EACH ROW SET @count = @count + 1;;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+#
+# DD table access from foreign keys
+#
+ALTER TABLE t ADD CONSTRAINT FOREIGN KEY (pk) REFERENCES indexes (id);;
+ERROR HY000: Access to data dictionary table 'mysql.indexes' is rejected.
+# Turn off innodb_stats_auto_recalc to avoid conflicting updates.
+SET @@global.innodb_stats_auto_recalc= OFF;
+# Check that we may query and update mysql.innodb_index_stats.
+SELECT @old_description:= stat_description FROM  mysql.innodb_index_stats
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+@old_description:= stat_description
+Number of pages in the index
+UPDATE mysql.innodb_index_stats SET stat_description= 'Updated'
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+SELECT stat_description FROM mysql.innodb_index_stats
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+stat_description
+Updated
+UPDATE mysql.innodb_index_stats SET stat_description= @old_description
+WHERE database_name= 'mysql' AND table_name= 't' AND
+index_name= 'PRIMARY' AND stat_name= 'size';
+# Check that we may not DROP or CREATE mysql.innodb_index_stats.
+DROP TABLE mysql.innodb_index_stats;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# Check that we may CREATE FROM mysql.innodb_index_stats.
+CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
+DROP TABLE t1;
+# Check that we may not CREATE LIKE mysql.innodb_index_stats
+# due to restricted tablespace.
+CREATE TABLE t1 LIKE mysql.innodb_index_stats;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+# Check access from stored programs.
+CREATE PROCEDURE ddse_access() CREATE TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+CREATE PROCEDURE ddse_access() DROP TABLE mysql.innodb_index_stats(i INTEGER);
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# Check access from prepared statements.
+PREPARE ps FROM 'CREATE TABLE mysql.innodb_index_stats(i INTEGER)';;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+PREPARE ps FROM 'DROP TABLE mysql.innodb_index_stats';;
+ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
+# But ALTER and CHECK is allowed.
+ALTER TABLE mysql.innodb_index_stats COMMENT 'Altered';
+SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='innodb_index_stats';
+TABLE_NAME	TABLE_COMMENT
+innodb_index_stats	Altered
+# Test CHECK TABLE mysql.innodb_index_stats.
+CHECK TABLE mysql.innodb_index_stats;
+Table	Op	Msg_type	Msg_text
+mysql.innodb_index_stats	check	status	OK
+# Reset innodb_stats_auto_recalc.
+SET @@global.innodb_stats_auto_recalc= default;
+DROP TABLE t;

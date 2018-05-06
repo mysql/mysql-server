@@ -1,12 +1,10 @@
-source include/not_embedded.inc;
 
 
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL +
-    $VIEW_PROTOCOL + $OPT_TRACE_PROTOCOL + $EXPLAIN_PROTOCOL +
-    $JSON_EXPLAIN_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+--source include/no_opt_trace_protocol.inc
+--source include/no_explain_protocol.inc
+--source include/no_json_explain_protocol.inc
 
 if ( `SELECT @@have_dynamic_loading != 'YES'` ) {
   skip Rewriter plugin requires dynamic loading;

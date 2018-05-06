@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.version_compile_machine)
 1 Expected
 '#---------------------BS_STVARS_055_03----------------------#'
 SELECT @@GLOBAL.version_compile_machine = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='version_compile_machine';
 @@GLOBAL.version_compile_machine = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.version_compile_machine)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='version_compile_machine';
 COUNT(VARIABLE_VALUE)
 1

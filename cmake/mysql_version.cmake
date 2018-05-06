@@ -1,26 +1,32 @@
 # Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 #
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "20")
-SET(SHARED_LIB_MINOR_VERSION "3")
+SET(SHARED_LIB_MAJOR_VERSION "21")
+SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
-SET(DOT_FRM_VERSION "6")
 
 # Generate "something" to trigger cmake rerun when VERSION changes
 CONFIGURE_FILE(
@@ -80,10 +86,6 @@ ENDMACRO()
 GET_MYSQL_VERSION()
 
 SET(SHARED_LIB_PATCH_VERSION ${PATCH_VERSION})
-
-# Beware : This is a hack to reset SHARED_LIB_PATCH_VERSION in accordance
-# with the change in value of SHARED_LIB_MINOR_VERSION.
-MATH(EXPR SHARED_LIB_PATCH_VERSION "${SHARED_LIB_PATCH_VERSION}-13")
 
 SET(MYSQL_TCP_PORT_DEFAULT "3306")
 

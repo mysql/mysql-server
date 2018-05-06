@@ -1,77 +1,110 @@
 
 #
 # Bug #45855 row events in binlog after switch from binlog_fmt=mix to stmt with open tmp tbl
-# Bug #45856 can't switch from binlog_format=row to mix with open tmp tbl
-# This test verfies if the program will generate ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
-# error and forbid switching @@SESSION.binlog_format from MIXED or ROW to
-# STATEMENT when there are open temp tables and we are logging in row format.
-# There is no error in any other case.
+# Bug #45856 can't switch from binlog_format='row' to mix with open tmp tbl
+# BUG#24411680 SET BINLOG_FORMAT DOES NOT GENERATE ERROR WHEN THERE ARE TEMPORARY TABLES
 #
+# This test verfies if the program will generate ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+# error and forbid switching session binlog_format from MIXED or 'ROW' to
+# STATEMENT when there are open temp tables.
+# There is no error in any other case.
+# The test runs in two iterations:
+# - the first covers the case when the user explicitely sets the binlog_format
+#   variable with session scope
+# - the second covers the case when the user uses the default scope of the
+#   binlog_format variable, which is session, and should behave the same way as
+#   declaring session scope.
 
-source include/have_binlog_format_mixed.inc;
+source include/have_binlog_format_statement.inc;
 
-SELECT @@SESSION.binlog_format;
-CREATE TABLE t1 (a VARCHAR(100));
-CREATE TEMPORARY TABLE t2 (a VARCHAR(100));
+--let $i= 1
 
---echo # Test allow switching @@SESSION.binlog_format from MIXED to STATEMENT
---echo # when there are open temp tables and we are logging in statement based format.
-SET SESSION binlog_format = STATEMENT;
-SELECT @@SESSION.binlog_format;
+while ($i < 3)
+{
+  if ($i == 1)
+  {
+    --let $binlog_format_select_stmt= @@SESSION.binlog_format
+    --let $binlog_format_set_stmt= SESSION binlog_format
+  }
+  if ($i == 2)
+  {
+    --let $binlog_format_select_stmt= @@binlog_format
+    --let $binlog_format_set_stmt= @@binlog_format
+  }
 
---echo # Test allow switching @@SESSION.binlog_format from STATEMENT to
---echo # STATEMENT when there are open temp tables.
-SET SESSION binlog_format = STATEMENT;
-SELECT @@SESSION.binlog_format;
+  --eval SELECT $binlog_format_select_stmt
 
-INSERT INTO t1 VALUES ('statement based');
-SELECT @@SESSION.binlog_format;
---echo # Test allow switching @@SESSION.binlog_format from STATEMENT to
---echo # MIXED when there are open temp tables.
-SET SESSION binlog_format = MIXED;
-SELECT @@SESSION.binlog_format;
+  CREATE TABLE t1 (a VARCHAR(100));
+  CREATE TEMPORARY TABLE t2 (a VARCHAR(100));
 
---echo # Test allow switching @@SESSION.binlog_format from MIXED to MIXED
---echo # when there are open temp tables.
-SET SESSION binlog_format = MIXED;
-SELECT @@SESSION.binlog_format;
 
-INSERT INTO t2 VALUES (UUID());
-SELECT @@SESSION.binlog_format;
+  INSERT INTO t1 VALUES ('statement based');
 
---echo # Test forbit switching @@SESSION.binlog_format from MIXED to STATEMENT 
---echo # when there are open temp tables and we are logging in row based format.
---ERROR ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
-SET SESSION binlog_format = STATEMENT;
-SELECT @@SESSION.binlog_format;
+  --echo # Test allow switching binlog_format from STATEMENT to
+  --echo # STATEMENT when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --eval SELECT $binlog_format_select_stmt
 
-SET SESSION binlog_format = ROW;
-SELECT @@SESSION.binlog_format;
+  --echo # Test allow switching binlog_format from STATEMENT to 'ROW'
+  --echo # when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = 'ROW'
+  --eval SELECT $binlog_format_select_stmt
 
-INSERT INTO t1 VALUES ('row based');
---echo # Test allow switching @@SESSION.binlog_format from ROW to MIXED 
---echo # when there are open temp tables.
-SET SESSION binlog_format = MIXED;
-SELECT @@SESSION.binlog_format;
+  --echo # Test allow switching binlog_format from 'ROW' to 'ROW'
+  --echo # when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = 'ROW'
+  --eval SELECT $binlog_format_select_stmt
 
-INSERT INTO t1 VALUES ('row based');
---echo # Test allow switching @@SESSION.binlog_format from MIXED to ROW
---echo # when there are open temp tables.
-SET SESSION binlog_format = ROW;
-SELECT @@SESSION.binlog_format;
+  --echo # Test forbids switching binlog_format from 'ROW' to STATEMENT when
+  --echo # there are open temp tables.
+  --ERROR ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --eval SELECT $binlog_format_select_stmt
 
---echo # Test allow switching @@SESSION.binlog_format from ROW to ROW
---echo # when there are open temp tables.
-SET SESSION binlog_format = ROW;
-SELECT @@SESSION.binlog_format;
+  --echo # Test allow switching binlog_format from 'ROW' to
+  --echo # MIXED when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = MIXED
+  --eval SELECT $binlog_format_select_stmt
 
-INSERT INTO t1 VALUES ('row based');
---echo # Test forbit switching @@SESSION.binlog_format from ROW to STATEMENT
---echo # when there are open temp tables.
---ERROR ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
-SET SESSION binlog_format = STATEMENT;
-SELECT @@SESSION.binlog_format;
+  --echo # Test allow switching binlog_format from MIXED to MIXED
+  --echo # when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = MIXED
+  --eval SELECT $binlog_format_select_stmt
 
-DROP TEMPORARY TABLE t2;
-DROP TABLE t1;
+  --echo # Test allow switching binlog_format from MIXED to 'ROW'
+  --echo # when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = 'ROW'
+  --eval SELECT $binlog_format_select_stmt
 
+  INSERT INTO t1 VALUES ('row based');
+  INSERT INTO t2 VALUES (UUID());
+
+  --echo # Reset binlog_format to MIXED
+  --eval SET $binlog_format_set_stmt = MIXED
+  --eval SELECT $binlog_format_select_stmt
+
+  --echo # Test forbids switching binlog_format from MIXED to STATEMENT when
+  --echo # there are open temp tables.
+  --ERROR ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --eval SELECT $binlog_format_select_stmt
+
+  --echo # Reset binlog_format to STATEMENT
+  DROP TEMPORARY TABLE t2;
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --eval SELECT $binlog_format_select_stmt
+
+  CREATE TEMPORARY TABLE t2 (a VARCHAR(100));
+
+  --echo # Test allow switching binlog_format from STATEMENT to
+  --echo # MIXED when there are open temp tables.
+  --eval SET $binlog_format_set_stmt = MIXED
+  --eval SELECT $binlog_format_select_stmt
+
+  --echo # Cleanup
+  DROP TEMPORARY TABLE t2;
+  DROP TABLE t1;
+  --eval SET $binlog_format_set_stmt = STATEMENT
+  --eval SELECT $binlog_format_select_stmt
+  --inc $i
+}

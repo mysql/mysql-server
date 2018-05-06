@@ -1,11 +1,8 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree split.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 # Valgrind takes too much time on PB2 even in the --big-test runs.
@@ -15,7 +12,7 @@
 SET GLOBAL innodb_file_per_table=1;
 
 #Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
 
 # Insert enough values to let R-tree split.
 insert into t1 values(1, Point(1,1));

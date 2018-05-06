@@ -9,7 +9,9 @@
 --vertical_results
 
 --replace_column 24 <modified> 25 <created>
-SELECT * FROM information_schema.routines where routine_schema = 'db_storedproc';
+SELECT * FROM information_schema.routines
+  WHERE routine_schema = 'db_storedproc'
+  ORDER BY routine_type, routine_name;
 
 
 SHOW CREATE FUNCTION  fn_1;

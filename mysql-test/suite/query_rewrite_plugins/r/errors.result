@@ -2,8 +2,6 @@
 # Test of various abuses of the plugin.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CALL mtr.add_suppression("Plugin rewriter reported: " ||
 "'Some rules failed to load.'");
 CALL mtr.add_suppression("Plugin rewriter reported: " ||
@@ -27,10 +25,6 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 SELECT c1 FROM t1;
 c1
@@ -51,7 +45,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011276] [Server] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
@@ -65,10 +59,6 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 CREATE TABLE IF NOT EXISTS error_log ( line TEXT );
 DELETE FROM error_log;
@@ -78,7 +68,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011276] [Server] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
@@ -96,10 +86,6 @@ Rewriter_number_loaded_rules	0
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Query rewrite plugin was queued for uninstalling.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # We now try 6 rules with various errors in them:
@@ -179,7 +165,7 @@ id	pattern	pattern_database	replacement	enabled	message
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
-MODIFY COLUMN replacement VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin;
+MODIFY COLUMN replacement VARCHAR(10000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 INSERT INTO query_rewrite.rewrite_rules ( pattern )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE c2 = ?' );
 CALL query_rewrite.flush_rewrite_rules();
@@ -199,7 +185,7 @@ id	pattern	pattern_database	replacement	enabled	message
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
-MODIFY COLUMN pattern VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin;
+MODIFY COLUMN pattern VARCHAR(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 INSERT INTO query_rewrite.rewrite_rules ( replacement )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE c2 = ?' );
 CALL query_rewrite.flush_rewrite_rules();

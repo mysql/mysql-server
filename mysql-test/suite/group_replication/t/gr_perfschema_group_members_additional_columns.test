@@ -1,0 +1,152 @@
+################################################################################
+# Verify performance_schema.replication_group_members for new columns
+#
+# Test:
+# 1.  Assert MEMBER_ROLE and MEMBER_VERSION after start of GR
+# 1A. Store server_uuid and member_version for future reference
+# 1B. Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1
+# 2.  Assert MEMBER_ROLE and MEMBER_VERSION before start of GR
+# 2A. Assert MEMBER_ROLE and MEMBER_VERSION are not set on server2
+# 2B. Start GR on server2
+# 2C. Store server_uuid and member_version for future reference
+# 3.  Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1 and server2
+# 4.  Shutdown GR
+################################################################################
+
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo #####################################################################
+--echo # 1. Assert MEMBER_ROLE and MEMBER_VERSION after start of GR
+--echo #####################################################################
+--source include/start_and_bootstrap_group_replication.inc
+
+## Store server_uuid and member_version of server1 for future reference
+# Store server1_uuid
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+# Store server1_version
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_VERSION, 1)
+--let $_member_version_2= query_get_value(SELECT @@version as version, version, 1)
+--let $server_version= query_get_value("SELECT LEFT('$_member_version_2',CHAR_LENGTH('$_member_version_')) AS VERSION", VERSION, 1)
+
+## Assert server_version is not empty string
+--let $assert_text= 'MEMBER_VERSION is not empty'
+--let $assert_cond= [SELECT CHAR_LENGTH("$server_version") >= 5 AS VERSION, VERSION, 1] = 1
+--source include/assert.inc
+
+## Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_ROLE, 1)
+--let $assert_text= 'Server1 MEMBER_ROLE should be PRIMARY'
+--let $assert_cond= "$_member_role_"= "PRIMARY"
+--source include/assert.inc
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_VERSION, 1)
+--let $assert_text= 'Server1 MEMBER_VERSION should match with SELECT @@server_version'
+--let $assert_cond= "$_member_version_"= "$server_version"
+--source include/assert.inc
+
+--echo
+--echo #####################################################################
+--echo # 2.  Assert MEMBER_ROLE and MEMBER_VERSION before start of GR
+--echo #####################################################################
+## Start server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+## Assert MEMBER_ROLE and MEMBER_VERSION are not set on server2
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members, MEMBER_ROLE, 1)
+--let $assert_text= 'Server2 MEMBER_ROLE should not be set when GR is starting'
+--let $assert_cond= "$_member_role_"= ""
+--source include/assert.inc
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members, MEMBER_VERSION, 1)
+--let $assert_text= 'Server2 MEMBER_VERSION should not be set when GR is starting'
+--let $assert_cond= "$_member_version_"= ""
+--source include/assert.inc
+
+## Start GR on server2
+--source include/start_group_replication.inc
+
+## Store server_uuid and member_version of server2 for future reference
+# Store server2_uuid
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo ##############################################################################
+--echo # 3.  Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1 and server2
+--echo ##############################################################################
+
+## Assert MEMBER_ROLE and MEMBER_VERSION are correct on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_ROLE, 1)
+--let $assert_text= 'Server1 MEMBER_ROLE should be PRIMARY'
+--let $assert_cond= "$_member_role_"= "PRIMARY"
+--source include/assert.inc
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server2_uuid', MEMBER_ROLE, 1)
+--let $assert_text= 'Server2 MEMBER_ROLE should be SECONDARY'
+--let $assert_cond= "$_member_role_"= "SECONDARY"
+--source include/assert.inc
+
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_VERSION, 1)
+--let $assert_text= 'Server1 MEMBER_VERSION should match with SELECT @@server_version'
+--let $assert_cond= "$_member_version_"= "$server_version"
+--source include/assert.inc
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server2_uuid', MEMBER_VERSION, 1)
+--let $assert_text= 'Server2 MEMBER_VERSION should match with SELECT @@server_version'
+--let $assert_cond= "$_member_version_"= "$server_version"
+--source include/assert.inc
+
+
+## Assert MEMBER_ROLE and MEMBER_VERSION are correct on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_ROLE, 1)
+--let $assert_text= 'Server1 MEMBER_ROLE should be PRIMARY'
+--let $assert_cond= "$_member_role_"= "PRIMARY"
+--source include/assert.inc
+
+# Assert MEMBER_ROLE
+--let $_member_role_= query_get_value(SELECT MEMBER_ROLE FROM performance_schema.replication_group_members where member_id='$server2_uuid', MEMBER_ROLE, 1)
+--let $assert_text= 'Server2 MEMBER_ROLE should be SECONDARY'
+--let $assert_cond= "$_member_role_"= "SECONDARY"
+--source include/assert.inc
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server1_uuid', MEMBER_VERSION, 1)
+--let $assert_text= 'Server1 MEMBER_VERSION should match with SELECT @@server_version'
+--let $assert_cond= "$_member_version_"= "$server_version"
+--source include/assert.inc
+
+# Assert MEMBER_VERSION
+--let $_member_version_= query_get_value(SELECT MEMBER_VERSION FROM performance_schema.replication_group_members where member_id='$server2_uuid', MEMBER_VERSION, 1)
+--let $assert_text= 'Server2 MEMBER_VERSION should match with SELECT @@server_version'
+--let $assert_cond= "$_member_version_"= "$server_version"
+--source include/assert.inc
+
+--echo
+--echo ##########################################################################
+--echo # 4.  Shutdown GR
+--echo ##########################################################################
+--source include/group_replication_end.inc
+

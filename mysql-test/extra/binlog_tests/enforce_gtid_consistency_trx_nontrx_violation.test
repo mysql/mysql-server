@@ -51,7 +51,7 @@ DROP TRIGGER trig;
 --let $extra_warning_count= 0
 --enable_warnings
 
-# If the MyISAM update is temporary and binlog_format=row, it is not a
+# If the MyISAM update is temporary and binlog_format='row', it is not a
 # GTID-violation since the temporary updates are not logged. But if
 # binlog_format=statement or mixed, it is an violation; that is what
 # we check here.

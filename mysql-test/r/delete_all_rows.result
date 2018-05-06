@@ -1,24 +1,7 @@
 CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
-SET binlog_format= ROW;
+SET binlog_format= 'ROW';
 #
-# MyISAM, binlog_format= ROW
-#
-CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1), (2), (3);
-
-SET sql_log_bin= 0;
-include/assert.inc [DELETE will use delete_all_rows]
-DELETE FROM t1;
-
-SET sql_log_bin= 1;
-INSERT INTO t1 VALUES (1), (2), (3);
-include/assert.inc [DELETE will use delete_all_rows]
-DELETE FROM t1;
-DROP TABLE t1;
-
-SET binlog_format= MIXED;
-#
-# MyISAM, binlog_format= MIXED
+# MyISAM, binlog_format= 'ROW'
 #
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -33,9 +16,9 @@ include/assert.inc [DELETE will use delete_all_rows]
 DELETE FROM t1;
 DROP TABLE t1;
 
-SET binlog_format= STATEMENT;
+SET binlog_format= 'MIXED';
 #
-# MyISAM, binlog_format= STATEMENT
+# MyISAM, binlog_format= 'MIXED'
 #
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -50,9 +33,26 @@ include/assert.inc [DELETE will use delete_all_rows]
 DELETE FROM t1;
 DROP TABLE t1;
 
-SET binlog_format= ROW;
+SET binlog_format= 'STATEMENT';
 #
-# InnoDB, binlog_format= ROW
+# MyISAM, binlog_format= 'STATEMENT'
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SET sql_log_bin= 0;
+include/assert.inc [DELETE will use delete_all_rows]
+DELETE FROM t1;
+
+SET sql_log_bin= 1;
+INSERT INTO t1 VALUES (1), (2), (3);
+include/assert.inc [DELETE will use delete_all_rows]
+DELETE FROM t1;
+DROP TABLE t1;
+
+SET binlog_format= 'ROW';
+#
+# InnoDB, binlog_format= 'ROW'
 #
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -67,9 +67,9 @@ include/assert.inc [DELETE will use delete_all_rows]
 DELETE FROM t1;
 DROP TABLE t1;
 
-SET binlog_format= MIXED;
+SET binlog_format= 'MIXED';
 #
-# InnoDB, binlog_format= MIXED
+# InnoDB, binlog_format= 'MIXED'
 #
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -84,9 +84,9 @@ include/assert.inc [DELETE will use delete_all_rows]
 DELETE FROM t1;
 DROP TABLE t1;
 
-SET binlog_format= STATEMENT;
+SET binlog_format= 'STATEMENT';
 #
-# InnoDB, binlog_format= STATEMENT
+# InnoDB, binlog_format= 'STATEMENT'
 #
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1), (2), (3);

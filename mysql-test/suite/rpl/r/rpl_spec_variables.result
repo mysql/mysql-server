@@ -49,6 +49,7 @@ SET auto_increment_increment=1;
 SET auto_increment_offset=1;
 
 * character_set_database, collation_server *
+[On Master]
 SET @restore_master_character_set_database=@@global.character_set_database;
 SET @restore_master_collation_server=@@global.collation_server;
 SET @@global.character_set_database=latin1;
@@ -59,6 +60,7 @@ Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_server=latin1_german1_ci;
 SET @@session.collation_server=latin1_german1_ci;
+[On Slave]
 SET @restore_slave_character_set_database=@@global.character_set_database;
 SET @restore_slave_collation_server=@@global.collation_server;
 SET @@global.character_set_database=utf8;
@@ -69,8 +71,13 @@ Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_server=utf8_bin;
 SET @@session.collation_server=utf8_bin;
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
+[On Master]
+CREATE SCHEMA s1;
+SHOW CREATE SCHEMA s1;
+Database	Create Database
+s1	CREATE DATABASE `s1` /*!40100 DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci */
+CREATE TABLE s1.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
@@ -78,26 +85,43 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 include/sync_slave_sql_with_master.inc
-CREATE TABLE t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
+[On Slave]
+CREATE SCHEMA s2;
+SHOW CREATE SCHEMA s2;
+Database	Create Database
+s2	CREATE DATABASE `s2` /*!40100 DEFAULT CHARACTER SET utf8 COLLATE utf8_bin */
+CREATE TABLE s1.t2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+CREATE TABLE s2.t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE s1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
-SHOW CREATE TABLE t2;
+SHOW CREATE TABLE s1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE latin1_german1_ci DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+SHOW CREATE TABLE s2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+DROP TABLE s2.t1;
+DROP SCHEMA s2;
 SET @@global.collation_server=latin1_swedish_ci;
 SET @@session.collation_server=latin1_swedish_ci;
+[On Master]
 SET @@global.collation_server=latin1_swedish_ci;
 SET @@session.collation_server=latin1_swedish_ci;
-DROP TABLE IF EXISTS t1,t2;
+DROP TABLE IF EXISTS s1.t1,s1.t2;
+DROP SCHEMA s1;
 
 * default_week_format *
 SET @@global.default_week_format=0;
@@ -120,6 +144,7 @@ SET @@global.default_week_format=0;
 SET @@session.default_week_format=0;
 
 * local_infile *
+SET @old_local_infile= @@global.local_infile;
 SET @@global.local_infile=0;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHAR(254)) ENGINE=MyISAM;
 LOAD DATA LOCAL INFILE 'FILE' INTO TABLE t1 (b);
@@ -137,21 +162,22 @@ DROP TABLE t1;
 
 * max_heap_table_size *
 SET @restore_slave_max_heap_table_size=@@global.max_heap_table_size;
-SET @@global.max_heap_table_size=16384;
-SET @@session.max_heap_table_size=16384;
-CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c CHAR(254)) ENGINE=MEMORY;
-SELECT COUNT(*)=2000 FROM t1;
-COUNT(*)=2000
+SET @@global.max_heap_table_size=HEAP_SIZE;
+SET @@session.max_heap_table_size=HEAP_SIZE;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c VARCHAR(RECORD_SIZE)) ENGINE=MEMORY;
+SELECT COUNT(*)=ROW_COUNT FROM t1;
+COUNT(*)=ROW_COUNT
 1
 include/sync_slave_sql_with_master.inc
-SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
-COUNT(*)=2000
+SELECT COUNT(*)=ROW_COUNT FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
+COUNT(*)=ROW_COUNT
 1
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
-COUNT(*)<2000 AND COUNT(*)>0
+TRUNCATE TABLE t1;
+SELECT COUNT(*)<ROW_COUNT AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
+COUNT(*)<ROW_COUNT AND COUNT(*)>0
 1
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
-COUNT(*)<2000 AND COUNT(*)>0
+SELECT COUNT(*)<ROW_COUNT AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
+COUNT(*)<ROW_COUNT AND COUNT(*)>0
 1
 DROP TABLE IF EXISTS t1,t2;
 
@@ -172,46 +198,42 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @@global.default_storage_engine=InnoDB;
 SET @@session.default_storage_engine=InnoDB;
 DROP TABLE IF EXISTS t1,t2,t3;
 
 * sql_mode *
 SET @@global.sql_mode=ANSI;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode=ANSI;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.sql_mode=TRADITIONAL;
 SET @@session.sql_mode=TRADITIONAL;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c DATE);
@@ -244,6 +266,7 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
+SET @@global.local_infile= @old_local_infile;
 
 call mtr.add_suppression("The table 't[12]' is full");
 include/rpl_end.inc

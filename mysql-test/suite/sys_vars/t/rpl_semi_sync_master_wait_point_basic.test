@@ -6,7 +6,6 @@
 #
 # This test verifies the variable can be set, selected and showed correctly.
 ################################################################################
-source include/not_embedded.inc;
 source include/have_semisync_plugin.inc;
 
 --echo #
@@ -25,7 +24,7 @@ SELECT @@GLOBAL.rpl_semi_sync_master_wait_point;
 SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_master_wait_point';
 
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
+SELECT * FROM performance_schema.global_variables WHERE
   VARIABLE_NAME = 'rpl_semi_sync_master_wait_point';
 --enable_warnings
 
@@ -38,7 +37,7 @@ SELECT @@SESSION.rpl_semi_sync_master_wait_point;
 SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_master_wait_point';
 
 --disable_warnings
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
+SELECT * FROM performance_schema.session_variables WHERE
   VARIABLE_NAME ='rpl_semi_sync_master_wait_point';
 --enable_warnings
 

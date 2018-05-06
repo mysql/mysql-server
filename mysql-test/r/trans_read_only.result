@@ -4,29 +4,21 @@
 #
 # Test9:  The --transaction-read-only startup option.
 # Check that the option was set by the .opt file.
-SELECT @@tx_read_only;
-@@tx_read_only
+SELECT @@transaction_read_only;
+@@transaction_read_only
 1
-Warnings:
-Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 # Also for new connections. Switching to con1
-SELECT @@tx_read_only;
-@@tx_read_only
+SELECT @@transaction_read_only;
+@@transaction_read_only
 1
-Warnings:
-Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ WRITE;
-SELECT @@tx_read_only;
-@@tx_read_only
+SELECT @@transaction_read_only;
+@@transaction_read_only
 0
-Warnings:
-Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 # Connection default
-SELECT @@tx_read_only;
-@@tx_read_only
+SELECT @@transaction_read_only;
+@@transaction_read_only
 1
-Warnings:
-Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 #
 # Test 10: SET TRANSACTION / START TRANSACTION + implicit commit.
 SET SESSION TRANSACTION READ WRITE;

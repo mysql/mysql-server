@@ -1,0 +1,224 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/stop_group_replication.inc
+
+# Test#1: Basic check that there are 44 GR variables.
+include/assert.inc [There are 44 GR variables at present.]
+
+# Test#2: Verify that all the group replication variables are GLOBAL variables.
+SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
+ERROR HY000: Variable 'group_replication_allow_local_lower_version_join' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_auto_increment_increment= 7;
+ERROR HY000: Variable 'group_replication_auto_increment_increment' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_bootstrap_group= 1;
+ERROR HY000: Variable 'group_replication_bootstrap_group' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_components_stop_timeout= 1;
+ERROR HY000: Variable 'group_replication_components_stop_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_compression_threshold= 1;
+ERROR HY000: Variable 'group_replication_compression_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_enforce_update_everywhere_checks= 1;
+ERROR HY000: Variable 'group_replication_enforce_update_everywhere_checks' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_force_members= "";
+ERROR HY000: Variable 'group_replication_force_members' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa";
+ERROR HY000: Variable 'group_replication_group_name' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_gtid_assignment_block_size= 1;
+ERROR HY000: Variable 'group_replication_gtid_assignment_block_size' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_ip_whitelist= "AUTOMATIC";
+ERROR HY000: Variable 'group_replication_ip_whitelist' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_local_address= "";
+ERROR HY000: Variable 'group_replication_local_address' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_group_seeds= "";
+ERROR HY000: Variable 'group_replication_group_seeds' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_poll_spin_loops= 1;
+ERROR HY000: Variable 'group_replication_poll_spin_loops' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_complete_at= "TRANSACTIONS_APPLIED";
+ERROR HY000: Variable 'group_replication_recovery_complete_at' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_reconnect_interval= 10;
+ERROR HY000: Variable 'group_replication_recovery_reconnect_interval' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_retry_count= 1;
+ERROR HY000: Variable 'group_replication_recovery_retry_count' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_ca= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_ca' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_capath= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_capath' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_cert= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_cert' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_cipher= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_cipher' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_crl= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_crl' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_crlpath= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_crlpath' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_key= "";
+ERROR HY000: Variable 'group_replication_recovery_ssl_key' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_ssl_verify_server_cert= 1;
+ERROR HY000: Variable 'group_replication_recovery_ssl_verify_server_cert' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_use_ssl= 1;
+ERROR HY000: Variable 'group_replication_recovery_use_ssl' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_single_primary_mode= 0;
+ERROR HY000: Variable 'group_replication_single_primary_mode' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_ssl_mode= "REQUIRED";
+ERROR HY000: Variable 'group_replication_ssl_mode' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_start_on_boot= 1;
+ERROR HY000: Variable 'group_replication_start_on_boot' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_transaction_size_limit= 10240;
+ERROR HY000: Variable 'group_replication_transaction_size_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_communication_debug_options= "";
+ERROR HY000: Variable 'group_replication_communication_debug_options' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
+ERROR HY000: Variable 'group_replication_unreachable_majority_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_member_weight= 80;
+ERROR HY000: Variable 'group_replication_member_weight' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_public_key_path= "";
+ERROR HY000: Variable 'group_replication_recovery_public_key_path' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_recovery_get_public_key= 1;
+ERROR HY000: Variable 'group_replication_recovery_get_public_key' is a GLOBAL variable and should be set with SET GLOBAL
+
+# Test#3: Verify GLOBAL and SESSION variables
+include/start_group_replication.inc
+include/assert.inc [Verify GLOBAL value of group_replication_allow_local_lower_version_join]
+include/assert.inc [Verify GLOBAL value of group_replication_allow_local_lower_version_join]
+include/assert.inc [Verify SESSION value of group_replication_allow_local_lower_version_join]
+include/assert.inc [Verify SESSION value of group_replication_allow_local_lower_version_join]
+include/assert.inc [Verify GLOBAL value of group_replication_auto_increment_increment]
+include/assert.inc [Verify GLOBAL value of group_replication_auto_increment_increment]
+include/assert.inc [Verify SESSION value of group_replication_auto_increment_increment]
+include/assert.inc [Verify SESSION value of group_replication_auto_increment_increment]
+include/assert.inc [Verify GLOBAL value of group_replication_bootstrap_group]
+include/assert.inc [Verify GLOBAL value of group_replication_bootstrap_group]
+include/assert.inc [Verify SESSION value of group_replication_bootstrap_group]
+include/assert.inc [Verify SESSION value of group_replication_bootstrap_group]
+include/assert.inc [Verify GLOBAL value of group_replication_components_stop_timeout]
+include/assert.inc [Verify GLOBAL value of group_replication_components_stop_timeout]
+include/assert.inc [Verify SESSION value of group_replication_components_stop_timeout]
+include/assert.inc [Verify SESSION value of group_replication_components_stop_timeout]
+include/assert.inc [Verify GLOBAL value of group_replication_compression_threshold]
+include/assert.inc [Verify GLOBAL value of group_replication_compression_threshold]
+include/assert.inc [Verify SESSION value of group_replication_compression_threshold]
+include/assert.inc [Verify SESSION value of group_replication_compression_threshold]
+include/assert.inc [Verify GLOBAL value of group_replication_enforce_update_everywhere_checks]
+include/assert.inc [Verify GLOBAL value of group_replication_enforce_update_everywhere_checks]
+include/assert.inc [Verify SESSION value of group_replication_enforce_update_everywhere_checks]
+include/assert.inc [Verify SESSION value of group_replication_enforce_update_everywhere_checks]
+include/assert.inc [Verify GLOBAL value of group_replication_force_members]
+include/assert.inc [Verify GLOBAL value of group_replication_force_members]
+include/assert.inc [Verify SESSION value of group_replication_force_members]
+include/assert.inc [Verify SESSION value of group_replication_force_members]
+include/assert.inc [Verify GLOBAL value of group_replication_group_name]
+include/assert.inc [Verify GLOBAL value of group_replication_group_name]
+include/assert.inc [Verify SESSION value of group_replication_group_name]
+include/assert.inc [Verify SESSION value of group_replication_group_name]
+include/assert.inc [Verify GLOBAL value of group_replication_gtid_assignment_block_size]
+include/assert.inc [Verify GLOBAL value of group_replication_gtid_assignment_block_size]
+include/assert.inc [Verify SESSION value of group_replication_gtid_assignment_block_size]
+include/assert.inc [Verify SESSION value of group_replication_gtid_assignment_block_size]
+include/assert.inc [Verify GLOBAL value of group_replication_ip_whitelist]
+include/assert.inc [Verify GLOBAL value of group_replication_ip_whitelist]
+include/assert.inc [Verify SESSION value of group_replication_ip_whitelist]
+include/assert.inc [Verify SESSION value of group_replication_ip_whitelist]
+include/assert.inc [Verify GLOBAL value of group_replication_local_address]
+include/assert.inc [Verify GLOBAL value of group_replication_local_address]
+include/assert.inc [Verify SESSION value of group_replication_local_address]
+include/assert.inc [Verify SESSION value of group_replication_local_address]
+include/assert.inc [Verify GLOBAL value of group_replication_group_seeds]
+include/assert.inc [Verify GLOBAL value of group_replication_group_seeds]
+include/assert.inc [Verify SESSION value of group_replication_group_seeds]
+include/assert.inc [Verify SESSION value of group_replication_group_seeds]
+include/assert.inc [Verify GLOBAL value of group_replication_poll_spin_loops]
+include/assert.inc [Verify GLOBAL value of group_replication_poll_spin_loops]
+include/assert.inc [Verify SESSION value of group_replication_poll_spin_loops]
+include/assert.inc [Verify SESSION value of group_replication_poll_spin_loops]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_complete_at]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_complete_at]
+include/assert.inc [Verify SESSION value of group_replication_recovery_complete_at]
+include/assert.inc [Verify SESSION value of group_replication_recovery_complete_at]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_reconnect_interval]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_reconnect_interval]
+include/assert.inc [Verify SESSION value of group_replication_recovery_reconnect_interval]
+include/assert.inc [Verify SESSION value of group_replication_recovery_reconnect_interval]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_retry_count]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_retry_count]
+include/assert.inc [Verify SESSION value of group_replication_recovery_retry_count]
+include/assert.inc [Verify SESSION value of group_replication_recovery_retry_count]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_ca]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_ca]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_ca]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_ca]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_capath]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_capath]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_capath]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_capath]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_cert]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_cert]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_cert]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_cert]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_cipher]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_cipher]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_cipher]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_cipher]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_crl]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_crl]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_crl]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_crl]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_crlpath]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_crlpath]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_crlpath]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_crlpath]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_key]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_key]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_key]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_key]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_verify_server_cert]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_ssl_verify_server_cert]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_verify_server_cert]
+include/assert.inc [Verify SESSION value of group_replication_recovery_ssl_verify_server_cert]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_use_ssl]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_use_ssl]
+include/assert.inc [Verify SESSION value of group_replication_recovery_use_ssl]
+include/assert.inc [Verify SESSION value of group_replication_recovery_use_ssl]
+include/assert.inc [Verify GLOBAL value of group_replication_single_primary_mode]
+include/assert.inc [Verify GLOBAL value of group_replication_single_primary_mode]
+include/assert.inc [Verify SESSION value of group_replication_single_primary_mode]
+include/assert.inc [Verify SESSION value of group_replication_single_primary_mode]
+include/assert.inc [Verify GLOBAL value of group_replication_ssl_mode]
+include/assert.inc [Verify GLOBAL value of group_replication_ssl_mode]
+include/assert.inc [Verify SESSION value of group_replication_ssl_mode]
+include/assert.inc [Verify SESSION value of group_replication_ssl_mode]
+include/assert.inc [Verify GLOBAL value of group_replication_start_on_boot]
+include/assert.inc [Verify GLOBAL value of group_replication_start_on_boot]
+include/assert.inc [Verify SESSION value of group_replication_start_on_boot]
+include/assert.inc [Verify SESSION value of group_replication_start_on_boot]
+include/assert.inc [Verify GLOBAL value of group_replication_transaction_size_limit]
+include/assert.inc [Verify GLOBAL value of group_replication_transaction_size_limit]
+include/assert.inc [Verify SESSION value of group_replication_transaction_size_limit]
+include/assert.inc [Verify SESSION value of group_replication_transaction_size_limit]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_debug_options]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_debug_options]
+include/assert.inc [Verify SESSION value of group_replication_communication_debug_options]
+include/assert.inc [Verify SESSION value of group_replication_communication_debug_options]
+include/assert.inc [Verify GLOBAL value of group_replication_unreachable_majority_timeout]
+include/assert.inc [Verify GLOBAL value of group_replication_unreachable_majority_timeout]
+include/assert.inc [Verify SESSION value of group_replication_unreachable_majority_timeout]
+include/assert.inc [Verify SESSION value of group_replication_unreachable_majority_timeout]
+include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
+include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
+include/assert.inc [Verify SESSION value of group_replication_member_weight]
+include/assert.inc [Verify SESSION value of group_replication_member_weight]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_public_key_path]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_public_key_path]
+include/assert.inc [Verify SESSION value of group_replication_recovery_public_key_path]
+include/assert.inc [Verify SESSION value of group_replication_recovery_public_key_path]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public_key]
+include/assert.inc [Verify GLOBAL value of group_replication_recovery_get_public_key]
+include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
+include/assert.inc [Verify SESSION value of group_replication_recovery_get_public_key]
+
+# Clean up
+include/stop_group_replication.inc
+include/group_replication_end.inc

@@ -1,28 +1,32 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
- reserved.
+ Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; version 2 of
- the License.
- 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU General Public License for more details.
- 
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301  USA
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 'use strict';
 
-var path           = require("path"),
-    spi            = require(mynode.spi),
-    adapter        = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb,
+var jones          = require("database-jones"),
+    ndb_bin_path   = require("jones-ndb").config.binary,
+    ndb_adapter    = require(ndb_bin_path),
     os             = require('os'),
     udebug         = unified_debug.getLogger('jscrund_null.js');
 
@@ -39,7 +43,7 @@ function implementation() {
 implementation.prototype = {
 };
 
-implementation.prototype.getDefaultProperties = function() {
+implementation.prototype.getConnectionProperties = function() {
   return {
     mysql_user           : "root",  // For CREATE TABLE
     database             : "test",
@@ -58,7 +62,7 @@ implementation.prototype.close = function(callback) {
 
 implementation.prototype.initialize = function(options, callback) {
   var n;
-  spi.getDBServiceProvider("ndb");   // To call ndb_init()
+  jones.getDBServiceProvider("ndb");   // To call ndb_init()
   this.properties = options.properties;
   while(this.debug_msg.length < this.properties.debug_message_length) {
     this.debug_msg += "x";
@@ -77,7 +81,7 @@ implementation.prototype.execOneOperation = function(callback, value) {
   /* NDBAPI calls */
   /* Marshal/Unmarshal arguments and call into native code */
   for(n = 0 ; n < this.properties.ndbapi_calls ; n++) {
-    adapter.impl.IndexBound.create(this.bounds_helper);
+    ndb_adapter.impl.IndexBound.create(this.bounds_helper);
   }
 
   /* System calls */

@@ -1,168 +1,184 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/mtr0log.ic
-Mini-transaction logging routines
+/** @file include/mtr0log.ic
+ Mini-transaction logging routines
 
-Created 12/7/1995 Heikki Tuuri
-*******************************************************/
+ Created 12/7/1995 Heikki Tuuri
+ *******************************************************/
 
 #include "buf0dblwr.h"
 #include "fsp0types.h"
 #include "mach0data.h"
 #include "trx0types.h"
 
-/********************************************************//**
-Opens a buffer to mlog. It must be closed with mlog_close.
+#include "mysqld_error.h"
+
+/** Opens a buffer to mlog. It must be closed with mlog_close.
+@param[in,out]	mtr	mtr
+@param[in]	size	buffer size in bytes; MUST be smaller than
+                        DYN_ARRAY_DATA_SIZE!
 @return buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
-byte*
-mlog_open(
-/*======*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	ulint	size)	/*!< in: buffer size in bytes; MUST be
-			smaller than mtr_t::buf_t::MAX_DATA_SIZE! */
-{
-	mtr->set_modified();
+byte *mlog_open(mtr_t *mtr, ulint size) {
+  mtr->set_modified();
 
-	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
-	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
+  if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
+      mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
+    return (NULL);
+  }
 
-		return(NULL);
-	}
-
-	return(mtr->get_log()->open(size));
+  return (mtr->get_log()->open(size));
 }
 
-/********************************************************//**
-Closes a buffer opened to mlog. */
+/** Opens a buffer to mlog. It must be closed with mlog_close.
+This is used for writing log for metadata changes
+@param[in,out]	mtr	mtr
+@param[in]	size	buffer size in bytes; MUST be smaller than
+                        DYN_ARRAY_DATA_SIZE!
+@return buffer */
 UNIV_INLINE
-void
-mlog_close(
-/*=======*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	byte*	ptr)	/*!< in: buffer space from ptr up was not used */
-{
-	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
-	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
-
-	mtr->get_log()->close(ptr);
+byte *mlog_open_metadata(mtr_t *mtr, ulint size) {
+  return (mtr->get_log()->open(size));
 }
 
-#ifndef UNIV_HOTBACKUP
-/********************************************************//**
-Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Closes a buffer opened to mlog. */
 UNIV_INLINE
-void
-mlog_catenate_ulint(
-/*================*/
-	mtr_buf_t*	mtr_buf,	/*!< in/out: buffer to write */
-	ulint		val,		/*!< in: value to write */
-	mlog_id_t	type)		/*!< in: type of value to write */
+void mlog_close(mtr_t *mtr, /*!< in: mtr */
+                byte *ptr)  /*!< in: buffer space from ptr up was not used */
 {
-	ut_ad(MLOG_1BYTE == 1);
-	ut_ad(MLOG_2BYTES == 2);
-	ut_ad(MLOG_4BYTES == 4);
-	ut_ad(MLOG_8BYTES == 8);
+  ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
+  ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
 
-	byte*	ptr = mtr_buf->push<byte*>(type);
-
-	switch (type) {
-	case MLOG_4BYTES:
-		mach_write_to_4(ptr, val);
-		break;
-	case MLOG_2BYTES:
-		mach_write_to_2(ptr, val);
-		break;
-	case MLOG_1BYTE:
-		mach_write_to_1(ptr, val);
-		break;
-	default:
-		ut_error;
-	}
+  mtr->get_log()->close(ptr);
 }
 
-/********************************************************//**
-Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
-void
-mlog_catenate_ulint(
-/*================*/
-	mtr_t*		mtr,	/*!< in/out: mtr */
-	ulint		val,	/*!< in: value to write */
-	mlog_id_t	type)	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+void mlog_catenate_ulint(mtr_buf_t *mtr_buf, /*!< in/out: buffer to write */
+                         ulint val,          /*!< in: value to write */
+                         mlog_id_t type)     /*!< in: type of value to write */
 {
-	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
-	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
+  ut_ad(MLOG_1BYTE == 1);
+  ut_ad(MLOG_2BYTES == 2);
+  ut_ad(MLOG_4BYTES == 4);
+  ut_ad(MLOG_8BYTES == 8);
 
-		return;
-	}
+  byte *ptr = mtr_buf->push<byte *>(type);
 
-	mlog_catenate_ulint(mtr->get_log(), val, type);
+  switch (type) {
+    case MLOG_4BYTES:
+      mach_write_to_4(ptr, val);
+      break;
+    case MLOG_2BYTES:
+      mach_write_to_2(ptr, val);
+      break;
+    case MLOG_1BYTE:
+      mach_write_to_1(ptr, val);
+      break;
+    default:
+      ut_error;
+  }
 }
 
-/********************************************************//**
-Catenates a compressed ulint to mlog. */
+/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
-void
-mlog_catenate_ulint_compressed(
-/*===========================*/
-	mtr_t*	mtr,	/*!< in: mtr */
-	ulint	val)	/*!< in: value to write */
+void mlog_catenate_ulint(
+    mtr_t *mtr,     /*!< in/out: mtr */
+    ulint val,      /*!< in: value to write */
+    mlog_id_t type) /*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 {
-	byte*	log_ptr;
+  if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
+      mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
+    return;
+  }
 
-	log_ptr = mlog_open(mtr, 10);
-
-	/* If no logging is requested, we may return now */
-	if (log_ptr == NULL) {
-
-		return;
-	}
-
-	log_ptr += mach_write_compressed(log_ptr, val);
-
-	mlog_close(mtr, log_ptr);
+  mlog_catenate_ulint(mtr->get_log(), val, type);
 }
 
-/********************************************************//**
-Catenates a compressed 64-bit integer to mlog. */
+/** Catenates a compressed ulint to mlog. */
 UNIV_INLINE
-void
-mlog_catenate_ull_compressed(
-/*=========================*/
-	mtr_t*		mtr,	/*!< in: mtr */
-	ib_uint64_t	val)	/*!< in: value to write */
+void mlog_catenate_ulint_compressed(mtr_t *mtr, /*!< in: mtr */
+                                    ulint val)  /*!< in: value to write */
 {
-	byte*	log_ptr;
+  byte *log_ptr;
 
-	log_ptr = mlog_open(mtr, 15);
+  log_ptr = mlog_open(mtr, 10);
 
-	/* If no logging is requested, we may return now */
-	if (log_ptr == NULL) {
+  /* If no logging is requested, we may return now */
+  if (log_ptr == NULL) {
+    return;
+  }
 
-		return;
-	}
+  log_ptr += mach_write_compressed(log_ptr, val);
 
-	log_ptr += mach_u64_write_compressed(log_ptr, val);
+  mlog_close(mtr, log_ptr);
+}
 
-	mlog_close(mtr, log_ptr);
+/** Catenates a compressed 64-bit integer to mlog. */
+UNIV_INLINE
+void mlog_catenate_ull_compressed(mtr_t *mtr,      /*!< in: mtr */
+                                  ib_uint64_t val) /*!< in: value to write */
+{
+  byte *log_ptr;
+
+  log_ptr = mlog_open(mtr, 15);
+
+  /* If no logging is requested, we may return now */
+  if (log_ptr == NULL) {
+    return;
+  }
+
+  log_ptr += mach_u64_write_compressed(log_ptr, val);
+
+  mlog_close(mtr, log_ptr);
+}
+
+/** Writes a log record about a dictionary operation.
+@param[in]	type		redo log record type
+@param[in]	id		table id
+@param[in]	version		table dynamic metadata version
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return end of mini-transaction log */
+UNIV_INLINE
+byte *mlog_write_initial_dict_log_record(mlog_id_t type, table_id_t id,
+                                         uint64_t version, byte *log_ptr,
+                                         mtr_t *mtr) {
+  ut_ad(type <= MLOG_BIGGEST_TYPE);
+  ut_ad(type == MLOG_TABLE_DYNAMIC_META);
+
+  mach_write_to_1(log_ptr, type);
+  log_ptr++;
+
+  log_ptr += mach_u64_write_much_compressed(log_ptr, id);
+  log_ptr += mach_u64_write_much_compressed(log_ptr, version);
+
+  mtr->added_rec();
+  return (log_ptr);
 }
 
 /** Writes a log record about an operation.
@@ -173,85 +189,75 @@ mlog_catenate_ull_compressed(
 @param[in,out]	mtr		mini-transaction
 @return	end of mini-transaction log */
 UNIV_INLINE
-byte*
-mlog_write_initial_log_record_low(
-	mlog_id_t	type,
-	ulint		space_id,
-	ulint		page_no,
-	byte*		log_ptr,
-	mtr_t*		mtr)
-{
-	ut_ad(type <= MLOG_BIGGEST_TYPE);
-	ut_ad(type == MLOG_FILE_NAME
-	      || type == MLOG_FILE_DELETE
-	      || type == MLOG_FILE_CREATE2
-	      || type == MLOG_FILE_RENAME2
-	      || type == MLOG_INDEX_LOAD
-	      || type == MLOG_TRUNCATE
-	      || mtr->is_named_space(space_id));
+byte *mlog_write_initial_log_record_low(mlog_id_t type, space_id_t space_id,
+                                        page_no_t page_no, byte *log_ptr,
+                                        mtr_t *mtr) {
+  ut_ad(type <= MLOG_BIGGEST_TYPE);
 
-	mach_write_to_1(log_ptr, type);
-	log_ptr++;
+  mach_write_to_1(log_ptr, type);
+  log_ptr++;
 
-	log_ptr += mach_write_compressed(log_ptr, space_id);
-	log_ptr += mach_write_compressed(log_ptr, page_no);
+  log_ptr += mach_write_compressed(log_ptr, space_id);
+  log_ptr += mach_write_compressed(log_ptr, page_no);
 
-	mtr->added_rec();
-	return(log_ptr);
+  mtr->added_rec();
+  return (log_ptr);
 }
 
-/********************************************************//**
-Writes the initial part of a log record (3..11 bytes).
-If the implementation of this function is changed, all
-size parameters to mlog_open() should be adjusted accordingly!
-@return new value of log_ptr */
+#ifndef UNIV_HOTBACKUP
+/** Writes the initial part of a log record (3..11 bytes).
+ If the implementation of this function is changed, all
+ size parameters to mlog_open() should be adjusted accordingly!
+ @return new value of log_ptr */
 UNIV_INLINE
-byte*
-mlog_write_initial_log_record_fast(
-/*===============================*/
-	const byte*	ptr,	/*!< in: pointer to (inside) a buffer
-				frame holding the file page where
-				modification is made */
-	mlog_id_t	type,	/*!< in: log item type: MLOG_1BYTE, ... */
-	byte*		log_ptr,/*!< in: pointer to mtr log which has
-				been opened */
-	mtr_t*		mtr)	/*!< in/out: mtr */
+byte *mlog_write_initial_log_record_fast(
+    const byte *ptr, /*!< in: pointer to (inside) a buffer
+                     frame holding the file page where
+                     modification is made */
+    mlog_id_t type,  /*!< in: log item type: MLOG_1BYTE, ... */
+    byte *log_ptr,   /*!< in: pointer to mtr log which has
+                     been opened */
+    mtr_t *mtr)      /*!< in/out: mtr */
 {
-	const byte*	page;
-	ulint		space;
-	ulint		offset;
+  const byte *page;
+  space_id_t space;
+  page_no_t offset;
 
-	ut_ad(log_ptr);
-	ut_d(mtr->memo_modify_page(ptr));
+  ut_ad(log_ptr);
+  ut_d(mtr->memo_modify_page(ptr));
 
-	page = (const byte*) ut_align_down(ptr, UNIV_PAGE_SIZE);
-	space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-	offset = mach_read_from_4(page + FIL_PAGE_OFFSET);
+  page = (const byte *)ut_align_down(ptr, UNIV_PAGE_SIZE);
+  space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+  offset = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
-	/* check whether the page is in the doublewrite buffer;
-	the doublewrite buffer is located in pages
-	FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the
-	system tablespace */
+  /* check whether the page is in the doublewrite buffer;
+  the doublewrite buffer is located in pages
+  FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the
+  system tablespace */
 
-	if (space == TRX_SYS_SPACE
-	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
-		if (buf_dblwr_being_created) {
-			/* Do nothing: we only come to this branch in an
-			InnoDB database creation. We do not redo log
-			anything for the doublewrite buffer pages. */
-			return(log_ptr);
-		} else {
-			ib::error() << "Trying to redo log a record of type "
-				<< type << "  on page "
-				<< page_id_t(space, offset) << "in the"
-				" doublewrite buffer, continuing anyway."
-				" Please post a bug report to"
-				" bugs.mysql.com.";
-			ut_ad(0);
-		}
-	}
+  if (space == TRX_SYS_SPACE && offset >= FSP_EXTENT_SIZE &&
+      offset < 3 * FSP_EXTENT_SIZE) {
+    if (buf_dblwr_being_created) {
+      /* Do nothing: we only come to this branch in an
+      InnoDB database creation. We do not redo log
+      anything for the doublewrite buffer pages. */
+      return (log_ptr);
+    } else {
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1269)
+#endif /* !UNIV_NO_ERR_MSGS */
+          << "Trying to redo log a record of type " << type << "  on page "
+          << page_id_t(space, offset)
+          << "in the"
+             " doublewrite buffer, continuing anyway."
+             " Please post a bug report to"
+             " bugs.mysql.com.";
+      ut_ad(0);
+    }
+  }
 
-	return(mlog_write_initial_log_record_low(type, space, offset,
-						 log_ptr, mtr));
+  return (mlog_write_initial_log_record_low(type, space, offset, log_ptr, mtr));
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -148,7 +148,7 @@ d	dt	ts
 0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00
 2001-11-11	2001-11-11 00:00:00	2001-11-11 00:00:00
 drop table t1;
-SET sql_mode='NO_AUTO_CREATE_USER,STRICT_TRANS_TABLES';
+SET sql_mode='STRICT_TRANS_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (
@@ -167,15 +167,21 @@ INSERT INTO t1 VALUES (DATE(NOW()), 1);
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 COUNT(*)
 0
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from dual where 0
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where multiple equal(now(), `test`.`t1`.`a`)
 INSERT INTO t1 VALUES (DATE(NOW()), 2);
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 COUNT(*)
 0
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -191,6 +197,9 @@ ALTER TABLE t1 DROP PRIMARY KEY;
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 COUNT(*)
 0
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
@@ -214,20 +223,17 @@ a
 0000-00-00
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i	i	4	const	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	i	i	4	const	2	100.00	Using index
 Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '0000-00-00')
 SELECT * FROM t1 WHERE a = '0000-00-00';
@@ -236,13 +242,11 @@ a
 0000-00-00
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
 Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT INTO t1 VALUES ('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
@@ -263,11 +267,9 @@ SELECT * FROM t1 WHERE a = '1000-00-00';
 a
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
 Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
 EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
@@ -275,17 +277,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	i	i	4	const	1	100.00	Using index
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '1000-00-00')
 SELECT * FROM t1 WHERE a = '1000-00-00';
 a
 Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SELECT * FROM t2 WHERE a = '1000-00-00';
 a
 Warnings:
-Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 INSERT INTO t1 VALUES ('1000-00-00');
 ERROR 22007: Incorrect date value: '1000-00-00' for column 'a' at row 1
@@ -396,7 +395,7 @@ INSERT INTO t1 VALUES
 (TIMESTAMP'9999-12-31 23:59:59.4');
 Warnings:
 Note	1292	Incorrect date value: '9999-12-30 23:59:59' for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
+Note	1292	Incorrect date value: '9999-12-31 23:59:59' for column 'a' at row 2
 SELECT * FROM t1;
 a
 2001-01-01
@@ -416,17 +415,13 @@ INSERT INTO t1 VALUES (TIME'23:59:59.9');
 INSERT INTO t1 VALUES
 (TIMESTAMP'9999-12-30 23:59:59.9'),
 (TIMESTAMP'9999-12-31 23:59:59.9');
-Warnings:
-Warning	1441	Datetime function: datetime field overflow
-Warning	1264	Out of range value for column 'a' at row 2
+ERROR 22008: Datetime function: datetime field overflow
 SELECT * FROM t1;
 a
 2001-01-02
 2001-01-02
 2001-01-02
 2001-01-02
-9999-12-31
-0000-00-00
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #
@@ -547,7 +542,6 @@ SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 DATE DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 DATE DEFAULT '0000-00-00');
@@ -620,8 +614,6 @@ ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
 ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # END of Test for bug#11747847 - 34280
 End of 5.6 tests
 CREATE TABLE t1(a int);

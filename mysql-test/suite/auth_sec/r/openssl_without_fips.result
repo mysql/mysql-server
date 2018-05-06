@@ -1,0 +1,7 @@
+#
+# Fips support in OS without fips enabled openssl.
+#
+##Test: Restart server and provide ssl-fips-mode at server startup: ON
+Error, Server will fail to start when fips mode is ON/STRICT, OS openssl library not supported fips.
+# Start server using restart default values
+Start server.

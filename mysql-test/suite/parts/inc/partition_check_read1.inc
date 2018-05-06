@@ -23,8 +23,8 @@ ANALYZE TABLE t1;
 -- enable_result_log
 -- enable_query_log
 
-## EXPLAIN PARTITIONS SELECT for one single row
-EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
+## EXPLAIN SELECT for one single row
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 
 ## Check SELECT for one single row
 let $success= 1;

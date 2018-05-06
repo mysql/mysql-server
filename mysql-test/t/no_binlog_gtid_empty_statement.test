@@ -14,8 +14,8 @@
 # BUG#22811150 SQLCOM_EMPTY_QUERY should be considered GTID innocent
 #
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
+# Should be tested against "binlog disabled" server
+--source include/not_log_bin.inc
 
 USE test;
 

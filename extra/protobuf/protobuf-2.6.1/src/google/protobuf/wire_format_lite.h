@@ -647,7 +647,7 @@ inline int32 WireFormatLite::ZigZagDecode32(uint32 n) {
 
 inline uint64 WireFormatLite::ZigZagEncode64(int64 n) {
   // Note:  the right-shift must be arithmetic
-  return (n << 1) ^ (n >> 63);
+  return (static_cast<uint64>(n) << 1) ^ (n >> 63);
 }
 
 inline int64 WireFormatLite::ZigZagDecode64(uint64 n) {

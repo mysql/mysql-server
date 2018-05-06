@@ -1,4 +1,3 @@
---source include/have_gb18030.inc
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 
@@ -90,7 +89,7 @@ SELECT HEX(code), HEX(CONVERT(CONVERT(code USING gb18030) USING utf8mb4)) FROM t
 --echo # Compare the results between ucs2 BMP->utf8mb4 and ucs2 BMP->gb18030->utf8mb4
 --echo # GB18030 will treat code points in (0xD800, 0xE000] as 0x3F, this is the only difference
 SELECT HEX(code) FROM t1 WHERE
-HEX(CONVERT(code USING utf8mb4)) <> HEX(CONVERT(CONVERT(code USING gb18030) USING utf8mb4)) AND (code < 0xD800 OR code >= 0xE000);
+(code < 0xD800 OR code >= 0xE000) AND HEX(CONVERT(code USING utf8mb4)) <> HEX(CONVERT(CONVERT(code USING gb18030) USING utf8mb4));
 
 --echo # Test for differences between upper(ucs2_to_utf8mb4(_ucs2 x)) and gb18030_to_utf8mb4(upper(ucs2_to_gb18030(_ucs2 x)) for BMP
 

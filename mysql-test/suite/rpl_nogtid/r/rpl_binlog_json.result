@@ -1,0 +1,251 @@
+#
+# Bug#21276751 JSON+MYSQLBINLOG: JSON DATA NOT PRINTING PROPERLY
+#              WHEN USING MYSQLBINLOG UTILITY
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE tab1 (json_col1 JSON);
+INSERT INTO tab1 (json_col1) VALUES ('{"key": "value", "key2": [1, 2, 3]}');
+SELECT json_col1 FROM tab1;
+json_col1
+{"key": "value", "key2": [1, 2, 3]}
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+{"key": "value", "key2": [1, 2, 3]}
+UPDATE tab1 SET json_col1 = JSON_SET(json_col1, '$.key3', 'abc');
+SELECT json_col1 FROM tab1;
+json_col1
+{"key": "value", "key2": [1, 2, 3], "key3": "abc"}
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+{"key": "value", "key2": [1, 2, 3], "key3": "abc"}
+UPDATE tab1 SET json_col1 = NULL;
+SELECT json_col1 FROM tab1;
+json_col1
+NULL
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+NULL
+UPDATE tab1 SET json_col1 = '[ 1, { "k" : "v" } ]' WHERE json_col1 IS NULL;
+SELECT json_col1 FROM tab1;
+json_col1
+[1, {"k": "v"}]
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+[1, {"k": "v"}]
+INSERT INTO tab1 VALUES (NULL);
+SELECT json_col1 FROM tab1;
+json_col1
+[1, {"k": "v"}]
+NULL
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+[1, {"k": "v"}]
+NULL
+DELETE FROM tab1;
+SELECT json_col1 FROM tab1;
+json_col1
+include/sync_slave_sql_with_master.inc
+SELECT json_col1 FROM tab1;
+json_col1
+DROP TABLE tab1;
+FLUSH LOGS;
+include/mysqlbinlog.inc
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Start: binlog v #, server v # created # at startup
+ROLLBACK/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
+# [empty]
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+use `test`/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1168113696/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+/*!80005 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
+CREATE TABLE tab1 (json_col1 JSON)
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`tab1`
+### SET
+###   @1='{"key": "value", "key2": [1, 2, 3]}'
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`tab1`
+### WHERE
+###   @1='{"key": "value", "key2": [1, 2, 3]}'
+### SET
+###   @1='{"key": "value", "key2": [1, 2, 3], "key3": "abc"}'
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`tab1`
+### WHERE
+###   @1='{"key": "value", "key2": [1, 2, 3], "key3": "abc"}'
+### SET
+###   @1=NULL
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`tab1`
+### WHERE
+###   @1=NULL
+### SET
+###   @1='[1, {"k": "v"}]'
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`tab1`
+### SET
+###   @1=NULL
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
+BEGIN
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Table_map: `test`.`tab1` mapped to number #
+# at #
+# # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`tab1`
+### WHERE
+###   @1='[1, {"k": "v"}]'
+### DELETE FROM `test`.`tab1`
+### WHERE
+###   @1=NULL
+# at #
+# # server id #  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+SET TIMESTAMP=#/*!*/;
+DROP TABLE `tab1` /* generated by server */
+/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
+DELIMITER ;
+# End of log file
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+include/rpl_end.inc

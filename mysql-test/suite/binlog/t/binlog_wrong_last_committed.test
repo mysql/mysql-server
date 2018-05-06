@@ -29,7 +29,7 @@
 --source include/have_debug_sync.inc
 
 # Reset sequence_number and last_committed, so we can check the exact number
-# Make sure it starts from master-bin.000001
+# Make sure it starts from binlog.000001
 RESET MASTER;
 
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT) ENGINE = InnoDB;
@@ -74,7 +74,7 @@ SET DEBUG_SYNC = "now SIGNAL insert2_finish";
 # INSERT(2,1): sequence_number = 3
 # UPDATE: sequence_number = 4, last_committed = 3
 
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 --let $logical_timestamps= 3 4
 --source include/assert_logical_timestamps.inc
 

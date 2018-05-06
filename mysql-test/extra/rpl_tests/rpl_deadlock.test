@@ -48,26 +48,28 @@ save_master_pos;
 connection slave;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
-# Save variable 'Slave_retried_transactions' before deadlock
-let $slave_retried_transactions= query_get_value(SHOW GLOBAL STATUS LIKE 'Slave_retried_transactions', Value, 1);
+# Save value of 'count_transactions_retries' before deadlock
+let $count_transactions_retries= query_get_value(
+"select count_transactions_retries from 
+performance_schema.replication_applier_status",count_transactions_retries, 1);
 --connection slave2
 --source include/start_slave.inc
 --connection slave
-# Wait until SQL thread blocked: variable 'Slave_retried_transactions' will incremented
-let $status_var= Slave_retried_transactions;
-let $status_var_value= $slave_retried_transactions;
-let $status_type= GLOBAL;
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+# Wait until SQL thread blocked: 'count_transactions_retries' will be incremented
+let $status_col= count_transactions_retries;
+let $status_col_value= $count_transactions_retries;
+let $table=replication_applier_status;
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 SELECT COUNT(*) FROM t2;
 COMMIT;
 
 --echo
---echo # Test that the performance schema coulumn shows > 0 values.
+--echo # Test that the performance schema column shows > 0 values.
 --echo
 
 --let $assert_text= current number of retries should be more than the value saved before deadlock.
---let $assert_cond= [SELECT COUNT_TRANSACTIONS_RETRIES FROM performance_schema.replication_applier_status, COUNT_TRANSACTIONS_RETRIES, 1] > "$slave_retried_transactions"
+--let $assert_cond= [SELECT COUNT_TRANSACTIONS_RETRIES FROM performance_schema.replication_applier_status, COUNT_TRANSACTIONS_RETRIES, 1] > "$count_transactions_retries"
 --source include/assert.inc
 
 source include/check_slave_is_running.inc;

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 
 # set up circular replication
@@ -94,7 +89,7 @@ show variables like 'ndb_log_apply_status';
 --echo 'Slave' has only Master's serverid entry
 select server_id, log_name from mysql.ndb_apply_status order by server_id;
 --echo 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 
 set global ndb_log_apply_status=On;
 show variables like 'ndb_log_apply_status';
@@ -113,7 +108,7 @@ select server_id, log_name from mysql.ndb_apply_status order by server_id;
 --source include/wait_for_ndb_committed_to_binlog.inc
 --enable_result_log
 --echo 'Slave' has following ndb_binlog_index entries
-select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position,orig_epoch;
 
 --connection master
 --echo 'Master' still has only Slave's serverid entry

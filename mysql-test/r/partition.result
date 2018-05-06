@@ -67,7 +67,7 @@ AND A.b = '06'
 AND A.c = 343;
 DROP TABLE t1;
 #
-# Bug#59503: explain extended crash in get_mm_leaf
+# Bug#59503: explain crash in get_mm_leaf
 #
 CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
 PARTITION BY KEY (a) PARTITIONS 1;
@@ -75,11 +75,10 @@ INSERT INTO t1 VALUES ('a'),('b'),('c');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+EXPLAIN SELECT 1 FROM t1 WHERE a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
 DROP TABLE t1;
 #
@@ -96,7 +95,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 2 */
 SELECT * FROM t1;
@@ -132,12 +131,13 @@ UPDATE t1, t2 SET t1.year = '1955' WHERE t1.name = 'FooBar';
 DROP TABLE t1, t2;
 #
 # Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
-#
+# After WL#8971, this test case is rewritten to use InnoDB in order to
+# keep some test coverage for multi update and partitioning.
 CREATE TABLE t1 (
 `id` int NOT NULL,
 `user_num` int DEFAULT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1;
+) ENGINE=InnoDB CHARSET=latin1;
 INSERT INTO t1 VALUES (1,8601);
 INSERT INTO t1 VALUES (2,8601);
 INSERT INTO t1 VALUES (3,8601);
@@ -147,14 +147,10 @@ CREATE TABLE t2 (
 `user_num` int DEFAULT NULL,
 `name` varchar(64) NOT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=MyISAM CHARSET=latin1
+) ENGINE=InnoDB CHARSET=latin1
 PARTITION BY HASH (id)
 PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t2 VALUES (1,8601,'John');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t2 VALUES (2,8601,'JS');
 INSERT INTO t2 VALUES (3,8601,'John S');
 UPDATE t1, t2 SET t2.name = 'John Smith' WHERE t1.user_num = t2.user_num;
@@ -179,12 +175,12 @@ PARTITION p11 VALUES LESS THAN(200),
 PARTITION p21 VALUES LESS THAN MAXVALUE);
 SELECT PARTITION_EXPRESSION, SUBPARTITION_EXPRESSION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
 PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION
-ID	`ID`,`aaaa,aaaaa`
-ID	`ID`,`aaaa,aaaaa`
-ID	`ID`,`aaaa,aaaaa`
-ID	`ID`,`aaaa,aaaaa`
-ID	`ID`,`aaaa,aaaaa`
-ID	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
+`ID`	`ID`,`aaaa,aaaaa`
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -193,8 +189,8 @@ t1	CREATE TABLE `t1` (
   `ddddddddd` int(11) NOT NULL DEFAULT '0',
   `new_field0` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`ID`,`aaaa,aaaaa`,`ddddddddd`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`ID`)
 SUBPARTITION BY LINEAR KEY (ID,`aaaa,aaaaa`)
 SUBPARTITIONS 2
 (PARTITION p01 VALUES LESS THAN (100) ENGINE = InnoDB,
@@ -244,17 +240,15 @@ a	b
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` between '2007-01-01' and '2007-08-01')
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2007-07-30 17:35:48' AS `a`,'p1' AS `b` from `test`.`t1` where 1
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
 PARTITION p3 VALUES LESS THAN (1247688000),
@@ -270,17 +264,15 @@ a	b
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` between '2007-01-01' and '2007-08-01')
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2007-07-30 17:35:48' AS `a`,'p1' AS `b` from `test`.`t1` where 1
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -288,8 +280,8 @@ t1	CREATE TABLE `t1` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `b` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (unix_timestamp(`a`))
 (PARTITION p1 VALUES LESS THAN (1199134800) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (1247688000) ENGINE = InnoDB,
  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -300,6 +292,8 @@ partition by list (a)
 subpartition by key (b)
 (partition p0 values in (1),
 partition p1 values in (2));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 create table t1 (a int, b int, key(a))
 partition by list (a)
@@ -310,14 +304,14 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE			YES
 drop table t1;
 create table t1 (a int)
 partition by hash (a);
@@ -352,13 +346,12 @@ CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine
 PARTITION BY HASH (a);
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
 PARTITION p1 ENGINE=NonExistentEngine);
 ERROR 42000: Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1 ENGINE=NonExistentEngine;
@@ -367,11 +360,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine;
 Warnings:
@@ -385,32 +376,27 @@ Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 Warning	1266	Using storage engine InnoDB for table 't1'
 DROP TABLE t1;
-CREATE TABLE t1 (a INT)
-ENGINE=Memory;
+CREATE TABLE t1 (a INT);
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 ALTER TABLE t1
 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE=Memory,
+(PARTITION p0 ENGINE=InnoDB,
 PARTITION p1 ENGINE=NonExistentEngine);
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
 CREATE TABLE t1 (a INT NOT NULL, KEY(a))
@@ -552,25 +538,12 @@ COUNT(*)
 SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 SUM(c)
 400
-ALTER TABLE t1 ENGINE = Memory;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-COUNT(*)
-24
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
-SUM(c)
-400
 ALTER TABLE t1 ADD INDEX b USING HASH (b);
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 SELECT COUNT(*) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 COUNT(*)
 24
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT SUM(c) FROM t1 WHERE b NOT IN ( 1,2,6,7,9,10,11 );
 SUM(c)
 400
@@ -588,11 +561,10 @@ INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (((`test`.`t1`.`c1` > 10) and (`test`.`t1`.`c1` < 13)) or ((`test`.`t1`.`c1` > 17) and (`test`.`t1`.`c1` < 20)))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -610,11 +582,10 @@ Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where (((`test`.`t2`.`c1` > 10) and (`test`.`t2`.`c1` < 13)) or ((`test`.`t2`.`c1` > 17) and (`test`.`t2`.`c1` < 20)))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -649,11 +620,10 @@ INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 5))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
@@ -669,11 +639,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 2) and (`test`.`t2`.`c1` < 5))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
@@ -689,11 +658,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 12) and (`test`.`t1`.`c1` < 15))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
@@ -709,11 +677,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 12) and (`test`.`t2`.`c1` < 15))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
@@ -814,12 +781,6 @@ a
 18446744073709551614
 drop table t1;
 create table t1 (a int)
-partition by key(a)
-(partition p0 engine = MEMORY);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-drop table t1;
-create table t1 (a int)
 partition by range (a)
 subpartition by key (a)
 (partition p0 values less than (1));
@@ -828,8 +789,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (a)
 (PARTITION p0 VALUES LESS THAN (1) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (2) ENGINE = InnoDB) */
@@ -838,8 +799,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (a)
 (PARTITION p0 VALUES LESS THAN (1) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (3) ENGINE = InnoDB) */
@@ -860,7 +821,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a) */
 drop table t1;
 CREATE TABLE t1 (
@@ -897,11 +858,9 @@ c int not null,
 primary key(a,b))
 partition by key (a)
 partitions 3
-(partition x1 engine myisam,
-partition x2 engine myisam,
-partition x3 engine myisam);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(partition x1 engine innodb,
+partition x2 engine innodb,
+partition x3 engine innodb);
 drop table t1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
@@ -924,7 +883,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
  PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
@@ -936,7 +895,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
  PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
@@ -960,8 +919,8 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION x1 VALUES IN (1,2,9,4) TABLESPACE = `ts1` ENGINE = InnoDB,
  PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
@@ -983,8 +942,8 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (b*a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`b` * `a`))
 (PARTITION x1 VALUES IN (1,2,9,4) TABLESPACE = `ts1` ENGINE = InnoDB,
  PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
@@ -1005,8 +964,8 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (b*a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`b` * `a`))
 (PARTITION x1 VALUES IN (1) TABLESPACE = `ts1` ENGINE = InnoDB,
  PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
  PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
@@ -1088,13 +1047,9 @@ select * from t1 where a = 4;
 a	b
 4	4
 drop table t1;
-CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2)) ENGINE=MEMORY
+CREATE TABLE t1 (c1 INT, c2 INT, PRIMARY KEY USING BTREE (c1,c2))
 PARTITION BY KEY(c2,c1) PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE c1 = 4;
 c1	c2
 4	4
@@ -1102,18 +1057,14 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY LIST (a)
 PARTITIONS 1
-(PARTITION x1 VALUES IN (1) ENGINE=MEMORY);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION x1 VALUES IN (1) ENGINE=InnoDB);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION x1 VALUES IN (1) ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION x1 VALUES IN (1) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (a int, unique(a))
 PARTITION BY LIST (a)
@@ -1137,8 +1088,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`a`)
 PARTITIONS 5 */
 drop table t1;
 CREATE TABLE t1 (a int)
@@ -1166,8 +1117,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
@@ -1191,8 +1142,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION x1 VALUES LESS THAN (6) ENGINE = InnoDB,
  PARTITION x3 VALUES LESS THAN (8) ENGINE = InnoDB,
  PARTITION x4 VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -1231,151 +1182,92 @@ select * from t1 where f1 = 10;
 f1	f2
 10	1
 drop table t1;
-set session default_storage_engine= 'memory';
-create table t1 (f_int1 int(11) default null) engine = memory
+set @old_default_engine= @@session.default_storage_engine;
+set session default_storage_engine= 'innodb';
+create table t1 (f_int1 int(11) default null) engine = innodb
 partition by range (f_int1) subpartition by hash (f_int1)
 (partition part1 values less than (1000)
-(subpartition subpart11 engine = memory));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(subpartition subpart11 engine = innodb));
 drop table t1;
-set session default_storage_engine='myisam';
+set session default_storage_engine= @old_default_engine;
 create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
 partition by hash(f_int1) partitions 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,1),(2,2);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 replace into t1 values (1,1),(2,2);
 drop table t1;
 create table t1 (s1 int, unique (s1)) partition by list (s1) (partition x1 VALUES in (10), partition x2 values in (20));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add partition (partition x3 values in (30));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (a int)
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(partition p0 engine=innodb, partition p1 engine=innodb);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-alter table t1 engine=myisam;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
+alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-alter table t1 engine=heap;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int)
-engine=myisam
+engine=innodb
 partition by key(a)
 partitions 2
-(partition p0 engine=myisam, partition p1 engine=myisam);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(partition p0 engine=innodb, partition p1 engine=innodb);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 add column b int remove partitioning;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
-engine=myisam
+engine=innodb
 partition by key(a)
-(partition p0 engine=myisam, partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(partition p0 engine=innodb, partition p1);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-alter table t1
-engine=heap
-partition by key(a)
-(partition p0, partition p1 engine=heap);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1 engine=myisam, add column c int remove partitioning;
 show create table t1;
 Table	Create Table
@@ -1383,79 +1275,40 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1
-engine=heap
+engine=innodb
 partition by key (a)
 (partition p0, partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1
 partition by key (a)
 (partition p0, partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0, partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MEMORY,
- PARTITION p1 ENGINE = MEMORY) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 alter table t1
 partition by key(a)
-(partition p0, partition p1 engine=heap);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(partition p0, partition p1 engine=innodb);
 alter table t1
 partition by key(a)
-(partition p0 engine=heap, partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-alter table t1
-engine=heap
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-alter table t1
-partition by key (a)
-(partition p0 engine=heap, partition p1 engine=myisam);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+(partition p0 engine=innodb, partition p1);
 drop table t1;
 CREATE TABLE t1 (
 f_int1 INTEGER, f_int2 INTEGER,
@@ -1468,12 +1321,8 @@ SUBPARTITIONS 2
 PARTITION partb VALUES LESS THAN (5),
 PARTITION parte VALUES LESS THAN (10),
 PARTITION partf VALUES LESS THAN (2147483647));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SET f_int1 = NULL , f_int2 = -20, f_char1 = CAST(-20 AS CHAR),
 f_char2 = CAST(-20 AS CHAR), f_charbig = '#NULL#';
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE f_int1 IS NULL;
 f_int1	f_int2	f_char1	f_char2	f_charbig
 NULL	-20	-20	-20	#NULL#
@@ -1489,11 +1338,7 @@ SUBPARTITION BY KEY(f_int1)
 (PARTITION part1 VALUES IN (-1) (SUBPARTITION sp1, SUBPARTITION sp2),
 PARTITION part2 VALUES IN (0) (SUBPARTITION sp3, SUBPARTITION sp5),
 PARTITION part3 VALUES IN (1) (SUBPARTITION sp4, SUBPARTITION sp6));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SET f_int1 = 2, f_int2 = 2, f_char1 = '2', f_char2 = '2', f_charbig = '===2===';
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SET f_int1 = 2, f_int2 = 2, f_char1 = '2', f_char2 = '2', f_charbig = '===2===';
 SELECT * FROM t1 WHERE f_int1  IS NULL;
 f_int1	f_int2	f_char1	f_char2	f_charbig
@@ -1506,8 +1351,6 @@ partition by list (s2)
 partition p2 values in (1));
 end//
 call p()//
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop procedure p//
 drop table t1;
 create procedure p ()
@@ -1523,8 +1366,6 @@ partition x2 values less than (5)
 subpartition x22));
 end//
 call p()//
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop procedure p//
 drop table t1//
 create table t1 (a int,b int,c int,key(a,b))
@@ -1533,16 +1374,12 @@ partitions 3
 (partition x1 values less than (0) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than maxvalue tablespace ts3);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (NULL, 1, 1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x1	0	1
 x2	10	1
 x3	MAXVALUE	1
@@ -1553,17 +1390,21 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-(PARTITION x1 VALUES LESS THAN (0) TABLESPACE = `ts1` ENGINE = MyISAM,
- PARTITION x2 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = MyISAM,
- PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION x1 VALUES LESS THAN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = InnoDB) */
 drop table t1;
 DROP TABLESPACE ts1 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts2 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts3 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2
@@ -1581,8 +1422,6 @@ partition by list(a)
 partitions 2
 (partition x123 values in (11, 12),
 partition x234 values in (5, 1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (NULL,1,1);
 ERROR HY000: Table has no partition for value NULL
 drop table t1;
@@ -1591,92 +1430,68 @@ partition by list(a)
 partitions 2
 (partition x123 values in (11, 12),
 partition x234 values in (NULL, 1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (11,1,6);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (NULL,1,1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 rebuild partition;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (5));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (0);
 ERROR HY000: Table has no partition for value 0
 drop table t1;
 create table t1 (a int)
 partition by range (a) subpartition by hash (a)
 (partition p0 values less than (100));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB) */
 alter table t1 add partition (partition p1 values less than (200)
 (subpartition subpart21));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (100)
- (SUBPARTITION p0sp0 ENGINE = MyISAM),
+ (SUBPARTITION p0sp0 ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (200)
- (SUBPARTITION subpart21 ENGINE = MyISAM)) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ (SUBPARTITION subpart21 ENGINE = InnoDB)) */
 drop table t1;
 create table t1 (a int)
 partition by key (a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add partition (partition p1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION p0 ENGINE = MyISAM,
- PARTITION p1 ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0 ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int, b int)
 partition by range (a)
@@ -1703,8 +1518,6 @@ ERROR HY000: It is only possible to mix RANGE/LIST partitioning with HASH/KEY pa
 create table t1 (a int)
 partition by range (a)
 (partition p0 values less than (1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add partition (partition p1 values in (2));
 ERROR HY000: Only LIST PARTITIONING can use VALUES IN in partition definition
 alter table t1 add partition (partition p1);
@@ -1713,8 +1526,6 @@ drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add partition (partition p1 values less than (2));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 alter table t1 add partition (partition p1);
@@ -1723,8 +1534,6 @@ drop table t1;
 create table t1 (a int)
 partition by hash (a)
 (partition p0);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add partition (partition p1 values less than (2));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 alter table t1 add partition (partition p1 values in (2));
@@ -1733,17 +1542,11 @@ drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 rebuild partition;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop table t1;
 create table t2 (s1 int not null auto_increment, primary key (s1)) partition by list (s1) (partition p1 values in (1),partition p2 values in (2),partition p3 values in (3),partition p4 values in (4));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (null),(null),(null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t2;
 s1
 1
@@ -1764,8 +1567,6 @@ create temporary table t1 (a int) partition by hash(a);
 ERROR HY000: Cannot create temporary table with partitions
 create table t1 (a int, b int) partition by list (a)
 (partition p1 values in (1), partition p2 values in (2));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add primary key (b);
 ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
 show create table t1;
@@ -1773,40 +1574,27 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p1 VALUES IN (1) ENGINE = MyISAM,
- PARTITION p2 VALUES IN (2) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION p1 VALUES IN (1) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int unsigned not null auto_increment primary key)
 partition by key(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 rename t2, add c char(10), comment "no comment";
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `c` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='no comment'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='no comment'
 /*!50100 PARTITION BY KEY (a) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t2;
 create table t1 (f1 int) partition by hash (f1) as select 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 prepare stmt1 from 'create table t1 (s1 int) partition by hash (s1)';
 execute stmt1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 execute stmt1;
 ERROR 42S01: Table 't1' already exists
 drop table t1;
@@ -1829,48 +1617,31 @@ drop procedure test.p1;
 CREATE TABLE t1 (a int not null)
 partition by key(a)
 (partition p0 COMMENT='first partition');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (`a b` int not null)
 partition by key(`a b`);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (`a b` int not null)
 partition by hash(`a b`);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (f1 integer) partition by range(f1)
 (partition p1 values less than (0), partition p2 values less than (10));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 set f1 = null;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where f1 is null;
 f1
 NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 integer) partition by list(f1)
 (partition p1 values in (1), partition p2 values in (null));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 set f1 = null;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 set f1 = 1;
 select * from t1 where f1 is null or f1 = 1;
 f1
@@ -1879,11 +1650,7 @@ NULL
 drop table t1;
 create table t1 (f1 smallint)
 partition by list (f1) (partition p0 values in (null));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where f1 is null;
 f1
 NULL
@@ -1902,11 +1669,7 @@ f1
 drop table t1;
 create table t1 (f1 smallint)
 partition by range (f1) (partition p0 values less than (0));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where f1 is null;
 f1
 NULL
@@ -1919,11 +1682,7 @@ partition p3 values in (2),
 partition p4 values in (3),
 partition p5 values in (4)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1),(2),(3),(4),(null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where f1 < 3;
 f1
 1
@@ -1931,23 +1690,19 @@ f1
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1,p3	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
 select * from t1 where f1 is null;
 f1
 NULL
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 int) partition by list(f1 div 2)
 (
@@ -1957,34 +1712,26 @@ partition p3 values in (2),
 partition p4 values in (3),
 partition p5 values in (4)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (2),(4),(6),(8),(null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where f1 < 3;
 f1
 2
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
 select * from t1 where f1 is null;
 f1
 NULL
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `f1` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (a int) partition by LIST(a) (
 partition pn values in (NULL),
@@ -1992,11 +1739,7 @@ partition p0 values in (0),
 partition p1 values in (1),
 partition p2 values in (2)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (NULL),(0),(1),(2);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 where a is null or a < 2;
 a
 NULL
@@ -2005,38 +1748,33 @@ NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-explain partitions select * from t1 where a is null or a < 2;
+explain select * from t1 where a is null or a < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pn,p0,p1	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 2))
 select * from t1 where a is null or a < 0 or a > 1;
 a
 NULL
 2
-explain partitions select * from t1 where a is null or a < 0 or a > 1;
+explain select * from t1 where a is null or a < 0 or a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	87.50	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 0) or (`test`.`t1`.`a` > 1))
 drop table t1;
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
-ENGINE=MyISAM DEFAULT CHARSET=latin1
+DEFAULT CHARSET=latin1
 PARTITION BY RANGE(id)
-(PARTITION p0  VALUES LESS THAN (10) ENGINE = MyISAM,
-PARTITION p1 VALUES LESS THAN (20) ENGINE = MyISAM,
-PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION p0  VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	0	0	0	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 DROP TABLE t1;
 create table t1 (a bigint unsigned)
 partition by list (a)
@@ -2045,22 +1783,16 @@ ERROR HY000: Partition constant is out of partition function domain
 create table t1 (a bigint unsigned)
 partition by range (a)
 (partition p0 values less than (10));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
 ERROR HY000: Table has no partition for value 18446744073709551615
 drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition `s1 s2` values in (0));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (a int)
 partition by list (a)
 (partition `7` values in (0));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (a int)
 partition by list (a)
@@ -2074,17 +1806,13 @@ ERROR HY000: Incorrect partition name
 CREATE TABLE t1 (a int)
 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (NULL));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (NULL) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION p0 VALUES IN (NULL) ENGINE = InnoDB) */
 DROP TABLE t1;
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE(a)
@@ -2095,53 +1823,25 @@ partition by list (s1)
 (partition p1 values in (1),
 partition p2 values in (2),
 partition p3 values in (3));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values (null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null);
 insert into t1 values (null);
+insert into t1 values (null);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select auto_increment from information_schema.tables where table_name='t1';
-auto_increment
+AUTO_INCREMENT
 4
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1;
 s1
 1
 2
 3
 drop table t1;
-create table t1 (a int) engine=memory
-partition by key(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-insert into t1 values (1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-create index inx1 on t1(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-drop table t1;
 create table t1 (a int)
-PARTITION BY KEY (a)
-(PARTITION p0);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-set session sql_mode='no_table_options';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-)
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-set session sql_mode='';
+partition by key(a);
+insert into t1 values (1);
+create index inx1 on t1(a);
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -2150,86 +1850,68 @@ ERROR HY000: Engine cannot be used in partitioned tables
 create table t1 (a varchar(1))
 partition by key (a)
 as select 'a';
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (a int) PARTITION BY KEY(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 values (1), (2);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	2	7	14	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 DELETE from t1 where a = 1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	14	14	0	0	7	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
-test.t1	optimize	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	7	7	0	1024	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	1	16384	16384	0	0	0	NULL	NULL	NULL	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 DROP TABLE t1;
 CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 DISABLE KEYS;
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Note	1031	Table storage engine for 't1' doesn't have this option
 ALTER TABLE t1 ENABLE KEYS;
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Note	1031	Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 create table t1 (a int)
-engine=MEMORY
 partition by key (a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-test.t1	repair	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
-test.t1	optimize	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-test.t1	check	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+test.t1	analyze	status	OK
 drop table t1;
 drop procedure if exists mysqltest_1;
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (0));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (0);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create procedure mysqltest_1 ()
 begin
 begin
@@ -2240,17 +1922,11 @@ prepare stmt1 from 'alter table t1';
 execute stmt1;
 end//
 call mysqltest_1()//
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 drop procedure mysqltest_1;
 create table t1 (a int, index(a))
 partition by hash(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1),(2);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select * from t1 ORDER BY a DESC;
 a
 2
@@ -2259,18 +1935,14 @@ drop table t1;
 create table t1 (a bigint unsigned not null, primary key(a))
 partition by key (a)
 partitions 10;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 10 */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
 (18446744073709551613), (18446744073709551612);
 select * from t1;
@@ -2293,22 +1965,19 @@ CREATE TABLE t1 (
 num int(11) NOT NULL, cs int(11) NOT NULL)
 PARTITION BY RANGE (num) SUBPARTITION BY HASH (
 cs) SUBPARTITIONS 2 (PARTITION p_X VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 
 REORGANIZE PARTITION p_X INTO ( 
 PARTITION p_100 VALUES LESS THAN (100), 
 PARTITION p_X VALUES LESS THAN MAXVALUE 
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
+set session sql_mode='';
 CREATE TABLE t2 (
 taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (id,taken),
 KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t2 VALUES 
 ('2006-09-27 21:50:01',16421),
 ('2006-10-02 21:50:01',16421),
@@ -2323,7 +1992,7 @@ INSERT INTO t2 VALUES
 CREATE TABLE t1 (
 id int(8) NOT NULL,
 PRIMARY KEY (id)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES 
 (16421),
 (19092),
@@ -2333,17 +2002,13 @@ taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (id,taken),
 KEY taken (taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 
+) DEFAULT CHARSET=latin1 
 PARTITION BY RANGE (to_days(taken)) 
 (
 PARTITION p01 VALUES LESS THAN (732920) , 
 PARTITION p02 VALUES LESS THAN (732950) , 
 PARTITION p03 VALUES LESS THAN MAXVALUE ) ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t4 select * from t2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set @f_date='2006-09-28';
 set @t_date='2006-10-02';
 SELECT t1.id AS MyISAM_part
@@ -2363,18 +2028,14 @@ taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
 status varchar(20) NOT NULL DEFAULT '',
 PRIMARY KEY (id,taken)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) DEFAULT CHARSET=latin1
 PARTITION BY RANGE (to_days(taken))
 (
 PARTITION p15 VALUES LESS THAN (732950) ,
 PARTITION p16 VALUES LESS THAN MAXVALUE ) ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES
 ('2006-09-27 21:50:01',22589,'Open'),
 ('2006-09-29 21:50:01',22589,'Verified');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE IF EXISTS t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
@@ -2384,7 +2045,7 @@ severity tinyint(4) NOT NULL DEFAULT '0',
 priority tinyint(4) NOT NULL DEFAULT '0',
 status varchar(20) DEFAULT NULL,
 alien tinyint(4) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t2 VALUES
 (22589,1,1,'Need Feedback',0);
 SELECT t2.id FROM t2 WHERE t2.id IN (SELECT id FROM t1 WHERE status = 'Verified');
@@ -2393,73 +2054,47 @@ id
 drop table t1, t2;
 create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
 partition by key (c1) partitions 10 ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
 select * from t1;
 c1	c2
 aaa	2
 drop table t1;
 create table t1 (s1 bigint) partition by list (s1) (partition p1 values in (-9223372036854775808));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
-create table t1(a int auto_increment, b int, primary key (b, a)) 
+create table t1(a int auto_increment, b int, primary key (a, b)) 
 partition by hash(b) partitions 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null, 1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	9	9	0	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	1	32768	32768	0	0	0	2	NULL	NULL	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 create table t1(a int auto_increment primary key)
 partition by key(a) partitions 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null), (null), (null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	3	7	21	0	0	0	4	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1	InnoDB	10	Dynamic	3	10922	32768	0	0	0	4	NULL	NULL	NULL	utf8mb4_0900_ai_ci	NULL	partitioned	
 drop table t1;
 CREATE TABLE t1(a INT NOT NULL, b TINYBLOB, KEY(a))
 PARTITION BY RANGE(a) ( PARTITION p0 VALUES LESS THAN (32));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, REPEAT('a', 10));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SELECT a + 1, b FROM t1;
 INSERT INTO t1 SELECT a + 2, b FROM t1;
 INSERT INTO t1 SELECT a + 4, b FROM t1;
 INSERT INTO t1 SELECT a + 8, b FROM t1;
 ALTER TABLE t1 ADD PARTITION (PARTITION p1 VALUES LESS THAN (64));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 DROP PARTITION p1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 create table t (s1 int) partition by key (s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create trigger t_ad after delete on t for each row insert into t values (old.s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t values (1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t;
 create table t2 (b int);
 create table t1 (b int)
@@ -2473,29 +2108,20 @@ PARTITION BY RANGE (b) (
 PARTITION p1 VALUES LESS THAN (10),
 PARTITION p2 VALUES LESS THAN (20)
 ) select * from t2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (b)
-(PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN (20) ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`b`)
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB) */
 drop table t1, t2;
 create table t1
 (s1 timestamp on update current_timestamp, s2 int)
 partition by key(s1) partitions 3;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (null,null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (
 c0 int,
@@ -2504,8 +2130,6 @@ c2 set('sweet'),
 key (c2,c1,c0), 
 key(c0)
 ) partition by hash (c0) partitions 5;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert ignore into t1 set c0 = -6502262, c1 = 3992917, c2 = 35019;
 insert ignore into t1 set c0 = 241221, c1 = -6862346, c2 = 56644;
 select c1 from t1 group by (select c0 from t1 limit 1);
@@ -2517,8 +2141,6 @@ PARTITION BY RANGE (a) (
 PARTITION p1 VALUES LESS THAN (10),
 PARTITION p2 VALUES LESS THAN (20)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
@@ -2526,19 +2148,16 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE t1 ANALYZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 CHECK PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-test.t1	check	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 REPAIR PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-test.t1	repair	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 OPTIMIZE PARTITION p1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
 test.t1	optimize	status	OK
-test.t1	optimize	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE TABLE t1 (s1 BIGINT UNSIGNED)
 PARTITION BY RANGE (s1) (
@@ -2546,11 +2165,7 @@ PARTITION p0 VALUES LESS THAN (0),
 PARTITION p1 VALUES LESS THAN (1), 
 PARTITION p2 VALUES LESS THAN (18446744073709551615)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0), (18446744073709551614);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (18446744073709551615);
 ERROR HY000: Table has no partition for value 18446744073709551615
 DROP TABLE t1;
@@ -2561,12 +2176,9 @@ PARTITION p1 VALUES LESS THAN (1),
 PARTITION p2 VALUES LESS THAN (18446744073709551614),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (-1), (0), (18446744073709551613), 
 (18446744073709551614), (18446744073709551615);
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Warning	1264	Out of range value for column 's1' at row 1
 SELECT * FROM t1;
 s1
@@ -2593,16 +2205,12 @@ PARTITION p1 VALUES LESS THAN (1),
 PARTITION p2 VALUES LESS THAN (18446744073709551615),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE TABLE t1
 (int_column INT, char_column CHAR(5),
 PRIMARY KEY(char_column,int_column))
 PARTITION BY KEY(char_column,int_column)
 PARTITIONS 101;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (int_column, char_column) VALUES
 (      39868 ,'zZZRW'),       
 (     545592 ,'zZzSD'),       
@@ -2617,8 +2225,6 @@ INSERT INTO t1 (int_column, char_column) VALUES
 (     453491 ,'zzZWV'),       
 (     756594 ,'ZZZXU'),       
 (     718061 ,'ZZzZH');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY char_column DESC;
 int_column	char_column
 718061	ZZzZH
@@ -2642,25 +2248,19 @@ SUBPARTITION BY hash(id) subpartitions 2
 (PARTITION pa1 values less than (10),
 PARTITION pa2 values less than (20),
 PARTITION pa11 values less than MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
   `user` char(25) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=16 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-SUBPARTITION BY HASH (id)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+SUBPARTITION BY HASH (`id`)
 SUBPARTITIONS 2
-(PARTITION pa1 VALUES LESS THAN (10) ENGINE = MyISAM,
- PARTITION pa2 VALUES LESS THAN (20) ENGINE = MyISAM,
- PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+(PARTITION pa1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION pa2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE  t1 (
 `ID` bigint(20) NOT NULL AUTO_INCREMENT,
@@ -2672,16 +2272,12 @@ PARTITION BY RANGE (number) (
 PARTITION p0 VALUES LESS THAN (6),
 PARTITION p1 VALUES LESS THAN (11)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create table t2 (
 `ID` bigint(20),
 `createdDate` TIMESTAMP,
 `number` int
 );
 INSERT INTO t1 SET number=1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 select * from t1;
 SELECT SLEEP(1);
 SLEEP(1)
@@ -2700,31 +2296,20 @@ PARTITION BY LIST(1 DIV c1) (
 PARTITION p0 VALUES IN (NULL),
 PARTITION p1 VALUES IN (1)
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (0);
 ERROR 22012: Division by 0
 SELECT * FROM t1;
 c1
 TRUNCATE t1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL), (0), (1), (2);
 ERROR 22012: Division by 0
 SELECT * FROM t1;
 c1
-NULL
 DROP TABLE t1;
 SET SQL_MODE= @orig_sql_mode;
 create table t1 (s1 int) partition by hash(s1) partitions 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create index i on t1 (s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1 order by s1 desc;
@@ -2742,14 +2327,8 @@ drop table t1;
 create table t1 (s1 int) partition by range(s1) 
 (partition pa1 values less than (10),
 partition pa2 values less than MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create index i on t1 (s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1 order by s1 desc;
@@ -2767,14 +2346,8 @@ drop table t1;
 create table t1 (s1 int) partition by range(s1) 
 (partition pa1 values less than (10),
 partition pa2 values less than MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create index i on t1 (s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (20);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1 order by s1 desc;
@@ -2792,14 +2365,8 @@ drop table t1;
 create table t1 (s1 int) partition by range(s1) 
 (partition pa1 values less than (10),
 partition pa2 values less than MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create index i on t1 (s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1;
 insert into t1 select s1 from t1;
@@ -2818,28 +2385,19 @@ CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN (200),
 PARTITION p2 VALUES LESS THAN (300),
 PARTITION p3 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+EXPLAIN SELECT * FROM t1 WHERE a>=200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 200)
 DROP TABLE t1;
 CREATE TABLE t1 ( a INT, b INT, c INT, KEY bc(b, c) )
 PARTITION BY KEY (a, b) PARTITIONS 3
 ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES
 (17, 1, -8),
 (3,  1, -7),
@@ -2865,8 +2423,6 @@ INSERT INTO t1 VALUES
 (26, 1, 14),
 (14, 1, 15)
 ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
 b	c
 1	-8
@@ -2895,13 +2451,11 @@ b	c
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 EXPLAIN
 SELECT b, c FROM t1 WHERE b = 1 GROUP BY b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	ref	bc	bc	5	const	20	100.00	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2	ref	bc	bc	5	const	23	100.00	Using where; Using index
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` = 1) group by `test`.`t1`.`b`,`test`.`t1`.`c`
 DROP TABLE t1;
 #
@@ -2913,13 +2467,9 @@ DROP TABLE t1;
 SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
 CREATE TABLE t1(id INT,KEY(id))
 PARTITION BY HASH(id) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 #
@@ -2927,11 +2477,7 @@ SET SESSION SQL_MODE=DEFAULT;
 #
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (s1 INT PRIMARY KEY) PARTITION BY HASH(s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOCK TABLES t1 WRITE, t1 b READ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 ALTER TABLE t1 DROP PARTITION p1;
 ERROR HY000: DROP PARTITION can only be used on RANGE/LIST partitions
@@ -2939,11 +2485,7 @@ SELECT * FROM t1;
 s1
 DROP TABLE t1;
 CREATE TABLE t1 (s1 VARCHAR(5) PRIMARY KEY) PARTITION BY KEY(s1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOCK TABLES t1 WRITE, t1 b READ;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UNLOCK TABLES;
 ALTER TABLE t1 ADD COLUMN (s3 VARCHAR(5) UNIQUE);
 ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
@@ -2955,15 +2497,9 @@ DROP TABLE t1;
 #
 SET GLOBAL myisam_use_mmap=1;
 CREATE TABLE t1(a INT) PARTITION BY HASH(a) PARTITIONS 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES(0);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLE t1;
 TRUNCATE TABLE t1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES(0);
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
@@ -2976,11 +2512,7 @@ CREATE TABLE t1_part (
 partkey int,
 nokey int
 ) PARTITION BY LINEAR HASH(partkey) PARTITIONS 3;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1_part', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1_part VALUES (1, 1) , (10, 10);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1_part', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE VIEW v1 AS SELECT * FROM t1_part;
 
 # Should be (1,1),(10,10)
@@ -3028,24 +2560,14 @@ create table t1 (i int) partition by list (i)
 (partition p0 values in (1),
 partition p1 values in (2,3),
 partition p2 values in (4,5));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 lock tables t1 write, t1 as a read, t1 as b read;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add column j int;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 unlock tables;
 drop table t1;
 # End of 5.5 tests
 CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
 SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM vtmp;
 1
 DROP VIEW vtmp;
@@ -3061,11 +2583,7 @@ c CHAR(1),
 d INT,
 KEY (c,d)
 ) PARTITION BY KEY () PARTITIONS 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT 1 FROM t1 WHERE 1 IN
 (SELECT  group_concat(b)
 FROM t1
@@ -3082,22 +2600,16 @@ PARTITION BY RANGE (c1)
 (PARTITION a VALUES LESS THAN (10),
 PARTITION b VALUES LESS THAN (100),
 PARTITION c VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
-EXPLAIN EXTENDED SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
 EXPLAIN FORMAT=JSON SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 EXPLAIN
@@ -3105,7 +2617,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.68"
+      "query_cost": "2.66"
     },
     "table": {
       "table_name": "t1",
@@ -3122,15 +2634,15 @@ EXPLAIN
         "c1"
       ],
       "key_length": "5",
-      "rows_examined_per_scan": 11,
-      "rows_produced_per_join": 11,
+      "rows_examined_per_scan": 12,
+      "rows_produced_per_join": 12,
       "filtered": "100.00",
       "using_index": true,
       "cost_info": {
-        "read_cost": "3.48",
-        "eval_cost": "2.20",
-        "prefix_cost": "5.68",
-        "data_read_per_join": "88"
+        "read_cost": "1.46",
+        "eval_cost": "1.20",
+        "prefix_cost": "2.66",
+        "data_read_per_join": "96"
       },
       "used_columns": [
         "c1"
@@ -3148,7 +2660,6 @@ DROP TABLE t1;
 SET sql_mode= 'STRICT_TRANS_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (d TIME)
 PARTITION BY RANGE COLUMNS (d)
 (PARTITION p0 VALUES LESS THAN ('2000-01-01'),
@@ -3163,8 +2674,207 @@ SET sql_mode= DEFAULT;
 #
 CREATE TABLE t1 (a int PRIMARY KEY)
 PARTITION BY LINEAR KEY(a) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT 1 FROM t1 WHERE EXP(10000);
 ERROR 22003: DOUBLE value is out of range in 'exp(10000)'
 DROP TABLE t1;
+create table t1 (a int)
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart00, SUBPARTITION subpart01));
+# Checking if file exists before alter
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart10, SUBPARTITION subpart11),
+partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
+(SUBPARTITION subpart20, SUBPARTITION subpart21));
+# Checking if file exists after alter
+drop table t1;
+set innodb_strict_mode=off;
+Warnings:
+Warning	1618	<INDEX DIRECTORY> option ignored
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+@@sql_mode
+NO_DIR_IN_CREATE
+create table t1 (i int )
+partition by range (i)
+(
+partition p01 values less than (1000)
+data directory='/not/existing'
+  index directory='/not/existing'
+);
+Warnings:
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`i`)
+(PARTITION p01 VALUES LESS THAN (1000) ENGINE = InnoDB) */
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY 'MYSQLD_DATADIR/test');
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY 'MYSQLD_DATADIR/test');
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+DATA DIRECTORY = 'MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+DATA DIRECTORY = 'MYSQLD_DATADIR/test'
+));
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+INDEX DIRECTORY = 'MYSQLD_DATADIR/test',
+SUBPARTITION s0b
+INDEX DIRECTORY = 'MYSQLD_DATADIR/test'
+));
+ERROR HY000: Incorrect path value: 'MYSQLD_DATADIR/test'
+DROP TABLE IF EXISTS `example`;
+CREATE TABLE `example` (
+`ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`DESCRIPTION` varchar(30) NOT NULL,
+`LEVEL` smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (`ID_EXAMPLE`)
+)
+PARTITION BY HASH(ID_EXAMPLE)(
+PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p0Data',
+PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p1Data',
+PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p2Data',
+PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p3Data'
+);
+# Checking that InnoDB data files are in test db and data dir
+DROP TABLE example;
+#
+# Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION
+#
+SET @@SQL_MODE= 'ANSI_QUOTES';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1(col1 INT, col2 DATE)
+ENGINE=INNODB
+PARTITION BY RANGE(YEAR("col2"))
+SUBPARTITION BY HASH(TO_DAYS("col2"))(
+PARTITION p0 VALUES LESS THAN (1990)(
+SUBPARTITION s0,
+SUBPARTITION s1 tablespace=`ts1`
+      ),
+PARTITION p1 VALUES LESS THAN MAXVALUE(
+SUBPARTITION s2,
+SUBPARTITION s3 tablespace="ts1"
+        )
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "col1" int(11) DEFAULT NULL,
+  "col2" date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year("col2"))
+SUBPARTITION BY HASH (to_days("col2"))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION s1 TABLESPACE = "ts1" ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION s2 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION s3 TABLESPACE = "ts1" ENGINE = InnoDB)) */
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+PARTITION_EXPRESSION
+year(`col2`)
+year(`col2`)
+year(`col2`)
+year(`col2`)
+SET @@SQL_MODE= DEFAULT;
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`col2`))
+SUBPARTITION BY HASH (to_days(`col2`))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION s1 TABLESPACE = `ts1` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION s2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION s3 TABLESPACE = `ts1` ENGINE = InnoDB)) */
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+PARTITION_EXPRESSION
+year(`col2`)
+year(`col2`)
+year(`col2`)
+year(`col2`)
+SET @@SQL_QUOTE_SHOW_CREATE= 0;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  col1 int(11) DEFAULT NULL,
+  col2 date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(col2))
+SUBPARTITION BY HASH (to_days(col2))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION s1 TABLESPACE = ts1 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION s2 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION s3 TABLESPACE = ts1 ENGINE = InnoDB)) */
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+PARTITION_EXPRESSION
+year(`col2`)
+year(`col2`)
+year(`col2`)
+year(`col2`)
+SET @@SQL_QUOTE_SHOW_CREATE= 1;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+#
+# Test max partitioning and subpartition expression length
+#
+CREATE TABLE t1 (a INT) PARTITION BY HASH(ALMOST_TOO_LONG_EXPR);
+DROP TABLE t1;
+CREATE TABLE t1 (a INT) PARTITION BY HASH(TOO_LONG_EXPR);
+ERROR HY000: Partitioning expression is too long.
+# Check that the limit is on number of characters and not on bytes
+CREATE TABLE t1 (`å` INT) PARTITION BY HASH(ALMOST_TOO_LONG_EXPR);
+DROP TABLE t1;
+CREATE TABLE t1 (`å` INT) PARTITION BY HASH(TOO_LONG_EXPR);
+ERROR HY000: Partitioning expression is too long.
+# Repeat the same tests for subpartitioning expressions.
+CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1));
+DROP TABLE t1;
+CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1));
+ERROR HY000: Partitioning expression is too long.
+# Again the limit is on number of characters and not on bytes
+CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1));
+DROP TABLE t1;
+CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1));
+ERROR HY000: Partitioning expression is too long.
+#
+# Bug #27005020: UBSAN: GET_PART_ITER_FOR_INTERVAL_VIA_WALKING - SIGNED INTEGER OVERFLOW
+#
+CREATE TABLE t (a BIGINT NOT NULL)
+PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t VALUES(0);
+SELECT 1 FROM t WHERE a = 0x8000000000000000;
+1
+DROP TABLE t;

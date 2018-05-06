@@ -1,7 +1,4 @@
 
-# Can't test with embedded server that doesn't support events
--- source include/not_embedded.inc
-
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
 
@@ -68,8 +65,8 @@ let $wait_condition=select count(*) >= 4 from table_1;
 # ect = event creation time
 
 # Let event_2 reach the end of its execution interval
-let $wait_condition=select count(*) = 0 from information_schema.events
-where event_name='event_2' and status='enabled';
+let $wait_condition=select count(*) = 1 from information_schema.events
+where event_name='event_2' and status='DISABLED';
 --source include/wait_condition.inc
 # Minimum of passed time is 6 seconds.
 # See wait_condition for event_1 above and ENDS condition for event_2.
@@ -80,8 +77,8 @@ where event_name='event_3';
 --source include/wait_condition.inc
 
 # Let event_4 reach the end of its execution interval
-let $wait_condition=select count(*) = 0 from information_schema.events
-where event_name='event_4' and status='enabled';
+let $wait_condition=select count(*) = 1 from information_schema.events
+where event_name='event_4' and status='DISABLED';
 --source include/wait_condition.inc
 
 #

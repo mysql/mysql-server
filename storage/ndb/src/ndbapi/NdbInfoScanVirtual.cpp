@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -427,6 +434,141 @@ public:
   }
 };
 
+/*
+   This class implements a table returning all the NDB specific
+   error codes as rows in table error_messages.
+
+   There are three different type of error codes
+
+   1) MgmApi error codes
+   2) NDB error codes
+   3) NDB exit codes(from ndbmtd or ndbd)
+
+   the table is filled in the above order.
+*/
+
+#include "../storage/ndb/include/ndbapi/ndberror.h"
+#include "../storage/ndb/include/mgmapi/ndbd_exit_codes.h"
+#include "../storage/ndb/include/mgmapi/mgmapi_error.h"
+class ErrorCodesTable : public VirtualTable
+{
+  struct ErrorMessage {
+    int err_no;
+    const char * status_msg;
+    const char * class_msg;
+    const char * error_msg;
+  };
+
+  Vector<ErrorMessage> m_error_messages;
+public:
+  bool init()
+  {
+    // Build an index into the three error message arrays
+    // to allow further lookup of the error messages by "row_number"
+
+    // Iterate Mgmapi errors
+    for (int i = 0;i < ndb_mgm_noOfErrorMsgs; i++)
+    {
+      ErrorMessage err;
+      err.err_no = ndb_mgm_error_msgs[i].code;
+      err.status_msg = ndb_mgm_error_msgs[i].msg;
+      err.class_msg = ""; // No status for MgmApi
+      err.error_msg= ""; // No classification for MgmApi
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    // Iterate NDB errors
+    for (int i = 0;; i++)
+    {
+      int err_no;
+      const char * status_msg;
+      const char * class_msg;
+      const char * error_msg;
+      if (ndb_error_get_next(i, &err_no, &status_msg,
+                             &class_msg, &error_msg) == -1)
+      {
+        // No more NDB errors
+        break;
+      }
+
+      ErrorMessage err;
+      err.err_no = err_no;
+      err.status_msg = status_msg;
+      err.class_msg = class_msg;
+      err.error_msg= error_msg;
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    // Iterate NDB exit codes
+    for (int i = 0;; i++)
+    {
+      int exit_code;
+      const char * status_msg;
+      const char * class_msg;
+      const char * error_msg;
+      if (ndbd_exit_code_get_next(i, &exit_code, &status_msg,
+                                  &class_msg, &error_msg) == -1)
+      {
+        // No more ndbd exit codes
+        break;
+      }
+
+      ErrorMessage err;
+      err.err_no = exit_code;
+      err.status_msg = status_msg;
+      err.class_msg = class_msg;
+      err.error_msg= error_msg;
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    return true;
+  }
+
+  virtual bool read_row(VirtualTable::Row& w,
+                        Uint32 row_number) const
+  {
+    if (row_number >= m_error_messages.size())
+    {
+      // No more rows
+      return false;
+    }
+
+    const ErrorMessage& err = m_error_messages[row_number];
+
+    w.write_number(err.err_no); // error_code
+    w.write_string(err.error_msg); // error_description
+    w.write_string(err.status_msg); // error_status
+    w.write_string(err.class_msg); // error_classification
+
+    return true;
+  }
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("error_code", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("error_description", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("error_status", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("error_classification", 3,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
+
+};
 
 #include "mgmapi/mgmapi_config_parameters.h"
 #include "../mgmsrv/ConfigInfo.hpp"
@@ -465,9 +607,118 @@ public:
       return false;
     }
 
-    const ConfigInfo::ParamInfo* param = m_config_params[row_number];
-    w.write_number(param->_paramId);
-    w.write_string(param->_fname);
+    char tmp_buf[256];
+    const ConfigInfo::ParamInfo* const param = m_config_params[row_number];
+    const char* const param_name = param->_fname;
+
+    w.write_number(param->_paramId); // param_number
+    w.write_string(param_name); // param_name
+    w.write_string(param->_description); // param_description
+
+     // param_type
+    const char* param_type;
+    switch (param->_type)
+    {
+      case ConfigInfo::CI_BOOL:
+        param_type = "bool";
+        break;
+      case ConfigInfo::CI_INT:
+      case ConfigInfo::CI_INT64:
+        param_type = "unsigned";
+        break;
+      case ConfigInfo::CI_ENUM:
+        param_type = "enum";
+        break;
+      case ConfigInfo::CI_BITMASK:
+        param_type = "bitmask";
+        break;
+      case ConfigInfo::CI_STRING:
+        param_type = "string";
+        break;
+      default:
+        DBUG_ASSERT(false);
+        param_type = "unknown";
+        break;
+    }
+    w.write_string(param_type);
+
+    const ConfigInfo& info = m_config_info;
+    const Properties* const section = info.getInfo(param->_section);
+    switch (param->_type)
+    {
+    case ConfigInfo::CI_BOOL:
+    {
+      // param_default
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%s", "");
+      if (info.hasDefault(section, param_name))
+        BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getDefault(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_min
+      w.write_string("");
+
+      // param_max
+      w.write_string("");
+      break;
+    }
+
+    case ConfigInfo::CI_INT:
+    case ConfigInfo::CI_INT64:
+    {
+       // param_default
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%s", "");
+      if (info.hasDefault(section, param_name))
+        BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getDefault(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_min
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getMin(section, param_name));
+      w.write_string(tmp_buf);
+
+       // param_max
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getMax(section, param_name));
+      w.write_string(tmp_buf);
+      break;
+    }
+
+    case ConfigInfo::CI_BITMASK:
+    case ConfigInfo::CI_ENUM:
+    case ConfigInfo::CI_STRING:
+    {
+       // param_default
+      const char* default_value = "";
+      if (info.hasDefault(section, param_name))
+        default_value = info.getDefaultString(section, param_name);
+      w.write_string(default_value);
+
+       // param_min
+      w.write_string("");
+
+       // param_max
+      w.write_string("");
+      break;
+    }
+
+    case ConfigInfo::CI_SECTION:
+      abort(); // No sections should appear here
+      break;
+    }
+
+     // param_mandatory
+    Uint32 mandatory = 0;
+    if (info.getMandatory(section, param_name))
+      mandatory = 1;
+    w.write_number(mandatory);
+
+     // param_status
+    const char* status_str = "";
+    Uint32 status = info.getStatus(section, param_name);
+    if (status & ConfigInfo::CI_EXPERIMENTAL)
+      status_str = "experimental";
+    if (status & ConfigInfo::CI_DEPRECATED)
+      status_str = "deprecated";
+    w.write_string(status_str);
+
     return true;
   }
 
@@ -482,7 +733,22 @@ public:
     if (!tab->addColumn(NdbInfo::Column("param_number", 0,
                                         NdbInfo::Column::Number)) ||
         !tab->addColumn(NdbInfo::Column("param_name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_description", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_type", 3,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_default", 4,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_min", 5,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_max", 6,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("param_mandatory", 7,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("param_status", 8,
                                         NdbInfo::Column::String)))
+
       return NULL;
     return tab;
   }
@@ -578,6 +844,18 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
       return false;
 
     if (list.push_back(dictObjTypesTable->get_instance()) != 0)
+      return false;
+  }
+
+  {
+    ErrorCodesTable* errorCodesTable = new ErrorCodesTable;
+    if (!errorCodesTable)
+      return false;
+
+    if (!errorCodesTable->init())
+      return false;
+
+    if (list.push_back(errorCodesTable->get_instance()) != 0)
       return false;
   }
 

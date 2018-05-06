@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,7 +32,6 @@
 #include <ConfigRetriever.hpp>
 #include <IPCConfig.hpp>
 #include <ndb_version.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 #include <NdbConfig.h>
@@ -260,7 +266,7 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   // 
   char buf2[PATH_MAX];
   memset(buf2, 0,sizeof(buf2));
-#ifdef NDB_WIN32
+#ifdef _WIN32
   char* szFilePart;
   if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
      (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))
@@ -318,13 +324,21 @@ Configuration::setupConfiguration(){
 	      "I'm wrong type of node");
   }
 
-  Uint32 total_send_buffer = 0;
-  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  Uint64 extra_send_buffer = 0;
-  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
-                                                  extra_send_buffer);
-  
+  /**
+   * Iff we use the 'default' (non-mt) send buffer implementation, the
+   * send buffers are allocated here.
+   */
+  if (getNonMTTransporterSendHandle() != NULL)
+  {
+    Uint32 total_send_buffer = 0;
+    iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
+    Uint64 extra_send_buffer = 0;
+    iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+    getNonMTTransporterSendHandle()->
+      allocate_send_buffers(total_send_buffer,
+                            extra_send_buffer);
+  }
+
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "MaxNoOfSavedMessages missing");
@@ -339,6 +353,9 @@ Configuration::setupConfiguration(){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "TimeBetweenWatchDogCheck missing");
   }
+
+  _schedulerResponsiveness = 5;
+  iter.get(CFG_DB_SCHED_RESPONSIVENESS, &_schedulerResponsiveness);
 
   _schedulerExecutionTimer = 50;
   iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
@@ -653,7 +670,14 @@ const ndb_mgm_configuration_iterator *
 Configuration::getOwnConfigIterator() const {
   return m_ownConfigIterator;
 }
-  
+
+const class ConfigValues*
+Configuration::get_own_config_values()
+{
+  return &m_ownConfig->m_config;
+}
+
+
 ndb_mgm_configuration_iterator * 
 Configuration::getClusterConfigIterator() const {
   return m_clusterConfigIter;
@@ -667,7 +691,7 @@ Configuration::get_config_generation() const {
   sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
   return generation;
 }
- 
+
 
 void
 Configuration::calcSizeAlt(ConfigValues * ownConfig){
@@ -745,11 +769,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
   if(dataMem == 0){
     BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_DATA_MEM);
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
-  }
-
-  if(indexMem == 0){
-    BaseString::snprintf(buf, sizeof(buf), "ConfigParam: %d not found", CFG_DB_INDEX_MEM);
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
   }
 
@@ -831,18 +850,25 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
       3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
       3 * noOfTables +            /* for backup, I/U/D */
+      3 * noOfTables +            /* for Fully replicated tables, I/U/D */
       noOfOrderedIndexes;         /* for ordered indexes, C */
     if (noOfTriggers < neededNoOfTriggers)
     {
       noOfTriggers= neededNoOfTriggers;
       it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
     }
+    g_eventLogger->info("MaxNoOfTriggers set to %u", noOfTriggers);
   }
 
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
+
+  /**
+   * Ensure that Backup doesn't fail due to lack of trigger resources
+   */
+  cfg.put(CFG_TUP_NO_TRIGGERS, noOfTriggers + 3 * noOfTables);
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
@@ -898,19 +924,17 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     // that they never have a problem with allocation of the operation record.
     // The remainder are allowed for use by the scan processes.
     /*-----------------------------------------------------------------------*/
+    /**
+     * We add an extra 150 operations, 100 of those are dedicated to DBUTIL
+     * interactions and LCP and Backup scans. The remaining 50 are
+     * non-dedicated things for local usage.
+     */
+#define EXTRA_LOCAL_OPERATIONS 150
     cfg.put(CFG_ACC_OP_RECS,
-	    (noOfLocalOperations + 50) + 
+	    (noOfLocalOperations + EXTRA_LOCAL_OPERATIONS) + 
 	    (noOfLocalScanRecords * noBatchSize) +
 	    NODE_RECOVERY_SCAN_OP_RECORDS);
-    
-    /* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
-    cfg.put(CFG_ACC_OVERFLOW_RECS,
-	    noOfIndexPages + 
-	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
-    
-    cfg.put(CFG_ACC_PAGE8, 
-	    noOfIndexPages + 32);
-    
+
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
@@ -920,9 +944,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     /**
      * Dih Size Alt values
      */
-    cfg.put(CFG_DIH_API_CONNECT, 
-	    2 * noOfTransactions);
-    
     Uint32 noFragPerTable= (((noOfDBNodes * lqhInstances) + 
                              NO_OF_FRAGS_PER_CHUNK - 1) >>
                             LOG_NO_OF_FRAGS_PER_CHUNK) <<
@@ -950,7 +971,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
 
     cfg.put(CFG_LQH_TC_CONNECT, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
@@ -992,7 +1013,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas);
     
     cfg.put(CFG_TUP_OP_RECS, 
-	    noOfLocalOperations + 50);
+	    noOfLocalOperations + EXTRA_LOCAL_OPERATIONS);
     
     cfg.put(CFG_TUP_PAGE, 
 	    noOfDataPages);
@@ -1083,15 +1104,17 @@ Configuration::setRealtimeScheduler(NdbThread* pThread,
       //Warning, no permission to set scheduler
       if (init)
       {
-        ndbout_c("Failed to set real-time prio on tid = %d, error_no = %d",
-                 NdbThread_GetTid(pThread), error_no);
+        g_eventLogger->info("Failed to set real-time prio on tid = %d,"
+                            " error_no = %d",
+                            NdbThread_GetTid(pThread), error_no);
+        abort(); /* Fail on failures at init */
       }
       return 1;
     }
     else if (init)
     {
-      ndbout_c("Successfully set real-time prio on tid = %d",
-               NdbThread_GetTid(pThread));
+      g_eventLogger->info("Successfully set real-time prio on tid = %d",
+                          NdbThread_GetTid(pThread));
     }
   }
   return 0;
@@ -1131,13 +1154,17 @@ Configuration::setLockCPU(NdbThread * pThread,
   {
     if (res > 0)
     {
-      ndbout_c("Locked tid = %d to CPU ok", NdbThread_GetTid(pThread));
+      g_eventLogger->info("Locked tid = %d to CPU ok",
+                          NdbThread_GetTid(pThread));
       return 0;
     }
     else
     {
-      ndbout_c("Failed to lock tid = %d to CPU, error_no = %d",
-               NdbThread_GetTid(pThread), (-res));
+      g_eventLogger->info("Failed to lock tid = %d to CPU, error_no = %d",
+                          NdbThread_GetTid(pThread), (-res));
+#ifndef HAVE_MAC_OS_X_THREAD_INFO
+      abort(); /* We fail when failing to lock to CPUs */
+#endif
       return 1;
     }
   }
@@ -1145,10 +1172,97 @@ Configuration::setLockCPU(NdbThread * pThread,
   return 0;
 }
 
+int
+Configuration::setThreadPrio(NdbThread * pThread,
+                             enum ThreadTypes type)
+{
+  int res = 0;
+  unsigned thread_prio;
+  if (type != BlockThread &&
+      type != SendThread &&
+      type != ReceiveThread)
+  {
+    if (type == NdbfsThread)
+    {
+      /*
+       * NdbfsThread (IO threads).
+       */
+      res = m_thr_config.do_thread_prio_io(pThread, thread_prio);
+    }
+    else
+    {
+      /*
+       * WatchDogThread, SocketClientThread, SocketServerThread
+       */
+      res = m_thr_config.do_thread_prio_watchdog(pThread, thread_prio);
+    }
+  }
+  else if (!NdbIsMultiThreaded())
+  {
+    BlockNumber list[] = { DBDIH };
+    res = m_thr_config.do_thread_prio(pThread, list, 1, thread_prio);
+  }
+
+  if (res != 0)
+  {
+    if (res > 0)
+    {
+      g_eventLogger->info("Set thread prio to %u for tid: %d ok",
+                          thread_prio, NdbThread_GetTid(pThread));
+      return 0;
+    }
+    else
+    {
+      g_eventLogger->info("Failed to set thread prio to %u for tid: %d,"
+                          " error_no = %d",
+                          thread_prio,
+                          NdbThread_GetTid(pThread),
+                          (-res));
+      abort(); /* We fail when failing to set thread prio */
+      return 1;
+    }
+  }
+  return 0;
+}
+
 bool
 Configuration::get_io_real_time() const
 {
   return m_thr_config.do_get_realtime_io();
+}
+
+const char*
+Configuration::get_type_string(enum ThreadTypes type)
+{
+  const char *type_str;
+  switch (type)
+  {
+    case WatchDogThread:
+      type_str = "WatchDogThread";
+      break;
+    case SocketServerThread:
+      type_str = "SocketServerThread";
+      break;
+    case SocketClientThread:
+      type_str = "SocketClientThread";
+      break;
+    case NdbfsThread:
+      type_str = "NdbfsThread";
+      break;
+    case BlockThread:
+      type_str = "BlockThread";
+      break;
+    case SendThread:
+      type_str = "SendThread";
+      break;
+    case ReceiveThread:
+      type_str = "ReceiveThread";
+      break;
+    default:
+      type_str = NULL;
+      abort();
+  }
+  return type_str;
 }
 
 Uint32
@@ -1172,29 +1286,8 @@ Configuration::addThread(struct NdbThread* pThread,
   threadInfo[i].pThread = pThread;
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
-  switch (type)
-  {
-    case WatchDogThread:
-      type_str = "WatchDogThread";
-      break;
-    case SocketServerThread:
-      type_str = "SocketServerThread";
-      break;
-    case SocketClientThread:
-      type_str = "SocketClientThread";
-      break;
-    case NdbfsThread:
-      type_str = "NdbfsThread";
-      break;
-    case BlockThread:
-    case SendThread:
-    case ReceiveThread:
-      type_str = NULL;
-      break;
-    default:
-      type_str = NULL;
-      abort();
-  }
+
+  type_str = get_type_string(type);
 
   bool real_time;
   if (single_threaded)

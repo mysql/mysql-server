@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.events_waits_summary_by_instance add column foo integer;
 
@@ -14,3 +11,6 @@ ALTER TABLE performance_schema.events_waits_summary_by_instance ADD INDEX test_i
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.events_waits_summary_by_instance(EVENT_NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.events_waits_summary_by_instance;

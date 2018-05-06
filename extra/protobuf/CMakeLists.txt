@@ -1,17 +1,24 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This cmake file builds protoc, the protobuf compiler.
 # We also build libprotobuf.a and libprotobuf-lite.a, the protobuf runtime
@@ -26,42 +33,35 @@
 #   protobuf-2.6.1/m4/
 #   protobuf-2.6.1/vsprojects/
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
+IF(WIN32_CLANG)
+  SET(PROTOBUF_MSVC_DISABLED_WARNINGS "-Wno-sign-compare")
+ENDIF()
 
 # Turn off some warning flags when compiling protobuf
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
-IF(HAVE_NO_SIGN_COMPARE)
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-ignored-qualifiers" HAVE_NO_IGNORED_QUALIFIERS)
-IF(HAVE_NO_IGNORED_QUALIFIERS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-qualifiers")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-return-type" HAVE_NO_RETURN_TYPE)
-IF(HAVE_NO_RETURN_TYPE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-function" HAVE_NO_UNUSED_FUNCTION)
-IF(HAVE_NO_UNUSED_FUNCTION)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
-ENDIF()
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
-ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+  ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
-IF(HAVE_UNUSED_BUT_SET)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-parameter")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+  IF(HAVE_MAYBE_UNINITIALIZED)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
+  IF(HAVE_UNUSED_BUT_SET)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-parameter")
+  ENDIF()
 ENDIF()
 
 ADD_DEFINITIONS(-DHAVE_ZLIB)
@@ -71,7 +71,6 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/protobuf-2.6.1/src
-  ${ZLIB_INCLUDE_DIR}
 )
 
 SET(PROTO_SRC_DIR
@@ -220,6 +219,12 @@ ENDIF(MSVC)
 
 ADD_CONVENIENCE_LIBRARY(protoclib ${LIBPROTOC_SOURCES})
 SET_PROPERTY(TARGET protoclib PROPERTY EXCLUDE_FROM_ALL TRUE)
-ADD_EXECUTABLE(protoc ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc)
-SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_ALL TRUE)
+
+MYSQL_ADD_EXECUTABLE(protoc
+  ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc
+  SKIP_INSTALL EXCLUDE_FROM_ALL)
+# Build fails with 'devenv' unless we include it in the default build
+IF(WIN32)
+  SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_DEFAULT_BUILD FALSE)
+ENDIF()
 TARGET_LINK_LIBRARIES(protoc protobuf protoclib protobuf)

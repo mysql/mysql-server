@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -46,7 +53,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 				  int abortPercent,
 				  int parallelism, 
 				  NdbOperation::LockMode lm,
-                                  int scan_flags)
+                                  int scan_flags,
+                                  int force_check_flag)
 {
   
   int                  retryAttempt = 0;
@@ -191,7 +199,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     g_info << rows << " rows have been read" << endl;
-    if (records != 0 && rows != records){
+    if ((force_check_flag != 0 || records != 0) && rows != records)
+    {
       g_err << "Check expected number of records failed" << endl 
 	    << "  expected=" << records <<", " << endl
 	    << "  read=" << rows << endl;
@@ -540,8 +549,17 @@ restart:
       if( check == -1 ) {
 	closeTransaction(pNdb);
 	NDB_ERR(err);
-	if (err.status == NdbError::TemporaryError){
-	  NdbSleep_MilliSleep(50);
+        if (err.code == 499 || err.code == 631 ||   // Scan lock take over errors
+            err.status == NdbError::TemporaryError) // Other temporary errors
+        {
+          if (err.code == 410 || err.code == 1501)
+          {
+	    NdbSleep_MilliSleep(2000);
+          }
+          else
+          {
+	    NdbSleep_MilliSleep(300);
+          }
 	  goto restart;
 	}
 	setNdbError(err);
@@ -553,7 +571,9 @@ restart:
     if( check == -1 ) {
       closeTransaction(pNdb);
       NDB_ERR(err);
-      if (err.status == NdbError::TemporaryError){
+      if (err.code == 499 || err.code == 631 ||   // Scan lock take over errors
+          err.status == NdbError::TemporaryError) // Other temporary errors
+      {
 	NdbSleep_MilliSleep(50);
 	goto restart;
       }
@@ -625,11 +645,12 @@ HugoTransactions::loadTable(Ndb* pNdb,
                             bool oneTrans,
 			    int value,
 			    bool abort,
-                            bool abort_on_first_error)
+                            bool abort_on_first_error,
+                            int row_step)
 {
   return loadTableStartFrom(pNdb, 0, records, batch, allowConstraintViolation,
                             doSleep, oneTrans, value, abort,
-                            abort_on_first_error);
+                            abort_on_first_error, row_step);
 }
 
 int
@@ -642,7 +663,9 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
                                      bool oneTrans,
                                      int value,
                                      bool abort,
-                                     bool abort_on_first_error){
+                                     bool abort_on_first_error,
+                                     int row_step)
+{
   int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -663,23 +686,28 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
   
   //Uint32 orgbatch = batch;
   g_info << "|- Inserting records..." << endl;
-  for (int c=0 ; c<records; ){
+  for (int c=0 ; c < records; )
+  {
+    int key;
     bool closeTrans = true;
 
     if(c + batch > records)
       batch = records - c;
-    
+    key = c * row_step;
     if (retryAttempt >= retryMax){
       g_info << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
       // Reset retry counters and continue with next record
       retryAttempt = 0;
-      c++;
+      if (row_step == 1)
+      {
+        c+= row_step;
+      }
     }
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    //    if (first_batch || !oneTrans) {
+    //    if (first_batch || !oneTrans)
     if (first_batch || !pTrans) {
       first_batch = false;
       pTrans = pNdb->startTransaction();
@@ -697,8 +725,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
         return NDBT_FAILED;
       }
     }
-
-    if(pkInsertRecord(pNdb, c + startFrom, batch, value) != NDBT_OK)
+    if(pkInsertRecord(pNdb, key + startFrom, batch, value, row_step) != NDBT_OK)
     { 
       NDB_ERR(pTrans->getNdbError());
       setNdbError(pTrans->getNdbError());
@@ -744,7 +771,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	break;
 	
       case NdbError::TemporaryError:      
-        if (abort_on_first_error)
+        if (abort_on_first_error || row_step != 1)
         {
           return err.code;
         }
@@ -788,7 +815,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
     }
     
     // Step to next record
-    c = c+batch; 
+    c = c+batch;
     retryAttempt = 0;
   }
 
@@ -1320,7 +1347,10 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       if (err.status == NdbError::TemporaryError){
 	NDB_ERR(err);
 	closeTransaction(pNdb);
-	NdbSleep_MilliSleep(50);
+        if (err.code == 410 || err.code == 1501)
+	  NdbSleep_MilliSleep(2000);
+        else
+	  NdbSleep_MilliSleep(300);
 	retryAttempt++;
 	continue;
       }
@@ -1537,8 +1567,10 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 			       int records,
 			       int batch,
 			       bool allowConstraintViolation,
-			       int doSleep){
-  // TODO Batch is not implemented
+			       int doSleep,
+                               int start_record,
+                               int step)
+{
   int deleted = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
@@ -1578,6 +1610,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       setNdbError(err);
+      g_err << r << ": " << err.code << " " << err.message << endl;
       return NDBT_FAILED;
     }
 
@@ -1591,10 +1624,16 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     if (timer_active)
       timer_start = NdbTick_getCurrentTicks();
 
-    if(pkDeleteRecord(pNdb, r, batch) != NDBT_OK)
+    int row = start_record + (r * step);
+    if(pkDeleteRecord(pNdb,
+                      row,
+                      batch,
+                      step) != NDBT_OK)
     {
-      NDB_ERR(pTrans->getNdbError());
-      setNdbError(pTrans->getNdbError());
+      const NdbError err = pTrans->getNdbError();
+      NDB_ERR(err);
+      setNdbError(err);
+      g_err << r << ": " << err.code << " " << err.message << endl;
       closeTransaction(pNdb);
       return NDBT_FAILED;
     }
@@ -1624,8 +1663,10 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	    break;
 	  }
 	}
+        g_err << "r = " << r << endl;
 	NDB_ERR(err);
 	setNdbError(err);
+	g_err << r << ": " << err.code << " " << err.message << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
 	break;
@@ -1633,6 +1674,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       default:
 	NDB_ERR(err);
 	setNdbError(err);
+	g_err << r << ": " << err.code << " " << err.message << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }

@@ -2,9 +2,12 @@ drop table if exists t1,t2;
 create table t1 (a int not null,b int not null, primary key using HASH (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	a	NULL	3	NULL	NULL		HASH			YES
 select * from t1;
 a	b
 2	2
@@ -32,6 +35,8 @@ drop table t1;
 create table t1 (a int not null,b int not null, primary key using HASH (a)) engine=heap comment="testing heaps";
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 alter table t1 modify a int not null auto_increment, engine=myisam, comment="new myisam table";
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 select * from t1;
 a	b
 1	1
@@ -64,6 +69,8 @@ a
 802616
 869751
 alter table t1 engine=myisam;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 explain select * from t1 where a in (869751,736494,226312,802616);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	uniq_id	uniq_id	4	NULL	4	100.00	Using where; Using index
@@ -159,7 +166,7 @@ f1	f2
 12	ted
 12	ted
 drop table t1;
-create table t1 (btn char(10) not null, key using HASH (btn)) engine=heap;
+create table t1 (btn char(10) not null, key using HASH (btn)) charset utf8mb4 engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "q%";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -177,7 +184,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where (`test`.`t1`.`btn` = 'a')
 explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	btn	btn	11	const,const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	btn	btn	44	const,const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where ((`test`.`t1`.`new_col` = 'a') and (`test`.`t1`.`btn` = 'a'))
 drop table t1;
@@ -223,7 +230,7 @@ a char(8) not null,
 b char(20) not null,
 c int not null,
 key (a)
-) engine=heap;
+) charset utf8mb4 engine=heap;
 insert into t1 values ('aaaa', 'prefill-hash=5',0);
 insert into t1 values ('aaab', 'prefill-hash=0',0);
 insert into t1 values ('aaac', 'prefill-hash=7',0);
@@ -234,65 +241,65 @@ insert into t1 values ('aaag', 'prefill-hash=3',0);
 insert into t1 values ('aaah', 'prefill-hash=6',0);
 explain select * from t1 where a='aaaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaaa')
 explain select * from t1 where a='aaab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaab')
 explain select * from t1 where a='aaac';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaac')
 explain select * from t1 where a='aaad';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaad')
 insert into t1 select * from t1;
 flush tables;
 explain select * from t1 where a='aaaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaaa')
 explain select * from t1 where a='aaab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaab')
 explain select * from t1 where a='aaac';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaac')
 explain select * from t1 where a='aaad';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaad')
 flush tables;
 explain select * from t1 where a='aaaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaaa')
 explain select * from t1 where a='aaab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaab')
 explain select * from t1 where a='aaac';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaac')
 explain select * from t1 where a='aaad';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaad')
 create table t2 as select * from t1;
@@ -300,22 +307,22 @@ delete from t1;
 insert into t1 select * from t2;
 explain select * from t1 where a='aaaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaaa')
 explain select * from t1 where a='aaab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaab')
 explain select * from t1 where a='aaac';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaac')
 explain select * from t1 where a='aaad';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	8	const	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	32	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`a` = 'aaad')
 drop table t1, t2;
@@ -324,16 +331,16 @@ id int unsigned not null primary key auto_increment,
 name varchar(20) not null,
 index heap_idx(name),
 index btree_idx using btree(name)
-) engine=heap;
+) charset latin1 engine=heap;
 create table t2 (
 id int unsigned not null primary key auto_increment, 
 name varchar(20) not null,
 index btree_idx using btree(name),
 index heap_idx(name)
-) engine=heap;
+) charset latin1 engine=heap;
 insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'), 
 ('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
-('Emily'), ('Mike');
+('Emily');
 insert into t2 select * from t1;
 explain select * from t1 where name='matt';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -390,35 +397,38 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name` from `test`.`t1` IGNORE INDEX (`btree_idx`) where (`test`.`t1`.`name` = 'matt')
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	NULL	91	NULL	NULL		HASH		
-t1	1	heap_idx	1	name	NULL	13	NULL	NULL		HASH		
-t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES
+t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	id	NULL	91	NULL	NULL		HASH		
-t1	1	heap_idx	1	name	NULL	13	NULL	NULL		HASH		
-t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	id	NULL	84	NULL	NULL		HASH			YES
+t1	1	heap_idx	1	name	NULL	11	NULL	NULL		HASH			YES
+t1	1	btree_idx	1	name	A	NULL	NULL	NULL		BTREE			YES
 create table t3
 (
 a varchar(20) not null,
 b varchar(20) not null,
 key (a,b)
-) engine=heap;
+) charset latin1 engine=heap;
 insert into t3 select name, name from t1;
 show index from t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH		
-t3	1	a	2	b	NULL	13	NULL	NULL		HASH		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES
+t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES
 show index from t3;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH		
-t3	1	a	2	b	NULL	13	NULL	NULL		HASH		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES
+t3	1	a	2	b	NULL	11	NULL	NULL		HASH			YES
 explain select * from t1 ignore key(btree_idx), t3 where t1.name='matt' and t3.a = concat('',t1.name) and t3.b=t1.name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	heap_idx	heap_idx	22	const	7	100.00	NULL
-1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	91	1.10	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	84	1.19	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` IGNORE INDEX (`btree_idx`) join `test`.`t3` where ((`test`.`t1`.`name` = 'matt') and (`test`.`t3`.`b` = 'matt') and (`test`.`t3`.`a` = concat('',`test`.`t1`.`name`)))
 drop table t1, t2, t3;
@@ -438,6 +448,9 @@ End of 4.1 tests
 CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
 col2 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
 UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('A', 'A');
 INSERT INTO t1 VALUES('A ', 'A ');
 ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
@@ -487,3 +500,21 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`val` AS `val` from `test`.`t1` where isnull(`test`.`t1`.`val`)
 DROP TABLE t1;
 End of 5.5 tests
+# Bug#24364448: Check that hash indexes are not used to provide ordering
+CREATE TABLE t1(
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 INT NOT NULL,
+c2 INT NOT NULL,
+UNIQUE KEY USING HASH (c2,c1)) ENGINE = MEMORY;
+INSERT INTO t1(c1,c2) VALUES (5,1), (4,1), (3,5), (2,3), (1,3);
+EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c2` AS `c2`,count(`test`.`t1`.`c1`) AS `COUNT(c1)` from `test`.`t1` group by `test`.`t1`.`c2`
+SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
+c2	COUNT(c1)
+1	2
+5	1
+3	2
+DROP TABLE t1;

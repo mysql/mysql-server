@@ -50,13 +50,13 @@ INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 1	2	3
-1	20	30
-1	200	300
+1	2	3
 1	2	3
 1	20	30
-1	200	300
-1	2	3
 1	20	30
+1	20	30
+1	200	300
+1	200	300
 1	200	300
 1	NULL	NULL
 1	NULL	NULL
@@ -73,13 +73,13 @@ REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 1	2	3
-1	20	30
-1	200	300
+1	2	3
 1	2	3
 1	20	30
-1	200	300
-1	2	3
 1	20	30
+1	20	30
+1	200	300
+1	200	300
 1	200	300
 1	NULL	NULL
 1	NULL	NULL
@@ -96,13 +96,13 @@ INSERT INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 1	2	3
-1	20	30
-1	200	300
+1	2	3
 1	2	3
 1	20	30
-1	200	300
-1	2	3
 1	20	30
+1	20	30
+1	200	300
+1	200	300
 1	200	300
 1	NULL	NULL
 1	NULL	NULL
@@ -119,13 +119,13 @@ REPLACE INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 1	2	3
-1	20	30
-1	200	300
+1	2	3
 1	2	3
 1	20	30
-1	200	300
-1	2	3
 1	20	30
+1	20	30
+1	200	300
+1	200	300
 1	200	300
 1	NULL	NULL
 1	NULL	NULL
@@ -245,8 +245,8 @@ UPDATE t1 SET a = NULL, c = NULL WHERE a = 100;
 
 SELECT * FROM t1;
 a	b	c
-999	2	3
 10	20	30
+999	2	3
 999	200	NULL
 
 DELETE FROM t1;
@@ -260,8 +260,8 @@ UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
 SELECT * FROM t1;
 a	b	c
 1	2	3
-999	20	30
 100	200	300
+999	20	30
 
 SELECT * FROM t3;
 a	b
@@ -277,8 +277,8 @@ INSERT INTO t3 VALUES (10, -10);
 UPDATE t1, t3 SET t1.a = -20, t3.a = NULL WHERE t1.a = t3.a AND t3.a = 10;
 SELECT * FROM t1;
 a	b	c
-1	2	3
 -20	20	30
+1	2	3
 100	200	300
 SELECT * FROM t3;
 a	b
@@ -317,7 +317,7 @@ a	b	c
 
 SELECT * FROM t3;
 a	b
--10	-10
+10	-10
 
 DELETE FROM t1;
 DELETE FROM t2;
@@ -374,15 +374,15 @@ INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 1	-1	3
-1	NULL	30
-1	NULL	300
 1	-2	3
-1	NULL	30
-1	NULL	300
+1	-3	NULL
 1	NULL	3
 1	NULL	30
+1	NULL	30
+1	NULL	30
 1	NULL	300
-1	-3	NULL
+1	NULL	300
+1	NULL	300
 1	NULL	NULL
 1	NULL	NULL
 
@@ -397,15 +397,15 @@ REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 1	-1	3
-1	NULL	30
-1	NULL	300
 1	-2	3
-1	NULL	30
-1	NULL	300
+1	-3	NULL
 1	NULL	3
 1	NULL	30
+1	NULL	30
+1	NULL	30
 1	NULL	300
-1	-3	NULL
+1	NULL	300
+1	NULL	300
 1	NULL	NULL
 1	NULL	NULL
 
@@ -420,15 +420,15 @@ INSERT INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 1	1	3
-1	NULL	30
-1	NULL	300
 1	1	3
-1	NULL	30
-1	NULL	300
+1	1	NULL
 1	NULL	3
 1	NULL	30
+1	NULL	30
+1	NULL	30
 1	NULL	300
-1	1	NULL
+1	NULL	300
+1	NULL	300
 1	NULL	NULL
 1	NULL	NULL
 
@@ -443,15 +443,15 @@ REPLACE INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 1	1	3
-1	NULL	30
-1	NULL	300
 1	1	3
-1	NULL	30
-1	NULL	300
+1	1	NULL
 1	NULL	3
 1	NULL	30
+1	NULL	30
+1	NULL	30
 1	NULL	300
-1	1	NULL
+1	NULL	300
+1	NULL	300
 1	NULL	NULL
 1	NULL	NULL
 
@@ -506,13 +506,13 @@ INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 99	99	3
-99	99	30
-99	99	300
+99	99	3
 99	99	3
 99	99	30
-99	99	300
-99	99	3
 99	99	30
+99	99	30
+99	99	300
+99	99	300
 99	99	300
 99	99	NULL
 99	99	NULL
@@ -529,13 +529,13 @@ REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c
 99	99	3
-99	99	30
-99	99	300
+99	99	3
 99	99	3
 99	99	30
-99	99	300
-99	99	3
 99	99	30
+99	99	30
+99	99	300
+99	99	300
 99	99	300
 99	99	NULL
 99	99	NULL
@@ -552,13 +552,13 @@ INSERT INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 99	99	3
-99	99	30
-99	99	300
+99	99	3
 99	99	3
 99	99	30
-99	99	300
-99	99	3
 99	99	30
+99	99	30
+99	99	300
+99	99	300
 99	99	300
 99	99	NULL
 99	99	NULL
@@ -575,13 +575,13 @@ REPLACE INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c
 99	99	3
-99	99	30
-99	99	300
+99	99	3
 99	99	3
 99	99	30
-99	99	300
-99	99	3
 99	99	30
+99	99	30
+99	99	300
+99	99	300
 99	99	300
 99	99	NULL
 99	99	NULL
@@ -623,10 +623,10 @@ a	b	c
 UPDATE t1 SET b = 999 WHERE c = 300;
 SELECT * FROM t1;
 a	b	c
+199	NULL	300
 99	NULL	3
 99	NULL	3
 99	NULL	30
-199	NULL	300
 
 DROP TRIGGER t1_bi;
 DROP TRIGGER t1_bu;
@@ -684,13 +684,13 @@ INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c	a_new_is_null
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	1
 99	20	30	1
+99	20	30	1
+99	20	30	1
+99	200	300	1
+99	200	300	1
 99	200	300	1
 99	NULL	NULL	0
 99	NULL	NULL	1
@@ -708,13 +708,13 @@ REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 SELECT * FROM t1;
 a	b	c	a_new_is_null
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	1
 99	20	30	1
+99	20	30	1
+99	20	30	1
+99	200	300	1
+99	200	300	1
 99	200	300	1
 99	NULL	NULL	0
 99	NULL	NULL	1
@@ -731,13 +731,13 @@ INSERT INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c	a_new_is_null
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	1
 99	20	30	1
+99	20	30	1
+99	20	30	1
+99	200	300	1
+99	200	300	1
 99	200	300	1
 99	NULL	NULL	0
 99	NULL	NULL	1
@@ -754,13 +754,13 @@ REPLACE INTO t1(a) SELECT a FROM t2;
 SELECT * FROM t1;
 a	b	c	a_new_is_null
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	0
-99	20	30	1
-99	200	300	1
 99	2	3	1
 99	20	30	1
+99	20	30	1
+99	20	30	1
+99	200	300	1
+99	200	300	1
 99	200	300	1
 99	NULL	NULL	0
 99	NULL	NULL	1
@@ -807,8 +807,8 @@ UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
 SELECT * FROM t1;
 a	b	c	a_new_is_null	a_old_is_null	b_new_is_null	b_old_is_null
 1	2	3	NULL	NULL	NULL	NULL
-99	20	30	1	0	0	0
 100	200	300	NULL	NULL	NULL	NULL
+99	20	30	1	0	0	0
 
 SELECT * FROM t3;
 a	b
@@ -864,8 +864,6 @@ DROP TRIGGER t1_bi;
 # - Conditional SET in a trigger, which is NOT executed for every row.
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 IF (MOD(NEW.a, 2) = 0) THEN
@@ -884,16 +882,16 @@ Warning	1364	Field 'b' doesn't have a default value
 SELECT * FROM t1;
 a	b
 1	0
-2	1
-3	0
-4	3
-5	0
-6	5
 1	0
 2	1
+2	1
+3	0
 3	0
 4	3
+4	3
 5	0
+5	0
+6	5
 6	5
 DROP TABLE t1;
 SET sql_mode = default;
@@ -986,8 +984,6 @@ SET @sql_mode_saved = @@sql_mode;
 ###################################################################
 
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... VALUES ...
@@ -1197,13 +1193,13 @@ Warning	1048	Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
-31	0
-NULL	0
 110	120
-NULL	220
+31	0
 310	0
 NULL	0
+NULL	0
+NULL	22
+NULL	220
 DELETE FROM t1;
 
 REPLACE INTO t1 SELECT * FROM t1_data;
@@ -1216,13 +1212,13 @@ Warning	1048	Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
-31	0
-NULL	0
 110	120
-NULL	220
+31	0
 310	0
 NULL	0
+NULL	0
+NULL	22
+NULL	220
 DELETE FROM t1;
 
 #   - No column list (all columns) + NULL-value for NOT NULL column.
@@ -1242,17 +1238,17 @@ Warning	1048	Column 'd' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
-31	0	33	34
-41	42	0	44
-51	52	53	0
-NULL	0	0	0
 110	120	130	140
-NULL	220	230	240
+31	0	33	34
 310	0	330	340
+41	42	0	44
 410	420	0	440
+51	52	53	0
 510	520	530	0
 NULL	0	0	0
+NULL	0	0	0
+NULL	22	23	24
+NULL	220	230	240
 DELETE FROM t2;
 
 REPLACE INTO t2 SELECT * FROM t2_data;
@@ -1269,17 +1265,17 @@ Warning	1048	Column 'd' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
-31	0	33	34
-41	42	0	44
-51	52	53	0
-NULL	0	0	0
 110	120	130	140
-NULL	220	230	240
+31	0	33	34
 310	0	330	340
+41	42	0	44
 410	420	0	440
+51	52	53	0
 510	520	530	0
 NULL	0	0	0
+NULL	0	0	0
+NULL	22	23	24
+NULL	220	230	240
 DELETE FROM t2;
 
 #   - All columns + NULL-value for NOT NULL column.
@@ -1295,13 +1291,13 @@ Warning	1048	Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
-31	0
-NULL	0
 110	120
-NULL	220
+31	0
 310	0
 NULL	0
+NULL	0
+NULL	22
+NULL	220
 DELETE FROM t1;
 
 REPLACE INTO t1(a, b) SELECT * FROM t1_data;
@@ -1314,13 +1310,13 @@ Warning	1048	Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
-31	0
-NULL	0
 110	120
-NULL	220
+31	0
 310	0
 NULL	0
+NULL	0
+NULL	22
+NULL	220
 DELETE FROM t1;
 
 INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
@@ -1337,17 +1333,17 @@ Warning	1048	Column 'd' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
-31	0	33	34
-41	42	0	44
-51	52	53	0
-NULL	0	0	0
 110	120	130	140
-NULL	220	230	240
+31	0	33	34
 310	0	330	340
+41	42	0	44
 410	420	0	440
+51	52	53	0
 510	520	530	0
 NULL	0	0	0
+NULL	0	0	0
+NULL	22	23	24
+NULL	220	230	240
 DELETE FROM t2;
 
 REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
@@ -1364,17 +1360,17 @@ Warning	1048	Column 'd' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
-31	0	33	34
-41	42	0	44
-51	52	53	0
-NULL	0	0	0
 110	120	130	140
-NULL	220	230	240
+31	0	33	34
 310	0	330	340
+41	42	0	44
 410	420	0	440
+51	52	53	0
 510	520	530	0
 NULL	0	0	0
+NULL	0	0	0
+NULL	22	23	24
+NULL	220	230	240
 DELETE FROM t2;
 
 #   - Single nullable column, no values for NOT NULL columns.
@@ -1390,12 +1386,12 @@ Warning	1423	Field of view 'test.v1' underlying table doesn't have a default val
 SELECT * FROM t1;
 a	b
 11	0
-NULL	0
-31	0
-NULL	0
 1100	0
-NULL	0
+31	0
 3100	0
+NULL	0
+NULL	0
+NULL	0
 NULL	0
 DELETE FROM t1;
 
@@ -1409,12 +1405,12 @@ Warning	1423	Field of view 'test.v1' underlying table doesn't have a default val
 SELECT * FROM t1;
 a	b
 11	0
-NULL	0
-31	0
-NULL	0
 1100	0
-NULL	0
+31	0
 3100	0
+NULL	0
+NULL	0
+NULL	0
 NULL	0
 DELETE FROM t1;
 
@@ -1432,16 +1428,16 @@ Warning	1423	Field of view 'test.v2' underlying table doesn't have a default val
 SELECT * FROM t2;
 a	b	c	d
 11	0	0	0
-NULL	0	0	0
-31	0	0	0
-41	0	0	0
-51	0	0	0
-NULL	0	0	0
 1100	0	0	0
-NULL	0	0	0
+31	0	0	0
 3100	0	0	0
+41	0	0	0
 4100	0	0	0
+51	0	0	0
 5100	0	0	0
+NULL	0	0	0
+NULL	0	0	0
+NULL	0	0	0
 NULL	0	0	0
 DELETE FROM t2;
 
@@ -1459,16 +1455,16 @@ Warning	1423	Field of view 'test.v2' underlying table doesn't have a default val
 SELECT * FROM t2;
 a	b	c	d
 11	0	0	0
-NULL	0	0	0
-31	0	0	0
-41	0	0	0
-51	0	0	0
-NULL	0	0	0
 1100	0	0	0
-NULL	0	0	0
+31	0	0	0
 3100	0	0	0
+41	0	0	0
 4100	0	0	0
+51	0	0	0
 5100	0	0	0
+NULL	0	0	0
+NULL	0	0	0
+NULL	0	0	0
 NULL	0	0	0
 DELETE FROM t2;
 
@@ -1492,12 +1488,12 @@ Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' a
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 31	0	33	34
 41	42	0	44
 51	52	53	0
 NULL	0	0	0
 NULL	0	73	74
+NULL	22	23	24
 NULL	82	0	84
 NULL	92	93	0
 
@@ -1518,12 +1514,12 @@ Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' a
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 31	0	33	34
 41	42	0	44
 51	52	53	0
 NULL	0	0	0
 NULL	0	73	74
+NULL	22	23	24
 NULL	82	0	84
 NULL	92	93	0
 
@@ -1534,8 +1530,6 @@ DELETE FROM t2;
 ###################################################################
 
 SET sql_mode = 'traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... VALUES ...
@@ -1662,12 +1656,36 @@ ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default val
 SELECT * FROM t2;
 a	b	c	d
 DELETE FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... SELECT ...
 #------------------------------------------------------------------
 
 #   - No column list (all columns) + NULL-value for NOT NULL column.
+CREATE TABLE t1(a INT, b INT NOT NULL) ENGINE=MyISAM;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL) ENGINE=MyISAM;
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE TABLE t1_data(a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1_data VALUES
+(11, 12),
+(NULL, 22),
+(31, NULL),
+(NULL, NULL);
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT) ENGINE=MyISAM;
+INSERT INTO t2_data VALUES
+(11, 12, 13, 14),
+(NULL, 22, 23, 24),
+(31, NULL, 33, 34),
+(41, 42, NULL, 44),
+(51, 52, 53, NULL),
+(NULL, NULL, NULL, NULL);
 
 INSERT INTO t1 SELECT * FROM t1_data;
 ERROR 23000: Column 'b' cannot be null
@@ -1679,8 +1697,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
 110	120
+NULL	22
 NULL	220
 DELETE FROM t1;
 
@@ -1694,8 +1712,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
 110	120
+NULL	22
 NULL	220
 DELETE FROM t1;
 
@@ -1710,8 +1728,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 110	120	130	140
+NULL	22	23	24
 NULL	220	230	240
 DELETE FROM t2;
 
@@ -1726,8 +1744,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 110	120	130	140
+NULL	22	23	24
 NULL	220	230	240
 DELETE FROM t2;
 
@@ -1743,8 +1761,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
 110	120
+NULL	22
 NULL	220
 DELETE FROM t1;
 
@@ -1758,8 +1776,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
 11	12
-NULL	22
 110	120
+NULL	22
 NULL	220
 DELETE FROM t1;
 
@@ -1773,8 +1791,8 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 110	120	130	140
+NULL	22	23	24
 NULL	220	230	240
 DELETE FROM t2;
 
@@ -1788,10 +1806,34 @@ ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t2;
 a	b	c	d
 11	12	13	14
-NULL	22	23	24
 110	120	130	140
+NULL	22	23	24
 NULL	220	230	240
 DELETE FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
+CREATE TABLE t1(a INT, b INT NOT NULL) ;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL) ;
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE TABLE t1_data(a INT, b INT) ;
+INSERT INTO t1_data VALUES
+(11, 12),
+(NULL, 22),
+(31, NULL),
+(NULL, NULL);
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT) ;
+INSERT INTO t2_data VALUES
+(11, 12, 13, 14),
+(NULL, 22, 23, 24),
+(31, NULL, 33, 34),
+(41, 42, NULL, 44),
+(51, 52, 53, NULL),
+(NULL, NULL, NULL, NULL);
 
 #   - Single nullable column, no values for NOT NULL columns.
 
@@ -1844,8 +1886,6 @@ ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' a
 
 SELECT * FROM t2;
 a	b	c	d
-11	12	13	14
-NULL	22	23	24
 
 DELETE FROM t2;
 LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
@@ -1854,10 +1894,111 @@ ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' a
 
 SELECT * FROM t2;
 a	b	c	d
-11	12	13	14
-NULL	22	23	24
 
 SET sql_mode = @sql_mode_saved;
+
+SELECT * FROM t2;
+a	b	c	d
+
+SET sql_mode = @sql_mode_saved;
+
+#------------------------------------------------------------------
+# Checking INSERT INTO ... SELECT ...
+#------------------------------------------------------------------
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+
+INSERT INTO t1 SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+REPLACE INTO t1 SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+INSERT INTO t2 SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+REPLACE INTO t2 SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+#   - All columns + NULL-value for NOT NULL column.
+
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 0 rows.
+# t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t1_data;
@@ -2099,8 +2240,6 @@ a1	a2
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 "Test for timestamp"
 CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
@@ -2199,8 +2338,6 @@ DROP TRIGGER t1_bu;
 DROP TABLE t1;
 SET @sql_mode_saved = @@sql_mode;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT, b INT NOT NULL);
 INSERT INTO t1(a) VALUES (1);
 Warnings:
@@ -2216,8 +2353,6 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1364	Field 'b' doesn't have a default value
 SET sql_mode = @sql_mode_saved;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 SET @sql_mode_saved = @@sql_mode;
 SET sql_mode='';

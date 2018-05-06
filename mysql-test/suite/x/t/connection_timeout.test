@@ -1,0 +1,28 @@
+--echo Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--write_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
+# Expect CR_X_READ_TIMEOUT
+-->expecterror 2500
+-->recv
+-->stmtsql select user();
+-->recvresult
+EOF
+
+--echo
+--echo ############################################################
+--echo ## Trigger read timeout and then try to execute SQL
+
+exec $MYSQLXTEST 
+	-u x_root
+	--password=''
+	-h127.0.0.1
+	--timeout=2000
+	--file=$MYSQL_TMP_DIR/mysqlx-client-timeout.tmp 2>&1;
+
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
+--source include/xplugin_drop_user.inc
+

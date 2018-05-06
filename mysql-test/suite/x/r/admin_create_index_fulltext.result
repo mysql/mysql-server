@@ -1,0 +1,285 @@
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+Create collection fulltext1
+===========================
+
+command ok
+
+check required status var updated
+=================================
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	0
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	0
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	1
+0 rows affected
+
+Create entire document fulltext index and drop it
+=================================================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	text	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	one	1	$ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+0 rows affected
+############################
+Variable_name	Value
+Mysqlx_stmt_create_collection_index	1
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_drop_collection_index	1
+0 rows affected
+Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	3
+0 rows affected
+
+Create fulltext index (without constraint.type) and drop it
+===========================================================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+0 rows affected
+############################
+
+Create two fulltext indexes on the same member and drop one
+===========================================================
+
+command ok
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	one	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+Drop fulltext index on $.first
+==============================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+Create fulltext index on two memebers
+=====================================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+Create fulltext index on not requiered member
+=============================================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
+$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES
+0 rows affected
+############################
+
+Create fulltext index with parser
+=================================
+
+command ok
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
+$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
+$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERATED
+$ix_ft_B5750A6F79D3B1F39FA4EF6A3C52CB94B2050EE8	text	YES	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	two	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	1	$ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	null	0	null	null		FULLTEXT			YES
+fulltext1	1	three	2	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+fulltext1	1	four	1	$ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null	YES	FULLTEXT			YES
+fulltext1	1	five	1	$ix_ft_B5750A6F79D3B1F39FA4EF6A3C52CB94B2050EE8	null	0	null	null	YES	FULLTEXT			YES
+0 rows affected
+############################
+
+Is collection with fulltext index still collection?
+===================================================
+name	type
+fulltext1	COLLECTION
+command ok
+
+Drop collection fulltext1
+=========================
+
+command ok
+
+Create collection fulltext1 
+============================
+
+command ok
+
+Create fulltext index with FULLTEXT instead of fulltext 
+========================================================
+
+command ok
+
+Verify "NOT NULL" for generated column
+======================================
+### Columns of fulltext1
+Field	Type	Null	Key	Default	Extra
+doc	json	YES		null	
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
+$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO	MUL	null	STORED GENERATED
+0 rows affected
+### Indexes of fulltext1
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+fulltext1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES
+fulltext1	1	four	1	$ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	null	0	null	null		FULLTEXT			YES
+0 rows affected
+############################
+
+Check generated column can be dropped
+=====================================
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+
+Create fulltext index with FULLTEXT nested doc
+==============================================
+
+command ok
+
+command ok
+
+Drop collection fulltext1
+=========================
+
+command ok
+
+Create collection fulltext2
+===========================
+
+command ok
+
+Try to create unique fulltext index
+===================================
+Got expected error: Unique fulltext index is not supported (code 5017)
+
+Insert not-text values to collection with fulltext index
+========================================================
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+Try to create fulltext index on missing member
+==============================================
+Got expected error: Collection contains document missing required field (code 5117)
+
+Try to create fulltext index with unknown parser
+================================================
+Got expected error: Function 'blablabla' is not defined (code 1128)
+
+Try to create 'regular' index with parser
+=========================================
+Got expected error: 'with_parser' argument is supported for fulltext index only (code 5017)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

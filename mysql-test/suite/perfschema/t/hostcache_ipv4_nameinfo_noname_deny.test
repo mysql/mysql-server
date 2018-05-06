@@ -6,9 +6,7 @@
 # - getnameinfo() fails with NONAME
 # - reported in COUNT_NAMEINFO_PERMANENT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 # [Warning] IP address '192.0.2.4' could not be resolved:
 # no reverse address mapping.

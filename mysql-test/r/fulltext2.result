@@ -216,6 +216,8 @@ count(*)
 262
 drop table t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1(a text,fulltext(a)) collate=utf8_swedish_ci;
 insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
@@ -242,7 +244,11 @@ a
 drop table t1;
 set names latin1;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 a

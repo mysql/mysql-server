@@ -1,9 +1,7 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # Tests for Column list which requires utf8 output
---source include/have_partition.inc
 set names utf8;
 create table t1 (a varchar(2) character set cp1250)
 partition by list columns (a)

@@ -1,12 +1,7 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test can't be run with running server (--extern) as this uses
 # load_file() on a file in the tree.
 #
-
+--source include/have_myisam.inc
 #
 # Basic cleanup
 #
@@ -85,11 +80,8 @@ insert into t1 values (NULL,NULL,NULL,NULL);
 update t1 set c="",b=null where c="1";
 
 lock tables t1 READ;
-# We mask out the Privileges column because it differs for embedded server
---replace_column 8 #
 show full fields from t1;
 lock tables t1 WRITE;
---replace_column 8 #
 show full fields from t1;
 unlock tables;
 
@@ -136,8 +128,8 @@ select d,count(*) from t1 group by d;
 drop table t1;
 
 -- error 1071
-create table t1 (a text, unique (a(2100))); # should give an error
-create table t1 (a text, key (a(2100)));    # key is auto-truncated
+create table t1 (a text, unique (a(2100))) engine=myisam; # should give an error
+create table t1 (a text, key (a(2100))) engine=myisam;    # key is auto-truncated
 show create table t1;
 drop table t1;
 
@@ -318,7 +310,7 @@ eval select
   collation(load_file('../../std_data/words.dat')),
   coercibility(load_file('../../std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval explain extended select
+eval explain select
   charset(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   collation(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   coercibility(load_file('$MYSQLTEST_VARDIR/std_data/words.dat'));
@@ -328,17 +320,15 @@ select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create table t1 select load_file('$MYSQLTEST_VARDIR/std_data/words.dat') l;
-# We mask out the Privileges column because it differs for embedded server
---replace_column 8 #
 show full fields from t1;
 drop table t1;
 
 #
-# Test blob's with end space (Bug #1651)
+# Test blobs with end space (Bug #1651)
 # This is a bit changed since we now have true varchar
 #
 
-create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20))) charset latin1;
 --error ER_DUP_ENTRY
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
 --error ER_DUP_ENTRY
@@ -365,9 +355,10 @@ select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 drop table t1;
 
-create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20))) charset latin1;
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy ';
 select * from t1 where txt='Chevy ' or txt='Chevy';
@@ -388,6 +379,7 @@ select * from t1 where txt <= 'Chevy';
 select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 alter table t1 modify column txt blob;
+analyze table t1;
 explain select * from t1 where txt='Chevy' or txt is NULL;
 select * from t1 where txt='Chevy' or txt is NULL;
 explain select * from t1 where txt='Chevy' or txt is NULL order by txt;

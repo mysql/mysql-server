@@ -1,4 +1,3 @@
-
 #
 # test of primary key conversions
 #
@@ -7,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (t1 char(3) primary key);
+create table t1 (t1 char(3) primary key) charset utf8mb4;
 insert into t1 values("ABC");
 insert into t1 values("ABA");
 insert into t1 values("AB%");

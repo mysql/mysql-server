@@ -1,13 +1,8 @@
 # Check the impact of changes done in HISTORY column in
 # performance_schema.setup_actors.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
-
-# Presence of the query cache changes query stages,
-# causing noise in the test output
---source include/have_query_cache_disabled.inc
 
 create user user1@localhost;
 create user user2@localhost;
@@ -65,6 +60,14 @@ let $con4_thread_id= `select THREAD_ID from performance_schema.threads
 
 --echo # Switch to connection default
 --connection default
+
+#
+# Do not generate noise from the monitoring connection,
+# to avoid filling up history long tables.
+#
+update performance_schema.threads
+  set INSTRUMENTED='NO', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
 
 truncate table performance_schema.events_transactions_current;
 truncate table performance_schema.events_transactions_history;
@@ -240,9 +243,9 @@ echo "=========================== Waits user 1";
 eval select EVENT_NAME from performance_schema.events_waits_current
   where THREAD_ID = $con1_thread_id
   order by THREAD_ID, EVENT_ID;
-eval select (count(*) > 5) as has_waits from performance_schema.events_waits_history
+eval select (count(*) > 0) as has_waits from performance_schema.events_waits_history
   where THREAD_ID = $con1_thread_id;
-eval select (count(*) > 15) as has_waits from performance_schema.events_waits_history_long
+eval select (count(*) > 0) as has_waits from performance_schema.events_waits_history_long
   where THREAD_ID = $con1_thread_id;
 
 echo "=========================== Waits user 2";
@@ -707,6 +710,10 @@ eval select count(*) from performance_schema.events_waits_history_long
 
 --echo # Switch to connection default
 --connection default
+
+update performance_schema.threads
+  set INSTRUMENTED='YES', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
 
 revoke all privileges, grant option from user1@localhost;
 revoke all privileges, grant option from user2@localhost;

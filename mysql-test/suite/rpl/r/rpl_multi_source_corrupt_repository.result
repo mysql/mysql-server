@@ -14,13 +14,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
@@ -28,13 +28,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
@@ -42,14 +42,14 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc
-===== Corrupting Channel .
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+===== Corrupting Channel ''.
 [connection server_4]
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
@@ -95,41 +95,33 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
-Last_SQL_Errno = '1872'
+Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL '']
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
@@ -138,17 +130,15 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -156,27 +146,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel 'channel_2'.
 [connection server_2]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
@@ -185,17 +169,15 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -203,27 +185,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel 'channel_3'.
 [connection server_3]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
@@ -235,13 +211,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
@@ -249,13 +225,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
@@ -263,14 +239,14 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc
-===== Corrupting Channel channel_2.
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+===== Corrupting Channel 'channel_2'.
 [connection server_4]
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
@@ -316,17 +292,15 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -334,27 +308,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel ''.
 [connection server_1]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
@@ -363,41 +331,33 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
-Last_SQL_Errno = '1872'
+Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_2']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
@@ -406,17 +366,15 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -424,27 +382,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel 'channel_3'.
 [connection server_3]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
@@ -456,13 +408,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL '']
 [connection server_1]
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(i int);
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
@@ -470,13 +422,13 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
 CREATE DATABASE db2;
 CREATE TABLE db2.t2(i int);
 DROP TABLE db2.t2;
 DROP DATABASE db2;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
@@ -484,14 +436,14 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 CREATE DATABASE db3;
 CREATE TABLE db3.t3(i int);
 DROP TABLE db3.t3;
 DROP DATABASE db3;
-include/sync_slave_sql_with_master.inc
-===== Corrupting Channel channel_3.
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
+===== Corrupting Channel 'channel_3'.
 [connection server_4]
 ===== Stop the server 4.
 include/rpl_stop_server.inc [server_number=4]
@@ -537,17 +489,15 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -555,27 +505,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel ''.
 [connection server_1]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
 ===== Executing STOP SLAVE FOR CHANNEL on channel ''.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL '']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel ''.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel ''.
 RESET SLAVE FOR CHANNEL '';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel ''.
@@ -584,17 +528,15 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = 'Waiting for master to send event'
 Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
@@ -602,27 +544,21 @@ Last_IO_Error = ''
 Last_SQL_Errno = '0'
 Last_SQL_Error = ''
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Check that replication is working fine on channel 'channel_2'.
 [connection server_2]
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (12);
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_2'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_2']
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_2'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_2';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_2'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_2'.
 RESET SLAVE FOR CHANNEL 'channel_2';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_2'.
@@ -631,41 +567,33 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position 807.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position 808.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Last_IO_Errno = '0'
 Last_IO_Error = ''
-Last_SQL_Errno = '1872'
+Last_SQL_Errno = '13124'
 Last_SQL_Error = 'Slave failed to initialize relay log info structure from the repository'
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing STOP SLAVE FOR CHANNEL on channel 'channel_3'.
-include/stop_slave.inc
+include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
 ===== Executing CHANGE MASTER FOR CHANNEL on channel 'channel_3'.
 CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL 'channel_3';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Connect_Retry = '100'
 Master_Retry_Count = '100'
 Slave_IO_State = ''
 Slave_SQL_Running_State = ''
 Channel_Name = 'channel_3'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ===== Executing RESET SLAVE FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE FOR CHANNEL 'channel_3';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
@@ -677,7 +605,7 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL '']
 [connection server_2]
 RESET MASTER;
 [connection server_4]
@@ -685,7 +613,7 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_2']
 [connection server_3]
 RESET MASTER;
 [connection server_4]
@@ -693,7 +621,7 @@ CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' 
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_3']
 CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= SERVER_1_PORT, MASTER_HOST='localhost' FOR CHANNEL 'channel_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -701,6 +629,6 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_2';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_2';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

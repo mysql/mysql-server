@@ -1,0 +1,231 @@
+drop table if exists t1_min;
+drop table if exists t1_max;
+drop table if exists t1_part;
+drop table if exists t1_subpart;
+
+create table t1_min(
+  c01 TINYINT,
+  c02 TINYINT UNSIGNED,
+  c03 SMALLINT,
+  c04 SMALLINT UNSIGNED,
+  c05 MEDIUMINT,
+  c06 MEDIUMINT UNSIGNED,
+  c07 INT,
+  c08 INT UNSIGNED,
+  c09 BIGINT,
+  c10 BIGINT UNSIGNED,
+  PRIMARY KEY(c01, c02, c03, c04, c05, c06, c07, c08, c09, c10)
+) ENGINE=INNODB;
+
+create table t1_max(
+  c01 TINYINT,
+  c02 TINYINT UNSIGNED,
+  c03 SMALLINT,
+  c04 SMALLINT UNSIGNED,
+  c05 MEDIUMINT,
+  c06 MEDIUMINT UNSIGNED,
+  c07 INT,
+  c08 INT UNSIGNED,
+  c09 BIGINT,
+  c10 BIGINT UNSIGNED,
+  PRIMARY KEY(c01, c02, c03, c04, c05, c06, c07, c08, c09, c10)
+) ENGINE=INNODB;
+
+create table t1_part(
+  a int,
+  b int,
+  c int,
+  PRIMARY KEY(a, b, c)
+) ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS 4;
+
+create table t1_subpart(
+  a int,
+  b int,
+  c int,
+  PRIMARY KEY (a, b, c)
+) ENGINE=INNODB
+  PARTITION BY RANGE( a )
+    SUBPARTITION BY HASH( b ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0,
+            SUBPARTITION s1
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2,
+            SUBPARTITION s3
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4,
+            SUBPARTITION s5
+        )
+  );
+
+insert into t1_min values
+(-128, 0,
+ -32768, 0,
+ -8388608, 0,
+ -2147483648, 0,
+ -9223372036854775808, 0);
+
+insert into t1_max values
+(127, 255,
+ 32767, 65535,
+ 8388607, 16777215,
+ 2147483647, 4294967295,
+ 9223372036854775807, 18446744073709551615);
+
+insert into t1_part values (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+insert into t1_subpart values (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+
+-- connect (con_lock,localhost,root,,)
+-- connect (con_min_trylock,localhost,root,,)
+-- connect (con_max_trylock,localhost,root,,)
+-- connect (con_min_tryinsert,localhost,root,,)
+-- connect (con_max_tryinsert,localhost,root,,)
+-- connect (con_trypart,localhost,root,,)
+-- connect (con_trysubpart,localhost,root,,)
+-- connect (con_monitor,localhost,root,,)
+
+-- connection con_lock
+SET autocommit=0;
+select * from t1_min for update;
+select * from t1_max for update;
+select * from t1_part for update;
+select * from t1_subpart for update;
+
+-- connection con_min_trylock
+-- send
+select * from t1_min for update;
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_min' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_max_trylock
+-- send
+select * from t1_max for update;
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_max' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_min_tryinsert
+-- send
+insert into t1_min values (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=2 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_min' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_max_tryinsert
+-- send
+insert into t1_max values (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=2 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_max' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_trypart
+-- send
+select * from t1_part for update;
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_part' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_trysubpart
+-- send
+select * from t1_subpart for update;
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_subpart' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+-- connection con_monitor
+
+# Debug
+# select * from performance_schema.data_locks;
+# select * from performance_schema.data_lock_waits;
+
+select
+  ENGINE,
+  OBJECT_SCHEMA, OBJECT_NAME,
+  PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+  LOCK_TYPE, LOCK_MODE, LOCK_STATUS, LOCK_DATA
+  from performance_schema.data_locks
+  order by OBJECT_SCHEMA, OBJECT_NAME,
+  PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+  LOCK_TYPE, LOCK_MODE, LOCK_STATUS, LOCK_DATA;
+
+
+# Basic integrity
+
+select ENGINE, ENGINE_LOCK_ID, ENGINE_TRANSACTION_ID
+  from performance_schema.data_locks
+  where (ENGINE = "INNODB")
+    and (ENGINE_TRANSACTION_ID not in
+      (select trx_id from information_schema.innodb_trx));
+
+-- vertical_results
+select
+  dl.ENGINE,
+  dl.OBJECT_SCHEMA,
+  dl.OBJECT_NAME,
+  dl.PARTITION_NAME,
+  dl.SUBPARTITION_NAME,
+  dl.INDEX_NAME,
+  dl.LOCK_TYPE,
+  dl.LOCK_MODE,
+  dl.LOCK_STATUS,
+  dl.LOCK_DATA,
+
+  it.trx_state,
+  it.trx_weight,
+  it.trx_query,
+  it.trx_operation_state,
+  it.trx_tables_in_use,
+  it.trx_tables_locked,
+  it.trx_lock_structs,
+  it.trx_rows_locked,
+  it.trx_rows_modified,
+  it.trx_concurrency_tickets,
+  it.trx_isolation_level,
+  it.trx_unique_checks,
+  it.trx_foreign_key_checks,
+  it.trx_last_foreign_key_error,
+  it.trx_adaptive_hash_latched,
+  it.trx_adaptive_hash_timeout,
+  it.trx_is_read_only,
+  it.trx_autocommit_non_locking
+
+  from performance_schema.data_locks dl inner join information_schema.innodb_trx it
+    on dl.ENGINE_TRANSACTION_ID = it.TRX_ID
+  order by ENGINE,
+           OBJECT_SCHEMA, OBJECT_NAME,
+           PARTITION_NAME, SUBPARTITION_NAME, INDEX_NAME,
+           trx_query, lock_status, LOCK_DATA;
+
+-- horizontal_results
+
+-- connection default
+
+-- disconnect con_lock
+-- disconnect con_min_trylock
+-- disconnect con_max_trylock
+-- disconnect con_min_tryinsert
+-- disconnect con_max_tryinsert
+-- disconnect con_trypart
+-- disconnect con_trysubpart
+-- disconnect con_monitor
+
+drop table t1_min;
+drop table t1_max;
+drop table t1_part;
+drop table t1_subpart;
+

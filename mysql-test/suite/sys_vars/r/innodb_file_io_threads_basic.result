@@ -24,7 +24,7 @@ COUNT(@@GLOBAL.innodb_write_io_threads)
 1 Expected
 '#---------------------BS_STVARS_027_03----------------------#'
 SELECT @@GLOBAL.innodb_read_io_threads = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_read_io_threads';
 @@GLOBAL.innodb_read_io_threads = VARIABLE_VALUE
 1
@@ -34,13 +34,13 @@ COUNT(@@GLOBAL.innodb_read_io_threads)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_read_io_threads';
 COUNT(VARIABLE_VALUE)
 1
 1 Expected
 SELECT @@GLOBAL.innodb_write_io_threads = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_write_io_threads';
 @@GLOBAL.innodb_write_io_threads = VARIABLE_VALUE
 1
@@ -50,7 +50,7 @@ COUNT(@@GLOBAL.innodb_write_io_threads)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_write_io_threads';
 COUNT(VARIABLE_VALUE)
 1

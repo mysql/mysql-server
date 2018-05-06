@@ -1,5 +1,4 @@
 # one subtest needs page size > 8k
---source include/have_innodb_16k.inc
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -177,6 +176,7 @@ drop table t1;
 #
 
 create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
+analyze table t1;
 show keys from t1;
 drop table t1;
 
@@ -240,7 +240,7 @@ drop table t1;
 # UNIQUE prefix keys and multi-byte charsets
 #
 
-create table t1 (c varchar(30) character set utf8, t text character set utf8, unique (c(2)), unique (t(3))) engine=myisam;
+create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
 show create table t1;
 insert t1 values ('cccc', 'tttt'),
   (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
@@ -334,7 +334,7 @@ create table t1 (
  i1 INT NOT NULL,
  i2 INT NOT NULL,
  UNIQUE i1idx (i1),
- UNIQUE i2idx (i2));
+ UNIQUE i2idx (i2)) charset utf8mb4;
 desc t1;
 show create table t1;
 drop table t1;
@@ -361,7 +361,7 @@ drop table t1;
 # field, and we extend the field, we end up with a key that includes the
 # whole new length of the field.
 #
-create table t1 (a varchar(10), b varchar(10), key(a(10),b(10)));
+create table t1 (a varchar(10), b varchar(10), key(a(10),b(10))) charset utf8mb4;
 show create table t1;
 alter table t1 modify b varchar(20);
 show create table t1;
@@ -405,7 +405,7 @@ create table t1 (
     unique i4 (c4),
     index i5 (c1, c2, c3, c4),
     primary key (c2, c3),
-    index (c2, c4));
+    index (c2, c4)) charset utf8mb4;
 show create table t1;
 # Some simple tests.
 alter table t1 drop index c1;
@@ -435,8 +435,7 @@ alter table t1 drop primary key;
 alter table t1 add primary key (c1, c2), drop primary key;
 show create table t1;
 # Insert non-unique values.
-insert into t1 values(1, 'a', 'a', NULL);
-insert into t1 values(1, 'b', 'b', NULL);
+insert into t1 values(1, 'a', 'a', NOW()), (1, 'b', 'b', NOW());
 # Drop some indexes for new adds.
 alter table t1 drop index i3, drop index i2, drop index i1;
 # Add indexes, one is unique on non-unique values.
@@ -511,13 +510,13 @@ DROP TABLE t1, t2;
 #
 create table t1(a int not null, key aa(a), 
                 b char(10) not null, unique key bb(b(1)), 
-                c char(4) not null, unique key cc(c)); 
+                c char(4) not null, unique key cc(c)) charset utf8mb4; 
 desc t1;
 show create table t1;
 drop table t1;
 create table t1(a int not null, key aa(a), 
                 b char(10) not null, unique key bb(b(1)),
-                c char(4) not null);
+                c char(4) not null) charset utf8mb4;
 desc t1;
 alter table t1 add unique key cc(c);
 desc t1;
@@ -528,7 +527,7 @@ drop table t1;
 
 #
 # Bug #31148: bool close_thread_table(THD*, TABLE**): Assertion
-# `table->key_read == 0' failed.
+# 'table->key_read == 0' failed.
 #
 
 --disable_warnings
@@ -586,3 +585,270 @@ EXPLAIN SELECT a, SUM( b ) FROM t1 FORCE INDEX( a ) GROUP BY a;
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Additional coverage for handling of key algorithm in index definition.
+--echo #
+
+--echo #
+--echo # 1) Default case. If key algorithm was not specified explicitly and
+--echo #    this is normal key (not spatial or fulltext) storage engine
+--echo #    default key algorithm is used.
+--echo #    
+create table tm (k int, index (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index (k)) charset utf8mb4 engine=heap;
+--echo #
+--echo # Key algorithm is not shown in SHOW CREATE TABLE output in this case
+--echo #
+show create table tm;
+show create table ti;
+show create table th;
+--echo #
+--echo # But visible in I_S.STATISTICS
+--echo #
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' order by table_name;
+--echo #
+--echo # Same applies when keys are added by ALTER TABLE
+--echo #
+alter table tm add column l int, add index (l);
+alter table ti add column l int, add index (l);
+alter table th add column l int, add index (l);
+show create table tm;
+show create table ti;
+show create table th;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+drop tables tm, ti, th;
+
+--echo #
+--echo # 2) For SPATIAL and FULLTEXT keys we always use special key
+--echo #    algorithms and there is no way to specify it explicitly.
+--echo #
+create table tm (pk int primary key, p point not null SRID 0, spatial index (p))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, p point not null SRID 0, spatial index (p))
+charset utf8mb4 engine=innodb;
+--error ER_CHECK_NOT_IMPLEMENTED
+create table th (pk int primary key, p point not null, spatial index (p))
+charset utf8mb4 engine=heap;
+--echo #
+--echo # Key algorithm is not shown in SHOW CREATE TABLE output in this
+--echo # case as well.
+--echo #
+show create table tm;
+show create table ti;
+--echo #
+--echo # But visible in I_S.STATISTICS
+--echo #
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'p'
+  order by table_name;
+--echo #
+--echo # Same applies when keys are added by ALTER TABLE
+--echo #
+alter table tm add column q point not null SRID 0, add spatial index (q);
+alter table ti add column q point not null SRID 0, add spatial index (q);
+show create table tm;
+show create table ti;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'q'
+  order by table_name;
+drop tables tm, ti;
+--echo #
+--echo # Same applies to FULLTEXT indexes.
+--echo #
+create table tm (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=innodb;
+--error ER_TABLE_CANT_HANDLE_FT
+create table th (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=heap;
+show create table tm;
+show create table ti;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'v'
+  order by table_name;
+--echo #
+--echo # Same applies when keys are added by ALTER TABLE
+--echo #
+alter table tm add column w varchar(255), add fulltext index (w);
+alter table ti add column w varchar(255), add fulltext index (w);
+show create table tm;
+show create table ti;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'w'
+  order by table_name;
+drop tables tm, ti;
+
+--echo #
+--echo # 3) If key algorithm was specified explicitly and it is supported
+--echo #    by the storage engine it will be used.
+--echo #
+create table tm (k int, index using btree (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index using btree (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index using btree (k)) charset utf8mb4 engine=heap;
+--echo #
+--echo # In this case it is shown in SHOW CREATE TABLE output
+--echo #
+show create table tm;
+show create table ti;
+show create table th;
+--echo #
+--echo # Also visible in I_S.STATISTICS
+--echo #
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' order by table_name;
+--echo #
+--echo # Same applies when keys are added by ALTER TABLE
+--echo #
+--echo # Note that the information that algorithm was provided explicitly is
+--echo # preserved by ALTER TABLE.
+alter table tm add column l int, add index using btree (l);
+alter table ti add column l int, add index using btree (l);
+alter table th add column l int, add index using hash (l);
+show create table tm;
+show create table ti;
+show create table th;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+drop tables tm, ti, th;
+
+--echo #
+--echo # 4) If key algorithm was specified explicitly and but it is not
+--echo #    supported by the storage engine the default algorithm for SE
+--echo #    will be used instead. We will emit a note in this case. We will
+--echo #    also treat such situation as if algorithm is implicit. 
+--echo #
+--echo # The below statements should emit notes.
+create table tm (k int, index using hash (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index using hash (k)) charset utf8mb4 engine=innodb;
+--echo #
+--echo # In this case algorithm is not in SHOW CREATE TABLE output
+--echo #
+show create table tm;
+show create table ti;
+--echo #
+--echo # But visible in I_S.STATISTICS
+--echo #
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' order by table_name;
+--echo #
+--echo # Same applies when keys are added by ALTER TABLE
+--echo #
+alter table tm add column l int, add index using hash (l);
+alter table ti add column l int, add index using hash (l);
+show create table tm;
+show create table ti;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+drop tables tm, ti;
+
+--echo #
+--echo # 5) Coverage for key algorithm handling in cross-engine ALTER TABLE.
+--echo #
+--echo # If algorithm was not specified explicitly cross-engine ALTER TABLE
+--echo # will silently change it to the new SE's default.
+create table t1 (k int, index (k)) charset utf8mb4 engine=innodb;
+show create table t1;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+--echo # Change table's SE.
+alter table t1 engine= heap;
+--echo # Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+--echo # But in I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+drop table t1;
+--echo #
+--echo # If algorithm was specified explicitly and is supported by the new
+--echo # SE we will keep it.
+--echo #
+create table t1 (k int, index using btree (k)) charset utf8mb4 engine=innodb;
+show create table t1;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+--echo # Change table's SE.
+alter table t1 engine= heap;
+--echo # Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+--echo # In I_S.STATISTICS we also see that algorithm is the same
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+drop table t1;
+--echo #
+--echo # If algorithm was specified explicitly but is not supported by the
+--echo # new SE, we will used new SE's default instead, emit a note, and
+--echo # treat new algorithm as implicitly specified after that.
+--echo #
+create table t1 (k int, index using hash (k)) charset utf8mb4 engine=heap;
+show create table t1;
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+--echo # Change table's SE. Note will be emitted.
+alter table t1 engine= innodb;
+--echo # New algorithm is not visible SHOW CREATE TABLE output.
+show create table t1;
+--echo # In I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+  where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+drop table t1;
+
+--echo #
+--echo # 6) Key algorithms and duplicate key detection.
+--echo #
+--echo # When we detect duplicate keys in table definition we take
+--echo # key algorithm into account. But we ignore if it was explicit
+--echo # or implicit.
+create table t1 (k int, index using btree (k), index using hash (k)) engine=heap;
+drop table t1;
+create table t1 (k int, index (k), index using hash (k)) engine=heap;
+drop table t1;
+create table t1 (k int, index using btree (k), index (k)) engine=innodb;
+drop table t1;
+create table t1 (k int, index using btree (k), index using hash (k)) engine=innodb;
+drop table t1;
+
+--echo #
+--echo # 7) Key algorithm and ALTER TABLE ALGORITHM=INPLACE
+--echo #
+--echo # Changing key algorithm from one used by default to the same one
+--echo # but specified explicitly should be inplace/fast operation.
+create table t1 (k int, index (k)) charset utf8mb4 engine=myisam;
+show create table t1;
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+show create table t1;
+alter table t1 drop key k, add index (k), algorithm=inplace;
+show create table t1;
+--echo # Note that below statement doesn't really change algorithm.
+alter table t1 drop key k, add index using hash (k), algorithm=inplace;
+drop table t1;
+--echo # Changing key algorithm to another one can require COPY algorithm.
+create table t1 (k int, index (k)) charset utf8mb4 engine=heap;
+show create table t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+show create table t1;
+alter table t1 drop key k, add index using btree (k), algorithm=copy;
+show create table t1;
+drop table t1;
+
+--echo #
+--echo # Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
+--echo #               COUNT == DD_TABLE.INDEXES()".
+--echo #
+create table t1 (b text not null, unique key(b(8)));
+drop table t1;

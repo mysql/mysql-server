@@ -22,11 +22,18 @@ my $plugins= $ENV{'plugins'};
 # Check if no plugins are specified.
 die "[ERROR]: No plugin specified\n" if (!@plugin_list);
 
-# Getting the plugin directories from the Environment variables;
+# Getting the plugin directories from the Environment variables.
 for my $plugin (@plugin_list) {
 	$plugin=~ s/^\s+|\s+$//g;
-	$plugin= $plugin._DIR;
-	$plugin= $ENV{"$plugin"};
+        my $plugin_dir= $plugin."_DIR";
+         if (!$ENV{"$plugin"}) {
+           die "[ERROR]: Plugin requires the environment variable \$$plugin".
+              " to be set (normally done by mtr)\n";
+         }
+         if (!($plugin_dir= $ENV{"$plugin_dir"})) {
+           die "[ERROR]: Plugin directory for \'$plugin\' is not set\n";
+         }
+        $plugin=$plugin_dir;
 }
 
 # assigning the first plugin directory as the default directory to compare with

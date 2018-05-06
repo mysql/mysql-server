@@ -38,17 +38,32 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
 
 # Check that heartbeat events sent to both slaves with correct periods
 --connection slave_1
-let $status_var= slave_received_heartbeats;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+
+# As per WL7817, status variables are moved to PS replication tables.
+# Replacing slave_received_heartbeats with count_received_heartbeats.
+
+let $status_col= count_received_heartbeats;
+let $table=replication_connection_status;
+let $status_col_value= query_get_value(select $status_col from performance_schema.$table, $status_col, 1);
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Slave has received heartbeat event
 --connection slave_2
-let $status_var= slave_received_heartbeats;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
---let $assert_cond= [slave_1:SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > [slave_2:SHOW STATUS LIKE "slave_received_heartbeats", Value, 1]
+
+# As per WL7817, status variables are moved to PS replication tables.
+# Replacing slave_received_heartbeats with count_received_heartbeats.
+
+let $status_col= count_received_heartbeats;
+let $table=replication_connection_status;
+let $status_col_value= query_get_value(select count_received_heartbeats from
+performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
+
+let $table=replication_connection_status;
+
+--let $assert_cond= [slave_1:select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1]> [slave_2:select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1]
+
 --let $assert_text= slave_1 should have received more heartbeats than slave_2
 --source include/assert.inc
 --echo
@@ -70,10 +85,15 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 
 # Check heartbeat for new replication channel slave_2->slave
-let $status_var= slave_received_heartbeats;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+
+# As per WL7817, status variables are moved to PS replication tables.
+# Replacing slave_received_heartbeats with count_received_heartbeats.
+
+let $status_col= count_received_heartbeats;
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo slave_1 has received heartbeat event
 --connection master
 --echo [on master]
@@ -104,7 +124,8 @@ while ($i) {
   let $slave_2_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);  
   if (`SELECT ($k*($slave_2_pos - $slave_2_pos_before)) > 0`) {
     --connection slave_1
-    let $slave_1_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);    
+    let $slave_1_rcvd_heartbeats_before= query_get_value(SELECT count_received_heartbeats from performance_schema.replication_connection_status,count_received_heartbeats, 1);
+
     let $k= 0;
     let $time_before = `SELECT NOW()`;
   }
@@ -118,7 +139,9 @@ while ($i) {
 --enable_query_log
 --connection slave_1
 --echo [on slave_1]
---let $assert_cond= [SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > $slave_1_rcvd_heartbeats_before
+
+--let $assert_cond= [select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1]> $slave_1_rcvd_heartbeats_before
+
 --let $assert_text= slave_1 should have received heartbeats
 --source include/assert.inc
 --echo

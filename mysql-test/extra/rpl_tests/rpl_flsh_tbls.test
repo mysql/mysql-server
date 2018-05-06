@@ -4,9 +4,7 @@
 # Test of FLUSH NO_WRITE_TO_BINLOG by the way.
 #
 --source include/have_myisam.inc
-
-source include/master-slave.inc;
-source include/not_relay_log_info_table.inc;
+--source include/master-slave.inc
 
 let $SERVER_VERSION=`select version()`;
 

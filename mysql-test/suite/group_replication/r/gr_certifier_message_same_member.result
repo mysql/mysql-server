@@ -1,0 +1,25 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_inject_duplicate_certifier_data_message';
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+############################################################
+# Execute a transaction on the server1 which is propagated to the
+# second server and applied on both of them.
+CREATE TABLE t1(i INT PRIMARY KEY);
+include/rpl_sync.inc
+# Start the first round of garbage collection here. Since we have set the DBUG
+# flag on the second server we expect a message to be logged in the error log
+# as the same member sent the message.
+# Transactions_committed_all_members has 1 transaction from when server 2 joined
+# No more info should have been received.
+include/assert.inc [Transactions committed on all members should only contain 1 transaction]
+INSERT INTO t1 VALUES(1);
+# Checking that the garbage collection is working fine.
+SET @@GLOBAL.DEBUG= @debug_save;
+DROP TABLE t1;
+include/group_replication_end.inc

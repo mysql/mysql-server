@@ -22,15 +22,13 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` char(30) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ARCHIVE AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/archive/'
+) ENGINE=ARCHIVE AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/archive/'
 DROP TABLE t1;
 # 
 # Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
 # 
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -44,8 +42,6 @@ INSERT INTO t1 VALUES (NULL, "yellow");
 # Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # 
 # MySQL engine does not allow DATA DIRECTORY to be
 # within --datadir for any engine, including Archive

@@ -1,85 +1,19 @@
 # The numbers represent test cases of the test plan.
 
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 CALL mtr.add_suppression("The plugin 'new_plugin_server' used to authenticate user 'new_user'@'%' is not loaded. Nobody can currently login using this account.");
+
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
 
 CREATE DATABASE test_user_db;
 
 --source include/plugin_auth_check_non_default_users.inc
 
---echo ========== test 1.1.3.2 ====================================
-
-# CREATE...WITH/CREATE...BY/GRANT
-CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
---replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
-REVOKE PROXY ON plug_dest FROM plug_user;
---error 1
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
-DROP USER plug_user,plug_dest;
-#
-# GRANT...WITH
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-  IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
-
---source include/plugin_auth_check_non_default_users.inc
---echo 1)
---replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
---error ER_PARSE_ERROR
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
---echo 2)
---replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
-REVOKE PROXY ON plug_dest FROM plug_user;
---echo 3)
---error 1
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
-DROP USER plug_user,plug_dest;
-#
-# GRANT...WITH/CREATE...BY
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-  IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
---echo 1)
---error 1
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
-GRANT PROXY ON plug_dest TO plug_user;
---echo 2)
---replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();USE test_user_db;CREATE TABLE t1(a int);SHOW TABLES;DROP TABLE t1;" 2>&1
---error ER_PARSE_ERROR
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-#REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_dest'
-#                         IDENTIFIED BY 'plug_dest_passwd';
-DROP USER plug_user,plug_dest;
-
 --echo ========== test 1.2 ========================================
-
-# GRANT...WITH/CREATE...BY
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-  IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
---replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();" 2>&1
-RENAME USER plug_dest TO new_dest;
---error 1
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=plug_dest -e "SELECT current_user();SELECT user();" 2>&1
-GRANT PROXY ON new_dest TO plug_user;
---error 1
---exec $MYSQL -S $MASTER_MYSOCK -u plug_user $PLUGIN_AUTH_OPT --password=new_dest -e "SELECT current_user();SELECT user();" 2>&1
---source include/plugin_auth_check_non_default_users.inc
-DROP USER plug_user,new_dest;
-
 # CREATE...WITH/CREATE...BY
 CREATE USER plug_user
   IDENTIFIED WITH test_plugin_server AS 'plug_dest';
@@ -175,7 +109,7 @@ select USER(),CURRENT_USER();
 connection default;
 --echo disconnect plug_user;
 disconnect plug_user;
-DROP USER new_user,new_dest,plug_dest;
+DROP USER plug_user, new_user,new_dest,plug_dest;
 
 --echo ========== test 2, 2.1, 2.2 ================================
 
@@ -215,8 +149,8 @@ connection default;
 disconnect proxy_con;
 DROP USER ''@'',proxied_user;
 #
-GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'' 
-                     IDENTIFIED WITH test_plugin_server AS 'proxied_user';
+CREATE USER ''@'' IDENTIFIED WITH test_plugin_server AS 'proxied_user';
+GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'';
 CREATE USER proxied_user IDENTIFIED BY 'proxied_user_passwd';
 --source include/plugin_auth_check_non_default_users.inc
 --echo connect(proxy_con,localhost,proxied_user,proxied_user_passwd);
@@ -306,24 +240,5 @@ disconnect proxy_con_4;
 disconnect proxy_con_5;
 DROP USER ''@'',proxied_user_1,proxied_user_2,proxied_user_3,proxied_user_4,proxied_user_5;
 
---echo ========== test 3 ==========================================
-
-GRANT ALL PRIVILEGES ON *.* TO plug_user
-  IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
-FLUSH PRIVILEGES;
-
-# Not working with the patch.
-
-#--replace_result $MYSQLADMIN MYSQLADMIN $MASTER_MYPORT MYPORT $MASTER_MYSOCK MYSOCK
-#--exec $MYSQLADMIN $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -S $MASTER_MYSOCK -u plug_user --password=plug_dest ping 2>&1
-#--replace_result $MYSQL_CHECK MYSQL_CHECK $MASTER_MYPORT MYPORT
-#--exec $MYSQL_CHECK $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT  -u plug_user --password=plug_dest test
-#--replace_result $MYSQL_DUMP MYSQL_DUMP $MASTER_MYPORT MYPORT
-#--exec $MYSQL_DUMP -h localhost -P $MASTER_MYPORT $PLUGIN_AUTH_OPT -u plug_user --password=plug_dest test
-#--replace_result $MYSQL_SHOW MYSQL_SHOW $MASTER_MYPORT MYPORT
-#--exec $MYSQL_SHOW $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --plugin_dir=../plugin/auth -u plug_user --password=plug_dest 2>&1
-DROP USER plug_user, plug_dest;
 DROP DATABASE test_user_db;
 --exit

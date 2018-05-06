@@ -1,0 +1,86 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the immediate_commit_timestamp (ICT) and the
+# original_commit_timestamp (OCT) are generated and replicated correctly in a
+# server_1 (Master) -> server_2,server_3-> server_2 topology, all of them mysql-5.8+
+#
+# ==== Implementation ====
+#
+# Considering the Multi Source replication, we make the following
+# assertions:
+# 1) original_commit_timestamp is same across topology for a transaction.
+# 2) On the original server, original_commit_timestamp = immediate_commit_timestamp.
+# 2) the immediate_commit_timestamp increases as we go down in the topology.
+#
+#
+# ==== References ====
+#
+# WL#7319  Infrastructure for correct replication lag monitoring
+
+
+# Legend:
+#   OCT: original_commit_timestamp
+#   ICT: immediate_commit_timestamp
+
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+# Establish the msr topology.
+--let $rpl_topology=1->2,3->2
+--let $rpl_multi_source= 1
+
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $server_1_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a int);
+INSERT INTO db1.t1 VALUES(1);
+UPDATE db1.t1 SET a=2;
+DELETE FROM db1.t1 WHERE a=1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $server_3_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+
+CREATE DATABASE db2;
+CREATE TABLE db2.t2(a int);
+INSERT INTO db2.t2 VALUES(1);
+UPDATE db2.t2 SET a=2;
+DELETE FROM db2.t2 WHERE a=1;
+DROP TABLE db2.t2;
+DROP DATABASE db2;
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $check_master_OCT= 1
+--let $check_master_slave_ICT= 1
+--let $i=1
+while($i<8)
+{
+  --let $gtid= $server_1_uuid:$i
+  --let $master= server_1
+  --let $slave=server_2
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+
+  --let $gtid= $server_3_uuid:$i
+  --let $master=server_3
+  --let $slave=server_2
+  --source extra/rpl_tests/rpl_replication_timestamps.inc
+  --inc $i
+}
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

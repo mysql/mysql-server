@@ -1,35 +1,46 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_REPORTING_H
 #define RPL_REPORTING_H
 
-#include "my_global.h"
-#include "my_sys.h"                   // my_time
-#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_systime.h"  //my_getsystime
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 
 /**
    Maximum size of an error message from a slave thread.
  */
-#define MAX_SLAVE_ERRMSG      1024
+#define MAX_SLAVE_ERRMSG 1024
 
-// todo: consider to remove rpl_reporting.cc,h from building embedded
-#if !defined(EMBEDDED_LIBRARY)
 class THD;
-#endif
 
 /**
    Mix-in to handle the message logging and reporting for relay log
@@ -38,9 +49,8 @@ class THD;
    By inheriting from this class, the class is imbued with
    capabilities to do slave reporting.
  */
-class Slave_reporting_capability
-{
-public:
+class Slave_reporting_capability {
+ public:
   /** lock used to synchronize m_last_error on 'SHOW SLAVE STATUS' **/
   mutable mysql_mutex_t err_lock;
   /**
@@ -61,9 +71,10 @@ public:
                         printf() format.
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
-    MY_ATTRIBUTE((format(printf, 4, 5)));
+      MY_ATTRIBUTE((format(printf, 4, 5)));
   void va_report(loglevel level, int err_code, const char *prefix_msg,
-                 const char *msg, va_list v_args) const;
+                 const char *msg, va_list v_args) const
+      MY_ATTRIBUTE((format(printf, 5, 0)));
 
   /**
      Clear errors. They will not show up under <code>SHOW SLAVE
@@ -75,49 +86,40 @@ public:
     mysql_mutex_unlock(&err_lock);
   }
 
-#if !defined(EMBEDDED_LIBRARY)
   /**
      Check if the current error is of temporary nature or not.
   */
-  int has_temporary_error(THD *thd, uint error_arg= 0, bool* silent= 0) const;
-#endif // EMBEDDED_LIBRARY
-  
+  int has_temporary_error(THD *thd, uint error_arg = 0, bool *silent = 0) const;
+
   /**
      Error information structure.
    */
   class Error {
     friend class Slave_reporting_capability;
-  public:
-    Error()
-    {
-      clear();
+
+   public:
+    Error() { clear(); }
+
+    void clear() {
+      number = 0;
+      message[0] = '\0';
+      timestamp[0] = '\0';
     }
 
-    void clear()
-    {
-      number= 0;
-      message[0]= '\0';
-      timestamp[0]= '\0';
-
-    }
-
-    void update_timestamp()
-    {
+    void update_timestamp() {
       struct tm tm_tmp;
       struct tm *start;
+      time_t tt_tmp;
 
-      skr= my_time(0);
-      localtime_r(&skr, &tm_tmp);
-      start=&tm_tmp;
+      skr = my_getsystime() / 10;
+      tt_tmp = skr / 1000000;
+      localtime_r(&tt_tmp, &tm_tmp);
+      start = &tm_tmp;
 
-      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
-              start->tm_year % 100,
-              start->tm_mon+1,
-              start->tm_mday,
-              start->tm_hour,
-              start->tm_min,
-              start->tm_sec);
-      timestamp[15]= '\0';
+      snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d %02d:%02d:%02d",
+               start->tm_year % 100, start->tm_mon + 1, start->tm_mday,
+               start->tm_hour, start->tm_min, start->tm_sec);
+      timestamp[15] = '\0';
     }
 
     /** Error code */
@@ -126,50 +128,47 @@ public:
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
     char timestamp[64];
-    /** Error timestamp as time_t variable. Used in performance_schema */
-    time_t skr;
-
+    /** Error timestamp in microseconds. Used in performance_schema */
+    ulonglong skr;
   };
 
-  Error const& last_error() const { return m_last_error; }
+  Error const &last_error() const { return m_last_error; }
   bool is_error() const { return last_error().number != 0; }
 
+  /*
+    For MSR, there is a need to introduce error messages per channel.
+    Instead of changing the error messages in share/errmsg-utf8.txt to
+    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+    There might be problem with a client applications which could print
+    error messages and see no %s.
+    @TODO: fix this.
+  */
+  virtual const char *get_for_channel_str(bool upper_case) const = 0;
 
- /*
-   For MSR, there is a need to introduce error messages per channel.
-   Instead of changing the error messages in share/errmsg-utf8.txt to
-   introduce the clause, FOR CHANNEL "%s", we construct a string like this.
-   There might be problem with a client applications which could print
-   error messages and see no %s.
-   @TODO: fix this.
- */
-  virtual const char* get_for_channel_str(bool upper_case) const = 0;
+  virtual ~Slave_reporting_capability() = 0;
 
-  virtual ~Slave_reporting_capability()= 0;
-
-protected:
-
-  virtual void do_report(loglevel level, int err_code,
-                 const char *msg, va_list v_args) const
-  {
-    va_report(level, err_code, NULL, msg, v_args);
-  }
+ protected:
+  virtual void do_report(loglevel level, int err_code, const char *msg,
+                         va_list v_args) const
+      MY_ATTRIBUTE((format(printf, 4, 0)));
 
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
   mutable Error m_last_error;
 
-private:
-
+ private:
   char const *const m_thread_name;
 
-  char channel_str[100]; // FOR CHANNEL="max_64_size"
-
   // not implemented
-  Slave_reporting_capability(const Slave_reporting_capability& rhs);
-  Slave_reporting_capability& operator=(const Slave_reporting_capability& rhs);
+  Slave_reporting_capability(const Slave_reporting_capability &rhs);
+  Slave_reporting_capability &operator=(const Slave_reporting_capability &rhs);
 };
 
-#endif // RPL_REPORTING_H
+inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
+                                                  const char *msg,
+                                                  va_list v_args) const {
+  va_report(level, err_code, NULL, msg, v_args);
+}
 
+#endif  // RPL_REPORTING_H

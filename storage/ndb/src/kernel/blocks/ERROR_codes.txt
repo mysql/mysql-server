@@ -1,36 +1,44 @@
-# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 943
-Next NDBCNTR 1006
-Next NDBFS 2000
-Next DBACC 3002
+Next QMGR 948
+Next NDBCNTR 1007
+Next NDBFS 2002
+Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5088
-Next DBDICT 6216
-Next DBDIH 7245
-Next DBTC 8109
+Next DBLQH 5092
+Next DBDICT 6223
+Next DBDIH 7249
+Next DBTC 8117
 Next CMVMI 9000
-Next BACKUP 10042
-Next DBUTIL 11002
+Next BACKUP 10048
+Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13049
-Next LGMAN 15001
-Next TSMAN 16001
+Next LGMAN 15002
+Next TSMAN 16002
 Next DBSPJ 17000
 Next TRIX 18000
+Next DBUTIL 19001
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -102,6 +110,9 @@ Insert system error in GCP participant when receiving GCP_SAVEREQ.
 5007:
 Delay GCP_SAVEREQ by 10 secs
 
+5090:
+Delay opening next redo log file.
+
 7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
 
 7030: Delay in GCP_PREPARE until node has completed a node failure
@@ -133,6 +144,8 @@ GCP Stop so that isolation is required to remove a node.
 7238: Delay GCP_PREPARE processing indefinitely
 7239: Delay GCP_COMMIT processing indefinitely
 7244: Delay SUB_GCP_COMPLETE_REP processing indefinitely
+7247: Delay WAIT_GCP_REQ processing indefinitely
+7248: Skip most recent LCP during a restart
 
 Related (LQH):
   5085 : Ignore request to kill via DUMP 2305
@@ -243,7 +256,16 @@ LQH
 
 QMGR
 942:  (See above) 
-
+946:  Make node inactive for 180s during node restart, which results in missed
+      heartbeats when HeartbeatIntervalDbDb is set to around 40s or lesser and
+      TimeBetweenWatchDogCheck is set to its max. value (to prevent termination
+      due to watchdog timeout)
+      Steps to make, say, data node 2 miss heartbeats:
+      1) Start cluster
+      2) ndb_mgm -e "all restart -n"
+      3) ndb_mgm -e "2 error 946"
+      4) ndb_mgm -e "all start"
+947:  Treat restart error due to a node disconnection as CRASH_INSERTION.
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
@@ -598,6 +620,12 @@ Backup Stuff:
 10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
 10041: delay backup after create trigger. for testing undo log file.
+10042: Send SCAN_NEXTREQ with 10ms delay
+10043: Block indefinitely without closing file
+10044: Crash insertion at FSAPPENDREF
+10045: Crash insertion at FSAPPENDREF
+10046: DIH scan tab around Get next fragment
+10047: Delay start of scan for LCPs
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -688,8 +716,6 @@ System Restart:
 7070: Set TimeBetweenLcp to min value
 7071: Set TimeBetweenLcp to max value
 7072: Split START_FRAGREQ into several log nodes
-7073: Don't include own node in START_FRAGREQ
-7074: 7072 + 7073
 
 Scan:
 ------
@@ -741,6 +767,14 @@ Dbdict:
 6203 Set error code before CREATE_FRAGMENTATION in master (index)
 
 6215 Randomly fail GET_TABINFOREQ with Busy (no CLEAR_ERROR_INSERT_VALUE)
+6216 Delay GET_TABINFOREQ processing indefinitely
+6217 Delay CREATE_TABLE_REQ, ALTER_TABLE_REQ and DROP_TABLE_REQ processing indefinitely
+6218 Delay CREATE_INDEX_REQ, CREATE_FILEGROUP_REQ, CREATE_FILE_REQ, CREATE_FK_REQ indefinitely
+6219 Delay DROP_INDEX_REQ, DROP_FILEGROUP_REQ, DROP_FILE_REQ, DROP_FK_REQ processing indefinitely
+6220 Delay LIST_TABLES_REQ indefinitely
+6221 Delay INDEX_STAT_REQ indefinitely
+6222 Delay CREATE_HASH_MAP_REQ indefinitely
+6223 Only send SCHEMA_TRANS_IMPL_REQ to self preparatory to crashing
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer
@@ -777,11 +811,15 @@ SUMA:
 
 LGMAN:
 -----
-15000: Fail to create log file
+15000: Fail to create log file CreateFileImplRef::FileSizeTooLarge
+15001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfLogBufferMemory
 
 TSMAN:
 -----
 16000: Fail to create data file
+16001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfFilegroupRecords
 
 ACC bug#34348
 -------------
@@ -800,3 +838,7 @@ Index stats:
 18022: fail RT_CLEAN_OLD (non-fatal) - as in 18021
 18023: fail RT_CLEAN_ALL (non-fatal) - as in 18021
 18024: fail RT_SCAN_FRAG - simulate TC error 630
+
+DBUTIL
+-------
+19000: fail UTIL_PREPARE_REQ with PREPARE_SEIZE_ERROR

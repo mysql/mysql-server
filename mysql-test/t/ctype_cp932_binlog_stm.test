@@ -5,8 +5,6 @@
 -- source extra/binlog_tests/ctype_cp932_binlog.test
 -- source include/big_test.inc
 
-
-call mtr.add_suppression('Error in Log_event::read_log_event()');
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
@@ -34,11 +32,6 @@ DROP TABLE t4;
 --source include/show_binlog_events.inc
 
 --echo End of 5.0 tests
-
-#
-# #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
---error 1220
-SHOW BINLOG EVENTS FROM 490;
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;
@@ -94,7 +87,11 @@ ORDER BY head;
 --enable_warnings
 DROP TEMPORARY TABLE head, tail;
 SHOW CREATE TABLE t1;
+
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = default;
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
@@ -154,12 +151,10 @@ DROP TABLE t1;
 
 set names cp932;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 set collation_connection=cp932_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_8140.inc
 
 --echo #

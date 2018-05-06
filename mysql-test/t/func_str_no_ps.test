@@ -1,8 +1,6 @@
 # Some of the queries give different set of warnings with --ps-protocol
-if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
-{
-   --skip Need normal protocol
-}
+--source include/no_ps_protocol.inc
+--source include/no_cursor_protocol.inc
 
 --echo #
 --echo # Bug#20315088 LCASE/LTRIM, SOURCE AND DESTINATION OVERLAP IN MEMCPY
@@ -10,8 +8,6 @@ if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
 
 do lcase(ltrim(from_unixtime(0,' %T ')));
 do _cp852 "" <= lcase(trim(leading 1 from 12222)) not between '1' and '2';
-do decode(substring(sha1('1'),'11'),25);
-do encode(mid(sysdate(),"5",1),'11');
 do upper(substring(1.111111111111111111 from '2n'));
 do nullif(1,'-' between lcase(right(11111111," 7,]" ))and '1');
 do upper(right(198039009115594390000000000000000000000.000000,35));

@@ -29,49 +29,45 @@ FILE_NAME
 CREATE TABLE t_db_26152751 (a INT) ENGINE=MYISAM;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
+t_db_26152751.sdi
 t_db_26152751.MYI
 t_db_26152751.MYD
 RENAME TABLE t_db_26152751 to t_db_26152751_new;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751_new.frm
 t_db_26152751_new.MYI
 t_db_26152751_new.MYD
+t_db_26152751_new.sdi
 RENAME TABLE t_db_26152751_new to t_db_26152751;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
 t_db_26152751.MYI
 t_db_26152751.MYD
+t_db_26152751.sdi
 ALTER TABLE t_db_26152751 ADD COLUMN b INT;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
 t_db_26152751.MYI
 t_db_26152751.MYD
+t_db_26152751.sdi
 DROP TABLE t_db_26152751;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
 CREATE TABLE t_db_26152751 (a INT) ENGINE=INNODB;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
 t_db_26152751.ibd
 RENAME TABLE t_db_26152751 to t_db_26152751_new;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751_new.frm
 t_db_26152751_new.ibd
 RENAME TABLE t_db_26152751_new to t_db_26152751;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
 t_db_26152751.ibd
 ALTER TABLE t_db_26152751 ADD COLUMN b INT;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 FILE_NAME
-t_db_26152751.frm
 t_db_26152751.ibd
 DROP TABLE t_db_26152751;
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";

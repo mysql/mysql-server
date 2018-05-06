@@ -1,0 +1,156 @@
+################################################################################
+## Server_uuid should not match with group_replication_group_name when GR is
+## running.
+##
+## This test case covers testing of server_uuid matching
+## group_replication_group_name when
+## server is non-bootstrap and start_on_boot=ON.
+##
+## Test:
+## 0.   This test requires 2 members.
+## 0.1. Store members uuids and set bin logs for required servers.
+## 0.2. Start server1 with group_name as server2_UUID.
+##      Environment setup required to match server2_UUID and group_name.
+##      Server1 will work as seed.
+## 1.   Restart server2 with group_name as server2_uuid
+## 1.1. Assert GR do not start.
+##      Since server_uuid matches group_name GR should not start.
+## 2.   Start server1 with unique group_name.
+##      Server1 will work as seed.
+## 2.1. Assert GR starts on server1.
+##      Since server_uuid does not match group_name GR should start.
+## 2.2. Restart server2 with unique group_name.
+## 2.3. Assert GR starts on server2.
+##      Since server_uuid does not match group_name GR should start.
+## 3.   Validate failure logged in error file.
+## 4.   Cleanup
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--source include/force_restart.inc
+
+--let $allow_rpl_inited=1
+
+## 0.1. Store members uuids and set bin logs for required servers.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_address;
+SET @debug_group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+
+## 0.2. Start server1 with group_name as server2_UUID.
+##      Environment setup required to match server2_UUID and group_name.
+##      Server1 will work as seed.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_group_name= $member2_uuid
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= 'Assert server1 bootstraps, server2 will use server1 as seed.'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 1
+--source include/assert.inc
+
+--echo
+--echo ########################
+--echo ##  FAILING SCENARIO  ##
+--echo ########################
+--echo
+
+## 1.   Restart server2 with group_name as server2_uuid
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1 --group_replication_group_name=$member2_uuid
+--replace_result $member2_uuid MEMBER_UUID $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+## 1.1. Assert GR do not start.
+##      Since server_uuid matches group_name GR should not start.
+
+--let $assert_text= 'Assert server2 do not join group when server_uuid and group_name are same.'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 0
+--source include/assert.inc
+
+--echo
+--echo ###########################
+--echo ##  SUCCESSFUL SCENARIO  ##
+--echo ###########################
+--echo
+
+## 2.   Start server1 with unique group_name.
+##      Server1 will work as seed.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $group_replication_group_name= 8a94f357-aaaa-11aa-22bb-c80aa9421111
+--source include/start_and_bootstrap_group_replication.inc
+
+## 2.1. Assert GR starts on server1.
+##      Since server_uuid does not match group_name GR should start.
+
+--let $assert_text= 'Assert server1 bootstraps, server2 will use server1 as seed.'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 1
+--source include/assert.inc
+
+## 2.2. Restart server2 with unique group_name.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1 --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+## 2.3. Assert GR starts on server2.
+##      Since server_uuid does not match group_name GR should start.
+
+--let $assert_text= 'Assert server2 joins group when server_uuid and group_name are different.'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--echo
+--echo ############################
+--echo ##  VALIDATE ERROR LOGGED ##
+--echo ############################
+--echo
+
+## 3. Validate failure logged in error file.
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_server_uuid_matches_group_name_non_bootstrap.2.err
+--let $assert_text = Found the expected error about server_uuid incompatible with the group_name
+--let $assert_select = Member server_uuid is incompatible with the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo ###############
+--echo ##  Cleanup  ##
+--echo ###############
+--echo
+
+## 4.   Cleanup
+
+SET @@GLOBAL.group_replication_local_address= @debug_group_replication_local_address;
+SET @@GLOBAL.group_replication_group_seeds= @debug_group_replication_group_seeds;
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc

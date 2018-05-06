@@ -1,0 +1,87 @@
+#
+--source include/have_debug.inc
+
+--echo #
+--echo # WL#7897 -- Use DD API for Stored Routines.
+--echo #
+
+--echo # Test case to verify stored routine load failure.
+CREATE FUNCTION f1() RETURNS INT return 1;
+CREATE PROCEDURE p1() SELECT 1 AS my_column;
+
+SET DEBUG='+d,fail_stored_routine_load';
+--error ER_SP_LOAD_FAILED
+SELECT f1();
+--error ER_SP_LOAD_FAILED
+CALL p1();
+SET DEBUG='-d,fail_stored_routine_load';
+
+SELECT f1();
+CALL p1();
+
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+
+--echo # Test case to verify stored routine body length error.
+SET DEBUG='+d,simulate_routine_length_error';
+--error ER_TOO_LONG_BODY
+CREATE PROCEDURE p1() SELECT "simulate_routine_length_error";
+SET DEBUG='-d,simulate_routine_length_error';
+
+--echo # Test case to verify the schema state after failure to drop routine.
+CREATE SCHEMA new_db;
+CREATE PROCEDURE new_db.proc() SELECT 1 AS my_column;
+
+SET DEBUG='+d,fail_drop_db_routines';
+--error ER_SP_DROP_FAILED
+DROP SCHEMA IF EXISTS new_db;
+SET DEBUG='-d,fail_drop_db_routines';
+
+# Failure to drop routines in previous statement should not leave Schema in
+# inconsistent state. Following DROP SCHEMA should work fine.
+DROP SCHEMA IF EXISTS new_db;
+
+# Creating schema with same name again should work fine.
+CREATE SCHEMA new_db;
+
+# Cleanup
+DROP SCHEMA new_db;
+
+--echo #
+--echo # Bug#26040870 - ASSERT ON KILL'ING A STORED ROUTINE INVOCATION.
+--echo #
+
+CREATE TABLE t1 (a INT);
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (1);
+  RETURN 1;
+END|
+DELIMITER ;|
+
+--connect(con1,localhost,root)
+--let $sp_con_id= `SELECT CONNECTION_ID()`
+SET DEBUG_SYNC= "sp_lex_instr_before_exec_core SIGNAL sp_ready WAIT_FOR sp_finish";
+send SELECT f1();
+
+--connection default
+SET DEBUG_SYNC="now WAIT_FOR sp_ready";
+--replace_result $sp_con_id sp_con_id
+--eval KILL QUERY $sp_con_id
+SET DEBUG_SYNC="now SIGNAL sp_finish";
+
+--connection con1
+--echo # Diagnostics area is not set if routine statement execution is
+--echo # interrupted by the KILL operation. Accessing diagnostics area in such
+--echo # case results in the issue reported.
+--echo # Patch for the bug25586773, checks if diagnostics area is set before
+--echo # accessing it.
+--error ER_QUERY_INTERRUPTED
+reap;
+
+--connection default
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
+DROP FUNCTION f1;
+disconnect con1;

@@ -1,0 +1,31 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+=====mysqladmin -u root -P MASTER_MYPORT --protocol=TCP check all the GR variable outputs=====
+
+group_replication_allow_local_lower_version_join
+OFF
+group_replication_auto_increment_increment
+7
+group_replication_bootstrap_group
+OFF
+group_replication_components_stop_timeout
+31536000
+group_replication_compression_threshold
+1000000
+group_replication_force_members
+group_replication_ip_whitelist
+AUTOMATIC
+group_replication_poll_spin_loops
+0
+group_replication_recovery_complete_at
+TRANSACTIONS_APPLIED
+group_replication_recovery_reconnect_interval
+60
+group_replication_recovery_retry_count
+10
+group_replication_start_on_boot
+OFF
+include/group_replication_end.inc

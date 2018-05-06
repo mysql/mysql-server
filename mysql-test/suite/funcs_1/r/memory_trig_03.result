@@ -1,10 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 USE test;
 drop table if exists tb3;
 create table tb3 (
@@ -60,14 +56,18 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = <engine_to_be_used>;
+) charset latin1 engine = <engine_to_be_used>;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3:
 ---------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop database if exists priv_db;
 create database priv_db;
 use priv_db;
@@ -76,25 +76,34 @@ create User test_noprivs@localhost;
 set password for test_noprivs@localhost = 'PWD';
 create User test_yesprivs@localhost;
 set password for test_yesprivs@localhost = 'PWD';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.2/6:
 -------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke TRIGGER on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.2:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select current_user;
 current_user
 test_noprivs@localhost
@@ -128,9 +137,13 @@ select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 trig 3.5.3.2_2-yes
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.6:
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use priv_db;
 drop trigger trg1_2;
 ERROR 42000: TRIGGER command denied to user 'test_noprivs'@'localhost' for table 't1'
@@ -152,27 +165,33 @@ insert 3.5.3.6-no
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 drop trigger trg1_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7a:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke UPDATE  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT UPDATE, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `test_noprivs`@`localhost`
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
@@ -196,7 +215,7 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT UPDATE, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 create trigger trg4a_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2a';
 insert into t1 (f1) values ('insert 3.5.3.7-2b');
@@ -208,29 +227,31 @@ trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 drop trigger trg4a_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7b:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ERROR 42000: You are not allowed to create a user with GRANT
 grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke UPDATE  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.* TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT USAGE ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT USAGE ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4b_1 before UPDATE on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1b';
@@ -256,8 +277,8 @@ trig 3.5.3.7-2a
 drop trigger trg4b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.* TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4b_2 before UPDATE  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2b';
@@ -282,27 +303,30 @@ trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 drop trigger trg4b_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7c
 -----------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke UPDATE  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4c_1 before INSERT on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1c';
@@ -320,8 +344,8 @@ trig 3.5.3.7-2b
 drop trigger trg4c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4c_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2c';
@@ -337,25 +361,27 @@ trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 trig 3.5.3.7-2c
 drop trigger trg4c_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.7d:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT SELECT (f1), INSERT (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT SELECT (`f1`), INSERT (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg4d_1 before INSERT on t1 for each row
 set new.f1 = 'trig 3.5.3.7-1d';
@@ -374,8 +400,8 @@ trig 3.5.3.7-2c
 drop trigger trg4d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT UPDATE (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT UPDATE (`f1`) ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg4d_2 before INSERT  on t1 for each row
 set new.f1 = 'trig 3.5.3.7-2d';
@@ -392,27 +418,33 @@ trig 3.5.3.7-2b
 trig 3.5.3.7-2c
 trig 3.5.3.7-2d
 drop trigger trg4d_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.8a:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant ALL  on *.* to test_noprivs@localhost;
 revoke SELECT  on *.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT SELECT, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_noprivs@localhost
 use priv_db;
 show grants;
 Grants for test_noprivs@localhost
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'test_noprivs'@'localhost'
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `test_noprivs`@`localhost`
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `test_noprivs`@`localhost`
 create trigger trg5a_1 before INSERT on t1 for each row
 set @test_var = new.f1;
 set @test_var = 'before trig 3.5.3.8-1a';
@@ -431,7 +463,7 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
+GRANT SELECT, TRIGGER ON *.* TO `test_yesprivs`@`localhost`
 create trigger trg5a_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
 set @test_var= 'before trig 3.5.3.8-2a';
@@ -443,28 +475,32 @@ select @test_var;
 @test_var
 insert 3.5.3.8-2a
 drop trigger trg5a_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.8b
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke SELECT  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.* TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5b_1 before UPDATE on t1 for each row
 set @test_var= new.f1;
@@ -481,8 +517,8 @@ before trig 3.5.3.8-1b
 drop trigger trg5b_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.* TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5b_2 before UPDATE  on t1 for each row
 set @test_var= new.f1;
@@ -496,28 +532,32 @@ select @test_var;
 @test_var
 update 3.5.3.8-2b
 drop trigger trg5b_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.5.3.8c:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke SELECT  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5c_1 before INSERT on t1 for each row
 set @test_var= new.f1;
@@ -530,8 +570,8 @@ before trig 3.5.3.8-1c
 drop trigger trg5c_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5c_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
@@ -541,27 +581,31 @@ select @test_var;
 @test_var
 insert 3.5.3.8-2c
 drop trigger trg5c_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.8d:
 -------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant UPDATE (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 show grants;
 Grants for test_noprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost'
-GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
+GRANT INSERT (`f1`), UPDATE (`f1`) ON `priv_db`.`t1` TO `test_noprivs`@`localhost`
 use priv_db;
 create trigger trg5d_1 before INSERT on t1 for each row
 set @test_var= new.f1;
@@ -574,8 +618,8 @@ before trig 3.5.3.8-1d
 drop trigger trg5d_1;
 show grants;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT (f1) ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT (`f1`) ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
 use priv_db;
 create trigger trg5d_2 before INSERT  on t1 for each row
 set @test_var= new.f1;
@@ -585,9 +629,13 @@ select @test_var;
 @test_var
 insert 3.5.3.8-2d
 drop trigger trg5d_2;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase: 3.5.3.x:
 ------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use priv_db;
 drop table if exists t1;
 drop table if exists t2;
@@ -599,9 +647,9 @@ grant SELECT, UPDATE on priv_db.t1 to test_yesprivs@localhost;
 grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost'
-GRANT SELECT ON `priv_db`.`t2` TO 'test_yesprivs'@'localhost'
-GRANT SELECT, UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
+GRANT TRIGGER ON *.* TO `test_yesprivs`@`localhost`
+GRANT SELECT, UPDATE ON `priv_db`.`t1` TO `test_yesprivs`@`localhost`
+GRANT SELECT ON `priv_db`.`t2` TO `test_yesprivs`@`localhost`
 select current_user;
 current_user
 test_yesprivs@localhost
@@ -680,9 +728,8 @@ drop database if exists priv_db;
 drop user test_yesprivs@localhost;
 drop user test_noprivs@localhost;
 drop user test_noprivs;
+ERROR HY000: Operation DROP USER failed for 'test_noprivs'@'%'
 use test;
 drop table tb3;
 set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;

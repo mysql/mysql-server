@@ -1,51 +1,58 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TEST_UTILS_INCLUDED
 #define TEST_UTILS_INCLUDED
 
-#include "sql_error.h"
-#include "sql_class.h"
-#include "set_var.h"
+#include <string.h>
+#include <sys/types.h>
 
-extern thread_local_key_t THR_MALLOC;
-extern thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
-extern bool THR_MALLOC_initialized;
+#include "gtest/gtest.h"
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "nullable.h"
+#include "sql/error_handler.h"
+#include "sql/sql_error.h"
+
+class THD;
+class my_decimal;
+struct MEM_ROOT;
+
+extern thread_local THD *current_thd;
+extern thread_local MEM_ROOT **THR_MALLOC;
 extern mysql_mutex_t LOCK_open;
-extern uint    opt_debug_sync_timeout;
+extern uint opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
 
 namespace my_testing {
 
-inline int native_compare(size_t *length, unsigned char **a, unsigned char **b)
-{
+inline int native_compare(size_t *length, unsigned char **a,
+                          unsigned char **b) {
   return memcmp(*a, *b, *length);
 }
 
-inline qsort2_cmp get_ptr_compare(size_t size MY_ATTRIBUTE((unused)))
-{
-  return (qsort2_cmp) native_compare;
+inline qsort2_cmp get_ptr_compare(size_t size MY_ATTRIBUTE((unused))) {
+  return (qsort2_cmp)native_compare;
 }
 
 void setup_server_for_unit_tests();
@@ -56,9 +63,8 @@ int chars_2_decimal(const char *chars, my_decimal *to);
   A class which wraps the necessary setup/teardown logic for
   unit tests which depend on a working THD environment.
  */
-class Server_initializer
-{
-public:
+class Server_initializer {
+ public:
   Server_initializer() : m_thd(NULL) {}
 
   // Invoke these from corresponding functions in test fixture classes.
@@ -69,7 +75,8 @@ public:
   static void set_expected_error(uint val);
 
   THD *thd() const { return m_thd; }
-private:
+
+ private:
   THD *m_thd;
 };
 
@@ -79,25 +86,32 @@ private:
    verify that it is called with the expected error number.
    The DTOR will verify that handle_condition() has actually been called.
 */
-class Mock_error_handler : public Internal_error_handler
-{
-public:
+class Mock_error_handler : public Internal_error_handler {
+ public:
   Mock_error_handler(THD *thd, uint expected_error);
   virtual ~Mock_error_handler();
 
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg);
+                                const char *msg);
 
   int handle_called() const { return m_handle_called; }
-private:
+
+ private:
   THD *m_thd;
   uint m_expected_error;
-  int  m_handle_called;
+  int m_handle_called;
 };
 
+/*
+  A class which wraps the necessary setup/teardown logic for
+  Data Dictionary.
+*/
+class DD_initializer {
+ public:
+  static void SetUp();
+  static void TearDown();
+};
 
 }  // namespace my_testing
 

@@ -1,0 +1,31 @@
+--source include/have_debug.inc
+--source include/have_ibd2sdi_debug.inc
+--source suite/innodb/include/ibd2sdi_replace_pattern.inc
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+CREATE TABLE t1(a INT PRIMARY KEY, b JSON, c BLOB, d LONGBLOB, e MEDIUMBLOB, f TINYBLOB);
+
+--echo # stop purge so that ibd2sdi can see delete-marked
+--echo # records
+SET GLOBAL innodb_purge_stop_now = ON;
+
+--echo # do ALTER which are meta-data change only. This will
+--echo # delete current SDI and insert a fresh SDI
+ALTER TABLE t1 CHANGE a pk INT;
+ALTER TABLE t1 CHANGE pk pk2 INT;
+ALTER TABLE t1 CHANGE pk2 pk3 INT;
+ALTER TABLE t1 CHANGE pk3 pk4 INT;
+ALTER TABLE t1 CHANGE b b1 JSON;
+ALTER TABLE t1 CHANGE c c2 BLOB;
+ALTER TABLE t1 CHANGE d d2 LONGBLOB;
+ALTER TABLE t1 CHANGE e e2 MEDIUMBLOB;
+ALTER TABLE t1 CHANGE f f2 TINYBLOB;
+
+SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
+--source include/shutdown_mysqld.inc
+
+--replace_regex $ibd2sdi_pattern
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd 2>&1
+
+--source include/start_mysqld.inc
+DROP TABLE t1;

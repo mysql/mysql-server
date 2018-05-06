@@ -4,8 +4,8 @@ CREATE USER testuser@'127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'127.0.0.1';
 SHOW GRANTS FOR testuser@'127.0.0.1';
 Grants for testuser@127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -21,7 +21,7 @@ USER()
 root@localhost
 DROP USER testuser1@'127.0.0.1';
 SET @nip= inet_aton('127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -68,7 +68,7 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 127.0.0.1
 SET @nip6= inet6_aton('127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 Warnings:
 Warning	1366	Incorrect integer value: '\x7F\x00\x00\x01' for column 'c6' at row 1
@@ -126,8 +126,8 @@ CREATE USER testuser@'0:0:0:0:0:FFFF:127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'0:0:0:0:0:FFFF:127.0.0.1';
 SHOW GRANTS FOR testuser@'0:0:0:0:0:FFFF:127.0.0.1';
 Grants for testuser@0:0:0:0:0:ffff:127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'0:0:0:0:0:ffff:127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0:0:0:0:0:ffff:127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`0:0:0:0:0:ffff:127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0:0:0:0:0:ffff:127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -145,7 +145,7 @@ DROP USER testuser1@'0:0:0:0:0:FFFF:127.0.0.1';
 SET @nip= inet_aton('0:0:0:0:0:FFFF:127.0.0.1');
 Warnings:
 Warning	1411	Incorrect string value: ''0:0:0:0:0:FFFF:127.0.0.1'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -188,7 +188,7 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('0:0:0:0:0:FFFF:127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 Warnings:
 Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x7F\x00\x00\x01' for column 'c6' at row 1
@@ -246,8 +246,8 @@ CREATE USER testuser@'0000:0000:0000:0000:0000:FFFF:127.0.0.1' identified by '12
 GRANT ALL ON test.* TO testuser@'0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 SHOW GRANTS FOR testuser@'0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 Grants for testuser@0000:0000:0000:0000:0000:ffff:127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'0000:0000:0000:0000:0000:ffff:127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0000:0000:0000:0000:0000:ffff:127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`0000:0000:0000:0000:0000:ffff:127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0000:0000:0000:0000:0000:ffff:127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -265,7 +265,7 @@ DROP USER testuser1@'0000:0000:0000:0000:0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0000:0000:0000:0000:0000:FFFF:127.0.0.1');
 Warnings:
 Warning	1411	Incorrect string value: ''0000:0000:0000:0000:0000:FFFF:127.0.0.1'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -308,7 +308,7 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('0000:0000:0000:0000:0000:FFFF:127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 Warnings:
 Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x7F\x00\x00\x01' for column 'c6' at row 1
@@ -366,8 +366,8 @@ CREATE USER testuser@'0:0000:0000:0:0000:FFFF:127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'0:0000:0000:0:0000:FFFF:127.0.0.1';
 SHOW GRANTS FOR testuser@'0:0000:0000:0:0000:FFFF:127.0.0.1';
 Grants for testuser@0:0000:0000:0:0000:ffff:127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'0:0000:0000:0:0000:ffff:127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0:0000:0000:0:0000:ffff:127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`0:0000:0000:0:0000:ffff:127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0:0000:0000:0:0000:ffff:127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -385,7 +385,7 @@ DROP USER testuser1@'0:0000:0000:0:0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0:0000:0000:0:0000:FFFF:127.0.0.1');
 Warnings:
 Warning	1411	Incorrect string value: ''0:0000:0000:0:0000:FFFF:127.0.0.1'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -428,7 +428,7 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('0:0000:0000:0:0000:FFFF:127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 Warnings:
 Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x7F\x00\x00\x01' for column 'c6' at row 1
@@ -486,8 +486,8 @@ CREATE USER testuser@'0::0000:FFFF:127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'0::0000:FFFF:127.0.0.1';
 SHOW GRANTS FOR testuser@'0::0000:FFFF:127.0.0.1';
 Grants for testuser@0::0000:ffff:127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'0::0000:ffff:127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0::0000:ffff:127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`0::0000:ffff:127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`0::0000:ffff:127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -505,7 +505,7 @@ DROP USER testuser1@'0::0000:FFFF:127.0.0.1';
 SET @nip= inet_aton('0::0000:FFFF:127.0.0.1');
 Warnings:
 Warning	1411	Incorrect string value: ''0::0000:FFFF:127.0.0.1'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -548,7 +548,7 @@ SELECT inet_ntoa(@nip);
 inet_ntoa(@nip)
 NULL
 SET @nip6= inet6_aton('0::0000:FFFF:127.0.0.1');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 Warnings:
 Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x7F\x00\x00\x01' for column 'c6' at row 1
@@ -604,7 +604,7 @@ inet6_ntoa(@nip6)
 SET @nip= inet_aton('0:0:0:0:0:FFFF:127.0.0.1/96');
 Warnings:
 Warning	1411	Incorrect string value: ''0:0:0:0:0:FFFF:127.0.0.1/96'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -649,7 +649,7 @@ NULL
 SET @nip6= inet6_aton('0:0:0:0:0:FFFF:127.0.0.1/96');
 Warnings:
 Warning	1411	Incorrect string value: ''0:0:0:0:0:FFFF:127.0.0.1/96'' for function inet6_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 SELECT inet6_ntoa(c1) FROM t1;
 inet6_ntoa(c1)
@@ -697,8 +697,8 @@ CREATE USER testuser@'::FFFF:127.0.0.1' identified by '1234';
 GRANT ALL ON test.* TO testuser@'::FFFF:127.0.0.1';
 SHOW GRANTS FOR testuser@'::FFFF:127.0.0.1';
 Grants for testuser@::ffff:127.0.0.1
-GRANT USAGE ON *.* TO 'testuser'@'::ffff:127.0.0.1'
-GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'::ffff:127.0.0.1'
+GRANT USAGE ON *.* TO `testuser`@`::ffff:127.0.0.1`
+GRANT ALL PRIVILEGES ON `test`.* TO `testuser`@`::ffff:127.0.0.1`
 SELECT USER();
 USER()
 root@localhost
@@ -717,7 +717,7 @@ DROP USER testuser1@'::FFFF:127.0.0.1';
 SET @nip= inet_aton('::FFFF:127.0.0.1/96');
 Warnings:
 Warning	1411	Incorrect string value: ''::FFFF:127.0.0.1/96'' for function inet_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 inet_ntoa(c1)
@@ -762,7 +762,7 @@ NULL
 SET @nip6= inet6_aton('::FFFF:127.0.0.1/96');
 Warnings:
 Warning	1411	Incorrect string value: ''::FFFF:127.0.0.1/96'' for function inet6_aton
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 SELECT inet6_ntoa(c1) FROM t1;
 inet6_ntoa(c1)

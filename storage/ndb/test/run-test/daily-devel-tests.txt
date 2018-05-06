@@ -1,13 +1,20 @@
-# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -81,7 +88,7 @@ args: -n LCPScanFragWatchdog T2
 # LCP Frag watchdog
 max-time: 600
 cmd: testNodeRestart
-args: -n TestLCPFSErr --record=100000 T1
+args: -n TestLCPFSErr --records=100000 T1
 
 # GCP node failure
 max-time: 1800
@@ -202,6 +209,10 @@ args: -n CascadeError T1
 max-time : 300
 cmd: testFK
 args: -n Cascade10 T1
+
+max-time : 300
+cmd: testFK
+args: -n DropTableWithFKDuringRestart T1
 
 # Bug18408671 added on 17.04.2014
 max-time : 500
@@ -423,9 +434,19 @@ cmd: test_event
 args: -n Apiv2HQE-latestGCI T1
 
 # OJA: Moved from 'basic' to 'devel' due to instability on 15.06.2015
-max-time: 1200
+max-time: 1800
 cmd: test_event
 args: -n Apiv2-check_event_queue_cleared T1
+
+# Mai: Multi* added on 13.08.2015
+max-time: 1800
+cmd: test_event
+args: -n Multi T1
+
+# Mai: Multi* added on 13.08.2015
+max-time: 1800
+cmd: test_event
+args: -n Multi_NR T1
 
 # Bug18401553 added on 17.04.2014
 max-time: 3600
@@ -530,6 +551,14 @@ args: -n DropTableConcurrentLCP T1
 max-time : 600
 cmd: testDict
 args: -n DropTableConcurrentLCP2 T1
+
+max-time : 300
+cmd: testDict
+args: -n indexStat T1
+
+max-time : 300
+cmd: testDict
+args: -n forceGCPWait T1
 
 max-time : 600
 cmd: testBackup

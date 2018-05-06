@@ -1,5 +1,3 @@
-# Skip the test in embedded mode
---source include/not_embedded.inc
 
 # Make sure that connection_control plugin can be loaded
 --source ../inc/have_connection_control_plugin.inc
@@ -131,10 +129,16 @@ connection default;
 --disconnect con_u1
 --disconnect con_u2
 
+CREATE USER viewer@localhost IDENTIFIED BY 'abcd';
+GRANT CONNECTION_ADMIN ON *.* TO viewer@localhost;
+connect(con_viewer, localhost, viewer,abcd,,,,);
 --echo # After successful login, corresponding entry should disappear
 --echo # from the view
 --sorted_result
 SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
+connection default;
+disconnect con_viewer;
+DROP USER viewer@localhost;
 
 connect(con_u3, localhost, u3,abcd,,,,);
 --echo # A user without privileges should not be able to any information

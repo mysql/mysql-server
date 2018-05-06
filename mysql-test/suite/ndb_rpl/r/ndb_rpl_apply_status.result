@@ -1,4 +1,3 @@
-select * from mysql.ndb_apply_status;
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -18,4 +17,82 @@ select count(*) from mysql.ndb_apply_status;
 count(*)
 1
 drop table t1;
+*** Test reset slave clearing ndb_apply_status ***
+create table test.t1 (a int primary key) engine=ndb;
+insert into test.t1 values (1);
+Add a dummy entry
+insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+*** Standard reset slave should clear ndb_apply_status ***
+stop slave;
+reset slave;
+select count(1) from mysql.ndb_apply_status;
+count(1)
+0
+reset master;
+include/rpl_start_slaves.inc
+*** Test reset slave all ***
+insert into test.t1 values (2);
+Add a dummy entry
+insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+*** Reset slave all should clear ndb_apply_status ***
+stop slave;
+reset slave all;
+select count(1) from mysql.ndb_apply_status;
+count(1)
+0
+reset master;
+RESET SLAVE ALL zapped Master info - re-set it.
+include/rpl_change_topology.inc [new topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_start_slaves.inc
+*** Test effect of ndb_clear_apply_status = 0 ***
+set global ndb_clear_apply_status=0;
+insert into test.t1 values (3);
+Add a dummy entry
+insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+*** Standard reset slave should NOT clear ndb_apply_status ***
+stop slave;
+reset slave;
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+delete from mysql.ndb_apply_status;
+reset master;
+include/rpl_start_slaves.inc
+*** Test reset slave all ***
+insert into test.t1 values (4);
+Add a dummy entry
+insert into mysql.ndb_apply_status values (999, 9677, 'CaramelLog', 1977, 2015);
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+*** Reset slave all should NOT clear ndb_apply_status ***
+stop slave;
+reset slave all;
+select count(1) from mysql.ndb_apply_status;
+count(1)
+2
+reset master;
+RESET SLAVE ALL zapped Master info - re-set it.
+include/rpl_change_topology.inc [new topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_start_slaves.inc
+set global ndb_clear_apply_status=1;
+drop table test.t1;
 include/rpl_end.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

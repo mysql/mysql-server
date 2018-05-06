@@ -1,0 +1,2618 @@
+# In-memory tmp tables
+set big_tables=0;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
+flush status;
+# Mutual recursion unsupported; cycles must have one node only
+with recursive qn as (select * from qn2),
+qn2 as (select * from qn)
+select * from qn;
+ERROR 42S02: Table 'test.qn2' doesn't exist
+# At least one anchor member, all anchors before all recursive
+with recursive qn as
+(select 1 from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should contain a UNION
+with recursive qn as
+(select 1 from qn union all
+select 1 from dual)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+with recursive qn as
+(select 1 union all select 1 from qn union all select 1)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+with recursive qn as
+(select 1 from qn union all select 1 from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+# It's ok to have the RECURSIVE word without any recursive member
+with recursive qn as
+(select 1 from dual union all
+select 1 from dual)
+select * from qn;
+1
+1
+1
+# UNION DISTINCT allowed
+with recursive qn as
+(select 1 from dual union
+select 1 from qn)
+select * from qn;
+1
+1
+# No aggregation on the QN
+create table t1(b int);
+insert into t1 values(10),(20),(10);
+with recursive qn as
+(select max(b) as a from t1 union
+select a from qn)
+select * from qn;
+a
+20
+with recursive qn as
+(select b as a from t1 union
+select max(a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No window functions
+with recursive qn as
+(select rank() over (order by b) as a from t1 union
+select a from qn)
+select * from qn;
+a
+1
+3
+with recursive qn as
+(select b as a from t1 union
+select rank() over (order by a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+drop table t1;
+with recursive qn as
+(select 1 as a from dual union all
+select max(a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No subquery referencing a QN
+with recursive qn as (
+select 1 from dual union all
+select 1 from dual where 1 not in(select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+with recursive qn as (
+select 1 from dual union all
+select 1 from qn
+order by (select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Reject also if this subquery is a derived table.
+with recursive qn as (
+select 1 from dual union all
+select * from (select * from qn) as dt)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# no ORDER BY as it causes one more tmp table => doesn't work.
+with recursive qn as (
+select 1 as a from dual union all
+select 1 from qn
+order by a)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+# No matter if global, or attached to one recursive member.
+with recursive qn as (
+select 1 as a from dual union all
+(select 1 from qn order by a))
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+# no LIMIT as it's not pushed down to UNION members
+with recursive qn as (
+select 1 as a from dual union all
+select 1 from qn
+limit 10)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+with recursive qn as (
+select 1 as a from dual union all
+(select 1 from qn limit 10))
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# No SELECT DISTINCT
+WITH RECURSIVE qn AS
+(select 1 union all select distinct 3 from qn)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+with recursive qn as (select 1 from dual union all
+select 1 from dual
+where 1 not in(select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Numbers from 123 to 130:
+with recursive qn as (select 123 as a union all select 1+a from qn where a<130) select * from qn;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+# One-level recursive sequence of numbers
+with recursive qn as (select 1 as n, 2 as un union all select 1+n, un*5-6 from qn where n<10) select * from qn;
+n	un
+1	2
+2	4
+3	14
+4	64
+5	314
+6	1564
+7	7814
+8	39064
+9	195314
+10	976564
+# Fibonacci
+with recursive qn as (select 1 as n, 1 as un, 1 as unp1 union all select 1+n, unp1, un+unp1 from qn where n<10) select * from qn;
+n	un	unp1
+1	1	1
+2	1	2
+3	2	3
+4	3	5
+5	5	8
+6	8	13
+7	13	21
+8	21	34
+9	34	55
+10	55	89
+# Validate that cast(a_varchar as char) produces a varchar, not a
+# char.
+create table t(c char(3), vc varchar(3), b binary(3), vb varbinary(3));
+create table u
+select cast(c as char(4)), cast(vc as char(4)),
+cast(b as binary(4)), cast(vb as binary(4)),
+"abc" as literal_c, cast("abc" as char(4)),
+_binary "abc" as literal_b, cast(_binary "abc" as binary(4))
+from t;
+show create table u;
+Table	Create Table
+u	CREATE TABLE `u` (
+  `cast(c as char(4))` varchar(4) DEFAULT NULL,
+  `cast(vc as char(4))` varchar(4) DEFAULT NULL,
+  `cast(b as binary(4))` varbinary(4) DEFAULT NULL,
+  `cast(vb as binary(4))` varbinary(4) DEFAULT NULL,
+  `literal_c` varchar(3) NOT NULL DEFAULT '',
+  `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
+  `literal_b` varbinary(3) NOT NULL DEFAULT '',
+  `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t,u;
+# if it used char the 'x' would fall off due to spaces.
+with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;
+n	un
+1	x
+2	xx
+3	xxx
+4	xxxx
+5	xxxxx
+6	xxxxxx
+7	xxxxxxx
+8	xxxxxxxx
+9	xxxxxxxxx
+10	xxxxxxxxxx
+# String now growing at the left
+with recursive qn as (select cast("x" as char(10)) as a from dual
+union all select concat("x",a) from qn where length(a)<10) select *
+from qn;
+a
+x
+xx
+xxx
+xxxx
+xxxxx
+xxxxxx
+xxxxxxx
+xxxxxxxx
+xxxxxxxxx
+xxxxxxxxxx
+# Forgot cast-as-char(10) in anchor => qn.a column has length 1
+# => concat() is cast as char(1) => truncation
+# => length is always 1 => infinite loop; to prevent this and be
+# helpful, raise error when truncating, if in strict mode. Like if:
+# CREATE tmp table SELECT non-recursive part;
+# INSERT INTO tmp table SELECT recursive part;
+create temporary table tt select "x" as a from dual;
+create temporary table tt1 select "x" as a from dual;
+insert into tt1 select concat("x",a) from tt where length(a)<10;
+ERROR 22001: Data too long for column 'a' at row 1
+drop temporary table tt,tt1;
+with recursive qn as (select "x" as a from dual
+union all select concat("x",a) from qn where length(a)<10) select *
+from qn;
+ERROR 22001: Data too long for column 'a' at row 1
+# Overflow integer type INT (max 4G)
+with recursive qn as (select 1 as a from dual
+union all select a*2000 from qn where a<10000000000000000000) select * from qn;
+ERROR 22003: BIGINT value is out of range in '(`qn`.`a` * 2000)'
+# Use Decimal
+with recursive qn as (select cast(1 as decimal(30,0)) as a from dual
+union all select a*2000 from qn where a<10000000000000000000) select * from qn;
+a
+1
+2000
+4000000
+8000000000
+16000000000000
+32000000000000000
+64000000000000000000
+# Columns of a recursive QN are always NULLable, as in the Standard.
+# Without it, we would get conversion
+# of NULL to 0 and an infinite loop.
+with recursive qn as (select 123 as a union all
+select null from qn where a is not null) select * from qn;
+a
+123
+NULL
+# Mixing really unrelated types: the goal is to report a sensible
+# error and not crash.
+# The Point becomes a string which is an invalid integer:
+with recursive qn as (
+select 1 as a,1
+union all
+select a+1,ST_PointFromText('POINT(10 10)') from qn where a<2)
+select * from qn;
+ERROR HY000: Incorrect integer value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00$@' for column '1' at row 1
+# POINT in anchor => BLOB in tmp table => not MEMORY engine => Innodb
+with recursive qn as (
+select 1 as a,ST_PointFromText('POINT(10 10)')
+union all
+select a+1,1 from qn where a<2)
+select * from qn;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+# Same number of columns in anchor and recursive members
+WITH RECURSIVE qn AS
+(
+select 1
+union all
+select 3, 0 from qn
+)
+select * from qn;
+ERROR 21000: The used SELECT statements have a different number of columns
+# Mismatch in column name and column count; problem specific of
+# recursive CTE which creates tmp table earlier in preparation.
+with recursive q (b) as (select 1, 1 union all select 1, 1 from q)
+select b from q;
+ERROR HY000: View's SELECT and view's field list have different column counts
+# Cannot have two recursive refs in FROM:
+with recursive qn as (
+select 123 as a union all
+select 1+qn.a from qn, qn as qn1 where qn1.a<130)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Prove that a materialized QN is shared among all references:
+flush status;
+with recursive qn as (
+select 123 as a union all
+select 1+a from qn where a<125)
+select * from qn;
+a
+123
+124
+125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+flush status;
+with recursive qn as (
+select 123 as a union all
+select 1+a from qn where a<125)
+select * from qn, qn as qn1;
+a	a
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+show status like 'Created_tmp%table%';
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_tables	1
+# Also works if references are nested inside other query names:
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as (select * from inner_ limit 10)
+select * from outer_, outer_ as outer1;
+a	a
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	6
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as
+(select inner_.a, inner1.a as a1
+from inner_, inner_ as inner1 limit 10)
+select * from outer_;
+a	a1
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	12
+# Even if the two query names are recursive:
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as
+(select a from inner_ union all
+select a*2 from outer_ where a<1000)
+select a from outer_;
+a
+123
+124
+125
+246
+248
+250
+492
+496
+500
+984
+992
+1000
+1968
+1984
+show status like "handler_write";
+Variable_name	Value
+Handler_write	17
+# Optimizer must be allowed to put the recursive reference first
+create table t1(a int);
+insert into t1 values(1),(2);
+WITH RECURSIVE qn AS
+(
+select 1 from t1
+union all
+select 1 from t1 straight_join qn
+)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+WITH RECURSIVE qn AS
+(
+select 1 from t1
+union all
+select 1 from t1 left join qn on 1
+)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+# Empty anchor
+WITH RECURSIVE qn AS
+(
+select a from t1 where 0
+union all
+select a+1 from qn
+)
+select * from qn;
+a
+WITH RECURSIVE qn AS
+(
+select a from t1 where a>10
+union all
+select a+1 from qn
+)
+select * from qn;
+a
+# UNION DISTINCT in anchor parts
+insert into t1 values(1),(2);
+set @c=0, @d=0;
+WITH RECURSIVE qn AS
+(
+select 1,0 as col from t1
+union distinct
+select 1,0 from t1
+union all
+select 3, 0*(@c:=@c+1) from qn where @c<1
+union all
+select 3, 0*(@d:=@d+1) from qn where @d<1
+)
+select * from qn;
+1	col
+1	0
+3	0
+3	0
+# UNION DISTINCT affecting recursive member, followed by UNION ALL
+insert into t1 values(1),(2);
+set @c=0, @d=0;
+WITH RECURSIVE qn AS
+(
+select 1,0 as col from t1
+union distinct
+select 3, 0*(@c:=@c+1) from qn where @c<1
+union all
+select 3, 0*(@d:=@d+1) from qn where @d<1
+)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'recursive query blocks with UNION DISTINCT then UNION ALL, in recursive Common Table Expression'
+# create select
+create table t2
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t2;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop table t2;
+# insert select
+delete from t1;
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+# Using insertion target inside recursive query
+delete from t1;
+insert into t1 values(1),(2);
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+qn.a from qn, t1 where qn.a<125)
+select * from qn;
+select * from t1;
+a
+1
+2
+123
+124
+124
+125
+125
+125
+125
+drop table t1;
+# insert into tmp table (a likely use case)
+create temporary table t1(a int);
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop table t1;
+# create view
+create view v1 as
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from v1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop view v1;
+# Recursive QN can be constant (0-row or 1-row) for the
+# optimizer if its members have impossible conditions:
+explain with recursive qn (n) as (
+select 1 where 0 union all select n+1 from qn where 0
+) select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 0 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select NULL AS `n` from `qn`
+with recursive qn (n) as (
+select 1 where 0 union all select n+1 from qn where 0
+) select * from qn;
+n
+explain with recursive qn (n) as (
+select 1 where 1 union all select n+1 from qn where 0
+) select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 1 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+with recursive qn (n) as (
+select 1 where 1 union all select n+1 from qn where 0
+) select * from qn;
+n
+1
+# Recursive refs should never use indexes to read:
+# first, optimization of top query creates a key on q.b;
+# then optimization of scalar subquery, when it optimizes the
+# recursive member, must be prevented from re-using this key
+# (it was a bug that it re-used it, as the index is covering
+# and adjust_access_methods() has a heuristic which converts a
+# table scan to index scan, so it wrongly used an index scan).
+explain with recursive q (b) as
+(select 1 union all select 1+b from q where b<10)
+select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+7	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
+2	DEPENDENT SUBQUERY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'q1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	with recursive `q` (`b`) as (/* select#6 */ select 1 AS `1` union all /* select#7 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
+with recursive q (b) as
+(select 1 union all select 1+b from q where b<10)
+select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
+(select q1.b from q as q2 where q2.b=3)
+3
+# Recursive query to update/delete a table
+create table t1(a int);
+insert into t1
+with recursive qn (n) as (
+select 1 union all select n+1 from qn where n<10
+) select * from qn;
+select * from t1;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+with recursive qn (n) as (
+select 5 union all select n+2 from qn where n<10
+) delete t1 from t1 where a in (select * from qn);
+select * from t1;
+a
+1
+2
+3
+4
+6
+8
+10
+with recursive qn (n) as (
+select 4 union all select n+2 from qn where n<10
+) delete from t1 where a in (select * from qn);
+select * from t1;
+a
+1
+2
+3
+with recursive qn (n) as (
+select 2 union all select n+2 from qn where n<10
+) update t1,qn set t1.a=qn.n where t1.a=1+qn.n;
+select * from t1;
+a
+1
+2
+2
+drop table t1;
+# This is from my blog so I can use it here.
+# Tests depth-first etc
+CREATE TABLE employees (
+ID INT PRIMARY KEY,
+NAME VARCHAR(100),
+MANAGER_ID INT,
+INDEX (MANAGER_ID),
+FOREIGN KEY (MANAGER_ID) REFERENCES employees(ID)
+);
+INSERT INTO employees VALUES
+(333, "Yasmina", NULL),
+(198, "John", 333),
+(692, "Tarek", 333),
+(29, "Pedro", 198),
+(4610, "Sarah", 29),
+(72, "Pierre", 29),
+(123, "Adil", 692);
+ANALYZE TABLE employees;
+Table	Op	Msg_type	Msg_text
+test.employees	analyze	status	OK
+# Depth-first.
+# Also test column names, and their reference in the recursive member.
+WITH RECURSIVE employees_extended(ID, NAME, PATH)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200))
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY PATH;
+ID	NAME	PATH
+333	Yasmina	333
+198	John	333,198
+29	Pedro	333,198,29
+4610	Sarah	333,198,29,4610
+72	Pierre	333,198,29,72
+692	Tarek	333,692
+123	Adil	333,692,123
+# Breadth-first is likely what we get, if no ordering
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH
+333	Yasmina	333
+198	John	333,198
+692	Tarek	333,692
+29	Pedro	333,198,29
+123	Adil	333,692,123
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# But to be really sure we have breadth-first, we generate a
+# numeric column SEQ. And sort by NAME, to have repeatable
+# order of siblings (who have the same SEQ).
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT 0 AS SEQ, ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT M.SEQ+1, S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY SEQ, NAME;
+SEQ	ID	NAME	PATH
+0	333	Yasmina	333
+1	198	John	333,198
+1	692	Tarek	333,692
+2	123	Adil	333,692,123
+2	29	Pedro	333,198,29
+3	72	Pierre	333,198,29,72
+3	4610	Sarah	333,198,29,4610
+# Or, use a user variable, then all rows have different number:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT (@s:=0) AS SEQ, ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT (@s:=@s+1), S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY SEQ;
+SEQ	ID	NAME	PATH
+0	333	Yasmina	333
+1	198	John	333,198
+2	692	Tarek	333,692
+3	29	Pedro	333,198,29
+4	123	Adil	333,692,123
+5	72	Pierre	333,198,29,72
+6	4610	Sarah	333,198,29,4610
+# Direct & indirect reports of John = having John in their PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended
+WHERE FIND_IN_SET((SELECT ID FROM employees WHERE NAME='John'),
+PATH);
+ID	NAME	PATH
+198	John	333,198
+29	Pedro	333,198,29
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# Exclude John, he's not a report of himself;
+# bonus: use a QN to cache his ID.
+WITH RECURSIVE employees_extended(ID, NAME, PATH)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200))
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+),
+JOHN_ID AS (SELECT ID FROM employees WHERE NAME='John')
+SELECT e.* FROM employees_extended e, JOHN_ID
+WHERE FIND_IN_SET(JOHN_ID.ID,
+PATH)
+AND e.ID<>JOHN_ID.ID;
+ID	NAME	PATH
+29	Pedro	333,198,29
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# Similar, but faster: start dive at John (and include him again).
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH
+198	John	198
+29	Pedro	198,29
+72	Pierre	198,29,72
+4610	Sarah	198,29,4610
+# Get the management chain above Pierre:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='Pierre'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID	PATH
+72	Pierre	29	72
+29	Pedro	198	72,29
+198	John	333	72,29,198
+333	Yasmina	NULL	72,29,198,333
+# Get the management chain above Pierre, without PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
+# Get the management chain above Pierre and Sarah, without PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre' OR NAME='Sarah'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+29	Pedro	198
+198	John	333
+198	John	333
+333	Yasmina	NULL
+333	Yasmina	NULL
+# Do it without duplicates
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre' OR NAME='Sarah'
+UNION
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
+# Cycles. Introduce an oddity:
+# Sarah is indirect report of John and is his manager.
+UPDATE employees SET MANAGER_ID=4610 WHERE NAME="John";
+# Previous query now produces infinite PATHs which overflow the column:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ERROR 22001: Data too long for column 'PATH' at row 1
+# Add cycle detection: the row closing a cycle is marked with
+# IS_CYCLE=1, which stops the iterations. The outer SELECT
+# could then want to see only that row, or only previous ones.
+WITH RECURSIVE employees_extended(ID, NAME, PATH, IS_CYCLE)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)), 0
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID), FIND_IN_SET(S.ID, M.PATH)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+WHERE M.IS_CYCLE=0
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH	IS_CYCLE
+198	John	198	0
+29	Pedro	198,29	0
+72	Pierre	198,29,72	0
+4610	Sarah	198,29,4610	0
+198	John	198,29,4610,198	1
+DROP TABLE employees;
+# Two recursive members.
+create table t1 (id int, name char(10), leftpar int, rightpar int);
+insert into t1 values
+(1, "A", 2, 3),
+(2, "LA", 4, 5),
+(4, "LLA", 6, 7),
+(6, "LLLA", null, null),
+(7, "RLLA", null, null),
+(5, "RLA", 8, 9),
+(8, "LRLA", null, null),
+(9, "RRLA", null, null),
+(3, "RA", 10, 11),
+(10, "LRA", 12, 13),
+(11, "RRA", 14, 15),
+(15, "RRRA", null, null),
+(16, "B", 17, 18),
+(17, "LB", null, null),
+(18, "RB", null, null)
+;
+# Shuffle rows to make sure the algorithm works
+# with any read order of rows above
+create table t2 select * from t1 order by rand();
+# Tree-walking query. We turn off the Query Cache: indeed
+# sometimes pb2 enables Query Cache and as we run twice the
+# same query the 2nd may not actually be executed so the value
+# of Created_tmp_tables displayed at end becomes "one less").
+# Note that without ORDER BY, order of rows would be random as BNL
+# implies that the randomized t2 is the driving table in the
+# joining of rows.
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Let's turn BNL off to verify that ORDER BY works the same:
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off';
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Without ORDER BY order is different; it is deterministic as
+# the CTE is the driving table (no BNL) but a user shouldn't
+# rely on it, just as he shouldn't expect some particular order
+# when selecting from a derived table containing a join.
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+3	RA	10	11	1,3
+5	RLA	8	9	1,2,5
+7	RLLA	NULL	NULL	1,2,4,7
+11	RRA	14	15	1,3,11
+9	RRLA	NULL	NULL	1,2,5,9
+15	RRRA	NULL	NULL	1,3,11,15
+10	LRA	12	13	1,3,10
+8	LRLA	NULL	NULL	1,2,5,8
+set @@optimizer_switch=@optimizer_switch_saved;
+# Equivalent query with one single recursive query block:
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+(t2.id=tree_of_a.leftpar or t2.id=tree_of_a.rightpar)
+)
+select * from tree_of_a
+order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Demonstrate a case where an index is automatically created on
+# the derived table and used to read this table in the outer
+# query (but correctly not used to read it in the recursive
+# query).
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a where id=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a where id=2;
+id	name	leftpar	rightpar	path
+2	LA	4	5	1,2
+drop table t1,t2;
+# Verify that after materialization, accessing 3 references to
+# the same CTE using different access methods (scan, ref, ref),
+# works without one method disturbing the others.
+# Turning BNL off since it is faster and allows to have "ref"
+# on cte3 which is more interesting.
+explain with recursive cte as
+(
+select 1 as n union all
+select n+1 from cte where n<10000
+)
+select /*+ no_bnl(cte3) */
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+from cte cte1, cte cte2, cte cte3
+where cte1.n=cte2.n+10 and cte2.n+20=cte3.n;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	func	#	100.00	Using where; Using index
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	func	#	100.00	Using where; Using index
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No tables used
+3	UNION	cte	NULL	ALL	NULL	NULL	NULL	NULL	#	50.00	Recursive; Using where
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `n` union all /* select#3 */ select (`cte`.`n` + 1) AS `n+1` from `cte` where (`cte`.`n` < 10000)) /* select#1 */ select /*+ NO_BNL(`cte3`@`select#1`) */ (sum(((`cte1`.`n` * `cte2`.`n`) * `cte3`.`n`)) = 2490508525950000) AS `sum(cte1.n*cte2.n*cte3.n)=2490508525950000` from `cte` `cte1` join `cte` `cte2` join `cte` `cte3` where ((`cte1`.`n` = (`cte2`.`n` + 10)) and ((`cte2`.`n` + 20) = `cte3`.`n`))
+with recursive cte as
+(
+select 1 as n union all
+select n+1 from cte where n<10000
+)
+select /*+ no_bnl(cte3) */
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+from cte cte1, cte cte2, cte cte3
+where cte1.n=cte2.n+10 and cte2.n+20=cte3.n;
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+1
+#
+# Transitive closure
+#
+create table nodes(id int);
+create table arcs(from_id int, to_id int);
+insert into nodes values(1),(2),(3),(4),(5),(6),(7),(8);
+insert into arcs values(1,3), (3,6), (1,4), (4,6), (6,2), (2,1);
+# UNION ALL leads to infinite loop as 1 is reachable from 1;
+# so we stop it with a maximum depth 8 (8 nodes in graph)
+with recursive cte as
+(
+select id, 0 as depth from nodes where id=1
+union all
+select to_id, depth+1 from arcs, cte
+where from_id=cte.id and depth<8
+)
+select count(*), max(depth) from cte;
+count(*)	max(depth)
+25	8
+# Can use cycle detection:
+with recursive cte as
+(
+select id, cast(id as char(200)) as path, 0 as is_cycle
+from nodes where id=1
+union all
+select to_id, concat(cte.path, ",", to_id), find_in_set(to_id, path)
+from arcs, cte
+where from_id=cte.id and is_cycle=0
+)
+select * from cte;
+id	path	is_cycle
+1	1	0
+3	1,3	0
+4	1,4	0
+6	1,3,6	0
+6	1,4,6	0
+2	1,3,6,2	0
+2	1,4,6,2	0
+1	1,3,6,2,1	1
+1	1,4,6,2,1	1
+# It is simpler with DISTINCT:
+with recursive cte as
+(
+select id from nodes where id=1
+union
+select to_id from arcs, cte where from_id=cte.id
+)
+select * from cte;
+id
+1
+3
+4
+6
+2
+drop table nodes, arcs;
+# Hash field and MEMORY don't work together. Make long distinct
+# key to force hash field, to see if it switches to InnoDB.
+# Not too long key (500 bytes in latin1)
+with recursive cte as
+(
+select 1 as n,
+repeat('a',500) as f, '' as g,
+'' as h, '' as i
+union
+select n+1,
+'','','',''
+  from cte where n<100)
+select sum(n) from cte;
+sum(n)
+5050
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+# Too long key (>3000 bytes in latin1)
+with recursive cte as
+(
+select 1 as n,
+repeat('a',500) as f, repeat('a',500) as g,
+repeat('a',500) as h, repeat('a',500) as i,
+repeat('a',500) as j, repeat('a',500) as k,
+repeat('a',500) as l, repeat('a',500) as m
+union
+select n+1,
+'','','','','','','',''
+  from cte where n<100)
+select sum(n) from cte;
+sum(n)
+5050
+#
+# In query planning, the recursive reference's row count is
+# said to be the estimated row count of all non-recursive query
+# blocks
+create table t1(a int);
+# 15 rows:
+insert into t1 values (), (), (), (), (), (), (), (), (), (), (), (),
+(), (), ();
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# EXPLAIN says: in non-recursive QB we'll read 15 rows of t1,
+# in recursive QB we'll read 15 rows of qn, keep only 0.33
+# due to WHERE, that makes 4 (due to rounding), and in the
+# derived table we'll thus have 15+4=19. That ignores
+# next repetitions of the recursive QB which are unpredictable.
+explain with recursive qn as
+(select 1 as a from t1 union all select a+1 from qn where qn.a<100)
+select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union all /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+explain with recursive qn as
+(select 1 as a from t1 union distinct select a+1 from qn where qn.a<100)
+select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+drop table t1;
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+# On-disk tmp tables
+set big_tables=1;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
+flush status;
+# Mutual recursion unsupported; cycles must have one node only
+with recursive qn as (select * from qn2),
+qn2 as (select * from qn)
+select * from qn;
+ERROR 42S02: Table 'test.qn2' doesn't exist
+# At least one anchor member, all anchors before all recursive
+with recursive qn as
+(select 1 from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should contain a UNION
+with recursive qn as
+(select 1 from qn union all
+select 1 from dual)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+with recursive qn as
+(select 1 union all select 1 from qn union all select 1)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+with recursive qn as
+(select 1 from qn union all select 1 from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' should have one or more non-recursive query blocks followed by one or more recursive ones
+# It's ok to have the RECURSIVE word without any recursive member
+with recursive qn as
+(select 1 from dual union all
+select 1 from dual)
+select * from qn;
+1
+1
+1
+# UNION DISTINCT allowed
+with recursive qn as
+(select 1 from dual union
+select 1 from qn)
+select * from qn;
+1
+1
+# No aggregation on the QN
+create table t1(b int);
+insert into t1 values(10),(20),(10);
+with recursive qn as
+(select max(b) as a from t1 union
+select a from qn)
+select * from qn;
+a
+20
+with recursive qn as
+(select b as a from t1 union
+select max(a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No window functions
+with recursive qn as
+(select rank() over (order by b) as a from t1 union
+select a from qn)
+select * from qn;
+a
+1
+3
+with recursive qn as
+(select b as a from t1 union
+select rank() over (order by a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+drop table t1;
+with recursive qn as
+(select 1 as a from dual union all
+select max(a) from qn)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No subquery referencing a QN
+with recursive qn as (
+select 1 from dual union all
+select 1 from dual where 1 not in(select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+with recursive qn as (
+select 1 from dual union all
+select 1 from qn
+order by (select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Reject also if this subquery is a derived table.
+with recursive qn as (
+select 1 from dual union all
+select * from (select * from qn) as dt)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# no ORDER BY as it causes one more tmp table => doesn't work.
+with recursive qn as (
+select 1 as a from dual union all
+select 1 from qn
+order by a)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+# No matter if global, or attached to one recursive member.
+with recursive qn as (
+select 1 as a from dual union all
+(select 1 from qn order by a))
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+# no LIMIT as it's not pushed down to UNION members
+with recursive qn as (
+select 1 as a from dual union all
+select 1 from qn
+limit 10)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT over UNION in recursive Common Table Expression'
+with recursive qn as (
+select 1 as a from dual union all
+(select 1 from qn limit 10))
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# No SELECT DISTINCT
+WITH RECURSIVE qn AS
+(select 1 union all select distinct 3 from qn)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+with recursive qn as (select 1 from dual union all
+select 1 from dual
+where 1 not in(select * from qn))
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Numbers from 123 to 130:
+with recursive qn as (select 123 as a union all select 1+a from qn where a<130) select * from qn;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+# One-level recursive sequence of numbers
+with recursive qn as (select 1 as n, 2 as un union all select 1+n, un*5-6 from qn where n<10) select * from qn;
+n	un
+1	2
+2	4
+3	14
+4	64
+5	314
+6	1564
+7	7814
+8	39064
+9	195314
+10	976564
+# Fibonacci
+with recursive qn as (select 1 as n, 1 as un, 1 as unp1 union all select 1+n, unp1, un+unp1 from qn where n<10) select * from qn;
+n	un	unp1
+1	1	1
+2	1	2
+3	2	3
+4	3	5
+5	5	8
+6	8	13
+7	13	21
+8	21	34
+9	34	55
+10	55	89
+# Validate that cast(a_varchar as char) produces a varchar, not a
+# char.
+create table t(c char(3), vc varchar(3), b binary(3), vb varbinary(3));
+create table u
+select cast(c as char(4)), cast(vc as char(4)),
+cast(b as binary(4)), cast(vb as binary(4)),
+"abc" as literal_c, cast("abc" as char(4)),
+_binary "abc" as literal_b, cast(_binary "abc" as binary(4))
+from t;
+show create table u;
+Table	Create Table
+u	CREATE TABLE `u` (
+  `cast(c as char(4))` varchar(4) DEFAULT NULL,
+  `cast(vc as char(4))` varchar(4) DEFAULT NULL,
+  `cast(b as binary(4))` varbinary(4) DEFAULT NULL,
+  `cast(vb as binary(4))` varbinary(4) DEFAULT NULL,
+  `literal_c` varchar(3) NOT NULL DEFAULT '',
+  `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
+  `literal_b` varbinary(3) NOT NULL DEFAULT '',
+  `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t,u;
+# if it used char the 'x' would fall off due to spaces.
+with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;
+n	un
+1	x
+2	xx
+3	xxx
+4	xxxx
+5	xxxxx
+6	xxxxxx
+7	xxxxxxx
+8	xxxxxxxx
+9	xxxxxxxxx
+10	xxxxxxxxxx
+# String now growing at the left
+with recursive qn as (select cast("x" as char(10)) as a from dual
+union all select concat("x",a) from qn where length(a)<10) select *
+from qn;
+a
+x
+xx
+xxx
+xxxx
+xxxxx
+xxxxxx
+xxxxxxx
+xxxxxxxx
+xxxxxxxxx
+xxxxxxxxxx
+# Forgot cast-as-char(10) in anchor => qn.a column has length 1
+# => concat() is cast as char(1) => truncation
+# => length is always 1 => infinite loop; to prevent this and be
+# helpful, raise error when truncating, if in strict mode. Like if:
+# CREATE tmp table SELECT non-recursive part;
+# INSERT INTO tmp table SELECT recursive part;
+create temporary table tt select "x" as a from dual;
+create temporary table tt1 select "x" as a from dual;
+insert into tt1 select concat("x",a) from tt where length(a)<10;
+ERROR 22001: Data too long for column 'a' at row 1
+drop temporary table tt,tt1;
+with recursive qn as (select "x" as a from dual
+union all select concat("x",a) from qn where length(a)<10) select *
+from qn;
+ERROR 22001: Data too long for column 'a' at row 1
+# Overflow integer type INT (max 4G)
+with recursive qn as (select 1 as a from dual
+union all select a*2000 from qn where a<10000000000000000000) select * from qn;
+ERROR 22003: BIGINT value is out of range in '(`qn`.`a` * 2000)'
+# Use Decimal
+with recursive qn as (select cast(1 as decimal(30,0)) as a from dual
+union all select a*2000 from qn where a<10000000000000000000) select * from qn;
+a
+1
+2000
+4000000
+8000000000
+16000000000000
+32000000000000000
+64000000000000000000
+# Columns of a recursive QN are always NULLable, as in the Standard.
+# Without it, we would get conversion
+# of NULL to 0 and an infinite loop.
+with recursive qn as (select 123 as a union all
+select null from qn where a is not null) select * from qn;
+a
+123
+NULL
+# Mixing really unrelated types: the goal is to report a sensible
+# error and not crash.
+# The Point becomes a string which is an invalid integer:
+with recursive qn as (
+select 1 as a,1
+union all
+select a+1,ST_PointFromText('POINT(10 10)') from qn where a<2)
+select * from qn;
+ERROR HY000: Incorrect integer value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00$@\x00\x00\x00\x00\x00\x00$@' for column '1' at row 1
+# POINT in anchor => BLOB in tmp table => not MEMORY engine => Innodb
+with recursive qn as (
+select 1 as a,ST_PointFromText('POINT(10 10)')
+union all
+select a+1,1 from qn where a<2)
+select * from qn;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+# Same number of columns in anchor and recursive members
+WITH RECURSIVE qn AS
+(
+select 1
+union all
+select 3, 0 from qn
+)
+select * from qn;
+ERROR 21000: The used SELECT statements have a different number of columns
+# Mismatch in column name and column count; problem specific of
+# recursive CTE which creates tmp table earlier in preparation.
+with recursive q (b) as (select 1, 1 union all select 1, 1 from q)
+select b from q;
+ERROR HY000: View's SELECT and view's field list have different column counts
+# Cannot have two recursive refs in FROM:
+with recursive qn as (
+select 123 as a union all
+select 1+qn.a from qn, qn as qn1 where qn1.a<130)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must be referenced only once, and not in any subquery
+# Prove that a materialized QN is shared among all references:
+flush status;
+with recursive qn as (
+select 123 as a union all
+select 1+a from qn where a<125)
+select * from qn;
+a
+123
+124
+125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+flush status;
+with recursive qn as (
+select 123 as a union all
+select 1+a from qn where a<125)
+select * from qn, qn as qn1;
+a	a
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	3
+show status like 'Created_tmp%table%';
+Variable_name	Value
+Created_tmp_disk_tables	1
+Created_tmp_tables	1
+# Also works if references are nested inside other query names:
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as (select * from inner_ limit 10)
+select * from outer_, outer_ as outer1;
+a	a
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	6
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as
+(select inner_.a, inner1.a as a1
+from inner_, inner_ as inner1 limit 10)
+select * from outer_;
+a	a1
+123	123
+124	123
+125	123
+123	124
+124	124
+125	124
+123	125
+124	125
+125	125
+show status like "handler_write";
+Variable_name	Value
+Handler_write	12
+# Even if the two query names are recursive:
+flush status;
+with recursive inner_ as (
+select 123 as a union all
+select 1+a from inner_ where a<125),
+outer_ as
+(select a from inner_ union all
+select a*2 from outer_ where a<1000)
+select a from outer_;
+a
+123
+124
+125
+246
+248
+250
+492
+496
+500
+984
+992
+1000
+1968
+1984
+show status like "handler_write";
+Variable_name	Value
+Handler_write	17
+# Optimizer must be allowed to put the recursive reference first
+create table t1(a int);
+insert into t1 values(1),(2);
+WITH RECURSIVE qn AS
+(
+select 1 from t1
+union all
+select 1 from t1 straight_join qn
+)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+WITH RECURSIVE qn AS
+(
+select 1 from t1
+union all
+select 1 from t1 left join qn on 1
+)
+select * from qn;
+ERROR HY000: In recursive query block of Recursive Common Table Expression 'qn', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints
+# Empty anchor
+WITH RECURSIVE qn AS
+(
+select a from t1 where 0
+union all
+select a+1 from qn
+)
+select * from qn;
+a
+WITH RECURSIVE qn AS
+(
+select a from t1 where a>10
+union all
+select a+1 from qn
+)
+select * from qn;
+a
+# UNION DISTINCT in anchor parts
+insert into t1 values(1),(2);
+set @c=0, @d=0;
+WITH RECURSIVE qn AS
+(
+select 1,0 as col from t1
+union distinct
+select 1,0 from t1
+union all
+select 3, 0*(@c:=@c+1) from qn where @c<1
+union all
+select 3, 0*(@d:=@d+1) from qn where @d<1
+)
+select * from qn;
+1	col
+1	0
+3	0
+3	0
+# UNION DISTINCT affecting recursive member, followed by UNION ALL
+insert into t1 values(1),(2);
+set @c=0, @d=0;
+WITH RECURSIVE qn AS
+(
+select 1,0 as col from t1
+union distinct
+select 3, 0*(@c:=@c+1) from qn where @c<1
+union all
+select 3, 0*(@d:=@d+1) from qn where @d<1
+)
+select * from qn;
+ERROR 42000: This version of MySQL doesn't yet support 'recursive query blocks with UNION DISTINCT then UNION ALL, in recursive Common Table Expression'
+# create select
+create table t2
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t2;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop table t2;
+# insert select
+delete from t1;
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+# Using insertion target inside recursive query
+delete from t1;
+insert into t1 values(1),(2);
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+qn.a from qn, t1 where qn.a<125)
+select * from qn;
+select * from t1;
+a
+1
+2
+123
+124
+124
+125
+125
+125
+125
+drop table t1;
+# insert into tmp table (a likely use case)
+create temporary table t1(a int);
+insert into t1
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from t1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop table t1;
+# create view
+create view v1 as
+with recursive qn as (
+select 123 as a union all select 1+a from qn where a<130)
+select * from qn;
+select * from v1;
+a
+123
+124
+125
+126
+127
+128
+129
+130
+drop view v1;
+# Recursive QN can be constant (0-row or 1-row) for the
+# optimizer if its members have impossible conditions:
+explain with recursive qn (n) as (
+select 1 where 0 union all select n+1 from qn where 0
+) select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 0 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select NULL AS `n` from `qn`
+with recursive qn (n) as (
+select 1 where 0 union all select n+1 from qn where 0
+) select * from qn;
+n
+explain with recursive qn (n) as (
+select 1 where 1 union all select n+1 from qn where 0
+) select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 1 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+with recursive qn (n) as (
+select 1 where 1 union all select n+1 from qn where 0
+) select * from qn;
+n
+1
+# Recursive refs should never use indexes to read:
+# first, optimization of top query creates a key on q.b;
+# then optimization of scalar subquery, when it optimizes the
+# recursive member, must be prevented from re-using this key
+# (it was a bug that it re-used it, as the index is covering
+# and adjust_access_methods() has a heuristic which converts a
+# table scan to index scan, so it wrongly used an index scan).
+explain with recursive q (b) as
+(select 1 union all select 1+b from q where b<10)
+select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+7	UNION	q	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Recursive; Using where
+2	DEPENDENT SUBQUERY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	9	const	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'q1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	with recursive `q` (`b`) as (/* select#6 */ select 1 AS `1` union all /* select#7 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 10)) /* select#1 */ select (/* select#2 */ select `q1`.`b` from `q` `q2` where (`q2`.`b` = 3)) AS `(select q1.b from q as q2 where q2.b=3)` from `q` `q1` where (`q1`.`b` = 3)
+with recursive q (b) as
+(select 1 union all select 1+b from q where b<10)
+select (select q1.b from q as q2 where q2.b=3) from q as q1 where q1.b=3;
+(select q1.b from q as q2 where q2.b=3)
+3
+# Recursive query to update/delete a table
+create table t1(a int);
+insert into t1
+with recursive qn (n) as (
+select 1 union all select n+1 from qn where n<10
+) select * from qn;
+select * from t1;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+with recursive qn (n) as (
+select 5 union all select n+2 from qn where n<10
+) delete t1 from t1 where a in (select * from qn);
+select * from t1;
+a
+1
+2
+3
+4
+6
+8
+10
+with recursive qn (n) as (
+select 4 union all select n+2 from qn where n<10
+) delete from t1 where a in (select * from qn);
+select * from t1;
+a
+1
+2
+3
+with recursive qn (n) as (
+select 2 union all select n+2 from qn where n<10
+) update t1,qn set t1.a=qn.n where t1.a=1+qn.n;
+select * from t1;
+a
+1
+2
+2
+drop table t1;
+# This is from my blog so I can use it here.
+# Tests depth-first etc
+CREATE TABLE employees (
+ID INT PRIMARY KEY,
+NAME VARCHAR(100),
+MANAGER_ID INT,
+INDEX (MANAGER_ID),
+FOREIGN KEY (MANAGER_ID) REFERENCES employees(ID)
+);
+INSERT INTO employees VALUES
+(333, "Yasmina", NULL),
+(198, "John", 333),
+(692, "Tarek", 333),
+(29, "Pedro", 198),
+(4610, "Sarah", 29),
+(72, "Pierre", 29),
+(123, "Adil", 692);
+ANALYZE TABLE employees;
+Table	Op	Msg_type	Msg_text
+test.employees	analyze	status	OK
+# Depth-first.
+# Also test column names, and their reference in the recursive member.
+WITH RECURSIVE employees_extended(ID, NAME, PATH)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200))
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY PATH;
+ID	NAME	PATH
+333	Yasmina	333
+198	John	333,198
+29	Pedro	333,198,29
+4610	Sarah	333,198,29,4610
+72	Pierre	333,198,29,72
+692	Tarek	333,692
+123	Adil	333,692,123
+# Breadth-first is likely what we get, if no ordering
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH
+333	Yasmina	333
+198	John	333,198
+692	Tarek	333,692
+29	Pedro	333,198,29
+123	Adil	333,692,123
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# But to be really sure we have breadth-first, we generate a
+# numeric column SEQ. And sort by NAME, to have repeatable
+# order of siblings (who have the same SEQ).
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT 0 AS SEQ, ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT M.SEQ+1, S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY SEQ, NAME;
+SEQ	ID	NAME	PATH
+0	333	Yasmina	333
+1	198	John	333,198
+1	692	Tarek	333,692
+2	123	Adil	333,692,123
+2	29	Pedro	333,198,29
+3	72	Pierre	333,198,29,72
+3	4610	Sarah	333,198,29,4610
+# Or, use a user variable, then all rows have different number:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT (@s:=0) AS SEQ, ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT (@s:=@s+1), S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended ORDER BY SEQ;
+SEQ	ID	NAME	PATH
+0	333	Yasmina	333
+1	198	John	333,198
+2	692	Tarek	333,692
+3	29	Pedro	333,198,29
+4	123	Adil	333,692,123
+5	72	Pierre	333,198,29,72
+6	4610	Sarah	333,198,29,4610
+# Direct & indirect reports of John = having John in their PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended
+WHERE FIND_IN_SET((SELECT ID FROM employees WHERE NAME='John'),
+PATH);
+ID	NAME	PATH
+198	John	333,198
+29	Pedro	333,198,29
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# Exclude John, he's not a report of himself;
+# bonus: use a QN to cache his ID.
+WITH RECURSIVE employees_extended(ID, NAME, PATH)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200))
+FROM employees
+WHERE MANAGER_ID IS NULL
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+),
+JOHN_ID AS (SELECT ID FROM employees WHERE NAME='John')
+SELECT e.* FROM employees_extended e, JOHN_ID
+WHERE FIND_IN_SET(JOHN_ID.ID,
+PATH)
+AND e.ID<>JOHN_ID.ID;
+ID	NAME	PATH
+29	Pedro	333,198,29
+72	Pierre	333,198,29,72
+4610	Sarah	333,198,29,4610
+# Similar, but faster: start dive at John (and include him again).
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH
+198	John	198
+29	Pedro	198,29
+72	Pierre	198,29,72
+4610	Sarah	198,29,4610
+# Get the management chain above Pierre:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='Pierre'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID	PATH
+72	Pierre	29	72
+29	Pedro	198	72,29
+198	John	333	72,29,198
+333	Yasmina	NULL	72,29,198,333
+# Get the management chain above Pierre, without PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
+# Get the management chain above Pierre and Sarah, without PATH
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre' OR NAME='Sarah'
+UNION ALL
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+29	Pedro	198
+198	John	333
+198	John	333
+333	Yasmina	NULL
+333	Yasmina	NULL
+# Do it without duplicates
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, MANAGER_ID
+FROM employees
+WHERE NAME='Pierre' OR NAME='Sarah'
+UNION
+SELECT S.ID, S.NAME, S.MANAGER_ID
+FROM employees_extended M JOIN employees S ON M.MANAGER_ID=S.ID
+)
+SELECT * FROM employees_extended;
+ID	NAME	MANAGER_ID
+72	Pierre	29
+4610	Sarah	29
+29	Pedro	198
+198	John	333
+333	Yasmina	NULL
+# Cycles. Introduce an oddity:
+# Sarah is indirect report of John and is his manager.
+UPDATE employees SET MANAGER_ID=4610 WHERE NAME="John";
+# Previous query now produces infinite PATHs which overflow the column:
+WITH RECURSIVE employees_extended
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)) AS PATH
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+)
+SELECT * FROM employees_extended;
+ERROR 22001: Data too long for column 'PATH' at row 1
+# Add cycle detection: the row closing a cycle is marked with
+# IS_CYCLE=1, which stops the iterations. The outer SELECT
+# could then want to see only that row, or only previous ones.
+WITH RECURSIVE employees_extended(ID, NAME, PATH, IS_CYCLE)
+AS
+(
+SELECT ID, NAME, CAST(ID AS CHAR(200)), 0
+FROM employees
+WHERE NAME='John'
+UNION ALL
+SELECT S.ID, S.NAME, CONCAT(M.PATH, ",", S.ID), FIND_IN_SET(S.ID, M.PATH)
+FROM employees_extended M STRAIGHT_JOIN employees S ON M.ID=S.MANAGER_ID
+WHERE M.IS_CYCLE=0
+)
+SELECT * FROM employees_extended;
+ID	NAME	PATH	IS_CYCLE
+198	John	198	0
+29	Pedro	198,29	0
+72	Pierre	198,29,72	0
+4610	Sarah	198,29,4610	0
+198	John	198,29,4610,198	1
+DROP TABLE employees;
+# Two recursive members.
+create table t1 (id int, name char(10), leftpar int, rightpar int);
+insert into t1 values
+(1, "A", 2, 3),
+(2, "LA", 4, 5),
+(4, "LLA", 6, 7),
+(6, "LLLA", null, null),
+(7, "RLLA", null, null),
+(5, "RLA", 8, 9),
+(8, "LRLA", null, null),
+(9, "RRLA", null, null),
+(3, "RA", 10, 11),
+(10, "LRA", 12, 13),
+(11, "RRA", 14, 15),
+(15, "RRRA", null, null),
+(16, "B", 17, 18),
+(17, "LB", null, null),
+(18, "RB", null, null)
+;
+# Shuffle rows to make sure the algorithm works
+# with any read order of rows above
+create table t2 select * from t1 order by rand();
+# Tree-walking query. We turn off the Query Cache: indeed
+# sometimes pb2 enables Query Cache and as we run twice the
+# same query the 2nd may not actually be executed so the value
+# of Created_tmp_tables displayed at end becomes "one less").
+# Note that without ORDER BY, order of rows would be random as BNL
+# implies that the randomized t2 is the driving table in the
+# joining of rows.
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Let's turn BNL off to verify that ORDER BY works the same:
+set @optimizer_switch_saved= @@optimizer_switch;
+set optimizer_switch='block_nested_loop=off';
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Without ORDER BY order is different; it is deterministic as
+# the CTE is the driving table (no BNL) but a user shouldn't
+# rely on it, just as he shouldn't expect some particular order
+# when selecting from a derived table containing a join.
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+3	RA	10	11	1,3
+5	RLA	8	9	1,2,5
+7	RLLA	NULL	NULL	1,2,4,7
+11	RRA	14	15	1,3,11
+9	RRLA	NULL	NULL	1,2,5,9
+15	RRRA	NULL	NULL	1,3,11,15
+10	LRA	12	13	1,3,10
+8	LRLA	NULL	NULL	1,2,5,8
+set @@optimizer_switch=@optimizer_switch_saved;
+# Equivalent query with one single recursive query block:
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+(t2.id=tree_of_a.leftpar or t2.id=tree_of_a.rightpar)
+)
+select * from tree_of_a
+order by path;
+id	name	leftpar	rightpar	path
+1	A	2	3	1
+2	LA	4	5	1,2
+4	LLA	6	7	1,2,4
+6	LLLA	NULL	NULL	1,2,4,6
+7	RLLA	NULL	NULL	1,2,4,7
+5	RLA	8	9	1,2,5
+8	LRLA	NULL	NULL	1,2,5,8
+9	RRLA	NULL	NULL	1,2,5,9
+3	RA	10	11	1,3
+10	LRA	12	13	1,3,10
+11	RRA	14	15	1,3,11
+15	RRRA	NULL	NULL	1,3,11,15
+# Demonstrate a case where an index is automatically created on
+# the derived table and used to read this table in the outer
+# query (but correctly not used to read it in the recursive
+# query).
+explain with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a where id=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
+with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a where id=2;
+id	name	leftpar	rightpar	path
+2	LA	4	5	1,2
+drop table t1,t2;
+# Verify that after materialization, accessing 3 references to
+# the same CTE using different access methods (scan, ref, ref),
+# works without one method disturbing the others.
+# Turning BNL off since it is faster and allows to have "ref"
+# on cte3 which is more interesting.
+explain with recursive cte as
+(
+select 1 as n union all
+select n+1 from cte where n<10000
+)
+select /*+ no_bnl(cte3) */
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+from cte cte1, cte cte2, cte cte3
+where cte1.n=cte2.n+10 and cte2.n+20=cte3.n;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	func	#	100.00	Using where; Using index
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	func	#	100.00	Using where; Using index
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No tables used
+3	UNION	cte	NULL	ALL	NULL	NULL	NULL	NULL	#	50.00	Recursive; Using where
+Warnings:
+Note	1003	with recursive `cte` as (/* select#2 */ select 1 AS `n` union all /* select#3 */ select (`cte`.`n` + 1) AS `n+1` from `cte` where (`cte`.`n` < 10000)) /* select#1 */ select /*+ NO_BNL(`cte3`@`select#1`) */ (sum(((`cte1`.`n` * `cte2`.`n`) * `cte3`.`n`)) = 2490508525950000) AS `sum(cte1.n*cte2.n*cte3.n)=2490508525950000` from `cte` `cte1` join `cte` `cte2` join `cte` `cte3` where ((`cte1`.`n` = (`cte2`.`n` + 10)) and ((`cte2`.`n` + 20) = `cte3`.`n`))
+with recursive cte as
+(
+select 1 as n union all
+select n+1 from cte where n<10000
+)
+select /*+ no_bnl(cte3) */
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+from cte cte1, cte cte2, cte cte3
+where cte1.n=cte2.n+10 and cte2.n+20=cte3.n;
+sum(cte1.n*cte2.n*cte3.n)=2490508525950000
+1
+#
+# Transitive closure
+#
+create table nodes(id int);
+create table arcs(from_id int, to_id int);
+insert into nodes values(1),(2),(3),(4),(5),(6),(7),(8);
+insert into arcs values(1,3), (3,6), (1,4), (4,6), (6,2), (2,1);
+# UNION ALL leads to infinite loop as 1 is reachable from 1;
+# so we stop it with a maximum depth 8 (8 nodes in graph)
+with recursive cte as
+(
+select id, 0 as depth from nodes where id=1
+union all
+select to_id, depth+1 from arcs, cte
+where from_id=cte.id and depth<8
+)
+select count(*), max(depth) from cte;
+count(*)	max(depth)
+25	8
+# Can use cycle detection:
+with recursive cte as
+(
+select id, cast(id as char(200)) as path, 0 as is_cycle
+from nodes where id=1
+union all
+select to_id, concat(cte.path, ",", to_id), find_in_set(to_id, path)
+from arcs, cte
+where from_id=cte.id and is_cycle=0
+)
+select * from cte;
+id	path	is_cycle
+1	1	0
+3	1,3	0
+4	1,4	0
+6	1,3,6	0
+6	1,4,6	0
+2	1,3,6,2	0
+2	1,4,6,2	0
+1	1,3,6,2,1	1
+1	1,4,6,2,1	1
+# It is simpler with DISTINCT:
+with recursive cte as
+(
+select id from nodes where id=1
+union
+select to_id from arcs, cte where from_id=cte.id
+)
+select * from cte;
+id
+1
+3
+4
+6
+2
+drop table nodes, arcs;
+# Hash field and MEMORY don't work together. Make long distinct
+# key to force hash field, to see if it switches to InnoDB.
+# Not too long key (500 bytes in latin1)
+with recursive cte as
+(
+select 1 as n,
+repeat('a',500) as f, '' as g,
+'' as h, '' as i
+union
+select n+1,
+'','','',''
+  from cte where n<100)
+select sum(n) from cte;
+sum(n)
+5050
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	54
+# Too long key (>3000 bytes in latin1)
+with recursive cte as
+(
+select 1 as n,
+repeat('a',500) as f, repeat('a',500) as g,
+repeat('a',500) as h, repeat('a',500) as i,
+repeat('a',500) as j, repeat('a',500) as k,
+repeat('a',500) as l, repeat('a',500) as m
+union
+select n+1,
+'','','','','','','',''
+  from cte where n<100)
+select sum(n) from cte;
+sum(n)
+5050
+#
+# In query planning, the recursive reference's row count is
+# said to be the estimated row count of all non-recursive query
+# blocks
+create table t1(a int);
+# 15 rows:
+insert into t1 values (), (), (), (), (), (), (), (), (), (), (), (),
+(), (), ();
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# EXPLAIN says: in non-recursive QB we'll read 15 rows of t1,
+# in recursive QB we'll read 15 rows of qn, keep only 0.33
+# due to WHERE, that makes 4 (due to rounding), and in the
+# derived table we'll thus have 15+4=19. That ignores
+# next repetitions of the recursive QB which are unpredictable.
+explain with recursive qn as
+(select 1 as a from t1 union all select a+1 from qn where qn.a<100)
+select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union all /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+explain with recursive qn as
+(select 1 as a from t1 union distinct select a+1 from qn where qn.a<100)
+select * from qn;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	19	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
+3	UNION	qn	NULL	ALL	NULL	NULL	NULL	NULL	15	33.33	Recursive; Using where
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1` union /* select#3 */ select (`qn`.`a` + 1) AS `a+1` from `qn` where (`qn`.`a` < 100)) /* select#1 */ select `qn`.`a` AS `a` from `qn`
+drop table t1;
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	59

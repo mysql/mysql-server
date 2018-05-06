@@ -8,25 +8,19 @@
 
 # 1. Repeat of daily runs
 # Default suites (in modes binlog format stmt/mixed/row)
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb_autoextend_increment=64 --unit-tests-report --skip-ndb
-# embedded
-# --debug-server is not used for embedded runs since debug build of embedded server is not available
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server --skip-ndb
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --mysqld=--innodb_autoextend_increment=64 --unit-tests-report --skip-ndb
 # ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-weekly.list --skip-ndb
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big --vardir=var-ps-debug-big  --ps-protocol --skip-ndb
 
 # 2. Run the ndbcluster suite only(separately for better report in the CI tool).
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster --vardir=var-ndbcluster --skip-test-list=collections/disabled-weekly.list --suite=ndbcluster
-# embedded
-# --debug-server is not used for embedded runs since debug build of embedded server is not available
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster_embedded --vardir=var-ndbcluster-embedded --skip-test-list=collections/disabled-weekly.list --suite=ndbcluster --embedded-server
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster
 # ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster_ps --vardir=var-ndbcluster-ps --ps-protocol --skip-test-list=collections/disabled-weekly.list --suite=ndbcluster
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster_ps --vardir=var-ndbcluster-ps --ps-protocol --suite=ndbcluster
 
 # 3. Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug-big  --vardir=var-nist-debug-big --suite=nist
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug-big --vardir=var-nist-debug-big --suite=nist
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist+ps-debug --vardir=var-ps_nist-debug  --suite=nist  --ps-protocol
 

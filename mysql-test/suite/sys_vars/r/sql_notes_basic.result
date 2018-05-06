@@ -44,16 +44,16 @@ SET @@session.sql_notes = "T";
 ERROR 42000: Variable 'sql_notes' can't be set to the value of 'T'
 SET @@session.sql_notes = "Y";
 ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Y'
-SET @@session.sql_notes = TRÜE;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'TRÜE'
-SET @@session.sql_notes = ÕN;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'ÕN'
+SET @@session.sql_notes = TRÃœE;
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'TRÃœE'
+SET @@session.sql_notes = Ã•N;
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Ã•N'
 SET @@session.sql_notes = OF;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
-SET @@session.sql_notes = ÓFF;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'ÓFF'
-SET @@session.sql_notes = '¹';
-ERROR 42000: Variable 'sql_notes' can't be set to the value of '¹'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.sql_notes = Ã“FF;
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Ã“FF'
+SET @@session.sql_notes = 'Â¹';
+ERROR 42000: Variable 'sql_notes' can't be set to the value of 'Â¹'
 SET @@session.sql_notes = NO;
 ERROR 42000: Variable 'sql_notes' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_161_05----------------------------#'
@@ -66,12 +66,12 @@ SELECT @@global.sql_notes;
 @@global.sql_notes
 1
 '#----------------------FN_DYNVARS_161_06------------------------#'
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_notes';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='sql_notes';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_161_07------------------------#'
 SELECT IF(@@session.sql_notes, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_notes';
 IF(@@session.sql_notes, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -79,7 +79,7 @@ SELECT @@session.sql_notes;
 @@session.sql_notes
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_notes';
 VARIABLE_VALUE
 ON

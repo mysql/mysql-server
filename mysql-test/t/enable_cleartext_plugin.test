@@ -1,5 +1,4 @@
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug #21235226 : THE --ENABLE-CLEARTEXT-PLUGIN IS NOT IMPLEMENTED

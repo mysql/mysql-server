@@ -1,0 +1,224 @@
+################################################################################
+# This test verifies that group replication channels are not affect by global
+# RESET SLAVE commands.
+# If a command is however used directly in a group channel it should work.
+#
+# Test:
+# 0. The test requires two servers: M1, M2 and M3.
+#
+# 1. Phase 1: Setup a 2 server group.
+#  a) Check that the applier files are not there before start GR.
+#  b) Bootstrap start group on M1. Add some data for recovery.
+#  c) Start GR on M2.
+#  d) Create a slave channel on M1 with M3 i.e. M3 -> M1.
+#
+# 2. Phase 2: Check that the group replication applier files are present.
+#  a) On M1, group applier files should now be present with the channel.
+#  b) On M1, slave files should be present.
+#  c) On M2, group applier files should now be present with the channel.
+#  b) On M2, recovery files should be present.
+#
+# 3. Phase 3: Check that the RESET SLAVE command doesn't affect GR.
+#  a) Execute RESET SLAVE ALL command on M1.
+#  b) Validate that group applier files are still present on M1.
+#  c) Check that slave files are removed on M1.
+#
+# 4. Phase 4: After a direct reset command all files should disappear.
+#  a) RESET SLAVE ALL command should fail on an ONLINE member M1.
+#  b) Stop GR on M1.
+#  c) Execute RESET SLAVE ALL command on M1.
+#  d) Validate that group applier files are removed.
+#
+# 5. Phase 5: Restart server 1 plugin, all should be fine.
+#  a) Add some data for recovery on M2.
+#  b) Start GR on M1.
+#  c) Add some data on M1 to check if all is fine.
+#  d) Validate that both members have all the data.
+#
+# 6. Phase 6: Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+#
+# Phase 1: Setup a 2 server group
+# Check that the applier files are not there before start
+# Create also a slave channel on server
+#
+
+--connection server1
+--echo server1
+
+--let $datadir_1= `SELECT @@GLOBAL.datadir`
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--error 1
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--error 1
+--file_exists $relay_log_index
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+
+--connection server2
+--echo server2
+--source include/start_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# Create a slave channel with server 3
+
+--disable_warnings
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1"
+--enable_warnings
+
+#
+# Phase 2: Check that the group replication applier files are present.
+# Recovery files should be present on the recovered server as they were only
+# reset.
+#
+
+--connection server1
+
+# Group applier files should now be there with the channel
+
+--file_exists $relay_log_file
+--file_exists $relay_log_index
+
+--let $assert_text= 'The group replication applier channel is present'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_applier", count, 1] = 1
+--source include/assert.inc
+
+# Slave files should be there
+
+--let $slave_relay_log_file=`SELECT CONCAT('$datadir_1','mgr-channel_1.000001')`
+--file_exists $slave_relay_log_file
+
+--let $slave_relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-channel_1.index')`
+--file_exists $slave_relay_log_index
+
+--let $assert_text= 'The slave channel is present'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="channel_1", count, 1] = 1
+--source include/assert.inc
+
+--connection server2
+
+--let $datadir_2= `SELECT @@GLOBAL.datadir`
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_2','mgr-group_replication_applier.000001')`
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_applier.index')`
+--file_exists $relay_log_index
+
+# Recovery files are also there
+
+--let $recovery_relay_log_file= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_recovery.000001')`
+--file_exists $recovery_relay_log_file
+
+--let $recovery_relay_log_index= `SELECT CONCAT('$datadir_2', 'mgr-group_replication_recovery.index')`
+--file_exists $recovery_relay_log_index
+
+#
+# Phase 3: Check that the RESET SLAVE command doesn't affect group replication
+# The slave channel should not be there
+#
+
+--connection server1
+
+RESET SLAVE ALL;
+
+--let $relay_log_file=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--file_exists $relay_log_file
+
+--let $relay_log_index= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--file_exists $relay_log_index
+
+--let $assert_text= 'The group replication applier channel is still present'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_applier", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The group replication applier channel is ON'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_applier" and SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+# The slave channel was removed
+
+--error 1
+--file_exists $slave_relay_log_file
+
+--error 1
+--file_exists $slave_relay_log_index
+
+--let $assert_text= 'The slave channel is not present'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="channel_1", count, 1] = 0
+--source include/assert.inc
+
+#
+# Phase 4: After a direct reset command all files should disappear
+# The command should not be allowed on group replication is running
+#
+
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+--source include/stop_group_replication.inc
+
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+--let $relay_log_file_mgr=`SELECT CONCAT('$datadir_1','mgr-group_replication_applier.000001')`
+--error 1
+--file_exists $relay_log_file_mgr
+
+--let $relay_log_index_mgr= `SELECT CONCAT('$datadir_1', 'mgr-group_replication_applier.index')`
+--error 1
+--file_exists $relay_log_index_mgr
+
+--let $assert_text= 'The group replication applier channel is not present'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="group_replication_applier", count, 1] = 0
+--source include/assert.inc
+
+#
+# Phase 5: Restart server 1 plugin, all should be fine
+#
+
+--connection server2
+--echo server2
+
+INSERT INTO t1 VALUES (4);
+
+--connection server1
+--echo server1
+--source include/start_group_replication.inc
+
+INSERT INTO t1 VALUES (5);
+
+--let $sync_slave_connection= server2
+--source include/rpl_sync.inc
+
+--let $assert_text= The table should contain 5 elements
+--let $assert_cond= [select count(*) from t1] = 5;
+--source include/assert.inc
+
+#
+# Phase 6: Cleanup
+#
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

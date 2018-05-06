@@ -71,7 +71,7 @@ FLUSH LOGS;
 --disable_query_log
 --disable_result_log
 SELECT @MaxRepGCIHI:=Variable_Value >> 32
-FROM Information_schema.Global_Status
+FROM performance_schema.global_status
 WHERE Variable_Name like 'Ndb_slave_max_replicated_epoch';
 
 SELECT @MaxRepGCIHI = 0;
@@ -90,7 +90,7 @@ while (!$different)
   --sleep 1
 
   SELECT @MaxRepGCIHI:=Variable_Value >> 32
-  FROM Information_schema.Global_Status
+  FROM performance_schema.global_status
   WHERE Variable_Name like 'Ndb_slave_max_replicated_epoch';
 
   --let $current_gcihi = `SELECT @MaxRepGCIHI`

@@ -30,7 +30,7 @@ INSERT INTO t1 VALUES (1);
 connection slave;
 # slave should have stopped because can't find table t1
 # 1146 = ER_NO_SUCH_TABLE
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t1. doesn.t exist., Error_code: MY-001146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --let $slave_sql_errno= 1146

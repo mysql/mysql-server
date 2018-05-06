@@ -10,11 +10,9 @@
 #          row_format=compact
 # case 3 : Set at the Parameter and DDL level different row_format
 # **************************************************************
---source include/have_innodb.inc
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 # InnoDB doesn't support only 16k as index prefix is 3070 bytes 
---source include/have_innodb_16k.inc
 
 connection master;
 USE test;
@@ -25,7 +23,8 @@ ENGINE=InnoDB PARTITION BY HASH(empno) (PARTITION p0,PARTITION p1 );
 
 # Create Index prefix greater than 767 bytes
 CREATE TABLE tab1(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
-ENGINE= InnoDB;
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
 
 # Insert few records
 INSERT INTO tab VALUES (100,'VISWANATH',100);
@@ -60,7 +59,8 @@ SET GLOBAL innodb_default_row_format=Compact;
 # Create Index prefix greater than 767 bytes
 -- error ER_INDEX_COLUMN_TOO_LONG
 CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(768)))
-ENGINE= InnoDB;
+ENGINE= InnoDB
+DEFAULT CHARACTER SET latin1;
 
 # Connect to slave
 --source include/sync_slave_sql_with_master.inc
@@ -78,7 +78,8 @@ SET GLOBAL innodb_default_row_format=Dynamic;
 
 # Create Index prefix less than 767 bytes
 CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(767)))
-ENGINE= InnoDB ROW_FORMAT=COMPACT;
+ENGINE= InnoDB ROW_FORMAT=COMPACT
+DEFAULT CHARACTER SET latin1;
 
 INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
 

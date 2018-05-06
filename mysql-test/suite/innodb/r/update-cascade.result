@@ -10,7 +10,7 @@ t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -19,7 +19,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1, repeat('+', 20000));
 insert into t1 values (2, repeat('-', 20000));
 insert into t1 values (3, repeat('=', 20000));
@@ -74,7 +74,7 @@ t1	CREATE TABLE `t1` (
   `f2` int(11) DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `k1` (`f2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -83,7 +83,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1, 91);
 insert into t2 values (1, 91);
 select f1, f2 from t1;
@@ -131,7 +131,7 @@ t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -139,7 +139,7 @@ t2	CREATE TABLE `t2` (
   `f2` blob,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -147,7 +147,7 @@ t3	CREATE TABLE `t3` (
   `f2` blob,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (2, repeat('-', 20000));
 insert into t2 values (2, repeat('%', 20000));
 insert into t3 values (2, repeat('+', 20000));
@@ -219,7 +219,7 @@ t1	CREATE TABLE `t1` (
   `f2` int(11) DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `k1` (`f2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -228,7 +228,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -237,7 +237,7 @@ t3	CREATE TABLE `t3` (
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f2`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (2, 91);
 insert into t2 values (2, 91);
 insert into t3 values (2, 91);

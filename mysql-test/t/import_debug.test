@@ -1,0 +1,44 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Testing WL#7524 - Import from SDI files
+--echo #
+--echo # Tests needing debug binaries.
+
+--echo # Setup test environment
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--perl
+chdir $ENV{'MYSQL_TMP_DIR'};
+mkdir "export";
+EOF
+let $EXPORT_DIR= $MYSQL_TMP_DIR/export;
+
+--echo #
+--echo # IM-POS-2: Export, drop and import back table
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (3), (5);
+SELECT * FROM t1;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t1*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1*
+
+--echo # Make import target commit fail
+SET SESSION debug= '+d,sdi_import_commit_fail';
+--replace_regex /'no_such_file'.*/'no_such_file' .../
+IMPORT TABLE FROM 't1_*.sdi';
+SET SESSION debug= '-d,sdi_import_commit_fail';
+DROP TABLE t1;
+
+--echo # Clean SDI files in \$EXPORT_DIR and \$MYSQLD_DATADIR
+--remove_files_wildcard $EXPORT_DIR t*
+--remove_files_wildcard $MYSQLD_DATADIR/test t1*
+
+--echo # Remove \$EXPORT_DIR
+--force-rmdir $EXPORT_DIR

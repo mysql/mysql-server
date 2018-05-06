@@ -1,0 +1,27 @@
+call mtr.add_suppression("Plugin mysqlx reported: .*Could not open internal MySQL session.");
+call mtr.add_suppression("Plugin mysqlx reported: ..: Error initializing session for connection: Could not open session.");
+call mtr.add_suppression("Plugin mysqlx reported: .Kill client: 1040 Too many connections.");
+SET GLOBAL MAX_CONNECTIONS=3;
+SET GLOBAL MYSQLX_MAX_CONNECTIONS=30;
+CREATE USER xuser@localhost IDENTIFIED BY 'xuser_pwd';
+SHOW GRANTS FOR xuser@localhost;
+Grants for xuser@localhost
+GRANT USAGE ON *.* TO `xuser`@`localhost`
+connecting...
+active session is now 'second_session'
+connecting...
+active session is now 'thrid_session'
+connecting...
+Got expected error (one of: 2006 2007 5011 )
+connecting...
+Got expected error (one of: 2006 2007 5011 )
+connecting...
+Got expected error (one of: 2006 2007 5011 )
+closing session thrid_session
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET @@GLOBAL.MAX_CONNECTIONS= DEFAULT;
+SET @@GLOBAL.MYSQLX_MAX_CONNECTIONS= DEFAULT;
+DROP USER xuser@localhost;

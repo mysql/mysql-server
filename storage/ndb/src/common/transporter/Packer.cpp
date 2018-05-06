@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -66,7 +73,7 @@ TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned lin
     EventLogger::EventTextFunction textF;
     EventLoggerBase::event_lookup(NDB_LE_TransporterError,
                                   cat, threshold, severity, textF);
-    Uint32 TE_words[3] = {0, remoteNodeId, errorCode};
+    Uint32 TE_words[3] = {0, remoteNodeId, (Uint32) errorCode};
     g_eventLogger->getText(msg + offs, sz - offs, textF, TE_words, 3);
     nb = strlen(msg + offs);
     if (nb < 0) goto log_it;
@@ -312,6 +319,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
     dump_and_report_bad_message(__FILE__, __LINE__,
             recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
             errorCode);
+    g_eventLogger->info("Loop count:%u", loop_count);
   }
 
   stopReceiving = doStopReceiving;
@@ -393,20 +401,18 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
   return readPtr;
 }
 
-Packer::Packer(bool signalId, bool checksum) {
-  
-  checksumUsed    = (checksum ? 1 : 0);
-  signalIdUsed    = (signalId ? 1 : 0);
-  
-  // Set the priority
-
-  preComputedWord1 = 0;
+Packer::Packer(bool signalId, bool checksum)
+  : preComputedWord1(0),
+    checksumUsed(checksum ? 1 : 0),
+    signalIdUsed(signalId ? 1 : 0)
+{
   Protocol6::setByteOrder(preComputedWord1, MY_OWN_BYTE_ORDER);
   Protocol6::setSignalIdIncluded(preComputedWord1, signalIdUsed);
   Protocol6::setCheckSumIncluded(preComputedWord1, checksumUsed);
   Protocol6::setCompressed(preComputedWord1, 0);
 }
 
+static
 inline
 void
 import(Uint32 * & insertPtr, const LinearSectionPtr & ptr){
@@ -415,6 +421,7 @@ import(Uint32 * & insertPtr, const LinearSectionPtr & ptr){
   insertPtr += sz;
 }
 
+static
 inline
 void
 importGeneric(Uint32 * & insertPtr, const GenericSectionPtr & ptr){
@@ -443,143 +450,77 @@ importGeneric(Uint32 * & insertPtr, const GenericSectionPtr & ptr){
 void copy(Uint32 * & insertPtr, 
 	  class SectionSegmentPool &, const SegmentedSectionPtr & ptr);
 
+/**
+ * Define the different variants of import of 'AnySectionArg'
+ * which the Packer::pack() template may be called with.
+ */
+static
+inline
 void
-Packer::pack(Uint32 * insertPtr, 
-	     Uint32 prio, 
-	     const SignalHeader * header, 
-	     const Uint32 * theData,
-	     const LinearSectionPtr ptr[3]) const {
-  Uint32 i;
-  
-  Uint32 dataLen32 = header->theLength;
-  Uint32 no_segs = header->m_noOfSections;
+import(Uint32 * & insertPtr, Uint32 no_segs, 
+       Packer::LinearSectionArg section)
+{
+  Uint32 *szPtr = insertPtr;
+  insertPtr += no_segs;
 
-  Uint32 len32 = 
-    dataLen32 + no_segs + 
-    checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
-  
-
-  for(i = 0; i<no_segs; i++){
-    len32 += ptr[i].sz;
-  }
-  
-  /**
-   * Do insert of data
-   */
-  Uint32 word1 = preComputedWord1;
-  Uint32 word2 = 0;
-  Uint32 word3 = 0;
-  
-  Protocol6::setPrio(word1, prio);
-  Protocol6::setMessageLength(word1, len32);
-  Protocol6::createProtocol6Header(word1, word2, word3, header);
-
-  insertPtr[0] = word1;
-  insertPtr[1] = word2;
-  insertPtr[2] = word3;
-  
-  Uint32 * tmpInserPtr = &insertPtr[3];
-  
-  if(signalIdUsed){
-    * tmpInserPtr = header->theSignalId;
-    tmpInserPtr++;
-  }
-  
-  memcpy(tmpInserPtr, theData, 4 * dataLen32);
-
-  tmpInserPtr += dataLen32;
-  for(i = 0; i<no_segs; i++){
-    tmpInserPtr[i] = ptr[i].sz;
-  }
-
-  tmpInserPtr += no_segs;
-  for(i = 0; i<no_segs; i++){
-    import(tmpInserPtr, ptr[i]);
-  }
-  
-  if(checksumUsed){
-    * tmpInserPtr = computeChecksum(&insertPtr[0], len32-1);
+  for(Uint32 i = 0; i<no_segs; i++){
+    szPtr[i] = section.m_ptr[i].sz;
+    import(insertPtr, section.m_ptr[i]);
   }
 }
 
+static
+inline
 void
-Packer::pack(Uint32 * insertPtr, 
-	     Uint32 prio, 
-	     const SignalHeader * header, 
-	     const Uint32 * theData,
-	     class SectionSegmentPool & thePool,
-	     const SegmentedSectionPtr ptr[3]) const {
-  Uint32 i;
-  
-  Uint32 dataLen32 = header->theLength;
-  Uint32 no_segs = header->m_noOfSections;
+import(Uint32 * & insertPtr, Uint32 no_segs, 
+       Packer::GenericSectionArg section)
+{
+  Uint32 *szPtr = insertPtr;
+  insertPtr += no_segs;
 
-  Uint32 len32 = 
-    dataLen32 + no_segs + 
-    checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
-  
-  for(i = 0; i<no_segs; i++){
-    len32 += ptr[i].sz;
-  }
-  
-  /**
-   * Do insert of data
-   */
-  Uint32 word1 = preComputedWord1;
-  Uint32 word2 = 0;
-  Uint32 word3 = 0;
-  
-  Protocol6::setPrio(word1, prio);
-  Protocol6::setMessageLength(word1, len32);
-  Protocol6::createProtocol6Header(word1, word2, word3, header);
-
-  insertPtr[0] = word1;
-  insertPtr[1] = word2;
-  insertPtr[2] = word3;
-  
-  Uint32 * tmpInserPtr = &insertPtr[3];
-  
-  if(signalIdUsed){
-    * tmpInserPtr = header->theSignalId;
-    tmpInserPtr++;
-  }
-  
-  memcpy(tmpInserPtr, theData, 4 * dataLen32);
-  
-  tmpInserPtr += dataLen32;
-  for(i = 0; i<no_segs; i++){
-    tmpInserPtr[i] = ptr[i].sz;
-  }
-
-  tmpInserPtr += no_segs;
-  for(i = 0; i<no_segs; i++){
-    copy(tmpInserPtr, thePool, ptr[i]);
-  }
-  
-  if(checksumUsed){
-    * tmpInserPtr = computeChecksum(&insertPtr[0], len32-1);
+  for(Uint32 i = 0; i<no_segs; i++){
+    szPtr[i] = section.m_ptr[i].sz;
+    importGeneric(insertPtr, section.m_ptr[i]);
   }
 }
 
+static
+inline
+void
+import(Uint32 * & insertPtr, Uint32 no_segs, 
+       Packer::SegmentedSectionArg section)
+{
+  Uint32 *szPtr = insertPtr;
+  insertPtr += no_segs;
 
+  for(Uint32 i = 0; i<no_segs; i++){
+    szPtr[i] = section.m_ptr[i].sz;
+    copy(insertPtr, section.m_pool, section.m_ptr[i]);
+  }
+}
+
+/////////////////
+
+template <typename AnySectionArg>
+inline
 void
 Packer::pack(Uint32 * insertPtr, 
 	     Uint32 prio, 
 	     const SignalHeader * header, 
 	     const Uint32 * theData,
-	     const GenericSectionPtr ptr[3]) const {
+	     AnySectionArg section) const
+{
   Uint32 i;
   
-  Uint32 dataLen32 = header->theLength;
-  Uint32 no_segs = header->m_noOfSections;
+  const Uint32 dataLen32 = header->theLength;
+  const Uint32 no_segs = header->m_noOfSections;
 
   Uint32 len32 = 
     dataLen32 + no_segs + 
     checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
   
-
   for(i = 0; i<no_segs; i++){
-    len32 += ptr[i].sz;
+    len32 += section.m_ptr[i].sz;
   }
   
   /**
@@ -605,21 +546,48 @@ Packer::pack(Uint32 * insertPtr,
   }
   
   memcpy(tmpInsertPtr, theData, 4 * dataLen32);
-
   tmpInsertPtr += dataLen32;
-  for(i = 0; i<no_segs; i++){
-    tmpInsertPtr[i] = ptr[i].sz;
-  }
 
-  tmpInsertPtr += no_segs;
-  for(i = 0; i<no_segs; i++){
-    importGeneric(tmpInsertPtr, ptr[i]);
-  }
-  
-  if(checksumUsed){
+  import(tmpInsertPtr, no_segs, section);
+
+  /**
+   * 'unlikely checksum' as we want a fast path for the default
+   * of checksum not being used. If enabling checksum we are prepared
+   * to pay the cost of the extra overhead.
+   */
+  if(unlikely(checksumUsed)){
     * tmpInsertPtr = computeChecksum(&insertPtr[0], len32-1);
   }
 }
+
+// Instantiate the templated ::pack() variants
+template 
+void
+Packer::pack<Packer::LinearSectionArg>(
+             Uint32 * insertPtr, 
+             Uint32 prio, 
+             const SignalHeader * header, 
+             const Uint32 * theData,
+             LinearSectionArg section) const;
+
+template 
+void
+Packer::pack<Packer::GenericSectionArg>(
+             Uint32 * insertPtr, 
+             Uint32 prio, 
+             const SignalHeader * header, 
+             const Uint32 * theData,
+             GenericSectionArg section) const;
+
+template 
+void
+Packer::pack<Packer::SegmentedSectionArg>(
+             Uint32 * insertPtr, 
+             Uint32 prio, 
+             const SignalHeader * header, 
+             const Uint32 * theData,
+             SegmentedSectionArg section) const;
+
 
 /**
  * Find longest data size that does not exceed given maximum, and does not

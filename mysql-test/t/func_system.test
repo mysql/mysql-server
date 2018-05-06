@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -21,7 +20,7 @@ select version()>="3.23.29";
 select version()>=_utf8"3.23.29";
 select version()>=_latin1"3.23.29";
 select charset(version());
-explain extended select database(), user();
+explain select database(), user();
 
 create table t1 (version char(60)) select database(), user(), version() as 'version';
 
@@ -65,3 +64,7 @@ select left(concat(a,version()),1) from t1;
 drop table t1;
 
 # End of 4.1 tests
+--echo # Bug#25669590: regression: assertion failed: collation.collation == ...
+
+prepare s from "DO SHA1(DATABASE());";
+execute s;

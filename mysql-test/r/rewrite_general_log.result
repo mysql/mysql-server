@@ -14,12 +14,12 @@ set names default,@dummy='c';
 CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
-CREATE USER test_user1 IDENTIFIED BY 'azundris1';
+CREATE USER test_user1 IDENTIFIED WITH mysql_native_password BY 'azundris1';
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1;
 GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
-CREATE USER test_user3@localhost IDENTIFIED BY 'meow' REQUIRE SSL;
+CREATE USER test_user3@localhost IDENTIFIED WITH mysql_native_password BY 'meow' REQUIRE SSL;
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost;
 ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
       REQUIRE X509 WITH
@@ -30,9 +30,9 @@ ALTER USER test_user3@localhost REQUIRE NONE;
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
-CREATE USER test_user2 IDENTIFIED BY 'azundris2';
+CREATE USER test_user2 IDENTIFIED WITH mysql_native_password BY 'azundris2';
 CHANGE MASTER TO MASTER_PASSWORD='azundris3';
-CREATE USER 'test_user4'@'localhost';
+CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
 SET GLOBAL general_log=       'OFF';
 DROP USER 'test_user4'@'localhost';
@@ -49,21 +49,22 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 argument
 Show that we logged stuff at all:
 ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
+argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
 argument
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ------ done ------
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
@@ -74,7 +75,7 @@ argument
 set names 'latin1',@dummy='B'
 set names 'latin1' collate 'latin1_german2_ci'
 set names default,@dummy='c'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1
@@ -83,14 +84,14 @@ GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION
 ------ done ------ see log_tables.test for more proof! :)
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
-argument
+SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
+COUNT(*)>=1
+1
 Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
-EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
+EXPLAIN SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((@`a`) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
 
 End of 5.6 tests!

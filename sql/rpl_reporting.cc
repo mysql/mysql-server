@@ -1,33 +1,49 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_reporting.h"
+#include "sql/rpl_reporting.h"
 
-#include "log.h"               // sql_print_warning
-#include "mysqld.h"            // current_thd
-#include "sql_class.h"         // THD
-#include "sql_error.h"         // Diagnostics_area
+#include <stdio.h>
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysqld_error.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"     // slave_trans_retries
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_error.h"  // Diagnostics_area
+#include "sql/transaction_info.h"
+#include "thr_mutex.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
-  : m_thread_name(thread_name)
-{
-  mysql_mutex_init(key_mutex_slave_reporting_capability_err_lock,
-                   &err_lock, MY_MUTEX_INIT_FAST);
+    : m_thread_name(thread_name) {
+  mysql_mutex_init(key_mutex_slave_reporting_capability_err_lock, &err_lock,
+                   MY_MUTEX_INIT_FAST);
 }
 
-#if !defined(EMBEDDED_LIBRARY)
 /**
   Check if the current error is of temporary nature or not.
   Some errors are temporary in nature, such as
@@ -36,34 +52,33 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
 
   @param      thd  a THD instance, typically of the slave SQL thread's.
-  @error_arg  the error code for assessment. 
+  @param error_arg  the error code for assessment.
               defaults to zero which makes the function check the top
               of the reported errors stack.
-  @silent     bool indicating whether the error should be silently handled.
+  @param silent     bool indicating whether the error should be silently
+  handled.
 
   @return 1 as the positive and 0 as the negative verdict
 */
-int Slave_reporting_capability::has_temporary_error(THD *thd, 
-                                                    uint error_arg, bool* silent) const
-{
+int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
+                                                    bool *silent) const {
   uint error;
   DBUG_ENTER("has_temporary_error");
 
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->get_stmt_da()->is_error())
-                  {
+                  if (thd->get_stmt_da()->is_error()) {
                     thd->clear_error();
                     my_error(ER_LOCK_DEADLOCK, MYF(0));
                   });
 
   /*
     The slave can't be regarded as experiencing a temporary failure in cases of
-    is_fatal_error is TRUE, or if no error is in THD and error_arg is not set.
+    is_fatal_error is true, or if no error is in THD and error_arg is not set.
   */
   if (thd->is_fatal_error || (!thd->is_error() && error_arg == 0))
     DBUG_RETURN(0);
 
-  error= (error_arg == 0)? thd->get_stmt_da()->mysql_errno() : error_arg;
+  error = (error_arg == 0) ? thd->get_stmt_da()->mysql_errno() : error_arg;
 
   /*
     Temporary error codes:
@@ -78,100 +93,98 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
   /*
     currently temporary error set in ndbcluster
   */
-  Diagnostics_area::Sql_condition_iterator it=
-    thd->get_stmt_da()->sql_conditions();
+  Diagnostics_area::Sql_condition_iterator it =
+      thd->get_stmt_da()->sql_conditions();
   const Sql_condition *err;
-  while ((err= it++))
-  {
+  while ((err = it++)) {
     DBUG_PRINT("info", ("has condition %d %s", err->mysql_errno(),
                         err->message_text()));
-    switch (err->mysql_errno())
-    {
-    case ER_GET_TEMPORARY_ERRMSG:
-      DBUG_RETURN(1);
-    case ER_SLAVE_SILENT_RETRY_TRANSACTION:
-    {
-      if (silent != NULL)
-        *silent= true;
-      DBUG_RETURN(1);
-    }
-    default:
-      break;
+    switch (err->mysql_errno()) {
+      case ER_GET_TEMPORARY_ERRMSG:
+        DBUG_RETURN(1);
+      case ER_SLAVE_SILENT_RETRY_TRANSACTION: {
+        if (silent != NULL) *silent = true;
+        DBUG_RETURN(1);
+      }
+      default:
+        break;
     }
   }
   DBUG_RETURN(0);
 }
-#endif // EMBEDDED_LIBRARY
 
-
-void
-Slave_reporting_capability::report(loglevel level, int err_code,
-                                   const char *msg, ...) const
-{
+void Slave_reporting_capability::report(loglevel level, int err_code,
+                                        const char *msg, ...) const {
   va_list args;
   va_start(args, msg);
   do_report(level, err_code, msg, args);
   va_end(args);
 }
 
-void
-Slave_reporting_capability::va_report(loglevel level, int err_code,
-                                      const char *prefix_msg,
-                                      const char *msg, va_list args) const
-{
-#if !defined(EMBEDDED_LIBRARY)
-  THD *thd= current_thd;
-  void (*report_function)(const char *, ...);
+void Slave_reporting_capability::va_report(loglevel level, int err_code,
+                                           const char *prefix_msg,
+                                           const char *msg,
+                                           va_list args) const {
+  THD *thd = current_thd;
   char buff[MAX_SLAVE_ERRMSG];
-  char *pbuff= buff;
+  char *pbuff = buff;
   char *curr_buff;
-  uint pbuffsize= sizeof(buff);
+  uint pbuffsize = sizeof(buff);
 
   if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
-      !thd->get_transaction()->cannot_safely_rollback(
-          Transaction_ctx::SESSION))
-    level= WARNING_LEVEL;
+      !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION))
+    level = WARNING_LEVEL;
 
   mysql_mutex_lock(&err_lock);
-  switch (level)
-  {
-  case ERROR_LEVEL:
-    /*
-      It's an error, it must be reported in Last_error and Last_errno in SHOW
-      SLAVE STATUS.
-    */
-    pbuff= m_last_error.message;
-    pbuffsize= sizeof(m_last_error.message);
-    m_last_error.number = err_code;
-    m_last_error.update_timestamp();
-    report_function= sql_print_error;
-    break;
-  case WARNING_LEVEL:
-    report_function= sql_print_warning;
-    break;
-  case INFORMATION_LEVEL:
-    report_function= sql_print_information;
-    break;
-  default:
-    DBUG_ASSERT(0);                            // should not come here
-    return;          // don't crash production builds, just do nothing
+  switch (level) {
+    case ERROR_LEVEL:
+      /*
+        It's an error, it must be reported in Last_error and Last_errno in SHOW
+        SLAVE STATUS.
+      */
+      pbuff = m_last_error.message;
+      pbuffsize = sizeof(m_last_error.message);
+      m_last_error.number = err_code;
+      m_last_error.update_timestamp();
+      break;
+    case WARNING_LEVEL:
+    case INFORMATION_LEVEL:
+      break;
+    default:
+      DBUG_ASSERT(0);  // should not come here
+      return;          // don't crash production builds, just do nothing
   }
-  curr_buff= pbuff;
+  curr_buff = pbuff;
   if (prefix_msg)
-    curr_buff += my_snprintf(curr_buff, pbuffsize, "%s; ", prefix_msg);
-  my_vsnprintf(curr_buff, pbuffsize - (curr_buff - pbuff), msg, args);
+    curr_buff += snprintf(curr_buff, pbuffsize, "%s; ", prefix_msg);
+  vsnprintf(curr_buff, pbuffsize - (curr_buff - pbuff), msg, args);
 
   mysql_mutex_unlock(&err_lock);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
-  report_function("Slave %s%s: %s%s Error_code: %d",
-                  m_thread_name, get_for_channel_str(false), pbuff,
-                  (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
-                  err_code);
-#endif
+  LogEvent()
+      .type(LOG_TYPE_ERROR)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .prio(level)
+      // if it's a client err-code, flag it as from diagnostics area
+      .errcode((err_code < ER_SERVER_RANGE_START)
+                   ? ER_RPL_SLAVE_ERROR_INFO_FROM_DA
+                   : err_code)
+      .subsys("Repl")
+      /*
+        We'll use the original error-code in the actual message,
+        even if it's out of range. That should make it easier
+        to find, debug, and fix.
+      */
+      .message("Slave %s%s: %s%s Error_code: MY-%06d", m_thread_name,
+               get_for_channel_str(false), pbuff,
+               (curr_buff[0] && *(strend(curr_buff) - 1) == '.') ? "" : ",",
+               err_code);
+
+  // we shouldn't really use client error codes here, so bomb out in debug mode
+  // DBUG_ASSERT(err_code >= ER_SERVER_RANGE_START);
 }
 
-Slave_reporting_capability::~Slave_reporting_capability()
-{
+Slave_reporting_capability::~Slave_reporting_capability() {
   mysql_mutex_destroy(&err_lock);
 }

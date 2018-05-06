@@ -1,5 +1,4 @@
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -175,7 +174,7 @@ alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 SET FOREIGN_KEY_CHECKS=0;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
---error ER_DROP_INDEX_FK
+--error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b;
 --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
@@ -210,15 +209,11 @@ commit;
 alter table t4 add constraint dc foreign key (a) references t1(a);
 --disable_info
 show create table t4;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 # a foreign key 'test/dc' already exists
---error ER_DUP_KEY
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=0;
---error ER_FK_FAIL_ADD_SYSTEM
+--error ER_FK_DUP_NAME
 alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
@@ -410,8 +405,6 @@ SET FOREIGN_KEY_CHECKS=0;
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
@@ -420,8 +413,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
@@ -435,8 +426,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
@@ -444,8 +433,6 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
@@ -580,7 +567,7 @@ insert into t480 select 0 from t480;
 insert into t480 select 0 from t480;
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1))engine=innodb;
+		f4 char(200) not null,primary key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
@@ -795,7 +782,7 @@ SET GLOBAL innodb_monitor_disable = default;
 SELECT @@innodb_sort_buffer_size;
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1,f2,f3,f4));
+		f4 char(200) not null,primary key(f1,f2,f3,f4)) charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 values(106, 'aaa','bbb','cccc');
 select count(*) from t1;
@@ -809,7 +796,7 @@ drop table t1;
 # Duplicates exist with in the buffer
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		f4 char(200) not null,primary key(f1,f2,f3,f4));
+		f4 char(200) not null,primary key(f1,f2,f3,f4)) charset latin1;
 insert into t1 select NULL,'aaa','bbb','ccc' from t480;
 insert into t1 values(108,'aaa','bbb','cccc');
 select count(*) from t1;
@@ -1047,6 +1034,17 @@ create table t1(o1 varchar(10), o2 varchar(10), primary key(o1,o2)) engine = inn
 insert into t1 values('abd', 'acd'), ('acd', 'abd');
 alter table t1 drop primary key, add primary key(o2,o1), lock=none;
 drop table t1;
+
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a DESC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a ASC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
 
 # no skip sort cases
 --source suite/innodb/include/alter_table_pk_no_sort.inc

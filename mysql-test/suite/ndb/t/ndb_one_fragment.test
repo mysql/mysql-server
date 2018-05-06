@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_embedded.inc
 
 # Test is using error insert, check that binaries support it
 --source suite/ndb/t/have_ndb_error_insert.inc
@@ -26,10 +25,10 @@ insert into t2 select a from t1;
 
 --echo the left join below should result in scanning t2 and do pk lookups in t1
 --replace_column 10 # 11 #
-explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 --echo the result rows with missed equal to NULL should count all rows (160000)
 --echo the other rows are the failed lookups and there should not be any such
-select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 
 --echo verify that it is not possible to reinsert all rows in t1 to itself
 --echo affected rows should be zero
@@ -65,4 +64,48 @@ insert ignore into t1 select a from t2 limit 150000, 10000;
 
 set @@max_error_count = @save_max_error_count;
 
-drop table t1, t2;
+# Reset error insertion
+--exec $NDB_MGM --verbose=0 -e "all error 0"
+
+# Verify no data memory leakage on drop table (see bug#86247).
+
+# Avoid problem with too large transactions.
+set ndb_use_transactions=0;
+
+insert into t2 select 160000+a from t2;
+drop table t1;
+
+create table t1 (a int primary key)
+  engine=ndbcluster
+  comment='NDB_TABLE=NOLOGGING'
+  partition by key() partitions 1;
+insert into t1 select * from t2;
+drop table t1;
+
+# Keep value to check against after several create and drop table.
+select max(used_pages) into @data_memory_pages
+  from ndbinfo.memoryusage where memory_type = 'Data memory';
+
+let $lap = 20;
+while ($lap)
+{
+  create table t1 (a int primary key)
+    engine=ndbcluster
+    comment='NDB_TABLE=NOLOGGING'
+    partition by key() partitions 1;
+  insert into t1 select * from t2;
+  drop table t1;
+  dec $lap;
+}
+
+# Verify page count, allow 15% variation.
+if (`select max(used_pages) > 1.15 * @data_memory_pages
+       from ndbinfo.memoryusage where memory_type = 'Data memory'`)
+{
+  select @data_memory_pages 'Initial data memory pages in use';
+  select max(used_pages) 'Final data memory pages in use'
+    from ndbinfo.memoryusage where memory_type = 'Data memory';
+  die "Data memory leakage?";
+}
+
+drop table t2;

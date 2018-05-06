@@ -1,1 +1,1 @@
---loose-enable-named-pipe --loose-shared-memory=1
+--loose-enable-named-pipe --loose-shared-memory=1 --local-infile=true

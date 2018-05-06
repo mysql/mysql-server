@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -124,16 +131,19 @@ public:
   }
 
   /**
-   * We know 'bufSizeWords', the total max size of data to store 
-   * in the buffer. In addition there are some overhead required by
+   * Calculate total words required to be allocated for the
+   * NdbReceiverBuffer structure.
+   *
+   * We know 'batchSizeWords', the total max size of data to fetch
+   * from the data nodes. In addition there are some overhead required by
    * the buffer management itself. Calculate total words required to
    * be allocated for the NdbReceiverBuffer structure.
    */
-  static Uint32 calculateSizeInWords(Uint32 bufSizeWords, 
-                                     Uint32 batchRows,
-                                     Uint32 keySize)
+  static Uint32 calculateBufferSizeInWords(Uint32 batchRows,
+                                           Uint32 batchSizeWords, 
+                                           Uint32 keySize)
   {
-    return  bufSizeWords +          // Words to store
+    return  batchSizeWords +        // Words to store
             1 +                     // 'eodMagic' in buffer
             headerWords +           // Admin overhead
             ((keySize > 0)          // Row + optional key indexes
@@ -286,7 +296,7 @@ NdbReceiver::~NdbReceiver()
 {
   DBUG_ENTER("NdbReceiver::~NdbReceiver");
   if (m_id != NdbObjectIdMap::InvalidId) {
-    m_ndb->theImpl->theNdbObjectIdMap.unmap(m_id, this);
+    m_ndb->theImpl->unmapRecipient(m_id, this);
   }
   DBUG_VOID_RETURN;
 }
@@ -322,7 +332,7 @@ NdbReceiver::init(ReceiverType type, void* owner)
   {
     if (m_ndb)
     {
-      m_id = m_ndb->theImpl->theNdbObjectIdMap.map(this);
+      m_id = m_ndb->theImpl->mapRecipient(this);
       if (m_id == NdbObjectIdMap::InvalidId)
       {
         setErrorCode(4000);
@@ -430,8 +440,6 @@ NdbReceiver::prepareReceive(NdbReceiverBuffer *buffer)
 
   The client should be prepared to receive, and buffer, upto 
   'batch_size' rows from each fragment.
-  ::ndbrecord_bufsize() might be usefull for calculating the
-  buffersize to allocate for this resultset.
 */
 //static
 void
@@ -459,8 +467,6 @@ NdbReceiver::calculate_batch_size(const NdbImpl& theImpl,
   if (unlikely(batch_size > batch_byte_size)) {
     batch_size= batch_byte_size;
   }
-
-  return;
 }
 
 void
@@ -493,14 +499,19 @@ NdbReceiver::ndbrecord_rowsize(const NdbRecord *result_record,
 
 /**
  * Calculate max size (In Uint32 words) of a 'packed' result row,
- * including optional 'keyinfo' and 'range_no'.
+ * including optional 'keyinfo', 'range_no' and 'correlation'.
+ *
+ * Note that
+ *   - keyInfo is stored in its own 'key storage' in the buffer.
+ *   - 'correlation' is not stored in the receive buffer at all.
  */
 static
 Uint32 packed_rowsize(const NdbRecord *result_record,
                       const Uint32* read_mask,
                       const NdbRecAttr *first_rec_attr,
                       Uint32 keySizeWords,
-                      bool read_range_no)
+                      bool read_range_no,
+                      bool read_correlation)
 {
   Uint32 nullCount = 0;
   Uint32 bitPos = 0;
@@ -556,6 +567,12 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
   {
     sizeInWords += 2;
   }
+  // The optional CORR_FACTOR is transfered
+  // as AttributeHeader::CORR_FACTOR64 + an Uint64
+  if (read_correlation)
+  {
+    sizeInWords += 3;
+  }
 
   // KeyInfo is transfered in a seperate signal,
   // and is stored in the packed buffer together with 'info' word
@@ -577,72 +594,134 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
 }
 
 /**
- * Calculate max size (In Uint32 words) of a buffer containing
- * 'batch_rows' of packed result rows. Size also include 
- * overhead required by the NdbReceiverBuffer itself.
+ * Calculate the two parameters 'batch_bytes' and 
+ * 'buffer_bytes' required for result set of 'batch_rows':
+ *
+ * - 'batch_bytes' is the 'batch_size_bytes' argument to be
+ *   specified as part of a SCANREQ signal. It could be set
+ *   as an IN argument, in which case it would be an upper limit
+ *   of the allowed batch size. If '0' it will return the max
+ *   'byte' size required for all 'batch_rows'. If set, it will
+ *   also be capped to the max required 'batch_rows' size.
+ *
+ * - 'buffer_bytes' is the size of the buffer needed to be allocated
+ *   in order to store the result batch of size batch_rows / _bytes.
+ *   Size also include overhead required by the NdbReceiverBuffer itself.
  */
-static
-Uint32 ndbrecord_bufsize(Uint32 batchRows,
-                         Uint32 batchBytes,      //Optional upper limit of batch size
-                         Uint32 fragments,       //Frags handled by this receiver (>= 1)
-                         Uint32 rowSizeWords,    //Packed size, from ::packed_rowsize() 
-                         Uint32 keySizeWords)    //In words
-{
-  /**
-   * Size of batch is either limited by max 'batchRows' fetched,
-   * or when the total 'batchBytes' limit is reached. In the
-   * later case we are allowed to over-allocate by allowing 
-   * each fragment delivering to this NdbReceiver to complete
-   * the current row / key. If KeyInfo is requested, an additional
-   *'info' word is also added for each key which comes in addition
-   *  to the 'batch_byte' limit
-   */
-  assert(batchRows > 0);
-  Uint32 batchSizeWords = batchRows * rowSizeWords;
-
-  // Result set size may be limited by 'batch_words' if specified.
-  if (batchBytes > 0)
-  {
-    const Uint32 batchWords = (batchBytes+3) / sizeof(Uint32);
-    // Batch size + over alloc last row + info word if keyinfo20
-    const Uint32 batchSizeLimit = batchWords
-                                + (rowSizeWords * fragments)
-                                + ((keySizeWords > 0) ? batchRows : 0);
-
-    if (batchSizeWords > batchSizeLimit)
-      batchSizeWords = batchSizeLimit;
-  }
-
-  return NdbReceiverBuffer::calculateSizeInWords(batchSizeWords, batchRows, keySizeWords);
-}
-
 //static
-Uint32
-NdbReceiver::result_bufsize(Uint32 batchRows,
-                            Uint32 batchBytes,
-                            Uint32 fragments,
-                            const NdbRecord *result_record,
+void
+NdbReceiver::result_bufsize(const NdbRecord *result_record,
                             const Uint32* read_mask,
                             const NdbRecAttr *first_rec_attr,
                             Uint32 keySizeWords,
-                            bool read_range_no)
+                            bool   read_range_no,
+                            bool   read_correlation,
+                            Uint32  parallelism,
+                            Uint32  batch_rows,   //Argument in SCANREQ
+                            Uint32& batch_bytes,  //Argument in SCANREQ
+                            Uint32& buffer_bytes) //Buffer needed to store result
 {
+  assert(parallelism >= 1);
+  assert(batch_rows  > 0);
+
+  /**
+   * Calculate size of a single row as sent by TUP.
+   * Include optional 'keyInfo', RANGE_NO and CORR_FACTOR.
+   */
   const Uint32 rowSizeWords= packed_rowsize(
                                        result_record,
                                        read_mask,
                                        first_rec_attr,
                                        keySizeWords,
-                                       read_range_no);
+                                       read_range_no,
+                                       read_correlation);
 
-  const Uint32 bufSizeWords= ndbrecord_bufsize(
-                                          batchRows, 
-                                          batchBytes,
-                                          fragments,
-                                          rowSizeWords,
-                                          keySizeWords);
+  // Size of a full result set of 'batch_rows':
+  const Uint32 fullBatchSizeWords = batch_rows * rowSizeWords;
 
-  // bufsize is in word, return as bytes
-  return bufSizeWords * sizeof(Uint32);
+  /**
+   * Size of batch, and the required 'buffer_bytes', is either 
+   * limited by fetching all 'batch_rows', or by exhausting the max
+   * allowed 'batch_bytes'.
+   *
+   * In the later case we can make no assumption about number of rows we
+   * actually fetched, except that it will be in the range 1..'batch_rows'.
+   * So we need to take a conservative approach in our calulations here. 
+   *
+   * Furthermore, LQH doesn't terminate the batch until *after*
+   * 'batch_bytes' has been exceed. Thus it could over-deliver
+   * upto 'rowSizeWords-1' more than specified in 'batch_bytes'!
+   * When used from SPJ, the available 'batch_bytes' may be divided
+   * among a number of 'parallelism' fragment scans being joined.
+   * Each of these may over-deliver on the last row as described above.
+   *
+   * Note that the CORR_FACTOR is special in that SPJ does not store
+   * it in the receiver buffer. Thus, the size of the CORR_FACTOR64
+   * is subtracted when calculating needed buffer space for the batch.
+   *
+   * If KeyInfo is requested, an additional 'info' word is stored 
+   * in the buffer in addition to the 'keySize' already being part
+   * of the calculated packed_rowsize().
+   */
+  Uint32 maxWordsToBuffer = 0;
+
+  if (batch_bytes == 0 ||
+      batch_bytes > fullBatchSizeWords*sizeof(Uint32))
+  {
+    /**
+     * The result batch is only limited by max 'rows'.
+     * Exclude fetched correlation factors in calculation of
+     * required result buffers.
+     * Note: TUP will not 'over-return' in this case as 
+     * the specified 'batch_bytes' can not be exceeded.
+     */
+    maxWordsToBuffer = fullBatchSizeWords
+                     - ((read_correlation) ?(batch_rows * 3) :0);
+
+    /**
+     * Set/Limit 'batch_bytes' to max 'fullBatchSizeWords', as that
+     * is what it will be allocated result buffer for.
+     */
+    batch_bytes = fullBatchSizeWords*sizeof(Uint32);
+  }
+  else
+  {
+    // Round batch size to 'Words'
+    const Uint32 batchWords = (batch_bytes+sizeof(Uint32)-1)/sizeof(Uint32);
+
+    /**
+     * Batch may be limited by 'bytes' before reaching max 'rows'.
+     * - Add 'over-returned' result from each fragment retrieving rows
+     *   into this batch.
+     * - Subtract CORR_FACTORs retrieved in batch, but not buffered.
+     *   As number of rows returned is not known, we can only assume
+     *   that at least 1 row is returned.
+     */
+    maxWordsToBuffer = batchWords
+                     + ((rowSizeWords-1) * parallelism)  // over-return
+                     - ((read_correlation) ? (1 * 3) : 0); // 1 row
+
+    //Note: 'batch_bytes' is used unmodified in 'SCANREQ'
+  }
+
+  /**
+   * NdbReceiver::execKEYINFO20() will allocate an extra word (allocKey())
+   * for storing the 'info' word in the buffer. 'info' is not part of
+   * the 'key' returned from datanodes, so not part of what packed_rowsize()
+   * already calculated.
+   */ 
+  if (keySizeWords > 0)
+  {
+    maxWordsToBuffer += (1 * batch_rows); // Add 'info' part of keyInfo
+  }
+
+  /**
+   * Calculate max size (In bytes) of a NdbReceiverBuffer containing
+   * 'batch_rows' of packed result rows. Size also include 
+   * overhead required by the NdbReceiverBuffer itself.
+   */
+  buffer_bytes =
+    NdbReceiverBuffer::calculateBufferSizeInWords(batch_rows, maxWordsToBuffer, keySizeWords)*4;
 }
 
 /**

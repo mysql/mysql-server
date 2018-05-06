@@ -46,6 +46,8 @@ c12 LONGTEXT BINARY);
 CREATE TABLE t_spec (c1 BIT(16),
 c2 ENUM('v1','v2','v3'),
 c3 SET('v1','v2','v3'));
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
+SET GLOBAL log_error_verbosity=3;
 # Inserting values into the tables
 INSERT INTO t_int VALUES (91,92,93,94,95,96,97,98,99),(81,82,83,84,85,86,87,88,89);
 INSERT INTO t_bigint VALUES (91,92),(81,82);
@@ -80,6 +82,7 @@ INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
 INSTALL PLUGIN test_sql_errors SONAME 'TEST_SQL_ERRORS';
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
@@ -92,6 +95,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 UNINSTALL PLUGIN test_sql_errors;
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	executing	/*first*/SELECT * FROM information_schema.processlist ORDER BY id
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
 <ID>	unauthenticated user	<HOST_NAME>	NULL	Sleep	<TIME>	login	PLUGIN
@@ -175,7 +179,7 @@ num_cols: 5
 nb rows: 2
 c1  c2  c3  c4  c5  
 DATE(10) TIME(11) TIMESTAMP(7) DATETIME(12) YEAR(13) 
-(BINARY ) (BINARY ) (NOT_NULL BINARY TIMESTAMP ON_UPDATE_NOW ) (BINARY ) (UNSIGNED ZEROFILL ) 
+(BINARY ) (BINARY ) (BINARY ) (BINARY ) (UNSIGNED ZEROFILL ) 
 Write a string
 2015-07-06  20:15:00  2015-12-31 14:59:48  2014-11-30 13:58:47  2015  
 2015-07-07  20:17:00  2013-12-31 17:59:47  2012-10-31 15:57:47  2010  
@@ -255,7 +259,7 @@ num_cols: 5
 nb rows: 2
 c1  c2  c3  c4  c5  
 DATE(10) TIME(11) TIMESTAMP(7) DATETIME(12) YEAR(13) 
-(BINARY ) (BINARY ) (NOT_NULL BINARY TIMESTAMP ON_UPDATE_NOW ) (BINARY ) (UNSIGNED ZEROFILL ) 
+(BINARY ) (BINARY ) (BINARY ) (BINARY ) (UNSIGNED ZEROFILL ) 
 Write a string
 2015-07-06  20:15:00  2015-12-31 14:59:48  2014-11-30 13:58:47  2015  
 2015-07-07  20:17:00  2013-12-31 17:59:47  2012-10-31 15:57:47  2010  
@@ -271,7 +275,6 @@ SELECT * FROM test.t_date
 Close Session 2
 
 Close Session 2 again
-deinit thread missing
 Test in a server thread without closing sessions
 srv_session_open 0
 srv_session_open 1
@@ -282,3 +285,4 @@ srv_session_open 4
 # Server log
 ##########################################
 test passed.
+SET GLOBAL log_error_verbosity= @orig_log_error_verbosity;

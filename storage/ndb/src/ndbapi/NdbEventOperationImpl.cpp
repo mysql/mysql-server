@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,15 +38,30 @@
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
-#include <portlib/NdbMem.h>
 #include <signaldata/AlterTable.hpp>
 #include "ndb_internal.hpp"
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+/**
+ * Page allocation of memory (mmap) depends on MAP_ANONYMOUS being available
+ * on the platform, else plain malloc will be used (Windows, osx).
+ */
+#if defined(MAP_ANONYMOUS)
+#define USE_MMAP 1
+#endif
+
 #define TOTAL_BUCKETS_INIT (1U << 15)
-static Gci_container_pod g_empty_gci_container;
+
+static const Uint32 MEM_BLOCK_SMALL  = 128*1024;
+static const Uint32 MEM_BLOCK_LARGE  = 512*1024;
+
+const MonotonicEpoch MonotonicEpoch::min( Uint32(0), Uint64(0));
+const MonotonicEpoch MonotonicEpoch::max(~Uint32(0),~Uint64(0));
+
+#define NULL_EPOCH MonotonicEpoch::min
+#define MAX_EPOCH  MonotonicEpoch::max
 
 #if defined(VM_TRACE) && defined(NOT_USED)
 static void
@@ -57,28 +79,6 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 }
 #endif
 
-// EventBufData
-
-void
-EventBufData::add_part_size(Uint32 & full_count, Uint32 & full_sz) const
-{
-  Uint32 tmp_count = 0;
-  Uint32 tmp_sz = 0;
-  const EventBufData* data2 = m_next_blob;
-  while (data2 != 0) {
-    tmp_count++;
-    tmp_sz += data2->sz;
-    const EventBufData* data3 = data2->m_next;
-    while (data3 != 0) {
-      tmp_count++;
-      tmp_sz += data3->sz;
-      data3 = data3->m_next;
-    }
-    data2 = data2->m_next_blob;
-  }
-  full_count += tmp_count;
-  full_sz += tmp_sz;
-}
 
 /*
  * Class NdbEventOperationImpl
@@ -97,6 +97,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &f,
   m_ndb(theNdb),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
+  m_stop_gci(),
   m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl");
@@ -123,6 +124,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(Ndb *theNdb,
   m_ndb(theNdb),
   m_state(EO_ERROR),
   m_oid(~(Uint32)0),
+  m_stop_gci(),
   m_allow_empty_update(false)
 {
   DBUG_ENTER("NdbEventOperationImpl::NdbEventOperationImpl [evnt]");
@@ -173,11 +175,10 @@ NdbEventOperationImpl::init(NdbEventImpl& evnt)
 
   m_eventId = m_eventImpl->m_eventId;
 
-  m_oid= m_ndb->theImpl->theNdbObjectIdMap.map(this);
+  m_oid= m_ndb->theImpl->mapRecipient(this);
 
   m_state= EO_CREATED;
 
-  m_stop_gci = 0;
 #ifdef ndb_event_stores_merge_events_flag
   m_mergeEvents = m_eventImpl->m_mergeEvents;
 #else
@@ -197,6 +198,10 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   DBUG_ENTER("NdbEventOperationImpl::~NdbEventOperationImpl");
   m_magic_number= 0;
 
+#ifndef NDEBUG
+  m_state = (NdbEventOperation::State)0xDead;
+#endif
+
   if (m_oid == ~(Uint32)0)
     DBUG_VOID_RETURN;
 
@@ -213,7 +218,7 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
     }
   }
 
-  m_ndb->theImpl->theNdbObjectIdMap.unmap(m_oid, this);
+  m_ndb->theImpl->unmapRecipient(m_oid, this);
   DBUG_PRINT("exit",("this: %p/%p oid: %u main: %p",
              this, m_facade, m_oid, theMainOp));
 
@@ -631,7 +636,7 @@ NdbEventOperationImpl::execute_nolock()
   // add kernel reference
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
-  m_stop_gci= ~(Uint64)0;
+  m_stop_gci= MAX_EPOCH;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
   if (r == 0) 
@@ -668,7 +673,7 @@ NdbEventOperationImpl::execute_nolock()
   // remove kernel reference
   // added above
   m_ref_count--;
-  m_stop_gci = 0;
+  m_stop_gci = NULL_EPOCH;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
   m_state= EO_ERROR;
   mi_type= 0;
@@ -721,27 +726,50 @@ NdbEventOperationImpl::stop()
   }
 
   m_ndb->theEventBuffer->add_drop_lock();
-  int r= NdbDictionaryImpl::getImpl(*myDict).stopSubscribeEvent(*this);
+  /**
+   * Note, that there is a deadlock risk both in the call to
+   * stopSubscribeEvent and the NdbMutex_Lock below, both using
+   * the trp_client lock, which could already be taken if this
+   * function is called from NdbEventOperationImpl destructor
+   * invoked in deleteUsedEventOperations via nextEvents*() and
+   * pollEvents*().
+   */
+  Uint64 stop_gci = 0;
+  const int r= NdbDictionaryImpl::getImpl(*myDict).stopSubscribeEvent(*this,stop_gci);
+  /**
+   * remove_op decrements the active event operation counter.
+   * This enables later cleanup of obsolete receiver threads data.
+   * To guarantee that this is only called once per event
+   * operation unsubscription it is called here in client thread.
+   */
+  NdbMutex_Lock(m_ndb->theEventBuffer->m_mutex);
+  m_ndb->theEventBuffer->remove_op();
+  NdbMutex_Unlock(m_ndb->theEventBuffer->m_mutex);
   m_state= EO_DROPPED;
   mi_type= 0;
   if (r == 0) {
-    if (m_stop_gci == 0)
+    if (stop_gci == 0)
     {
       // response from old kernel
-      Uint64 gci= m_ndb->theEventBuffer->m_highest_sub_gcp_complete_GCI;
-      if (gci)
+      stop_gci= m_ndb->theEventBuffer->m_highest_sub_gcp_complete_GCI;
+      if (stop_gci)
       {
         // calculate a "safe" gci in the future to remove event op.
-        gci += Uint64(3) << 32;
+        stop_gci += (Uint64(3) << 32);
       }
       else
       {
         // set highest value to ensure that operation does not get dropped
         // too early. Note '-1' as ~Uint64(0) indicates active event
-        gci = ~Uint64(0)-1;
+        stop_gci = ~Uint64(0)-1;
       }
-      m_stop_gci = gci;
     }
+    NdbMutex_Lock(m_ndb->theEventBuffer->m_mutex);
+    if (m_stop_gci == MAX_EPOCH) //A CLUSTER_FAILURE could happen inbetween
+    {
+      m_stop_gci = MonotonicEpoch(m_ndb->theEventBuffer->m_epoch_generation, stop_gci);
+    }
+    NdbMutex_Unlock(m_ndb->theEventBuffer->m_mutex);
     m_ndb->theEventBuffer->add_drop_unlock();
     DBUG_RETURN(0);
   }
@@ -773,10 +801,16 @@ bool NdbEventOperationImpl::tableRangeListChanged() const
 }
 
 Uint64
-NdbEventOperationImpl::getGCI()
+NdbEventOperationImpl::getGCI() const
 {
-  Uint32 gci_hi = m_data_item->sdata->gci_hi;
-  Uint32 gci_lo = m_data_item->sdata->gci_lo;
+  return m_data_item->getGCI();
+}
+
+Uint64
+EventBufData::getGCI() const
+{
+  const Uint32 gci_hi = sdata->gci_hi;
+  const Uint32 gci_lo = sdata->gci_lo;
   return gci_lo | (Uint64(gci_hi) << 32);
 }
 
@@ -1150,11 +1184,11 @@ EventBufferManager::onBufferingEpoch(Uint64 received_epoch)
     m_max_buffered_epoch = received_epoch;
 }
 
-bool
+ReportReason
 EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
                                         Uint64 received_epoch)
 {
-  bool report_status = false;
+  ReportReason report_reason = NO_REPORT;
 
   if (isCompletelyBuffering())
   {
@@ -1163,7 +1197,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // Transition COMPLETELY_BUFFERING -> PARTIALLY_DISCARDING.
       m_pre_gap_epoch = m_max_buffered_epoch;
       m_event_buffer_manager_state = EBM_PARTIALLY_DISCARDING;
-      report_status = true;
+      report_reason = PARTIALLY_DISCARDING;
     }
   }
   else if (isCompletelyDiscarding())
@@ -1173,7 +1207,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // Transition COMPLETELY_DISCARDING -> PARTIALLY_BUFFERING
       m_end_gap_epoch = m_max_received_epoch;
       m_event_buffer_manager_state = EBM_PARTIALLY_BUFFERING;
-      report_status = true;
+      report_reason = PARTIALLY_BUFFERING;
     }
   }
   else if (isPartiallyBuffering())
@@ -1181,7 +1215,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
     if (memory_usage_percent >= 100)
     {
       // New gap is starting before the on-going gap ends.
-      report_status = true;
+      report_reason = PARTIALLY_BUFFERING;
 
       g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
               m_ndb->getReference(), m_ndb->getNdbObjectName(),
@@ -1201,7 +1235,7 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
   if (m_max_received_epoch < received_epoch)
     m_max_received_epoch = received_epoch;
 
-  return report_status;
+  return report_reason;
 }
 
 bool
@@ -1226,7 +1260,7 @@ EventBufferManager::isEventDataToBeDiscarded(Uint64 received_epoch)
                               m_pre_gap_epoch));
     if (m_end_gap_epoch > 0)
     {
-      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)"
+      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)",
                                 Uint32(m_end_gap_epoch >> 32),
                                 Uint32(m_end_gap_epoch),
                                 m_end_gap_epoch));
@@ -1236,10 +1270,10 @@ EventBufferManager::isEventDataToBeDiscarded(Uint64 received_epoch)
   DBUG_RETURN_EVENT(false);
 }
 
-bool
+ReportReason
 EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
 {
-  bool report_status = false;
+  ReportReason report_reason = NO_REPORT;
 
   if (isPartiallyDiscarding() && completed_epoch > m_pre_gap_epoch)
   {
@@ -1252,7 +1286,7 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_begin_gap_epoch = completed_epoch;
     m_event_buffer_manager_state = EBM_COMPLETELY_DISCARDING;
     gap_begins = true;
-    report_status = true;
+    report_reason = COMPLETELY_DISCARDING;
     g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: New gap begins at epoch : %u/%u (%llu)",
                            m_ndb->getReference(), m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
@@ -1273,14 +1307,14 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_begin_gap_epoch = 0;
     m_end_gap_epoch = 0;
     m_event_buffer_manager_state = EBM_COMPLETELY_BUFFERING;
-    report_status = true;
+    report_reason = COMPLETELY_BUFFERING;
   }
   /**
    * else: transition from COMPLETELY_BUFFERING to PARTIALLY_DISCARDING
    * and COMPLETELY_DISCARDING to PARTIALLY_BUFFERING
    * are handled in insertDataL
    */
-  return report_status;
+  return report_reason;
 }
 
 bool
@@ -1308,7 +1342,7 @@ EventBufferManager::isGcpCompleteToBeDiscarded(Uint64 completed_epoch)
                               m_begin_gap_epoch));
     if (m_end_gap_epoch > 0)
     {
-      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)"
+      DBUG_PRINT_EVENT("info", (" and <= end_gap epoch %u/%u (%llu)",
                                 Uint32(m_end_gap_epoch >> 32),
                                 Uint32(m_end_gap_epoch),
                                 m_end_gap_epoch));
@@ -1326,12 +1360,21 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_total_buckets(TOTAL_BUCKETS_INIT), 
   m_min_gci_index(0),
   m_max_gci_index(0),
+  m_known_gci(),
+  m_active_gci(),
   m_ndb(ndb),
+  m_epoch_generation(0),
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
-  m_latest_poll_GCI(0),
+  m_latest_poll_GCI(),
+  m_latest_consumed_epoch(0),
+  m_buffered_epochs(0),
   m_failure_detected(false),
   m_prevent_nodegroup_change(true),
+  m_mutex(NULL),
+  m_complete_data(),
+  m_event_queue(),
+  m_current_data(NULL),
   m_total_alloc(0),
   m_max_alloc(0),
   m_event_buffer_manager(ndb),
@@ -1339,44 +1382,33 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_min_free_thresh(0),
   m_max_free_thresh(0),
   m_gci_slip_thresh(0),
+  m_last_log_time(NdbTick_getCurrentTicks()),
+  m_mem_block_head(NULL), m_mem_block_tail(NULL),
+  m_mem_block_free(NULL), m_mem_block_free_sz(0),
+  m_queue_empty_epoch(false),
   m_dropped_ev_op(0),
-  m_active_op_count(0)
+  m_active_op_count(0),
+  m_add_drop_mutex(NULL),
+  m_alive_node_bit_mask()
 {
 #ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::NdbEventBuffer";
   m_flush_gci = 0;
 #endif
 
-  if ((p_cond = NdbCondition_Create()) ==  NULL) {
-    ndbout_c("NdbEventHandle: NdbCondition_Create() failed");
-    exit(-1);
-  }
-  m_mutex = 0; // Set in Ndb::init()
-
-  // ToDo set event buffer size
-  // pre allocate event data array
-  m_sz= 0;
-#ifdef VM_TRACE
-  m_free_data_count= 0;
-#endif
-  m_free_data= 0;
-  m_free_data_sz= 0;
-
   // get reference to mutex managed by current connection
   m_add_drop_mutex= 
     m_ndb->theImpl->m_ndb_cluster_connection.m_event_add_drop_mutex;
 
   // initialize lists
-  bzero(&g_empty_gci_container, sizeof(Gci_container));
   init_gci_containers();
-
-  m_alive_node_bit_mask.clear();
-
   bzero(&m_sub_data_streams, sizeof(m_sub_data_streams));
 }
 
 NdbEventBuffer::~NdbEventBuffer()
 {
+  // client should not have any active subscriptions
+  assert(m_active_op_count == 0);
   // todo lock?  what if receive thread writes here?
   NdbEventOperationImpl* op= m_dropped_ev_op;  
   while ((op = m_dropped_ev_op))
@@ -1385,40 +1417,40 @@ NdbEventBuffer::~NdbEventBuffer()
     delete op->m_facade;
   }
 
-  unsigned j;
-  Uint32 sz= m_active_gci.size();
-  Gci_container* array = (Gci_container*)m_active_gci.getBase();
-  for(j = 0; j < sz; j++)
+  EventMemoryBlock *mem_block;
+  while ((mem_block = m_mem_block_head) != NULL)
   {
-    array[j].~Gci_container();
+    const Uint32 unmap_sz = mem_block->alloced_size();
+    m_total_alloc -= unmap_sz;
+    m_mem_block_head = mem_block->m_next;
+#ifndef NDEBUG
+    memset(mem_block, 0x11, unmap_sz);
+#endif
+
+#if defined(USE_MMAP)
+    require(my_munmap(mem_block, unmap_sz) == 0);
+#else
+    free(mem_block);
+#endif
   }
-
-  // Return EventBufData lists to free list in a nice way
-  // before actual deallocation using m_allocated_data.
-  if(!m_complete_data.m_data.is_empty())
-    free_list(m_complete_data.m_data);
-  if(!m_available_data.is_empty())
-    free_list(m_available_data);
-  if(!m_used_data.is_empty())
-    free_list(m_used_data);
-  // Return event queue leftovers to free list
-  clear_event_queue();
-
-
-  for (j= 0; j < m_allocated_data.size(); j++)
+  while ((mem_block = m_mem_block_free) != NULL)
   {
-    unsigned sz= m_allocated_data[j]->sz;
-    EventBufData *data= m_allocated_data[j]->data;
-    EventBufData *end_data= data+sz;
-    for (; data < end_data; data++)
-    {
-      if (data->sdata)
-	NdbMem_Free(data->sdata);
-    }
-    NdbMem_Free((char*)m_allocated_data[j]);
-  }
+    const Uint32 unmap_sz = mem_block->alloced_size();
+    m_total_alloc -= unmap_sz;
+    m_mem_block_free = mem_block->m_next;
+    m_mem_block_free_sz -= mem_block->get_size();
+#ifndef NDEBUG
+    memset(mem_block, 0x11, unmap_sz);
+#endif
 
-  NdbCondition_Destroy(p_cond);
+#if defined(USE_MMAP)
+    require(my_munmap(mem_block, unmap_sz) == 0);
+#else
+    free(mem_block);
+#endif
+  }
+  assert(m_mem_block_free_sz == 0);
+  assert(m_total_alloc == 0);
 }
 
 unsigned
@@ -1447,82 +1479,60 @@ NdbEventBuffer::add_op()
 void
 NdbEventBuffer::remove_op()
 {
+  assert(m_active_op_count > 0);
   m_active_op_count--;
-  if(m_active_op_count == 0)
-  {
-    // Return EventBufData to free list and release GCI ops before clearing.
-    for(unsigned i = 0; i < m_active_gci.size(); i++)
-    {
-      Gci_container& bucket = (Gci_container&)m_active_gci[i];
-      if (!bucket.m_data.is_empty())
-      {
-        free_list(bucket.m_data);
-      }
-    }
-    if (!m_complete_data.m_data.is_empty())
-    {
-      free_list(m_complete_data.m_data);
-    }
-    init_gci_containers();
-  }
 }
 
+/**
+ * Init the *receiver thread* part of the event buffers.
+ *
+ * NOTE:
+ *  ::consume_all() is the propper way to empty the client
+ *  side buffers.
+ */
 void
 NdbEventBuffer::init_gci_containers()
 {
+  Gci_container_pod empty_gci_container;
+  new(&empty_gci_container) Gci_container(this);
+
   m_startup_hack = true;
-  bzero(&m_complete_data, sizeof(m_complete_data));
-  m_latest_complete_GCI = m_latestGCI = 0;
   m_active_gci.clear();
-  m_active_gci.fill(3, g_empty_gci_container);
+  m_active_gci.fill(3, empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
   Uint64 gci = 0;
   m_known_gci.clear();
   m_known_gci.fill(7, gci);
-  // Reset cluster failure marker
-  m_failure_detected= false;
+  // No 'out of order' epoch in the containers.
+  m_latest_complete_GCI = 0;
 }
 
-int NdbEventBuffer::expand(unsigned sz)
+/**
+ * Discard all buffered events in the client thread.
+ */
+void NdbEventBuffer::consume_all()   //Need m_mutex locked
 {
-  unsigned alloc_size=
-    sizeof(EventBufData_chunk) +(sz-1)*sizeof(EventBufData);
-  EventBufData_chunk *chunk_data=
-    (EventBufData_chunk *)NdbMem_Allocate(alloc_size);
+  m_current_data = NULL;
 
-  chunk_data->sz= sz;
-  m_allocated_data.push_back(chunk_data);
+  // Check the total #buffered epochs is consistent with the queues
+  assert(m_buffered_epochs == count_buffered_epochs());
 
-  EventBufData *data= chunk_data->data;
-  EventBufData *end_data= data+sz;
-  EventBufData *last_data= m_free_data;
+  // Drop all buffered epochs with event data
+  m_complete_data.clear();
+  m_event_queue.clear();
 
-  bzero((void*)data, sz*sizeof(EventBufData));
-  for (; data < end_data; data++)
-  {
-    data->m_next= last_data;
-    last_data= data;
-  }
-  m_free_data= last_data;
+  m_buffered_epochs = 0;
 
-  m_sz+= sz;
-#ifdef VM_TRACE
-  m_free_data_count+= sz;
-#endif
-  return 0;
+  /* Clean up deleted event_op and memory blocks which expired.
+   * In case we consume across a failure event, include the
+   * (now monotonic) GCIs across the restart.
+   */ 
+  remove_consumed(MonotonicEpoch(m_epoch_generation,m_latestGCI));
 }
 
 int
-NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
+NdbEventBuffer::pollEvents(Uint64 *highestQueuedEpoch)
 {
-  if (aMillisecondNumber < 0)
-  {
-    g_eventLogger->error("NdbEventBuffer::pollEvents: negative aMillisecondNumber %d 0x%x %s",
-                         aMillisecondNumber,
-                         m_ndb->getReference(),
-                         m_ndb->getNdbObjectName());
-    return -1;
-  }
   int ret= 1;
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
@@ -1530,16 +1540,12 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 #endif
 
   NdbMutex_Lock(m_mutex);
-  NdbEventOperationImpl *ev_op= move_data();
-  if (unlikely(ev_op == 0 && aMillisecondNumber))
-  {
-    NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
-    ev_op= move_data();
-  }
-  m_latest_poll_GCI= m_latestGCI;
+  EventBufData *ev_data= move_data();
+  m_latest_poll_GCI= MonotonicEpoch(m_epoch_generation,m_latestGCI);
 #ifdef VM_TRACE
-  if (ev_op)
+  if (ev_data && ev_data->m_event_op)
   {
+    NdbEventOperationImpl *ev_op= ev_data->m_event_op;
     // m_mutex is locked
     // update event ops data counters
     ev_op->m_data_count-= ev_op->m_data_done_count;
@@ -1547,19 +1553,21 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
   }
   m_latest_command= m_latest_command_save;
 #endif
-  if (unlikely(ev_op == 0))
+  if (unlikely(ev_data == NULL))
   {
     ret= 0; // applicable for both aMillisecondNumber >= 0
     /*
-      gci's consumed up until m_latest_poll_GCI, so we can free all
-      dropped event operations stopped up until that gci
+      Events consumed or ignored including m_latest_poll_GCI.
+      We can free all event-data, gci_ops, memory-blocks and
+      stopped event operations, upto m_latest_poll_GCI inclusive.
     */
-    deleteUsedEventOperations(m_latest_poll_GCI);
+    remove_consumed(m_latest_poll_GCI);
+    m_current_data = NULL;
   }
   NdbMutex_Unlock(m_mutex); // we have moved the data
 
   if (highestQueuedEpoch)
-    *highestQueuedEpoch= m_latest_poll_GCI;
+    *highestQueuedEpoch= m_latest_poll_GCI.getGCI();
 
   return ret;
 }
@@ -1582,13 +1590,7 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
     Gci_container* tmp = find_bucket(array[minpos]);
     assert(tmp);
     assert(maxpos == m_max_gci_index);
-
-    if(!tmp->m_data.is_empty())
-    {
-      free_list(tmp->m_data);
-    }
-    tmp->~Gci_container();
-    bzero(tmp, sizeof(Gci_container));
+    tmp->clear();
     minpos = (minpos + 1) & mask;
   }
 
@@ -1599,46 +1601,6 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
 #endif
 
   return 0;
-}
-
-void
-NdbEventBuffer::free_consumed_event_data()
-{
-  if (m_used_data.m_count > 1024)
-  {
-#ifdef VM_TRACE
-    m_latest_command= "NdbEventBuffer::free_consumed_event_data (lock)";
-#endif
-    NdbMutex_Lock(m_mutex);
-    // return m_used_data to m_free_data
-    free_list(m_used_data);
-
-    NdbMutex_Unlock(m_mutex);
-  }
-}
-
-void
-NdbEventBuffer::move_head_event_data_item_to_used_data_queue(EventBufData *data)
-{
-  // Move first available item to used queue prior to processing
-  assert(data == m_available_data.m_head);
-  Uint32 full_count, full_sz;
-  m_available_data.remove_first(full_count, full_sz);
-
-  m_used_data.append_used_data(data, full_count, full_sz);
-
-  m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, full_sz);
-}
-
-EventBufData_list::Gci_ops*
-NdbEventBuffer::remove_consumed_gci_ops(Uint64 firstKeepGci)
-{
-  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-  while (gci_ops && gci_ops->m_gci < firstKeepGci)
-  {
-    gci_ops = m_available_data.delete_next_gci_ops();
-  }
-  return gci_ops;
 }
 
 bool
@@ -1663,43 +1625,120 @@ NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
   DBUG_RETURN_EVENT(false);
 }
 
+#ifndef NDEBUG
+Uint32
+NdbEventBuffer::count_buffered_epochs() const  //Need m_mutex locked
+{
+  Uint32 total_buffered_epochs = 0;
+  EpochData *epoch = m_complete_data.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+
+  epoch = m_event_queue.first_epoch();
+  while (epoch)
+  {
+    total_buffered_epochs++;
+    epoch = epoch->m_next;
+  }
+  return total_buffered_epochs;
+}
+#endif
+
+void
+NdbEventBuffer::remove_consumed_epoch_data(MonotonicEpoch consumedGci)
+{
+  EpochData *epoch = m_event_queue.first_epoch();
+  while (epoch && epoch->m_gci <= consumedGci)
+  {
+    assert(m_buffered_epochs > 0);
+    m_buffered_epochs--;
+
+    epoch = m_event_queue.next_epoch();
+  }
+}
+
+/**
+ * Specified epoch has been completely consumed.
+ * Release any resources allocated to it and prepare to start
+ * consuming from next epoch.
+ */
+void
+NdbEventBuffer::remove_consumed(MonotonicEpoch consumedGci)  //Need m_mutex locked
+{
+  remove_consumed_epoch_data(consumedGci);
+  remove_consumed_memory(consumedGci);
+  deleteUsedEventOperations(consumedGci);
+
+  assert(consumedGci <= MonotonicEpoch(m_epoch_generation,m_latestGCI));
+  m_latest_consumed_epoch = consumedGci.getGCI();
+}
+
+/**
+ * Return the next EventData deliverable to the client.
+ * EpochData belonging to consumed epochs are deleted.
+ */
+EventBufData *
+NdbEventBuffer::nextEventData()
+{
+  /**
+   * 'current' is now consumed. If that completed an epoch,
+   * we do garbage collection of expired data.
+   */
+  m_current_data = NULL;
+
+  // Garbage collect when an epoch has been consumed
+  if (m_event_queue.m_head != NULL  && 
+      m_event_queue.m_head->m_data == NULL)  //Consumed last EventData in epoch
+  {
+    const MonotonicEpoch consumedGci = m_event_queue.m_head->m_gci;
+    NdbMutex_Lock(m_mutex);
+    remove_consumed(consumedGci);
+    NdbMutex_Unlock(m_mutex);
+  }
+
+  EventBufData *data = m_event_queue.consume_first_event_data();
+  m_current_data = data;
+  return data;
+}
+
 NdbEventOperation *
 NdbEventBuffer::nextEvent2()
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::nextEvent2");
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
-#endif
-
-  free_consumed_event_data();
-
-#ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::nextEvent2";
 #endif
 
-  EventBufData *data;
-  while ((data= m_available_data.m_head))
+  while (EventBufData *data= nextEventData())
   {
-    move_head_event_data_item_to_used_data_queue(data);
+    m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, data->get_size());
 
     NdbEventOperationImpl *op= data->m_event_op;
+    // Check event_op magic state to detect destructed
+    assert(!(op && op->m_state == (NdbEventOperation::State)0xDead));
 
-    // all including exceptional event data must have an associated impl
-    assert(op);
-
-    // set NdbEventOperation data
-    op->m_data_item= data;
-    Uint64 gci = op->getGCI();
-
+    /*
+     * Exceptional events are not yet associated with an event operation,
+     * Pick one, which one is not important, to tuck the ex-event onto.
+     */
+    assert((op == NULL) == (is_exceptional_epoch(data)));
     if (is_exceptional_epoch(data))
     {
       DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u 0x%x %s",
-                                gci, m_ndb->getReference(),
+                                data->getGCI(), m_ndb->getReference(),
                                 m_ndb->getNdbObjectName()));
 
-      // Remove gci_ops belonging to the epochs consumed already
-      // to conform with non-exceptional event data handling
-      remove_consumed_gci_ops(gci);
+      // If all event operations are dropped, ignore exceptional-event
+      op = m_ndb->theImpl->m_ev_op;
+      if (op == NULL)
+        continue;
+
+      data->m_event_op = op;
+      op->m_data_item = data;
       DBUG_RETURN_EVENT(op->m_facade);
     }
 
@@ -1712,6 +1751,9 @@ NdbEventBuffer::nextEvent2()
      * If merge is not on, there are no blob part sub-events.
      */
     assert(op->theMainOp == NULL);
+
+    // set NdbEventOperation data
+    op->m_data_item= data;
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -1732,26 +1774,6 @@ NdbEventBuffer::nextEvent2()
            tBlob = tBlob->theNext;
          }
 
-         EventBufData_list::Gci_ops *gci_ops =
-           remove_consumed_gci_ops(gci);
-
-        if (gci_ops && (gci != gci_ops->m_gci))
-	{
-           ndbout << "nextEvent2: gci_ops->m_gci " << gci_ops->m_gci
-                  << " (" << Uint32(gci_ops->m_gci >> 32)
-                  << "/" << Uint32(gci_ops->m_gci) << ") "
-                  << " gci " << gci
-                  << " (" << Uint32(gci >> 32)
-                  << "/" << Uint32(gci) << ") type "
-                  << hex << op->getEventType2()
-                  << " data's operation " << hex
-                  <<  SubTableData::getOperation(data->sdata->requestInfo)
-                  << " " << m_ndb->getNdbObjectName() << endl;
-	}
-
-         assert(gci_ops && (gci == gci_ops->m_gci));
-         (void) gci_ops; // To avoid compiler warning 'unused variable'
-
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
 	   NdbDictionary::Event::_TE_NUL)
@@ -1761,7 +1783,7 @@ NdbEventBuffer::nextEvent2()
                                      m_ndb->getNdbObjectName()));
            continue;
          }
-	 DBUG_RETURN_EVENT(op->m_facade);
+         DBUG_RETURN_EVENT(op->m_facade);
        }
        // the next event belonged to an event op that is no
        // longer valid, skip to next
@@ -1776,12 +1798,14 @@ NdbEventBuffer::nextEvent2()
   m_latest_command= m_latest_command_save;
 #endif
 
+  // All available events and its gci_ops should have been consumed
+  assert(m_event_queue.is_empty());
+  assert(m_current_data == NULL);
+
   /*
-   * gci's consumed up until m_latest_poll_GCI, so
-   *  - remove remaining gci_ops from the gci_ops list,
-   *  - free all dropped event operations stopped up until that gci
+   * Event consumed up until m_latest_poll_GCI.
+   * Free all dropped event operations stopped up until that gci
    */
-  remove_consumed_gci_ops(UINT_MAX64);
   if (m_dropped_ev_op)
   {
     NdbMutex_Lock(m_mutex);
@@ -1795,15 +1819,15 @@ bool
 NdbEventBuffer::isConsistent(Uint64& gci)
 {
   DBUG_ENTER("NdbEventBuffer::isConsistent");
-  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-  while (gci_ops)
+  EpochData *epoch = m_event_queue.first_epoch();
+  while (epoch)
   {
-    if (gci_ops->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
+    if (epoch->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
     {
-      gci = gci_ops->m_gci;
+      gci = epoch->m_gci.getGCI();
       DBUG_RETURN(false);
     }
-    gci_ops = gci_ops->m_next;
+    epoch = epoch->m_next;
   }
 
   DBUG_RETURN(true);
@@ -1813,50 +1837,56 @@ bool
 NdbEventBuffer::isConsistentGCI(Uint64 gci)
 {
   DBUG_ENTER("NdbEventBuffer::isConsistentGCI");
-  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-  while (gci_ops)
+  EpochData *epoch = m_event_queue.first_epoch();
+  while (epoch)
   {
-    if (gci_ops->m_gci == gci &&
-        gci_ops->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
+    if (epoch->m_gci.getGCI() == gci &&
+        epoch->m_error == NdbDictionary::Event::_TE_INCONSISTENT)
       DBUG_RETURN(false);
-    gci_ops = gci_ops->m_next;
+    epoch = epoch->m_next;
   }
 
   DBUG_RETURN(true);
 }
 
-
 NdbEventOperationImpl*
-NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint32* cumulative_any_value)
 {
-  DBUG_ENTER("NdbEventBuffer::getGCIEventOperations");
-  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-  if (*iter < gci_ops->m_gci_op_count)
+  DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
+  EpochData *epoch = m_event_queue.first_epoch();
+  if (*iter < epoch->m_gci_op_count)
   {
-    EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
+    Gci_op g = epoch->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx 0x%x %s",
-                        (unsigned)gci_ops->m_gci, (long) g.op,
-                        (long) g.event_types, m_ndb->getReference(),
-                        m_ndb->getNdbObjectName()));
+    if (cumulative_any_value != NULL)
+      *cumulative_any_value = g.cumulative_any_value;
+    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
+                        (unsigned)epoch->m_gci.getGCI(), (long) g.op,
+                        (long) g.event_types, (long) g.cumulative_any_value,
+                        m_ndb->getReference(), m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);
   }
   DBUG_RETURN(NULL);
 }
 
 void
-NdbEventBuffer::deleteUsedEventOperations(Uint64 last_consumed_gci)
+NdbEventBuffer::deleteUsedEventOperations(MonotonicEpoch last_consumed_gci)
 {
   NdbEventOperationImpl *op= m_dropped_ev_op;
-  while (op && op->m_stop_gci)
+  while (op && op->m_stop_gci != NULL_EPOCH)
   {
+    /**
+     * NOTE: We likely could have deleted including 'last_consumed_gci'.
+     * However, as events can be resent after a node failure, we keep
+     * the dropped eventOp for an extra epoch as an extra precaution.
+     */
     if (last_consumed_gci > op->m_stop_gci)
     {
       while (op)
       {
         NdbEventOperationImpl *next_op= op->m_next;
-        op->m_stop_gci= 0;
+        op->m_stop_gci = NULL_EPOCH;
         op->m_ref_count--;
         if (op->m_ref_count == 0)
         {
@@ -1877,18 +1907,46 @@ NdbEventBuffer::deleteUsedEventOperations(Uint64 last_consumed_gci)
 }
 
 #ifdef VM_TRACE
+
+NdbOut&
+operator<<(NdbOut& out, const MonotonicEpoch& gci)
+{
+  out << (gci.getGCI() >> 32) << "/" << (gci.getGCI() & 0xFFFFFFFF);
+  out << "(" << gci.m_seq << ")";
+  return out;
+}
+
 static
 NdbOut&
-operator<<(NdbOut& out, const Gci_container& gci)
+operator<<(NdbOut& out, const EpochData& epoch)
 {
-  out << "[ GCI: " << (gci.m_gci >> 32) << "/" << (gci.m_gci & 0xFFFFFFFF)
-      << "  state: " << hex << gci.m_state 
-      << "  head: " << hex << gci.m_data.m_head
-      << "  tail: " << hex << gci.m_data.m_tail
-#ifdef VM_TRACE
-      << "  cnt: " << dec << gci.m_data.m_count
-#endif
-      << " gcp: " << dec << gci.m_gcp_complete_rep_count 
+  out << "[ GCI: " << epoch.m_gci << "]";
+  return out;
+}
+
+static
+NdbOut&
+operator<<(NdbOut& out, const EpochDataList& epochs)
+{
+  out << "  head: " << hex << epochs.m_head;
+  if (epochs.m_head)
+    out << *epochs.m_head;
+
+  out << "  tail: " << hex << epochs.m_tail;
+  if (epochs.m_tail != epochs.m_head)
+    out << *epochs.m_tail;
+  return out;
+}
+
+static
+NdbOut&
+operator<<(NdbOut& out, const Gci_container& bucket)
+{
+  out << "[ GCI: " << bucket.m_gci
+      << "  state: " << hex << bucket.m_state 
+      << "  head: " << hex << bucket.m_head
+      << "  tail: " << hex << bucket.m_tail
+      << " gcp: " << dec << bucket.m_gcp_complete_rep_count 
       << "]";
   return out;
 }
@@ -2002,16 +2060,16 @@ NdbEventBuffer::verify_known_gci(bool allowempty)
   }
 
   {
-    Gci_container* bucktets = (Gci_container*)(m_active_gci.getBase());
+    Gci_container* buckets = (Gci_container*)(m_active_gci.getBase());
     for (Uint32 i = 0; i<m_active_gci.size(); i++)
     {
-      if (bucktets[i].m_gci)
+      if (buckets[i].m_gci)
       {
         bool found = false;
         for (Uint32 j = m_min_gci_index; j != m_max_gci_index;
              j = (j + 1) & mask)
         {
-          if (m_known_gci[j] == bucktets[i].m_gci)
+          if (m_known_gci[j] == buckets[i].m_gci)
           {
             found = true;
             break;
@@ -2019,8 +2077,8 @@ NdbEventBuffer::verify_known_gci(bool allowempty)
         }
         if (!found)
           ndbout_c("%u/%u not found",
-                   Uint32(bucktets[i].m_gci >> 32),
-                   Uint32(bucktets[i].m_gci));
+                   Uint32(buckets[i].m_gci >> 32),
+                   Uint32(buckets[i].m_gci));
         MMASSERT(found == true);
       }
     }
@@ -2092,7 +2150,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
         if ((buckets + search)->m_gci == gci)
         {
           memcpy(buckets + pos, buckets + search, sizeof(Gci_container));
-          bzero(buckets + search, sizeof(Gci_container));
+          buckets[search].clear();
           if (0)
             printf("moved from %u to %u", search, pos);
           if (search == size - 1)
@@ -2120,8 +2178,12 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
    */
   if (0)
     ndbout_c("new (with expand) ");
-  m_active_gci.fill(pos, g_empty_gci_container);
+
+  Gci_container_pod empty_gci_container;
+  new(&empty_gci_container) Gci_container(this);
+  m_active_gci.fill(pos, empty_gci_container);
   buckets = (Gci_container*)(m_active_gci.getBase());
+
 newbucket:
   Gci_container* bucket = buckets + pos;
   bucket->m_gci = gci;
@@ -2245,12 +2307,10 @@ NdbEventBuffer::crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucke
   abort();
 }
 
-void
-NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
-                                                              Uint32 type)
+EpochData*
+NdbEventBuffer::create_empty_exceptional_epoch(Uint64 gci, Uint32 type)
 {
-  EventBufData *dummy_data= alloc_data();
-  dummy_data->m_event_op = 0;
+  EventBufData *exceptional_event_data= alloc_data();
 
   /** Add gci and event type to the inconsistent epoch event data,
    * such that nextEvent handles it correctly and makes it visible
@@ -2262,121 +2322,94 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
     ptr[i].p = NULL;
     ptr[i].sz = 0;
   }
-  alloc_mem(dummy_data, ptr, 0);
-//  dummy_data = ((Uint32*)NdbMem_Allocate(sizeof(SubTableData) + 3) >> 2);
+  alloc_mem(exceptional_event_data, ptr);
 
-  SubTableData *sdata = (SubTableData*) dummy_data->memory;
-  assert(dummy_data->memory);
+  SubTableData *sdata = exceptional_event_data->sdata;
+  assert(sdata);
   sdata->tableId = ~0;
   sdata->requestInfo = 0;
   sdata->gci_hi = Uint32(gci >> 32);
   sdata->gci_lo = Uint32(gci);
   SubTableData::setOperation(sdata->requestInfo, type);
 
-  // Add the first EventOperationImpl such that
-  // the exceptional data can be interpreted by consumers
-  NdbEventOperation* op = m_ndb->getEventOperation(0);
-  dummy_data->m_event_op = &op->m_impl;
-  assert(op != NULL);
+  // NOTE:
+  // We do not yet assign an m_event_op to the exceptional event:
+  // Whatever event we assigned now, could later be dropped before
+  // nextEvent() reads it. nextEvent() will later find a suitable op.
 
-  // Add gci_ops for error epoch events to make the search for
+  // Create EpochData for error epoch events to make the search for
   // inconsistent(Uint64& gci) to be effective (backward compatibility)
+  void* memptr = alloc(sizeof(EpochData));
+  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  const MonotonicEpoch epoch(m_epoch_generation,gci);
+  EpochData *newEpochData = new(memptr) EpochData(epoch, NULL, 0,
+                                                  exceptional_event_data);
+  if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
   {
-    EventBufData_list dummy_event_list;
-    dummy_event_list.append_used_data(dummy_data);
-    dummy_event_list.m_is_not_multi_list = true;
-    m_complete_data.m_data.append_list(&dummy_event_list, gci);
-    assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-    if (type >= NdbDictionary::Event::_TE_INCONSISTENT)
-    {
-      m_complete_data.m_data.m_gci_ops_list_tail->m_error = type;
-    }
+    newEpochData->m_error = type;
   }
-}
-
-void
-NdbEventBuffer::discard_events_from_bucket(Gci_container* bucket)
-{
-  // Empty the gci_op(s) list of the epoch from the bucket
-  DBUG_PRINT_EVENT("info", ("discard_events_from_bucket: deleting m_gci_op_list: %p",
-                            bucket->m_data.m_gci_op_list));
-  assert (bucket->m_data.m_is_not_multi_list); // bucket contains only one epoch
-  delete [] bucket->m_data.m_gci_op_list;
-
-  bucket->m_data.m_gci_op_count = 0;
-  bucket->m_data.m_gci_op_list = 0;
-  bucket->m_data.m_gci_op_alloc = 0;
-
-  // Empty the event data from the bucket and return it to m_free_data
-  free_list(bucket->m_data);
+  return newEpochData;
 }
 
 void
 NdbEventBuffer::complete_bucket(Gci_container* bucket)
 {
   const Uint64 gci = bucket->m_gci;
-  Gci_container* buckets = (Gci_container*)m_active_gci.getBase();
 
   if (0)
+  {
+    Gci_container* buckets = (Gci_container*)m_active_gci.getBase();
     ndbout_c("complete %u/%u pos: %u", Uint32(gci >> 32), Uint32(gci),
              Uint32(bucket - buckets));
-
+  }
 #ifdef VM_TRACE
   verify_known_gci(false);
 #endif
 
-  bool bucket_empty = bucket->m_data.is_empty();
-  Uint32 type = 0;
-  if (bucket->m_state & Gci_container::GC_INCONSISTENT)
+  /*
+   * There could be a error condition, causing the bucket
+   * to be missing data, probably due to kernel running out
+   * of event_buffer during node failure. In such cases we
+   * ignore the partially-received event data and create an
+   * empty epoch with only the exceptional event.
+   */
+  EpochData *completed_epoch = NULL;
+  if (unlikely(bucket->m_state & Gci_container::GC_INCONSISTENT))
   {
-    type = NdbDictionary::Event::_TE_INCONSISTENT;
+    completed_epoch = create_empty_exceptional_epoch(gci,
+                        NdbDictionary::Event::_TE_INCONSISTENT);
   }
-  else if (bucket->m_state & Gci_container::GC_OUT_OF_MEMORY)
+  else if (unlikely(bucket->m_state & Gci_container::GC_OUT_OF_MEMORY))
   {
-    type = NdbDictionary::Event::_TE_OUT_OF_MEMORY;
+    completed_epoch = create_empty_exceptional_epoch(gci,
+                        NdbDictionary::Event::_TE_OUT_OF_MEMORY);
   }
-  else if (bucket_empty)
+  else if (bucket->is_empty())
   {
-    assert(!bucket->m_data.m_is_not_multi_list);
-    assert(bucket->m_data.first_gci_ops() == 0);
-    type = NdbDictionary::Event::_TE_EMPTY;
-  }
-
-  if(!bucket_empty)
-  {
-#ifdef VM_TRACE
-    assert(bucket->m_data.m_count);
-#endif
-
-    if (bucket->hasError())
+    assert(bucket->m_gci_op_count == 0);
+    if (m_queue_empty_epoch)
     {
-      /*
-       * Bucket marked as possibly missing data, probably due to
-       * kernel running out of event_buffer during node failure.
-       * Discard the partially-received event data.
-       */
-      discard_events_from_bucket(bucket);
-      bucket_empty = true;
+      completed_epoch = create_empty_exceptional_epoch(gci,
+                          NdbDictionary::Event::_TE_EMPTY);
     }
-  }
-
-  if (bucket_empty)
-  {
-    assert(type > 0);
-    complete_empty_bucket_using_exceptional_event(gci, type);
   }
   else
   {
-    // bucket is complete and consistent: add it to complete_data list
-    m_complete_data.m_data.append_list(&bucket->m_data, gci);
+    // Bucket is complete and consistent: Create the epoch
+    completed_epoch = bucket->createEpochData(gci);
   }
 
+  // Add completed epoch to complete_data list, recycle bucket slot
+  if (completed_epoch != NULL)
+  {
+    m_complete_data.append(completed_epoch);
+    m_buffered_epochs++;
+  }
+
+  bucket->clear();
   Uint32 minpos = m_min_gci_index;
   Uint32 mask = m_known_gci.size() - 1;
   assert((mask & (mask + 1)) == 0);
-
-  bzero(bucket, sizeof(Gci_container));
-
   m_min_gci_index = (minpos + 1) & mask;
 
 #ifdef VM_TRACE
@@ -2405,20 +2438,6 @@ NdbEventBuffer::execSUB_START_CONF(const SubStartConf * const rep,
   set_total_buckets(buckets);
 
   add_op();
-}
-
-void
-NdbEventBuffer::execSUB_STOP_CONF(const SubStopConf * const rep,
-                                   Uint32 len)
-{
-  remove_op();
-}
-
-void
-NdbEventBuffer::execSUB_STOP_REF(const SubStopRef * const rep,
-                                 Uint32 len)
-{
-  remove_op();
 }
 
 void
@@ -2546,7 +2565,6 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     old_cnt = m_total_buckets;
   }
   
-  //assert(old_cnt >= cnt);
   if (unlikely(! (old_cnt >= cnt)))
   {
     crash_on_invalid_SUB_GCP_COMPLETE_REP(bucket, rep, len, old_cnt, cnt);
@@ -2560,28 +2578,24 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     {
   do_complete:
       m_startup_hack = false;
-       bool gapBegins = false;
+      bool gapBegins = false;
 
       // if there is a gap, mark the gap boundary
-       if (m_event_buffer_manager.onEpochCompleted(gci, gapBegins))
-        reportStatus();
+      ReportReason reason_to_report =
+        m_event_buffer_manager.onEpochCompleted(gci, gapBegins);
 
       // if a new gap begins, mark the bucket.
-       if (gapBegins)
-         bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
+      if (gapBegins)
+        bucket->m_state |= Gci_container::GC_OUT_OF_MEMORY;
 
       complete_bucket(bucket);
-      m_latestGCI = m_complete_data.m_gci = gci; // before reportStatus
-      reportStatus();
+      m_latestGCI = gci; // before reportStatus
+      reportStatus(reason_to_report);
       
       if(unlikely(m_latest_complete_GCI > gci))
       {
 	complete_outof_order_gcis();
       }
-
-      // signal that somethings happened
-
-      NdbCondition_Signal(p_cond);
     }
     else
     {
@@ -2600,8 +2614,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                           Uint32(minGCI >> 32), Uint32(minGCI),
                           Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
       bucket->m_state = Gci_container::GC_COMPLETE;
-      bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
-      m_latest_complete_GCI = gci;
+      if (gci > m_latest_complete_GCI)
+        m_latest_complete_GCI = gci;
     }
   }
   
@@ -2643,14 +2657,14 @@ NdbEventBuffer::complete_outof_order_gcis()
 
 #ifdef VM_TRACE
     ndbout_c("complete_outof_order_gcis - completing %u/%u rows: %u",
-             Uint32(start_gci >> 32), Uint32(start_gci), bucket->m_data.m_count);
+             Uint32(start_gci >> 32), Uint32(start_gci), bucket->count_event_data());
 #else
     ndbout_c("complete_outof_order_gcis - completing %u/%u",
              Uint32(start_gci >> 32), Uint32(start_gci));
 #endif
     
     complete_bucket(bucket);
-    m_latestGCI = m_complete_data.m_gci = start_gci;
+    m_latestGCI = start_gci;
 
 #ifdef VM_TRACE
     verify_known_gci(true);
@@ -2670,7 +2684,7 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                       m_ndb->getNdbObjectName()));
   do
   {
-    if (impl->m_stop_gci == ~Uint64(0))
+    if (impl->m_stop_gci == MAX_EPOCH)
     {
       oid_ref = impl->m_oid;
       insertDataL(impl, &data, SubTableData::SignalLength, ptr);
@@ -2678,7 +2692,7 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
     NdbEventOperationImpl* blob_op = impl->theBlobOpList;
     while (blob_op != NULL)
     {
-      if (blob_op->m_stop_gci == ~Uint64(0))
+      if (blob_op->m_stop_gci == MAX_EPOCH)
       {
         oid_ref = blob_op->m_oid;
         insertDataL(blob_op, &data, SubTableData::SignalLength, ptr);
@@ -2710,12 +2724,12 @@ NdbEventBuffer::find_max_known_gci(Uint64 * res) const
 void
 NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 {
-  Uint64 gci = (Uint64(rep->gci_hi) << 32) | rep->gci_lo;
-  Uint32 cnt = (rep->flags >> 16);
-  Uint64 * array = m_known_gci.getBase();
-  Uint32 mask = m_known_gci.size() - 1;
-  Uint32 minpos = m_min_gci_index;
-  Uint32 maxpos = m_max_gci_index;
+  const Uint64 gci = (Uint64(rep->gci_hi) << 32) | rep->gci_lo;
+  const Uint32 cnt = (rep->flags >> 16);
+  const Uint64 *const array = m_known_gci.getBase();
+  const Uint32 mask = m_known_gci.size() - 1;
+  const Uint32 minpos = m_min_gci_index;
+  const Uint32 maxpos = m_max_gci_index;
 
   if (rep->flags & SubGcpCompleteRep::ADD_CNT)
   {
@@ -2766,6 +2780,10 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets += cnt;
 
+    /* ADD_CNT make any out of order buckets incomplete */
+    m_latest_complete_GCI = 0;
+
+    /* Adjust expected 'complete_rep_count' for any buckets arrived OOO */
     pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
@@ -2773,6 +2791,7 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
       tmp->m_gcp_complete_rep_count += cnt;
+      tmp->m_state &= ~Gci_container::GC_COMPLETE; //If 'complete', undo it
       ndbout_c(" - increasing cnt on %u/%u by %u",
                Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), cnt);
     }
@@ -2825,17 +2844,28 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
 
     m_total_buckets -= cnt;
 
+    /* Adjust expected 'complete_rep_count' for any buckets arrived out of order */
     pos = (pos + 1) & mask;
     for (; pos != maxpos; pos = (pos + 1) & mask)
     {
       assert(array[pos] > gci);
       Gci_container* tmp = find_bucket(array[pos]);
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
+      assert((tmp->m_state & Gci_container::GC_COMPLETE) == 0);
+      assert(tmp->m_gcp_complete_rep_count >= cnt);
       tmp->m_gcp_complete_rep_count -= cnt;
       ndbout_c(" - decreasing cnt on %u/%u by %u to: %u",
                Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci), 
                cnt,
                tmp->m_gcp_complete_rep_count);
+      if (tmp->m_gcp_complete_rep_count == 0)
+      {
+        ndbout_c("   completed out of order %u/%u",
+                 Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+        tmp->m_state |= Gci_container::GC_COMPLETE;
+        if (array[pos] > m_latest_complete_GCI)
+          m_latest_complete_GCI = array[pos];
+      }
     }
   }
 }
@@ -2865,6 +2895,20 @@ NdbEventBuffer::find_sub_data_stream_number(Uint16 sub_data_stream)
   return num;
 }
 
+
+/**
+ * Initially we do not know the number of SUB_GCP_COMPLETE_REP 
+ * to expect from the datanodes before the epoch can be considered
+ * completed from all datanodes. Thus we init m_total_buckets
+ * to a high initial value, and later use ::set_total_buckets()
+ * to set the correct 'cnt' as recieved as part of SUB_START_CONF.
+ *
+ * As there is a possible race between SUB_START_CONF from SUMA and 
+ * GSN_SUB_TABLE_DATA & SUB_GCP_COMPLETE_REP arriving from the
+ * datanodes, we have to update any Gci_container's already
+ * containing data, and possibly complete them if all 
+ * SUB_GCP_COMPLETE_REP's had been received.
+ */
 void
 NdbEventBuffer::set_total_buckets(Uint32 cnt)
 {
@@ -2874,34 +2918,32 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
   assert(m_total_buckets == TOTAL_BUCKETS_INIT);
   m_total_buckets = cnt;
 
-  Uint64 * array = m_known_gci.getBase();
-  Uint32 mask = m_known_gci.size() - 1;
-  Uint32 minpos = m_min_gci_index;
-  Uint32 maxpos = m_max_gci_index;
+  // The delta between initial 'unknown' and real #buckets
+  const Uint32 delta = TOTAL_BUCKETS_INIT - cnt;
 
-  bool found = false;
-  Uint32 pos = minpos;
-  for (; pos != maxpos; pos = (pos + 1) & mask)
+  const Uint64 * array = m_known_gci.getBase();
+  const Uint32 mask = m_known_gci.size() - 1;
+  const Uint32 minpos = m_min_gci_index;
+  const Uint32 maxpos = m_max_gci_index;
+
+  for (Uint32 pos = minpos; pos != maxpos; pos = (pos + 1) & mask)
   {
-    Gci_container* tmp = find_bucket(array[pos]);
-    if (TOTAL_BUCKETS_INIT >= tmp->m_gcp_complete_rep_count)
+    const Uint64 gci = array[pos];
+    Gci_container* tmp = find_bucket(gci);
+    if (delta >= tmp->m_gcp_complete_rep_count)
     {
-      found = true;
       if (0)
         ndbout_c("set_total_buckets(%u) complete %u/%u",
                  cnt, Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
       tmp->m_gcp_complete_rep_count = 0;
       complete_bucket(tmp);
+      m_latestGCI = gci;
     }
     else
     {
-      assert(tmp->m_gcp_complete_rep_count > TOTAL_BUCKETS_INIT);
-      tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
+      assert(tmp->m_gcp_complete_rep_count > delta);
+      tmp->m_gcp_complete_rep_count -= delta;
     }
-  }
-  if (found)
-  {
-    NdbCondition_Signal(p_cond);
   }
 }
 
@@ -2962,22 +3004,22 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   Uint32 minpos = m_min_gci_index;
   Uint32 maxpos = m_max_gci_index;
 
+  /**
+   * Incompleted and/or 'out-of-order' Gci_containers should be cleared after
+   * a failure. (Nothing more will ever arrive for whatever remaing there)
+   * Temporary keep the last one, the failure-event will complete it.
+   */
   while (minpos != maxpos && array[minpos] != gci)
   {
     Gci_container* tmp = find_bucket(array[minpos]);
     assert(tmp);
     assert(maxpos == m_max_gci_index);
-
-    if(!tmp->m_data.is_empty())
-    {
-      free_list(tmp->m_data);
-    }
-    tmp->~Gci_container();
-    bzero(tmp, sizeof(Gci_container));
-
+    tmp->clear();
     minpos = (minpos + 1) & mask;
   }
   m_min_gci_index = minpos;
+  m_latest_complete_GCI = 0; //Cleared any 'out of order' epoch
+
   if (found)
   {
     assert(((minpos + 1) & mask) == maxpos);
@@ -3032,6 +3074,18 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   rep.flags = 0;
   execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength, 1);
 
+  /**
+   * We have now cleaned up all Gci_containers which were
+   * incomplete at time of failure, assert that.
+   * As the failure possible resets the GCI-sequence, we 
+   * do the same to avoid false duplicate rejection.
+   */
+  //init_gci_containers(); //Known to already be empty
+  assert(m_min_gci_index == m_max_gci_index);
+  assert(m_latest_complete_GCI == 0);
+  m_latestGCI = 0;
+
+  m_epoch_generation++;
   DBUG_VOID_RETURN;
 }
 
@@ -3049,7 +3103,15 @@ NdbEventBuffer::getLatestGCI()
 Uint64
 NdbEventBuffer::getHighestQueuedEpoch()
 {
-  return m_latest_poll_GCI;
+  return m_latest_poll_GCI.getGCI();
+}
+
+void
+NdbEventBuffer::setEventBufferQueueEmptyEpoch(bool queue_empty_epoch)
+{
+  NdbMutex_Lock(m_mutex);
+  m_queue_empty_epoch = queue_empty_epoch;
+  NdbMutex_Unlock(m_mutex);
 }
 
 int
@@ -3081,7 +3143,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         Mark event as stopping.  Subsequent dropEventOperation
         will add the event to the dropped list for delete
       */
-      op->m_stop_gci = gci;
+      op->m_stop_gci = MonotonicEpoch(m_epoch_generation,gci);
     }
     else if (operation == NdbDictionary::Event::_TE_ACTIVE)
     {
@@ -3103,11 +3165,14 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
-  Uint32 memory_usage = (m_max_alloc  == 0) ? 0 :
-    (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
+  const Uint32 used_data_sz = get_used_data_sz();
+  const Uint32 memory_usage = (m_max_alloc == 0) ? 0 :
+    (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
 
-  if (m_event_buffer_manager.onEventDataReceived(memory_usage, gci))
-    reportStatus(true/*force_report*/);
+  ReportReason reason_to_report =
+    m_event_buffer_manager.onEventDataReceived(memory_usage, gci);
+  if (reason_to_report != NO_REPORT)
+    reportStatus(reason_to_report);
 
   if (m_event_buffer_manager.isEventDataToBeDiscarded(gci))
   {
@@ -3162,16 +3227,14 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 
       m_event_buffer_manager.onBufferingEpoch(gci);
 
-      // Initialize m_event_op, in case copy_data fails due to insufficient memory
-      data->m_event_op = 0;
-      if (unlikely(copy_data(sdata, len, ptr, data, NULL)))
+      if (unlikely(copy_data(sdata, len, ptr, data)))
       {
         crashMemAllocError("insertDataL : copy_data failed.");
       }
       data->m_event_op = op;
       if (! is_blob_event || ! is_data_event)
       {
-        bucket->m_data.append_data(data);
+        bucket->append_data(data);
       }
       else
       {
@@ -3187,7 +3250,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         if (ret != 0) // main event was created
         {
           main_data->m_event_op = op->theMainOp;
-          bucket->m_data.append_data(main_data);
+          bucket->append_data(main_data);
           if (use_hash)
           {
             main_data->m_pkhash = main_hpos.pkhash;
@@ -3209,7 +3272,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     else
     {
       // event with same op, PK found, merge into old buffer
-      if (unlikely(merge_data(sdata, len, ptr, data, &bucket->m_data.m_sz)))
+      if (unlikely(merge_data(sdata, len, ptr, data)))
       {
         crashMemAllocError("insertDataL : merge_data failed.");
       }
@@ -3221,20 +3284,18 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // since the flags represent multiple ops on multiple PKs
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
-          EventBufData_list::Gci_op g = { op, (1U << operation) };
-          bucket->m_data.add_gci_op(g);
+          Uint32 any_value = sdata->anyValue;
+          Gci_op g = { op, (1U << operation), any_value };
+          bucket->add_gci_op(g);
         }
         {
-          EventBufData_list::Gci_op 
-	    g = { op, 
-		  (1U << SubTableData::getOperation(data->sdata->requestInfo))};
-          bucket->m_data.add_gci_op(g);
+          Uint32 any_value = data->sdata->anyValue;
+          Gci_op g = { op, 
+                       (1U << SubTableData::getOperation(data->sdata->requestInfo)), any_value};
+          bucket->add_gci_op(g);
         }
       }
     }
-#ifdef NDB_EVENT_VERIFY_SIZE
-    verify_size(bucket->m_data);
-#endif
     DBUG_RETURN_EVENT(0);
   }
   
@@ -3271,142 +3332,267 @@ EventBufData*
 NdbEventBuffer::alloc_data()
 {
   DBUG_ENTER_EVENT("alloc_data");
-  EventBufData* data = m_free_data;
+  void* memptr = alloc(sizeof(EventBufData));
+  assert(memptr != NULL);  // Alloc failures catched in ::alloc()
+  EventBufData* data = new(memptr) EventBufData();
+  DBUG_RETURN_EVENT(data);
+}
 
-  if (unlikely(data == 0))
+// Allocate memory area for storing event data associated to the given
+// meta EventBufData. Takes sizes from given ptr and sets up data->ptr
+int
+NdbEventBuffer::alloc_mem(EventBufData* data,
+                          LinearSectionPtr ptr[3])
+{
+  DBUG_ENTER("NdbEventBuffer::alloc_mem");
+  DBUG_PRINT("info", ("ptr sz %u + %u + %u 0x%x %s",
+                      ptr[0].sz, ptr[1].sz, ptr[2].sz, m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
+
+  Uint32 sz4 = (sizeof(SubTableData) + 3) >> 2;
+  Uint32 alloc_size = (sz4 + ptr[0].sz + ptr[1].sz + ptr[2].sz) << 2;
+
+  assert(data->memory == NULL);
+  data->memory = (Uint32*)alloc(alloc_size);
+  assert(data->memory != NULL);  // Alloc failures catched in ::alloc
+
+  Uint32* memptr = data->memory + sz4;
+  for (int i = 0; i <= 2; i++)
   {
-#ifdef VM_TRACE
-    assert(m_free_data_count == 0);
-    assert(m_free_data_sz == 0);
-#endif
-    expand(4000);
-    reportStatus();
+    data->ptr[i].p = memptr;
+    data->ptr[i].sz = ptr[i].sz;
+    memptr += ptr[i].sz;
+  }
+  DBUG_RETURN(0);
+}
 
-    data = m_free_data;
-    if (unlikely(data == 0))
+void*
+NdbEventBuffer::alloc(Uint32 sz)
+{
+  DBUG_ENTER("alloc");
+
+  /* Always allocate from 'tail' block, if none allocate it */
+  EventMemoryBlock *mem_block = m_mem_block_tail;
+  if (unlikely(mem_block == NULL))
+  {
+    assert(m_total_alloc == 0);
+    mem_block = expand_memory_blocks();
+    assert(mem_block != NULL); //Will crashMemAllocError if failed.
+  }
+
+  void* memptr = mem_block->alloc(sz);
+  if (unlikely(memptr == NULL))  //mem_block is full
+  {
+    /** Completed alloc from current MemoryBlock */
+    Uint64 gci = m_latestGCI;
+    find_max_known_gci(&gci);
+    assert(gci >= m_latestGCI);
+    complete_memory_block(MonotonicEpoch(m_epoch_generation,gci));
+
+    mem_block = expand_memory_blocks();
+    assert(mem_block != NULL); //Will crashMemAllocError if failed.
+
+    memptr = mem_block->alloc(sz);
+    if (unlikely(memptr == NULL))
+    {
+      // Expect to always be able to alloc from empty mem block
+      crashMemAllocError("::alloc(): alloc from empty MemoryBlock failed");
+      DBUG_RETURN(NULL);
+    }
+  }
+
+  DBUG_RETURN(memptr);
+}
+
+/**
+ * Tag MemoryBlock with highest epoch seen intil now.
+ * It can then be released when we have consumed all events
+ * including that epoch.
+ */
+void
+NdbEventBuffer::complete_memory_block(MonotonicEpoch highest_epoch)
+{
+  if (likely(m_mem_block_tail != NULL))
+  {
+    EventMemoryBlock *mem_block = m_mem_block_tail;
+    mem_block->m_expiry_epoch = highest_epoch;
+    mem_block->m_used = mem_block->m_size;
+  }
+}
+
+Uint32
+NdbEventBuffer::get_free_data_sz() const
+{
+#if defined(VM_TRACE)
+  {
+    Uint32 free = 0;
+    EventMemoryBlock *mem_block = m_mem_block_free;
+    while (mem_block != NULL)
+    {
+      free += mem_block->get_size();
+      mem_block = mem_block->m_next;
+    }
+    assert(free == m_mem_block_free_sz);
+  }
+#endif
+
+  // Only tail block might have additional free data:
+  if (likely(m_mem_block_tail != NULL))
+  {
+    return m_mem_block_free_sz + m_mem_block_tail->get_free();
+  }
+  else
+  {
+    return m_mem_block_free_sz;
+  }
+}
+
+Uint32
+NdbEventBuffer::get_used_data_sz() const
+{
+  assert(m_total_alloc >= get_free_data_sz());
+  return m_total_alloc - get_free_data_sz();
+}
+
+EventMemoryBlock*
+NdbEventBuffer::expand_memory_blocks()
+{
+  EventMemoryBlock *new_block;
+  if (m_mem_block_free != NULL)
+  {
+    new_block = m_mem_block_free;
+    assert(m_mem_block_free_sz >= new_block->get_size());
+    m_mem_block_free_sz -= new_block->get_size();
+    m_mem_block_free = new_block->m_next;
+    new_block->init();
+  }
+  else  //Allocate new EventMemoryBlock */
+  {
+    /* Allocate new EventMemoryBlock, adapt block size to current usage */
+    const Uint32 sz = (m_total_alloc < 1024*1024)
+                      ? MEM_BLOCK_SMALL
+                      : MEM_BLOCK_LARGE;
+    /**
+     * Prefer page alloc, as that allows us to completely return memory
+     * to the OS when we free it. my_mmap() will use malloc if page alloc
+     * not available at this OS.
+     */
+#if defined(USE_MMAP)
+    void *memptr = my_mmap(NULL, sz, PROT_READ|PROT_WRITE,
+                           MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    if (unlikely(memptr == MAP_FAILED))
+#else
+    void *memptr = malloc(sz);
+    if (unlikely(memptr == NULL))
+#endif
     {
 #ifdef VM_TRACE
       printf("m_latest_command: %s 0x%x %s\n",
              m_latest_command, m_ndb->getReference(), m_ndb->getNdbObjectName());
       printf("no free data, m_latestGCI %u/%u\n",
              (Uint32)(m_latestGCI << 32), (Uint32)m_latestGCI);
-      printf("m_free_data_count %d\n", m_free_data_count);
-      printf("m_available_data_count %d first gci{hi/lo} %u/%u last gci{hi/lo} %u/%u\n",
-             m_available_data.m_count,
-             m_available_data.m_head?m_available_data.m_head->sdata->gci_hi:0,
-             m_available_data.m_head?m_available_data.m_head->sdata->gci_lo:0,
-             m_available_data.m_tail?m_available_data.m_tail->sdata->gci_hi:0,
-             m_available_data.m_tail?m_available_data.m_tail->sdata->gci_lo:0);
-      printf("m_used_data_count %d\n", m_used_data.m_count);
+      printf("m_total_alloc %d\n", m_total_alloc);
+ 
+      const Uint64 gci_head = m_event_queue.m_head?m_event_queue.m_head->m_gci.getGCI():0;
+      const Uint64 gci_tail = m_event_queue.m_tail?m_event_queue.m_tail->m_gci.getGCI():0;
+      printf("m_event_queue_count %d first gci{hi/lo} %u/%u last gci{hi/lo} %u/%u\n",
+             m_event_queue.count_event_data(),
+             Uint32(gci_head >> 32), Uint32(gci_head),
+             Uint32(gci_tail >> 32), Uint32(gci_tail));
 #endif
-      crashMemAllocError("alloc_data : Allocation of meta data failed.");
+      crashMemAllocError("Attempt to allocate MemoryBlock from OS failed");
+      return NULL;
     }
+    m_total_alloc += sz;
+    new_block = new(memptr) EventMemoryBlock(sz);
   }
 
-  // remove data from free list
-  if (data->m_next_blob == 0)
-    m_free_data = data->m_next;
-  else {
-    EventBufData* data2 = data->m_next_blob;
-    if (data2->m_next == 0) {
-      data->m_next_blob = data2->m_next_blob;
-      data = data2;
-    } else {
-      EventBufData* data3 = data2->m_next;
-      data2->m_next = data3->m_next;
-      data = data3;
-    }
-  }
-  data->m_next = 0;
-  data->m_next_blob = 0;
-#ifdef VM_TRACE
-  m_free_data_count--;
-  assert(m_free_data_sz >= data->sz);
-#endif
-  m_free_data_sz -= data->sz;
-  DBUG_RETURN_EVENT(data);
+  /* new_block is added as 'tail' */
+  if (likely(m_mem_block_tail != NULL))
+    m_mem_block_tail->m_next = new_block;
+  else
+    m_mem_block_head = new_block;
+  m_mem_block_tail = new_block;
+
+  return new_block;
 }
 
-// allocate initial or bigger memory area in EventBufData
-// takes sizes from given ptr and sets up data->ptr
-int
-NdbEventBuffer::alloc_mem(EventBufData* data,
-                          LinearSectionPtr ptr[3],
-                          Uint32 * change_sz)
+void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Need m_mutex locked
 {
-  DBUG_ENTER("NdbEventBuffer::alloc_mem");
-  DBUG_PRINT("info", ("ptr sz %u + %u + %u 0x%x %s",
-                      ptr[0].sz, ptr[1].sz, ptr[2].sz, m_ndb->getReference(),
-                      m_ndb->getNdbObjectName()));
-  const Uint32 min_alloc_size = 128;
+  MonotonicEpoch prev_highest_epoch(MonotonicEpoch::min);
 
-  Uint32 sz4 = (sizeof(SubTableData) + 3) >> 2;
-  Uint32 alloc_size = (sz4 + ptr[0].sz + ptr[1].sz + ptr[2].sz) << 2;
-  if (alloc_size < min_alloc_size)
-    alloc_size = min_alloc_size;
-
-  if (data->sz < alloc_size)
+  // Memory blocks are ordered on 'expiry-epoch', search from 'head'
+  while (m_mem_block_head != NULL)
   {
-    Uint32 add_sz = alloc_size - data->sz;
-
-    NdbMem_Free((char*)data->memory);
-    assert(m_total_alloc >= data->sz);
-    data->memory = 0;
-
-    data->memory = (Uint32*)NdbMem_Allocate(alloc_size);
-    if (data->memory == 0)
+    EventMemoryBlock *mem_block = m_mem_block_head;
+    if (mem_block->m_expiry_epoch > consumed_epoch)
     {
-      goto out_of_mem_err;
+      break;  //mem_block not expired yet
     }
-    data->sz = alloc_size;
-    m_total_alloc += add_sz;
 
-    if (change_sz != NULL)
-      *change_sz += add_sz;
+    // mem_block is recycled to m_mem_block_free-list
+    m_mem_block_head = mem_block->m_next;
+    if (m_mem_block_head == NULL)
+      m_mem_block_tail = NULL;
+
+    // mem_block should be in ascending expiry_epoch order
+    assert(mem_block->m_expiry_epoch >= prev_highest_epoch);
+    prev_highest_epoch = mem_block->m_expiry_epoch;
+
+    // Link mem_block into m_mem_block_free-list
+    mem_block->m_next = m_mem_block_free;
+    m_mem_block_free = mem_block;
+    m_mem_block_free_sz += mem_block->get_size();
   }
+
+  /**
+   * Possibly reduce the number of MemoryBlock we keep in the
+   * free list. As the EventBuffer memory usage may fluctate
+   * a lot over time, we are quite aggresive in avoiding keeping
+   * unused free space too long.
+   */
+  if (prev_highest_epoch != MonotonicEpoch::min)  //Released memory block(s)
   {
-  Uint32* memptr = data->memory;
-  memptr += sz4;
-  int i;
-  for (i = 0; i <= 2; i++)
-  {
-    data->ptr[i].p = memptr;
-    data->ptr[i].sz = ptr[i].sz;
-    memptr += ptr[i].sz;
-  }
-  }
-  DBUG_RETURN(0);
+    while (m_mem_block_free != NULL)
+    {
+      // Keep a maximum of 20% of total allocated memory as free_data
+      // ... Pluss an aditional 3 'small memory blocks'.
+      const Uint32 max_free_data_sz = (3*MEM_BLOCK_SMALL) + (m_total_alloc / 5);
+      if (get_free_data_sz() <= max_free_data_sz)
+      {
+        break;
+      }
 
-out_of_mem_err:
-  // Dealloc succeeded, but alloc bigger size failed
-  crashMemAllocError("Attempt to allocate memory from OS failed");
-  DBUG_RETURN(-1);
-}
+      // Too much in free-list, release first free memory block
+      EventMemoryBlock *mem_block = m_mem_block_free;
+      m_mem_block_free = mem_block->m_next;
+      assert(m_mem_block_free_sz >= mem_block->get_size());
+      m_mem_block_free_sz -= mem_block->get_size();
 
-void
-NdbEventBuffer::dealloc_mem(EventBufData* data,
-                            Uint32 * change_sz)
-{
-  NdbMem_Free((char*)data->memory);
-  assert(m_total_alloc >= data->sz);
-  m_total_alloc -= data->sz;
-  if (change_sz != NULL) {
-    assert(*change_sz >= data->sz);
-    *change_sz -= data->sz;
+      const Uint32 alloced_sz = mem_block->alloced_size();
+      assert(m_total_alloc >= alloced_sz);
+      m_total_alloc -= alloced_sz;
+#ifndef NDEBUG
+      memset(mem_block, 0x11, alloced_sz);
+#endif
+
+#if defined(USE_MMAP)
+      require(my_munmap(mem_block, alloced_sz) == 0);
+#else
+      free(mem_block);
+#endif
+    }
   }
-  data->memory = 0;
-  data->sz = 0;
 }
 
 int 
 NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
                           LinearSectionPtr ptr[3],
-                          EventBufData* data,
-                          Uint32 * change_sz)
+                          EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::copy_data");
 
-  if (alloc_mem(data, ptr, change_sz) != 0)
+  if (alloc_mem(data, ptr) != 0)
     DBUG_RETURN_EVENT(-1);
   memcpy(data->sdata, sdata, sizeof(SubTableData));
 
@@ -3490,10 +3676,10 @@ copy_attr(AttributeHeader ah,
 int 
 NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
                            LinearSectionPtr ptr2[3],
-                           EventBufData* data,
-                           Uint32 * change_sz)
+                           EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::merge_data");
+  int result = 0;
 
   /* TODO : Consider how/if to merge multiple events/key with different
    * transid
@@ -3504,8 +3690,16 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
 
   int t1 = SubTableData::getOperation(data->sdata->requestInfo);
   int t2 = SubTableData::getOperation(sdata->requestInfo);
+
+  // save old data
+  EventBufData olddata = *data;
+  data->memory = NULL;
+
   if (t1 == Ev_t::enum_NUL)
-    DBUG_RETURN_EVENT(copy_data(sdata, len, ptr2, data, change_sz));
+  {
+    result = copy_data(sdata, len, ptr2, data);
+    DBUG_RETURN_EVENT(result);
+  }
 
   Ev_t* tp = 0;
   int i;
@@ -3545,15 +3739,9 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
     DBUG_PRINT("info", ("idempotent op %d*%d data ok 0x%x %s",
                         tp->t1, tp->t2, m_ndb->getReference(),
                         m_ndb->getNdbObjectName()));
+    *data = olddata;
     DBUG_RETURN_EVENT(0);
   }
-
-  // TODO: use old data items, avoid malloc/free on each merge
-
-  // save old data
-  EventBufData olddata = *data;
-  data->memory = 0;
-  data->sz = 0;
 
   // compose ptr1 o ptr2 = ptr
   LinearSectionPtr (&ptr1)[3] = olddata.ptr;
@@ -3561,12 +3749,11 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
 
   // loop twice where first loop only sets sizes
   int loop;
-  int result = 0;
   for (loop = 0; loop <= 1; loop++)
   {
     if (loop == 1)
     {
-      if (alloc_mem(data, ptr, change_sz) != 0)
+      if (alloc_mem(data, ptr) != 0)
       {
         result = -1;
         goto end;
@@ -3685,7 +3872,6 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
   }
 
 end:
-  dealloc_mem(&olddata, change_sz);
   DBUG_RETURN_EVENT(result);
 }
  
@@ -3797,7 +3983,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   SubTableData sdata = *blob_data->sdata;
   sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
   SubTableData::setOperation(sdata.requestInfo, NdbDictionary::Event::_TE_NUL);
-  if (copy_data(&sdata, SubTableData::SignalLength, ptr, main_data, NULL) != 0)
+  if (copy_data(&sdata, SubTableData::SignalLength, ptr, main_data) != 0)
     DBUG_RETURN_EVENT(-1);
   hpos.data = main_data;
 
@@ -3832,87 +4018,55 @@ NdbEventBuffer::add_blob_data(Gci_container* bucket,
     blob_data->m_next = head->m_next;
     head->m_next = blob_data;
   }
-  // adjust data list size
-  bucket->m_data.m_count += 1;
-  bucket->m_data.m_sz += blob_data->sz;
   DBUG_VOID_RETURN_EVENT;
 }
 
-NdbEventOperationImpl *
+EventBufData *
 NdbEventBuffer::move_data()
 {
   // handle received data
-  if (!m_complete_data.m_data.is_empty())
+  if (!m_complete_data.is_empty())
   {
-    // move this list to last in m_available_data
-    m_available_data.append_list(&m_complete_data.m_data, 0);
-
-    bzero(&m_complete_data, sizeof(m_complete_data));
+    // move this list to last in m_event_queue
+    m_event_queue.append_list(&m_complete_data);
+    m_complete_data.clear();
   }
 
-  // handle used data
-  if (!m_used_data.is_empty())
-  {
-    // return m_used_data to m_free_data
-    free_list(m_used_data);
-  }
-  if (!m_available_data.is_empty())
+  if (!m_event_queue.is_empty())
   {
     DBUG_ENTER_EVENT("NdbEventBuffer::move_data");
 #ifdef VM_TRACE
-    DBUG_PRINT_EVENT("exit",("m_available_data_count %u 0x%x %s",
-                             m_available_data.m_count,
+    DBUG_PRINT_EVENT("exit",("m_event_queue_count %u 0x%x %s",
+                             m_event_queue.count_event_data(),
                              m_ndb->getReference(), m_ndb->getNdbObjectName()));
 #endif
-    DBUG_RETURN_EVENT(m_available_data.m_head->m_event_op);
+    DBUG_RETURN_EVENT(m_event_queue.get_first_event_data());
   }
   return 0;
 }
 
 void
-NdbEventBuffer::free_list(EventBufData_list &list)
+Gci_container::append_data(EventBufData *data)
 {
-#ifdef NDB_EVENT_VERIFY_SIZE
-  verify_size(list);
-#endif
-  // return list to m_free_data
-  list.m_tail->m_next= m_free_data;
-  m_free_data= list.m_head;
-#ifdef VM_TRACE
-  m_free_data_count+= list.m_count;
-#endif
-  m_free_data_sz+= list.m_sz;
+  Gci_op g = {data->m_event_op,
+              1U << SubTableData::getOperation(data->sdata->requestInfo),
+              data->sdata->anyValue};
+  add_gci_op(g);
 
-  list.m_head = list.m_tail = NULL;
-  list.m_count = list.m_sz = 0;
-
-  list.~EventBufData_list(); // free gci ops
-}
-
-void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
-{
-#ifdef NDB_EVENT_VERIFY_SIZE
-  NdbEventBuffer::verify_size(*list);
-#endif
-  move_gci_ops(list, gci);
-
+  data->m_next = NULL;
   if (m_tail)
-    m_tail->m_next= list->m_head;
+    m_tail->m_next = data;
   else
-    m_head= list->m_head;
-  m_tail= list->m_tail;
-  m_count+= list->m_count;
-  m_sz+= list->m_sz;
+    m_head = data;
 
-  list->m_head = list->m_tail = NULL;
-  list->m_count = list->m_sz = 0;
+  m_tail = data;
 }
 
 void
-EventBufData_list::add_gci_op(Gci_op g)
+Gci_container::add_gci_op(Gci_op g)
 {
-  DBUG_ENTER_EVENT("EventBufData_list::add_gci_op");
-  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x", g.op, g.event_types));
+  DBUG_ENTER_EVENT("Gci_container::add_gci_op");
+  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x g.cumulative_any_value: %x", g.op, g.event_types, g.cumulative_any_value));
   assert(g.op != NULL && g.op->theMainOp == NULL); // as in nextEvent
   Uint32 i;
   for (i = 0; i < m_gci_op_count; i++) {
@@ -3921,17 +4075,21 @@ EventBufData_list::add_gci_op(Gci_op g)
   }
   if (i < m_gci_op_count) {
     m_gci_op_list[i].event_types |= g.event_types;
+    m_gci_op_list[i].cumulative_any_value &= g.cumulative_any_value;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;
       Gci_op* old_list = m_gci_op_list;
-      m_gci_op_list = new Gci_op [n];
+
+      void* memptr = m_event_buffer->alloc(n*sizeof(Gci_op));
+      assert(memptr != NULL);  // alloc failure catched in ::alloc()
+      m_gci_op_list = new(memptr) Gci_op[n];
+
       if (m_gci_op_alloc != 0) {
         Uint32 bytes = m_gci_op_alloc * sizeof(Gci_op);
         memcpy(m_gci_op_list, old_list, bytes);
         DBUG_PRINT_EVENT("info", ("this: %p  delete m_gci_op_list: %p",
                                   this, old_list));
-        delete [] old_list;
       }
       else
         assert(old_list == 0);
@@ -3949,64 +4107,34 @@ EventBufData_list::add_gci_op(Gci_op g)
   DBUG_VOID_RETURN_EVENT;
 }
 
-void
-EventBufData_list::move_gci_ops(EventBufData_list *list, Uint64 gci)
+EpochData*
+Gci_container::createEpochData(Uint64 gci)
 {
-  DBUG_ENTER_EVENT("EventBufData_list::move_gci_ops");
-  DBUG_PRINT_EVENT("info", ("this: %p  list: %p  gci: %u/%u",
-                            this, list, (Uint32)(gci >> 32), (Uint32)gci));
-  assert(!m_is_not_multi_list);
-  if (!list->m_is_not_multi_list)
-  {
-    assert(gci == 0);
-    if (m_gci_ops_list_tail)
-      m_gci_ops_list_tail->m_next = list->m_gci_ops_list;
-    else
-    {
-      m_gci_ops_list =  list->m_gci_ops_list;
-    }
-    m_gci_ops_list_tail = list->m_gci_ops_list_tail;
-    goto end;
-  }
-  {
-    Gci_ops *new_gci_ops = new Gci_ops;
-    DBUG_PRINT_EVENT("info", ("this: %p  m_gci_op_list: %p",
-                        new_gci_ops, list->m_gci_op_list));
-    if (m_gci_ops_list_tail)
-      m_gci_ops_list_tail->m_next = new_gci_ops;
-    else
-    {
-      assert(m_gci_ops_list == 0);
-      m_gci_ops_list = new_gci_ops;
-    }
-    m_gci_ops_list_tail = new_gci_ops;
-    
-    new_gci_ops->m_gci_op_list = list->m_gci_op_list;
-    new_gci_ops->m_gci_op_count = list->m_gci_op_count;
-    new_gci_ops->m_gci = gci;
-    new_gci_ops->m_next = 0;
-  }
-end:
-  list->m_gci_op_list = 0;
-  list->m_gci_ops_list_tail = 0;
-  list->m_gci_op_alloc = 0;
-  DBUG_VOID_RETURN_EVENT;
+  DBUG_ENTER_EVENT("Gci_container::createEpochData");
+  DBUG_PRINT_EVENT("info", ("this: %p  gci: %u/%u",
+                            this, (Uint32)(gci >> 32), (Uint32)gci));
+  assert(gci != 0);
+  assert(gci == m_gci);
+  assert(m_head);
+
+  void* memptr = m_event_buffer->alloc(sizeof(EpochData));
+  assert(memptr != NULL);  // alloc failure catched in ::alloc()
+  const MonotonicEpoch epoch(m_event_buffer->m_epoch_generation,gci);
+  EpochData *newEpochData = new(memptr) EpochData(epoch, m_gci_op_list,
+                                                  m_gci_op_count,
+                                                  m_head);
+
+  DBUG_PRINT_EVENT("info", ("created EpochData: %p  m_gci_op_list: %p",
+                      newEpochData, m_gci_op_list));
+
+  m_head = m_tail = NULL;
+  m_gci_op_list = NULL;
+  m_gci_op_count = 0;
+  m_gci_op_alloc = 0;
+  DBUG_RETURN_EVENT(newEpochData);
 }
 
-void
-NdbEventBuffer::clear_event_queue()
-{
-  if(!m_available_data.is_empty())
-  {
-    free_list(m_available_data);
-  }
-  else
-  {
-    // no event data found, remove any lingering gci_ops
-    // belonging to consumed epochs
-    m_available_data.~EventBufData_list();
-  }
-}
+
 
 NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
@@ -4016,7 +4144,9 @@ NdbEventBuffer::createEventOperation(const char* eventName,
 
   if (m_ndb->theImpl->m_ev_op == NULL)
   {
-    clear_event_queue();
+    //Any buffered events should have been discarded
+    //when we dropped last event op - Prior to this create:
+    assert(m_event_queue.is_empty());
   }
 
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
@@ -4069,12 +4199,12 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   // stop blob event ops
   if (op->theMainOp == NULL)
   {
-    Uint64 max_stop_gci = op->m_stop_gci;
+    MonotonicEpoch max_stop_gci = op->m_stop_gci;
     NdbEventOperationImpl* tBlobOp = op->theBlobOpList;
     while (tBlobOp != NULL)
     {
       tBlobOp->stop();
-      Uint64 stop_gci = tBlobOp->m_stop_gci;
+      MonotonicEpoch stop_gci = tBlobOp->m_stop_gci;
       if (stop_gci > max_stop_gci)
         max_stop_gci = stop_gci;
       tBlobOp = tBlobOp->m_next;
@@ -4123,7 +4253,6 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
                       m_ndb->getNdbObjectName()));
   if (op->m_ref_count == 0)
   {
-    NdbMutex_Unlock(m_mutex);
     DBUG_PRINT("info", ("deleting op: %p 0x%x %s",
                         op, m_ndb->getReference(), m_ndb->getNdbObjectName()));
     delete op->m_facade;
@@ -4135,34 +4264,41 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
     if (m_dropped_ev_op)
       m_dropped_ev_op->m_prev= op;
     m_dropped_ev_op= op;
-    
-    NdbMutex_Unlock(m_mutex);
   }
+
+  if (m_active_op_count == 0)
+  {
+    /**
+     * Client dropped all event operations. Thus, all buffered, polled
+     * and unpolled, (completed) events can now safely be discarded.
+     */
+    consume_all();
+
+    /* Clean up obsolete receiver thread data. */
+    init_gci_containers();
+  }
+
+  NdbMutex_Unlock(m_mutex);
   DBUG_VOID_RETURN;
 }
 
 void
-NdbEventBuffer::reportStatus(bool force_report)
+NdbEventBuffer::reportStatus(ReportReason reason)
 {
-  EventBufData *apply_buf= m_available_data.m_head;
-  Uint64 apply_gci, latest_gci= m_latestGCI;
-  if (apply_buf == 0)
-    apply_buf= m_complete_data.m_data.m_head;
-  if (apply_buf && apply_buf->sdata)
-  {
-    Uint32 gci_hi = apply_buf->sdata->gci_hi;
-    Uint32 gci_lo = apply_buf->sdata->gci_lo;
-    apply_gci= gci_lo | (Uint64(gci_hi) << 32);
-  }
-  else
-    apply_gci= latest_gci;
+  if (reason != NO_REPORT)
+    goto send_report;
 
-  if (force_report)
-      goto send_report;
-
-  if (m_free_thresh)
+  /* Exclude LOW/ENOUGH_FREE_EVENTBUFFER reporting if
+   * m_free_thresh is not configured or
+   * event buffer has unlimited memory available
+   */
+  if (m_free_thresh && m_max_alloc > 0)
   {
-    if (100*(Uint64)m_free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
+    Uint32 free_data_sz = 0;
+    if (m_max_alloc > get_used_data_sz())
+      free_data_sz = m_max_alloc - get_used_data_sz();
+
+    if (100*free_data_sz < m_min_free_thresh*(Uint64)m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report less free buffer than m_free_thresh,
@@ -4170,10 +4306,11 @@ NdbEventBuffer::reportStatus(bool force_report)
       */
       m_min_free_thresh= 0;
       m_max_free_thresh= 2 * m_free_thresh;
+      reason = LOW_FREE_EVENTBUFFER;
       goto send_report;
     }
   
-    if (100*(Uint64)m_free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
+    if (100*free_data_sz > m_max_free_thresh*(Uint64)m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report more free than 2 * m_free_thresh
@@ -4181,84 +4318,139 @@ NdbEventBuffer::reportStatus(bool force_report)
       */
       m_min_free_thresh= m_free_thresh;
       m_max_free_thresh= 100;
+      reason = ENOUGH_FREE_EVENTBUFFER;
       goto send_report;
     }
   }
+
   if (m_gci_slip_thresh &&
-      (latest_gci-apply_gci >= m_gci_slip_thresh))
+      (m_buffered_epochs >= m_gci_slip_thresh) &&
+      NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 10000)
   {
+    m_last_log_time = NdbTick_getCurrentTicks();
+    reason = BUFFERED_EPOCHS_OVER_THRESHOLD;
     goto send_report;
   }
+
   return;
 
 send_report:
-  Uint32 data[8];
-  data[0]= NDB_LE_EventBufferStatus;
-  data[1]= m_total_alloc-m_free_data_sz;
+  Uint32 data[10];
+  data[0]= NDB_LE_EventBufferStatus2;
+  data[1]= get_used_data_sz();
   data[2]= m_total_alloc;
   data[3]= m_max_alloc;
-  data[4]= (Uint32)(apply_gci);
-  data[5]= (Uint32)(apply_gci >> 32);
-  data[6]= (Uint32)(latest_gci);
-  data[7]= (Uint32)(latest_gci >> 32);
-  Ndb_internal::send_event_report(true, m_ndb, data,8);
-#ifdef VM_TRACE
-  assert(m_total_alloc >= m_free_data_sz);
-#endif
+  data[4]= (Uint32)(m_latest_consumed_epoch);
+  data[5]= (Uint32)(m_latest_consumed_epoch >> 32);
+  data[6]= (Uint32)(m_latestGCI);
+  data[7]= (Uint32)(m_latestGCI >> 32);
+  data[8]= (Uint32)(m_ndb->getReference());
+  data[9]= (Uint32)(reason);
+  Ndb_internal::send_event_report(true, m_ndb, data, 10);
 }
 
 void
 NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage)
 {
+  const Uint32 used_data_sz = get_used_data_sz();
+
   usage.allocated_bytes = m_total_alloc;
-  usage.used_bytes = m_total_alloc - m_free_data_sz;
+  usage.used_bytes = used_data_sz;
 
   // If there's no configured max limit then
   // the percentage is a fraction of the total allocated.
 
   Uint32 ret = 0;
   // m_max_alloc == 0 ==> unlimited usage,
-  // m_total_alloc  >= m_free_data_sz always.
   if (m_max_alloc > 0)
-    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
+    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
   else if (m_total_alloc > 0)
-    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_total_alloc);
+    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_total_alloc);
 
   usage.usage_percent = ret;
 }
 
-#ifdef VM_TRACE
-void
-NdbEventBuffer::verify_size(const EventBufData* data, Uint32 count, Uint32 sz)
+Uint32
+EventBufData::get_size() const
 {
-#if 0
-  Uint32 tmp_count = 0;
-  Uint32 tmp_sz = 0;
-  while (data != 0) {
-    Uint32 full_count, full_sz;
-    data->get_full_size(full_count, full_sz);
-    tmp_count += full_count;
-    tmp_sz += full_sz;
+  // Calc size in aligned Uint32 words
+  Uint32 size = (sizeof(SubTableData) + 3) >> 2;
+  size += ptr[0].sz + ptr[1].sz + ptr[2].sz;
+
+  // Convert to bytes;
+  size <<= 2;
+
+  // Add length of blob fragments.
+  // Possibly multiple BLOBs are chained with 'next_blob' and
+  // added by get_size() being recursively
+  EventBufData* blob = m_next_blob;
+  while (blob)
+  {
+    size += blob->get_size();
+    blob = blob->m_next;
+  }
+  return size;
+}
+
+Uint32
+EventBufData::get_count() const
+{
+  Uint32 count = 1;
+  EventBufData* blob = m_next_blob;
+  while (blob)
+  {
+    count += blob->get_count();
+    blob = blob->m_next;
+  }
+  return count;
+}
+
+Uint32
+Gci_container::count_event_data() const
+{
+  Uint32 count = 0;
+  EventBufData* data = m_head;
+  while (data != NULL)
+  {
+    count += data->get_count();
     data = data->m_next;
   }
-  assert(tmp_count == count);
-  assert(tmp_sz == sz);
-#endif
+  return count;
 }
-void
-NdbEventBuffer::verify_size(const EventBufData_list & list)
+
+Uint32
+EpochData::count_event_data() const
 {
-#if 0
-  verify_size(list.m_head, list.m_count, list.m_sz);
-#endif
+  Uint32 count = 0;
+  EventBufData* data = m_data;
+  while (data != NULL)
+  {
+    count += data->get_count();
+    data = data->m_next;
+  }
+  return count;
 }
-#endif
+ 
+Uint32
+EpochDataList::count_event_data() const
+{
+  Uint32 count = 0;
+  EpochData* epoch = m_head;
+  while (epoch != NULL)
+  {
+    count += epoch->count_event_data();
+    epoch = epoch->m_next;
+  }
+  return count;
+}
+
 
 // hash table routines
 
 // could optimize the all-fixed case
 Uint32
-EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
+EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
+                             LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkhash");
   DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
@@ -4299,7 +4491,9 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
 }
 
 bool
-EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3], LinearSectionPtr ptr2[3])
+EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
+                              LinearSectionPtr ptr1[3],
+                              LinearSectionPtr ptr2[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
   DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
@@ -4340,7 +4534,7 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
     require(ok1 && ok2 && lb1 == lb2);
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
-    int res = (cs->coll->strnncollsp)(cs, dptr1 + lb1, len1, dptr2 + lb2, len2, false);
+    int res = (cs->coll->strnncollsp)(cs, dptr1 + lb1, len1, dptr2 + lb2, len2);
     if (res != 0)
     {
       equal = false;
@@ -4355,7 +4549,9 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
 }
 
 void
-EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
+EventBufData_hash::search(Pos& hpos,
+                          NdbEventOperationImpl* op,
+                          LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::search");
   Uint32 pkhash = getpkhash(op, ptr);
@@ -4377,4 +4573,3 @@ EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr
 }
 
 template class Vector<Gci_container_pod>;
-template class Vector<NdbEventBuffer::EventBufData_chunk*>;

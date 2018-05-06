@@ -1,0 +1,39 @@
+create table test_gcol_index (
+i int not null primary key,
+j int generated always as (100+mod(i,10)) stored unique
+) engine = 'ndbcluster';
+insert into test_gcol_index
+values
+(1, default),
+(2, default),
+(3, default),
+(4, default),
+(5, default),
+(6, default),
+(7, default),
+(8, default),
+(9, default);
+select * from test_gcol_index where i = 4;
+i	j
+4	104
+select * from test_gcol_index where j = 104;
+i	j
+4	104
+explain select * from test_gcol_index where j = 104;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_gcol_index	p0,p1,p2,p3,p4,p5,p6,p7	ref	j	j	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_gcol_index`.`i` AS `i`,`test`.`test_gcol_index`.`j` AS `j` from `test`.`test_gcol_index` where (`test`.`test_gcol_index`.`j` = 104)
+select * from test_gcol_index where j > 106 order by j;
+i	j
+7	107
+8	108
+9	109
+explain select * from test_gcol_index where j > 106;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_gcol_index	p0,p1,p2,p3,p4,p5,p6,p7	range	j	j	5	NULL	3	100.00	Using where with pushed condition (`test`.`test_gcol_index`.`j` > 106); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_gcol_index`.`i` AS `i`,`test`.`test_gcol_index`.`j` AS `j` from `test`.`test_gcol_index` where (`test`.`test_gcol_index`.`j` > 106)
+insert into test_gcol_index values(13, default);
+ERROR 23000: Duplicate entry '103' for key 'j'
+drop table test_gcol_index;

@@ -12,13 +12,13 @@ SELECT @@global.collation_database;
 latin1_danish_ci
 SELECT @@session.collation_database;
 @@session.collation_database
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_011_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1,t2;
 SELECT @@character_set_server,@@collation_server;
 @@character_set_server	@@collation_server
-latin1	latin1_swedish_ci
+utf8mb4	utf8mb4_0900_ai_ci
 '--check if setting collation_database update character_set_database--'
 SET @@session.collation_database = utf8_spanish_ci;
 Warnings:
@@ -61,10 +61,12 @@ utf8_roman_ci	utf8_roman_ci	utf8	utf8
 USE test;
 SELECT @@collation_database,@@collation_server,@@character_set_database,@@character_set_server;
 @@collation_database	@@collation_server	@@character_set_database	@@character_set_server
-utf8_roman_ci	utf8_roman_ci	utf8	utf8
+utf8mb4_0900_ai_ci	utf8_roman_ci	utf8mb4	utf8
+set names latin1;
 'fill table with some test data';
 CREATE TABLE t1(a CHAR(20))CHARACTER SET=latin1;
 INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');
+set names utf8mb4;
 '---check if collation_database effects results sort order---'
 SET @@session.collation_database = latin1_swedish_ci;
 Warnings:
@@ -73,7 +75,7 @@ SELECT * FROM t1 ORDER BY a;
 a
 Muffler
 MX Systems
-Müller
+MÃ¼ller
 SET @@session.collation_database = latin1_german1_ci;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
@@ -81,17 +83,17 @@ SELECT * FROM t1 ORDER BY a;
 a
 Muffler
 MX Systems
-Müller
+MÃ¼ller
 'explicit Collate clause should effects results sort order';
 SELECT * FROM t1 ORDER BY a COLLATE latin1_swedish_ci;
 a
 Muffler
 MX Systems
-Müller
+MÃ¼ller
 SELECT * FROM t1 ORDER BY a COLLATE latin1_german1_ci;
 a
 Muffler
-Müller
+MÃ¼ller
 MX Systems
 '----check if indexing is effected by collation_database---'
 SET @@session.collation_database = latin1_swedish_ci;
@@ -102,7 +104,7 @@ SELECT * FROM t1 ORDER BY a;
 a
 Muffler
 MX Systems
-Müller
+MÃ¼ller
 ALTER TABLE t1 DROP PRIMARY KEY;
 SET @@session.collation_database = latin1_german1_ci;
 Warnings:
@@ -112,7 +114,7 @@ SELECT * FROM t1 ORDER BY a;
 a
 Muffler
 MX Systems
-Müller
+MÃ¼ller
 DROP TABLE t1;
 SET @@global.collation_database = @global_collation_database;
 Warnings:

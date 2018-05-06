@@ -1,10 +1,6 @@
 #
 # Tests of touching the rules table from different transactions.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 SET autocommit = 0;
 SELECT @@autocommit;
@@ -19,8 +15,6 @@ INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite me conn 2"', 'SELECT "Rewritten conn 2 rule 1"' );
 COMMIT;
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT "Rewrite me conn 1";
 Rewritten conn 1 rule 1
 Rewritten conn 1 rule 1
@@ -32,8 +26,6 @@ Rewritten conn 2 rule 1
 Warnings:
 Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT "Rewrite me conn 1";
 Rewritten conn 1 rule 1
 Rewritten conn 1 rule 1
@@ -68,17 +60,11 @@ SET autocommit = 0;
 SELECT @@autocommit;
 @@autocommit
 0
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 START TRANSACTION;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite me"', 'SELECT "Rewritten w/rule 1"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT 'Rewrite me';
 Rewritten w/rule 1
 Rewritten w/rule 1
@@ -102,10 +88,6 @@ SET autocommit = 0;
 SELECT @@autocommit;
 @@autocommit
 0
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 CALL mtr.add_suppression("Got error from storage engine while refreshing rewrite rules.");
 # This would cause failed assertion unless the mdl locks are released.
@@ -163,10 +145,6 @@ SET autocommit = 1;
 SELECT @@autocommit;
 @@autocommit
 1
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # This would cause failed assertion unless the mdl locks are released.
 SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;

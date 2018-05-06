@@ -1,14 +1,14 @@
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/no_valgrind_without_big.inc
+
 
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
 #-------------------------------------------------------------------------------
 set names utf8;
 
-call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -220,7 +220,7 @@ DROP TABLE t2 , t1;
 # FTS with FK+transactions and UPDATE casecade with transaction
 #-------------------------------------------------------------------------------
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* FTS Doc ID must be larger than 3 for table `test`.`t2`");
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -452,7 +452,7 @@ ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 EVAL SHOW CREATE TABLE t1;
 
 # Check whether individual space id created for AUX tables
-SELECT count(*) FROM information_schema.innodb_sys_tables WHERE name LIKE "%FTS_%" AND space !=0;
+SELECT count(*) FROM information_schema.innodb_tables WHERE name LIKE "%FTS_%" AND space !=0;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES

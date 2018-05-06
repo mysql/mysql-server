@@ -1,0 +1,84 @@
+include/master-slave.inc
+[connection master]
+include/stop_slave.inc
+RESET SLAVE ALL;
+include/start_slave.inc
+select THREAD_ID from performance_schema.replication_connection_status
+where CHANNEL_NAME = "channel_1"
+  into @tid;
+
+====================================================================
+Testing index for columns CHANNEL_NAME
+====================================================================
+############ Explain for Query ####################################
+explain select SERVICE_STATE 
+from performance_schema.replication_connection_status 
+where CHANNEL_NAME = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME = "channel_1";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	const	PRIMARY	PRIMARY	256	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select SERVICE_STATE
+from performance_schema.replication_connection_status
+where CHANNEL_NAME = "channel_1";
+SERVICE_STATE
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns THREAD_ID
+====================================================================
+############ Explain for Query ####################################
+explain select SERVICE_STATE 
+from performance_schema.replication_connection_status 
+where THREAD_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where THREAD_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select SERVICE_STATE
+from performance_schema.replication_connection_status
+where THREAD_ID = @tid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	replication_connection_status	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+############# Explain End #########################################
+flush status;
+select SERVICE_STATE
+from performance_schema.replication_connection_status
+where THREAD_ID = @tid;
+SERVICE_STATE
+#
+OK: handler_read_key incremented
+include/stop_slave.inc
+RESET SLAVE ALL;
+include/start_slave.inc
+include/rpl_end.inc

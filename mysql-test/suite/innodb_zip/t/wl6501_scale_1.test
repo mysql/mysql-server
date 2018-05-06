@@ -5,15 +5,11 @@
 # load table with some significiant amount of data
 # and then try truncate
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/big_test.inc
---source include/have_innodb_16k.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
@@ -22,20 +18,16 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
 --source suite/innodb_zip/include/innodb_wl6501_scale.inc
 
 # Single-Tablespace/Compressed
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compressed;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Barracuda';
 --source suite/innodb_zip/include/innodb_wl6501_scale.inc
 
 # System-Tablespace/Non-Compressed
 let $wl6501_file_per_table = 0;
 let $wl6501_row_fmt = compact;
 let $wl6501_kbs = 16;
-let $wl6501_file_format = 'Antelope';
 --source suite/innodb_zip/include/innodb_wl6501_scale.inc
-

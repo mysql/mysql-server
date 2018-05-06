@@ -13,7 +13,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t1 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t1 VALUES(1, "bbbbb");
 INSERT INTO tde_db.t1 VALUES(2, "ccccc");
@@ -31,7 +31,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -117,4 +117,17 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 ERROR HY000: Tablespace has been discarded for table 't1'
 DROP TABLE tde_db.t1;
+#
+# Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
+# DURING CRASH RECOVERY
+#
+CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
+SET SESSION debug="+d,keyring_file_backup_fail";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,keyring_file_backup_fail";
+SELECT COUNT(*) FROM tde_db.test_tbl;
+COUNT(*)
+0
+DROP TABLE tde_db.test_tbl;
 SET GLOBAL innodb_file_per_table=1;

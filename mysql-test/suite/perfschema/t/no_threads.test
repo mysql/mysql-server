@@ -1,12 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
- --source include/force_myisam_default.inc
-
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source include/not_threadpool.inc
 
 
@@ -32,7 +25,7 @@ show status like "Performance_schema_thread_instances_lost";
 
 # Code to test : in this main thread
 
-create table test.t1(a int) engine=MYISAM;
+create table test.t1(a int);
 
 show global variables like "performance_schema";
 show global variables like "performance_schema_max_thread%";

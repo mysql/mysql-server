@@ -1,11 +1,8 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.session_connect_attrs
   ADD COLUMN foo INTEGER;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.session_connect_attrs;
 
 -- error ER_DBACCESS_DENIED_ERROR
@@ -13,3 +10,6 @@ ALTER TABLE performance_schema.session_connect_attrs ADD INDEX test_index(ATTR_N
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.session_connect_attrs(ATTR_NAME);
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.session_connect_attrs;

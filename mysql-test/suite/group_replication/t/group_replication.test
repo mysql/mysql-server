@@ -1,0 +1,75 @@
+################################################################################
+# WL#7660 - GCS PLUGIN IMPLEMENTATION
+#
+# This test checks the basic functionality of the Group Replication replication
+# plugin: the installation, uninstallation of the plugin and the
+# update of the plugin status variables.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Set group_replication_group_name=<INVALID_VALUE>. Expect error.
+# 2. Set group_replication_group_name=<VALID_VALUE>. Assert check the value.
+#  - Set group_replication_start_on_boot=1. Assert check the value.
+# 3. Restart server to check that plugin is still loaded.
+# 4. After the server restart the group name is again set to NULL. Thus, START
+#    GROUP_REPLICATION (GR) command must fail.
+# 5. Start GR command will succeed when group name is set to valid value.
+# 6. Try start GR command again. It must error out since the group is already
+#    running. Start GR with valid value. It must start.
+# 7. Set group_replication_group_name=<VALID_VALUE>. It must error out i.e. we
+#    cannot set group name when group is running.
+# 8. Clean up.
+################################################################################
+
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429563
+--source include/have_group_replication_plugin.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The group name *.*");
+SET SESSION sql_log_bin= 1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
+
+# This is a valid name being given to the group name
+
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--eval SET GLOBAL group_replication_start_on_boot= 1
+
+--let $assert_text= The value of group name should be $group_replication_group_name
+--let $assert_cond= "[SELECT @@group_replication_group_name]" = "$group_replication_group_name"
+--source include/assert.inc
+
+--let $assert_text= The value of group_replication_start_on_boot should be 1
+--let $assert_cond= [SELECT @@group_replication_start_on_boot] = 1
+--source include/assert.inc
+
+# This restart tests that the plugin is still loaded on the server restart
+# Also it checks the shutdown hook that is provided as a part of WL#6821.
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# After the server restart the group name is again set to NULL which will
+# cause an error due to wrong configuration.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--source include/start_group_replication.inc
+
+# This start command will error out since the group is already running.
+--error ER_GROUP_REPLICATION_RUNNING
+START GROUP_REPLICATION;
+
+
+# We cannot set group name when group is running.
+# Proper message will be logged on error log.
+--error ER_GROUP_REPLICATION_RUNNING
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--source include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+--source include/gr_clear_configuration.inc

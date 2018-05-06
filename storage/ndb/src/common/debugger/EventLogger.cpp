@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -762,6 +769,14 @@ void getTextStartLog(QQQQ) {
 		       theData[3],
 		       theData[4]);
 }
+void getTextLCPRestored(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Start completed restore of LCP.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len,
+           "Node Start completed restore of LCP id: %u",
+           theData[1]);
+}
 void getTextStartREDOLog(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
@@ -847,6 +862,63 @@ void getTextEventBufferStatus(QQQQ) {
 		       theData[5], theData[4],
 		       theData[7], theData[6]);
 }
+
+
+/** Give the text for the reason enum
+ * ndb_logevent_event_buffer_status_report_reason defined ndb_logevent.h
+ */
+const char *ndb_logevent_eventBuff_status_reasons[] = {
+  "NO_REPORT",
+  "COMPLETELY_BUFFERING",
+  "PARTIALLY_DISCARDING",
+  "COMPLETELY_DISCARDING",
+  "PARTIALLY_BUFFERING",
+  "BUFFERED_EPOCHS_OVER_THRESHOLD",
+  "ENOUGH_FREE_EVENTBUFFER",
+  "LOW_FREE_EVENTBUFFER",
+};
+
+const char* getReason(Uint32 reason)
+{
+  if (reason < NDB_ARRAY_SIZE(ndb_logevent_eventBuff_status_reasons))
+    return ndb_logevent_eventBuff_status_reasons[reason];
+  return "UNKNOWN reason code";
+}
+
+void getTextEventBufferStatus2(QQQQ) {
+  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
+  const char *used_unit, *alloc_unit, *max_unit;
+  convert_unit(used, used_unit);
+  convert_unit(alloc, alloc_unit);
+  convert_unit(max_, max_unit);
+
+  BaseString used_pct_txt;
+  if (alloc != 0)
+  {
+    used_pct_txt.assfmt("(%d%% of alloc)",
+             (Uint32)((((Uint64)theData[1])*100)/theData[2]));
+  }
+
+  BaseString allocd_pct_txt;
+  if (max_ != 0)
+  {
+    allocd_pct_txt.assfmt("(%d%% of max)",
+             (Uint32)((((Uint64)theData[2])*100)/theData[3]));
+  }
+
+  BaseString::snprintf(m_text, m_text_len,
+		       "Event buffer status (0x%x): used=%d%s%s alloc=%d%s%s "
+		       "max=%d%s%s latest_consumed_epoch=%u/%u "
+                       "latest_buffered_epoch=%u/%u "
+                       "report_reason=%s",
+		       theData[8], used, used_unit, used_pct_txt.c_str(),
+		       alloc, alloc_unit, allocd_pct_txt.c_str(),
+		       max_, max_unit, (max_ == 0) ? "(unlimited)" : "",
+		       theData[5], theData[4],
+		       theData[7], theData[6],
+                       getReason(theData[9]));
+}
+
 void getTextWarningEvent(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
@@ -1441,6 +1513,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(NDBStopCompleted,        LogLevel::llStartUp,     1, Logger::LL_INFO ),
   ROW(NDBStopForced,           LogLevel::llStartUp,     1, Logger::LL_ALERT ),
   ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(LCPRestored,             LogLevel::llStartUp,     7, Logger::LL_INFO ),
   ROW(StartREDOLog,            LogLevel::llStartUp,     4, Logger::LL_INFO ),
   ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
   ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
@@ -1500,6 +1573,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
   ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
   ROW(EventBufferStatus,       LogLevel::llInfo,   7, Logger::LL_INFO ),
+  ROW(EventBufferStatus2,       LogLevel::llInfo,   7, Logger::LL_INFO ),
 
   //Single User
   ROW(SingleUser,              LogLevel::llInfo,   7, Logger::LL_INFO ),

@@ -21,9 +21,6 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
--- source include/have_innodb.inc
--- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 
 echo '#________________________VAR_09_INNODB_LOG_FILE_SIZE__________________#'
 echo '##'
@@ -70,7 +67,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_file_size);
 #################################################################
 --disable_warnings
 SELECT @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_file_size';
 --echo 1 Expected
 
@@ -78,7 +75,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_file_size);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_log_file_size';
 --echo 1 Expected
 --enable_warnings

@@ -1,17 +1,24 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # We want release-1.8.0.zip in order to build these unit tests.
 # If you have already downloaded it,
@@ -27,15 +34,6 @@
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
 
-# Disable googletest for Solaris Studio < 12.4 since it doesn't compile.
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  IF(${CC_MINOR_VERSION} LESS 13)
-    MESSAGE(WARNING "Googletest requires Solaris Studio 12.4 or newer.")
-    UNSET(GMOCK_FOUND)
-    UNSET(GMOCK_FOUND CACHE)
-    RETURN()
-  ENDIF()
-ENDIF()
 
 # Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
@@ -191,47 +189,51 @@ SET(GMOCK_INCLUDE_DIRS
   CACHE INTERNAL "")
 
 # Build gmock/gtest libraries.
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_SOURCE_DIR}
   ${GMOCK_SOURCE_DIR}/include
   ${GTEST_SOURCE_DIR}
   ${GTEST_SOURCE_DIR}/include
 )
 
-# Turn off some warning flags when compiling GUnit
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-ENDIF()
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-missing-field-initializers"
-                           HAVE_NO_MISSING_FIELD_INITIALIZERS)
-IF(HAVE_NO_MISSING_FIELD_INITIALIZERS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
-ENDIF()
+# Some tests require Boost.
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
-MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
 
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
 
-IF (WITH_SSL STREQUAL "bundled")
-  ADD_SUBDIRECTORY(yassl)
+SET(DISABLE_PSI_DEFINITIONS
+  "DISABLE_PSI_COND"
+  "DISABLE_PSI_FILE"
+  "DISABLE_PSI_METADATA"
+  "DISABLE_PSI_MUTEX"
+  "DISABLE_PSI_RWLOCK"
+  "DISABLE_PSI_STAGE"
+  )
+SET(DISABLE_PSI_OPTIONS
+  "-DDISABLE_PSI_COND"
+  "-DDISABLE_PSI_FILE"
+  "-DDISABLE_PSI_METADATA"
+  "-DDISABLE_PSI_MUTEX"
+  "-DDISABLE_PSI_RWLOCK"
+  "-DDISABLE_PSI_STAGE"
+  )
+
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${ZLIB_INCLUDE_DIR}
-  ${CMAKE_SOURCE_DIR}/regex
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/sql/auth
-  ${CMAKE_SOURCE_DIR}/storage/example
+  SYSTEM ${ICU_INCLUDE_DIRS}
 )
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
+  benchmark.cc
   fake_costmodel.cc
   gunit_test_main.cc
   skip_trailing.cc
@@ -240,7 +242,21 @@ ADD_LIBRARY(gunit_small STATIC
   thread_utils.cc
   fake_table.cc
 )
+SET_TARGET_PROPERTIES(gunit_small
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
+
+# Several "small" unit tests got 'missing symbol client_errors'
+# When building with Sun Studio
+ADD_LIBRARY(libmysql_errmsg STATIC
+  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+)
+SET_TARGET_PROPERTIES(libmysql_errmsg
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
+
 ADD_LIBRARY(gunit_large STATIC
+  benchmark.cc
   gunit_test_main_server.cc
   tap_event_listener.cc
   test_utils.cc
@@ -249,14 +265,20 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
+  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
   mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
+IF(WIN32)
+  ## Create an object library of nt_servc.cc, so we don't have to
+  ## compile it again for each target
+  ADD_LIBRARY(my_nt_servc OBJECT ../../sql/nt_servc.cc)
+ENDIF()
+
 # Add some defines.
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION -DEXTRA_CODE_FOR_UNIT_TESTING)
-ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -265,7 +287,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET(TESTS
   alignment
   bounded_queue
-  bounds_checked_array
+#  bounds_checked_array
   bitmap
   byteorder
   calloc
@@ -275,6 +297,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  float_compare
   inplace_vector
   key
   like_range
@@ -283,232 +306,231 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
-  my_qsort_vs_stdsort
-  my_regex
   my_thread
   mysys_base64
   mysys_lf
-  mysys_my_atomic
   mysys_my_b_vprintf
-  mysys_my_freopen
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_symlink
-  mysys_my_vsnprintf
   mysys_my_write
+  mysys_pathfuncs
   nullable
   opt_recperkey
   partitioned_rwlock
+  pattern_matcher
   prealloced_array
   priority_queue
+  record_buffer
+  sql_class_header
   sql_list
   sql_plist
   sql_string
   stl_alloc
   strings_skip_trailing
   strings_strnxfrm
+  strings_utf8
+  strings_valid_check
   strtoll
   thread_utils
   my_timer
+  template_utils
   timespec
   my_alloc
   pump_object_filter
+  val_int_compare
+  varlen_sort
+  collation_loader
   )
  
-IF (UNIX)
-  LIST(APPEND TESTS path auth_utils)
-ENDIF()
-
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()
 
+SET(ALL_SMALL_TESTS)
+FOREACH(test ${TESTS})
+  LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
+ENDFOREACH()
+
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
+  character_set_deprecation
   copy_info
   create_field
+  dd_cache
+  dd_column_statistics
+  dd_info_schema_native_func
+  dd_properties
+  dd_schema
+  dd_sdi
+  dd_string_type
+  dd_table
   debug_sync
   explain_filename
   field
   get_diagnostics
   gis_algos
+  gis_geometries
+  gis_is_simple
+  gis_isvalid
+  gis_relops
+  gis_wkb_parser
   handler
+  histograms
+  initialize_password
   insert_delayed
+  into_syntax
   item
   item_filter
   item_func_case
   item_func_now_local
-  item_timefunc
+  item_json_func
+  item_func_regexp
   item_like
+  item_timefunc
+  join_syntax
   join_tab_sort
   json_binary
   json_dom
   json_path
+  locking_clause_syntax
   locking_service
   log_throttle
   make_sortkey
   mdl_sync
   my_decimal
-  opt_costmodel
   opt_costconstants
+  opt_costmodel
   opt_guessrecperkey
   opt_range
   opt_ref
   opt_trace
-  select_lex_visitor
-  segfault
-  sql_table
-  strings_utf8
-  table_cache
-  tc_log_mmap
-  thd_manager
-  unique
+  regexp_engine
+  regexp_facade
   security_context
-  initialize_password
+  segfault
+  select_lex_visitor
+  sql_table
+  subquery_syntax
+  table_cache
+  table_factor_syntax
+  tc_log_mmap
+  temptable_allocator
+  temptable_storage
+  thd_manager
+  union_syntax
+  unique
+  value_map
+  wild_case_compare
+  sha2_password
+)
+
+SET(ALL_LARGE_TESTS)
+FOREACH(test ${SERVER_TESTS})
+  LIST(APPEND ALL_LARGE_TESTS ${test}-t.cc)
+ENDFOREACH()
+
+SET(SQL_GUNIT_LIB_SOURCE 
+  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
+  ${CMAKE_SOURCE_DIR}/sql/mdl.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
+  ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
+  )
+
+IF(WIN32)
+  LIST(APPEND SQL_GUNIT_LIB_SOURCE ${CMAKE_SOURCE_DIR}/sql/named_pipe.cc)
+ENDIF()
+ADD_CONVENIENCE_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_DEPENDENCIES(sqlgunitlib GenError)
+SET_TARGET_PROPERTIES(sqlgunitlib
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
 ## Merging tests into fewer executables saves *a lot* of
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
 IF (MERGE_UNITTESTS)
-  SET(MERGE_LARGE_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_large_tests.cc)
-  SET(MERGE_SMALL_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_small_tests.cc)
-  SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
-    PROPERTIES GENERATED 1)
-
-  ## BOOST_HEAP_ASSERT generates if () ; else ;
-  IF(HAVE_EMPTY_BODY)
-    ADD_COMPILE_FLAGS(
-      ${MERGE_SMALL_TESTS}
-      COMPILE_FLAGS "-Wno-empty-body"
-    )
-  ENDIF()
-  ADD_COMPILE_FLAGS(
-    ${MERGE_SMALL_TESTS}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
-  IF(WIN32)
-    ADD_COMPILE_FLAGS(
-      ${MERGE_LARGE_TESTS}
-      COMPILE_FLAGS "/bigobj")
-  ENDIF()
-
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-  FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
-  FILE(WRITE ${MERGE_SMALL_TESTS} "// Merging small unit tests\n")
-  FOREACH(test ${TESTS})
-    FILE(APPEND ${MERGE_SMALL_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-  FOREACH(test ${SERVER_TESTS})
-    FILE(APPEND ${MERGE_LARGE_TESTS} "#include \"${test}-t.cc\"\n")
-  ENDFOREACH()
-
-  ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
-  SET(SRC_FILES ${MERGE_LARGE_TESTS})
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
-  ENDIF()
-  LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-  ADD_COMPILE_FLAGS(
-    ../../storage/example/ha_example.cc
-    COMPILE_FLAGS "-DDISABLE_DTRACE"
-  )
-  ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
-
+  MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+    ADD_TEST merge_small_tests)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
-    gunit_small sqlgunitlib strings dbug regex)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+    mysys mysys_ssl sqlgunitlib gunit_small)
+  
+  IF(WIN32)
+    LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
+  ENDIF()
+  LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+
+  MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+    ADD_TEST merge_large_tests)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
-    gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+    gunit_large strings dbug mysys ${ICU_LIBRARIES})
+  TARGET_LINK_LIBRARIES(merge_large_tests-t
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
-    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
   ENDIF()
-
-  ADD_TEST(merge_large_tests merge_large_tests-t)
-  ADD_TEST(merge_small_tests merge_small_tests-t)
 
 ENDIF(MERGE_UNITTESTS)
 
-  FOREACH(test ${TESTS})
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
-    ENDIF()
-    IF(MERGE_UNITTESTS)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      IF(WIN32)
-        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-      ENDIF()
-    ELSE()
-      ADD_TEST(${test} ${test}-t)
-    ENDIF()
-  ENDFOREACH()
-  
-  # See comments about __builtin_memcmp in the source file.
-  IF(HAVE_NO_BUILTIN_MEMCMP)
-    ADD_COMPILE_FLAGS(
-      filesort_compare-t.cc
-      COMPILE_FLAGS "-fno-builtin-memcmp"
-  )
+SET(EXCLUDE_FROM_ALL "EXCLUDE_FROM_ALL")
+IF (NOT MERGE_UNITTESTS)
+  UNSET(EXCLUDE_FROM_ALL)
+ENDIF()
+
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
+  IF(NOT MERGE_UNITTESTS)
+    ADD_TEST(${test} ${test}-t)
+  ENDIF()
+ENDFOREACH()
+
+# See comments about __builtin_memcmp in the source file.
+IF(HAVE_NO_BUILTIN_MEMCMP)
+  ADD_COMPILE_FLAGS(
+    filesort_compare-t.cc
+    COMPILE_FLAGS "-fno-builtin-memcmp"
+    )
+ENDIF()
+
+FOREACH(test ${SERVER_TESTS})
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
+  ENDIF()
+  IF(test MATCHES "table_cache")
+    LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  ENDIF()
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
+  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
   ENDIF()
 
-  ## BOOST_HEAP_ASSERT generates if () ; else ;
-  IF(HAVE_EMPTY_BODY)
-    ADD_COMPILE_FLAGS(
-      bounded_queue-t.cc
-      COMPILE_FLAGS "-Wno-empty-body"
-  )
+  IF(NOT MERGE_UNITTESTS)
+    ADD_TEST(${test} ${test}-t)
   ENDIF()
-  ADD_COMPILE_FLAGS(
-    bounded_queue-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  ADD_COMPILE_FLAGS(
-    pump_object_filter-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-
-  FOREACH(test ${SERVER_TESTS})
-    SET(SRC_FILES ${test}-t.cc)
-    IF(WIN32)
-      LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
-    ENDIF()
-    IF(test MATCHES "table_cache")
-      LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-      ADD_COMPILE_FLAGS(
-        ../../storage/example/ha_example.cc
-        COMPILE_FLAGS "-DDISABLE_DTRACE"
-      )
-    ENDIF()
-    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    ENDIF()
-
-    IF(MERGE_UNITTESTS)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      IF(WIN32)
-        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-      ENDIF()
-    ELSE()
-      ADD_TEST(${test} ${test}-t)
-    ENDIF()
-  ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
+ENDFOREACH()
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
+ADD_SUBDIRECTORY(components/mysql_server)
+ADD_SUBDIRECTORY(xplugin)
+ADD_SUBDIRECTORY(group_replication)
+ADD_SUBDIRECTORY(libmysqlgcs)

@@ -1,0 +1,137 @@
+/*****************************************************************************
+
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+*****************************************************************************/
+
+/** @file page/zipdecompress.ic
+ Compressed page interface
+
+ Created June 2005 by Marko Makela
+ *******************************************************/
+
+/** NOTE: The functions in this file should only use functions from
+other files in library. The code in this file is used to make a library for
+external tools. */
+
+#ifndef zip_decompress_ic
+#define zip_decompress_ic
+
+#include "btr0types.h"
+#include "fil0types.h"
+#include "page0types.h"
+
+#include "page/page.ic"
+/** Size of an compressed page directory entry */
+#define PAGE_ZIP_DIR_SLOT_SIZE 2
+
+/** Gets a pointer to the compressed page trailer (the dense page directory),
+ including deleted records (the free list).
+ @param[in] page_zip compressed page
+ @param[in] n_dense number of entries in the directory
+ @return pointer to the dense page directory */
+#define page_zip_dir_start_low(page_zip, n_dense) \
+  ((page_zip)->data + page_zip_dir_start_offs(page_zip, n_dense))
+/** Gets a pointer to the compressed page trailer (the dense page directory),
+ including deleted records (the free list).
+ @param[in] page_zip compressed page
+ @return pointer to the dense page directory */
+#define page_zip_dir_start(page_zip) \
+  page_zip_dir_start_low(page_zip, page_zip_dir_elems(page_zip))
+
+/** Determine the size of a compressed page in bytes.
+ @return size in bytes */
+UNIV_INLINE
+ulint page_zip_get_size(
+    const page_zip_des_t *page_zip) /*!< in: compressed page */
+{
+  ulint size;
+
+  if (!page_zip->ssize) {
+    return (0);
+  }
+
+  size = (UNIV_ZIP_SIZE_MIN >> 1) << page_zip->ssize;
+
+  ut_ad(size >= UNIV_ZIP_SIZE_MIN);
+  ut_ad(size <= UNIV_PAGE_SIZE);
+
+  return (size);
+}
+
+#ifdef UNIV_DEBUG
+/** Validate a compressed page descriptor.
+ @return true if ok */
+UNIV_INLINE
+ibool page_zip_simple_validate(
+    const page_zip_des_t *page_zip) /*!< in: compressed page descriptor */
+{
+  ut_ad(page_zip);
+  ut_ad(page_zip->data);
+  ut_ad(page_zip->ssize <= PAGE_ZIP_SSIZE_MAX);
+  ut_ad(page_zip_get_size(page_zip) > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
+  ut_ad(page_zip->m_start <= page_zip->m_end);
+  ut_ad(page_zip->m_end < page_zip_get_size(page_zip));
+  ut_ad(page_zip->n_blobs <
+        page_zip_get_size(page_zip) / BTR_EXTERN_FIELD_REF_SIZE);
+  return (TRUE);
+}
+#endif /* UNIV_DEBUG */
+
+/** Gets the number of elements in the dense page directory,
+ including deleted records (the free list).
+ @return number of elements in the dense page directory */
+UNIV_INLINE
+ulint page_zip_dir_elems(
+    const page_zip_des_t *page_zip) /*!< in: compressed page */
+{
+  /* Exclude the page infimum and supremum from the record count. */
+  return (page_dir_get_n_heap(page_zip->data) - PAGE_HEAP_NO_USER_LOW);
+}
+
+/** Gets the size of the compressed page trailer (the dense page directory),
+ including deleted records (the free list).
+ @return length of dense page directory, in bytes */
+UNIV_INLINE
+ulint page_zip_dir_size(
+    const page_zip_des_t *page_zip) /*!< in: compressed page */
+{
+  return (PAGE_ZIP_DIR_SLOT_SIZE * page_zip_dir_elems(page_zip));
+}
+
+/** Read a given slot in the dense page directory.
+ @return record offset on the uncompressed page, possibly ORed with
+ PAGE_ZIP_DIR_SLOT_DEL or PAGE_ZIP_DIR_SLOT_OWNED */
+UNIV_INLINE
+ulint page_zip_dir_get(
+    const page_zip_des_t *page_zip, /*!< in: compressed page */
+    ulint slot)                     /*!< in: slot
+                                    (0=first user record) */
+{
+  ut_ad(page_zip_simple_validate(page_zip));
+  ut_ad(slot < page_zip_dir_size(page_zip) / PAGE_ZIP_DIR_SLOT_SIZE);
+  return (mach_read_from_2(page_zip->data + page_zip_get_size(page_zip) -
+                           PAGE_ZIP_DIR_SLOT_SIZE * (slot + 1)));
+}
+#endif

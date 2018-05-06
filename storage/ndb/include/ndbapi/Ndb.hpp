@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1258,6 +1265,18 @@ public:
    */
   void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
 
+  void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
+  
+  /** Note: The getter function getEventBufferQueueEmptyEpoch() is
+   * not provided intentionally to avoid wrong usage, for e.g.,
+   * consuming empty epochs based on the getter. Reason:
+   * setter option applies to queuing *newer* epochs
+   * and the queue may reflect the state before the setting.
+   * Therefore, during a transition period, consumption may find
+   * an empty epoch in the queue even if the getter shows that
+   * the queuing is turned off.
+   */
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
@@ -1467,6 +1486,21 @@ public:
    *
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
+   *
+   * This is a wrapper for getNextEventOpInEpoch3, but retains the
+   * old name in order to preserve backward compatibility.
+   */
+  const NdbEventOperation*
+    getGCIEventOperations(Uint32* iter,
+                          Uint32* event_types);
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
    */
 
   const NdbEventOperation*
@@ -1479,12 +1513,14 @@ public:
    *
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
-   *
-   * This is a wrapper for getNextEventOpInEpoch2, but retains the
-   * old name in order to preserve backward compatibility.
+   * If cumulative_any_value is not NULL, it returns a merged value of
+   * received any_value(s) to show what bits are set for all operations of a
+   * specific table.
    */
   const NdbEventOperation*
-    getGCIEventOperations(Uint32* iter, Uint32* event_types);
+    getNextEventOpInEpoch3(Uint32* iter,
+                           Uint32* event_types,
+                           Uint32* cumulative_any_value);
   
   /** Get the highest epoch that have entered into the event queue.
    * This value can be higher than the epoch returned by the last

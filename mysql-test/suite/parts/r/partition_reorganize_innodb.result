@@ -36,22 +36,22 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (store_id)
-SUBPARTITION BY HASH (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`store_id`)
+SUBPARTITION BY HASH (`store_id`)
 (PARTITION northeast VALUES LESS THAN (50)
  (SUBPARTITION ne0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast/' ENGINE = InnoDB,
   SUBPARTITION ne1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast/' ENGINE = InnoDB),
  PARTITION southwest VALUES LESS THAN (100)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB)) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#northeast#sp#ne0	test/emp#p#northeast#sp#ne0	97	7	Dynamic	0	Single
 test/emp#p#northeast#sp#ne1	test/emp#p#northeast#sp#ne1	97	7	Dynamic	0	Single
 test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	97	7	Dynamic	0	Single
 test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#northeast#sp#ne0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
 test/emp#p#northeast#sp#ne1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
@@ -59,16 +59,11 @@ test/emp#p#southwest#sp#sw2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south
 test/emp#p#southwest#sp#sw3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#northeast#sp#ne0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
-test/emp#p#northeast#sp#ne1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
-test/emp#p#southwest#sp#sw2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
-test/emp#p#southwest#sp#sw3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+test/emp#p#northeast#sp#ne0	TABLESPACE	InnoDB	NORMAL	test/emp#p#northeast#sp#ne0	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
+test/emp#p#northeast#sp#ne1	TABLESPACE	InnoDB	NORMAL	test/emp#p#northeast#sp#ne1	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
+test/emp#p#southwest#sp#sw2	TABLESPACE	InnoDB	NORMAL	test/emp#p#southwest#sp#sw2	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
+test/emp#p#southwest#sp#sw3	TABLESPACE	InnoDB	NORMAL	test/emp#p#southwest#sp#sw3	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#northeast#sp#ne0.isl
-emp#p#northeast#sp#ne1.isl
-emp#p#southwest#sp#sw2.isl
-emp#p#southwest#sp#sw3.isl
-emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 emp#p#northeast#sp#ne0.ibd
 emp#p#northeast#sp#ne1.ibd
@@ -109,9 +104,9 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (store_id)
-SUBPARTITION BY HASH (store_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`store_id`)
+SUBPARTITION BY HASH (`store_id`)
 (PARTITION east VALUES LESS THAN (25)
  (SUBPARTITION e0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
   SUBPARTITION e1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB),
@@ -124,7 +119,7 @@ SUBPARTITION BY HASH (store_id)
  PARTITION south VALUES LESS THAN (100)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB)) */
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east#sp#e0	test/emp#p#east#sp#e0	97	7	Dynamic	0	Single
 test/emp#p#east#sp#e1	test/emp#p#east#sp#e1	97	7	Dynamic	0	Single
@@ -134,7 +129,7 @@ test/emp#p#south#sp#s0	test/emp#p#south#sp#s0	97	7	Dynamic	0	Single
 test/emp#p#south#sp#s1	test/emp#p#south#sp#s1	97	7	Dynamic	0	Single
 test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	97	7	Dynamic	0	Single
 test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#east#sp#e0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
 test/emp#p#east#sp#e1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
@@ -146,24 +141,15 @@ test/emp#p#south#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test
 test/emp#p#south#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#east#sp#e0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
-test/emp#p#east#sp#e1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
-test/emp#p#north#sp#n0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
-test/emp#p#north#sp#n1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
-test/emp#p#west#sp#w0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
-test/emp#p#west#sp#w1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
-test/emp#p#south#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
-test/emp#p#south#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+test/emp#p#east#sp#e0	TABLESPACE	InnoDB	NORMAL	test/emp#p#east#sp#e0	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
+test/emp#p#east#sp#e1	TABLESPACE	InnoDB	NORMAL	test/emp#p#east#sp#e1	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
+test/emp#p#north#sp#n0	TABLESPACE	InnoDB	NORMAL	test/emp#p#north#sp#n0	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
+test/emp#p#north#sp#n1	TABLESPACE	InnoDB	NORMAL	test/emp#p#north#sp#n1	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
+test/emp#p#west#sp#w0	TABLESPACE	InnoDB	NORMAL	test/emp#p#west#sp#w0	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
+test/emp#p#west#sp#w1	TABLESPACE	InnoDB	NORMAL	test/emp#p#west#sp#w1	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
+test/emp#p#south#sp#s0	TABLESPACE	InnoDB	NORMAL	test/emp#p#south#sp#s0	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
+test/emp#p#south#sp#s1	TABLESPACE	InnoDB	NORMAL	test/emp#p#south#sp#s1	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#east#sp#e0.isl
-emp#p#east#sp#e1.isl
-emp#p#north#sp#n0.isl
-emp#p#north#sp#n1.isl
-emp#p#south#sp#s0.isl
-emp#p#south#sp#s1.isl
-emp#p#west#sp#w0.isl
-emp#p#west#sp#w1.isl
-emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 ---- MYSQL_TMP_DIR/alt_dir_southwest/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test
@@ -182,3 +168,165 @@ DROP TABLE emp;
 #
 # Cleanup
 #
+CREATE TABLE t1 (a INT) ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(partition p0 values less than MAXVALUE);
+INSERT INTO t1 VALUES (1), (11), (21), (33);
+SELECT * FROM t1;
+a
+1
+11
+21
+33
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+---- MYSQLD_DATADIR/test
+t1#p#p0.ibd
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(PARTITION p0 VALUES LESS THAN (10),
+PARTITION p10 VALUES LESS THAN MAXVALUE);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p10 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a
+1
+11
+21
+33
+---- MYSQLD_DATADIR/test
+t1#p#p0.ibd
+t1#p#p10.ibd
+DROP TABLE t1;
+CREATE TABLE tsp (
+a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH(a)
+(PARTITION p0 VALUES LESS THAN (10)
+(SUBPARTITION sp00,
+SUBPARTITION sp01,
+SUBPARTITION sp02,
+SUBPARTITION sp03,
+SUBPARTITION sp04),
+PARTITION p1 VALUES LESS THAN (20)
+(SUBPARTITION sp10,
+SUBPARTITION sp11,
+SUBPARTITION sp12,
+SUBPARTITION sp13,
+SUBPARTITION sp14),
+PARTITION p2 VALUES LESS THAN (100)
+(SUBPARTITION sp20,
+SUBPARTITION sp21,
+SUBPARTITION sp22,
+SUBPARTITION sp23,
+SUBPARTITION sp24));
+INSERT INTO tsp VALUES(1, 'one'), (5, 'five'), (15, 'fifteen'), (30, 'thirty'), (40, 'forty'), (61, 'sixty one'), (75, 'seventy five'), (79, 'seventy nine'), (81, 'eighty one'), (83, 'eighty three'), (99, 'ninety nine');
+SELECT * FROM tsp PARTITION(p2);
+a	b
+30	thirty
+40	forty
+75	seventy five
+61	sixty one
+81	eighty one
+83	eighty three
+79	seventy nine
+99	ninety nine
+---- MYSQLD_DATADIR/test
+tsp#p#p0#sp#sp00.ibd
+tsp#p#p0#sp#sp01.ibd
+tsp#p#p0#sp#sp02.ibd
+tsp#p#p0#sp#sp03.ibd
+tsp#p#p0#sp#sp04.ibd
+tsp#p#p1#sp#sp10.ibd
+tsp#p#p1#sp#sp11.ibd
+tsp#p#p1#sp#sp12.ibd
+tsp#p#p1#sp#sp13.ibd
+tsp#p#p1#sp#sp14.ibd
+tsp#p#p2#sp#sp20.ibd
+tsp#p#p2#sp#sp21.ibd
+tsp#p#p2#sp#sp22.ibd
+tsp#p#p2#sp#sp23.ibd
+tsp#p#p2#sp#sp24.ibd
+ALTER TABLE tsp REORGANIZE PARTITION p2 INTO(
+PARTITION p20 VALUES LESS THAN(60) (SUBPARTITION sp200, SUBPARTITION sp201, SUBPARTITION sp202, SUBPARTITION sp203, SUBPARTITION sp204),
+PARTITION p2 VALUES LESS THAN(100) (SUBPARTITION sp20, SUBPARTITION sp211, SUBPARTITION sp22, SUBPARTITION sp213, SUBPARTITION sp24));
+SHOW CREATE TABLE tsp;
+Table	Create Table
+tsp	CREATE TABLE `tsp` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+(PARTITION p0 VALUES LESS THAN (10)
+ (SUBPARTITION sp00 ENGINE = InnoDB,
+  SUBPARTITION sp01 ENGINE = InnoDB,
+  SUBPARTITION sp02 ENGINE = InnoDB,
+  SUBPARTITION sp03 ENGINE = InnoDB,
+  SUBPARTITION sp04 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (20)
+ (SUBPARTITION sp10 ENGINE = InnoDB,
+  SUBPARTITION sp11 ENGINE = InnoDB,
+  SUBPARTITION sp12 ENGINE = InnoDB,
+  SUBPARTITION sp13 ENGINE = InnoDB,
+  SUBPARTITION sp14 ENGINE = InnoDB),
+ PARTITION p20 VALUES LESS THAN (60)
+ (SUBPARTITION sp200 ENGINE = InnoDB,
+  SUBPARTITION sp201 ENGINE = InnoDB,
+  SUBPARTITION sp202 ENGINE = InnoDB,
+  SUBPARTITION sp203 ENGINE = InnoDB,
+  SUBPARTITION sp204 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (100)
+ (SUBPARTITION sp20 ENGINE = InnoDB,
+  SUBPARTITION sp211 ENGINE = InnoDB,
+  SUBPARTITION sp22 ENGINE = InnoDB,
+  SUBPARTITION sp213 ENGINE = InnoDB,
+  SUBPARTITION sp24 ENGINE = InnoDB)) */
+---- MYSQLD_DATADIR/test
+tsp#p#p0#sp#sp00.ibd
+tsp#p#p0#sp#sp01.ibd
+tsp#p#p0#sp#sp02.ibd
+tsp#p#p0#sp#sp03.ibd
+tsp#p#p0#sp#sp04.ibd
+tsp#p#p1#sp#sp10.ibd
+tsp#p#p1#sp#sp11.ibd
+tsp#p#p1#sp#sp12.ibd
+tsp#p#p1#sp#sp13.ibd
+tsp#p#p1#sp#sp14.ibd
+tsp#p#p2#sp#sp20.ibd
+tsp#p#p2#sp#sp211.ibd
+tsp#p#p2#sp#sp213.ibd
+tsp#p#p2#sp#sp22.ibd
+tsp#p#p2#sp#sp24.ibd
+tsp#p#p20#sp#sp200.ibd
+tsp#p#p20#sp#sp201.ibd
+tsp#p#p20#sp#sp202.ibd
+tsp#p#p20#sp#sp203.ibd
+tsp#p#p20#sp#sp204.ibd
+SELECT * FROM tsp PARTITION(p2);
+a	b
+75	seventy five
+61	sixty one
+81	eighty one
+83	eighty three
+79	seventy nine
+99	ninety nine
+SELECT * FROM tsp PARTITION(p20);
+a	b
+30	thirty
+40	forty
+DROP TABLE tsp;

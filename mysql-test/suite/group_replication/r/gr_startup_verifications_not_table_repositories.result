@@ -1,0 +1,42 @@
+include/rpl_group_replication_default_connections.inc
+include/gr_configuration.inc
+SET @saved_rli_rep= @@GLOBAL.relay_log_info_repository;
+SET @saved_mi_rep= @@GLOBAL.master_info_repository;
+SET @@GLOBAL.relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+SET @@GLOBAL.master_info_repository='TABLE';
+include/assert.inc [Relay log repository info storage is set to file]
+include/assert.inc [Master info repository info storage is set to file]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.relay_log_info_repository='TABLE';
+SET @@GLOBAL.master_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+include/assert.inc [Relay log repository info storage is set to file]
+include/assert.inc [Master info repository info storage is set to file]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+SET @@GLOBAL.master_info_repository='FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+include/assert.inc [Relay log repository info storage is set to file]
+include/assert.inc [Master info repository info storage is set to file]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.relay_log_info_repository='TABLE';
+SET @@GLOBAL.master_info_repository='TABLE';
+include/start_group_replication.inc
+SET @@GLOBAL.master_info_repository='FILE';
+ERROR HY000: Failure while changing the type of replication repository: Repository conversion is possible when only default channel exists.
+SET @@GLOBAL.relay_log_info_repository='FILE';
+ERROR HY000: Failure while changing the type of replication repository: Repository conversion is possible when only default channel exists.
+include/stop_group_replication.inc
+SET @@GLOBAL.relay_log_info_repository= @saved_rli_rep;
+SET @@GLOBAL.master_info_repository= @saved_mi_rep;
+call mtr.add_suppression("Master info repository must be set to TABLE.");
+call mtr.add_suppression("Relay log info repository must be set to TABLE.");

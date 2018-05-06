@@ -1,20 +1,28 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mt.hpp>
 #include "LocalProxy.hpp"
+#include <pgman.hpp>
 
 //#define DBINFO_SCAN_TRACE
 #ifdef DBINFO_SCAN_TRACE
@@ -302,6 +310,10 @@ LocalProxy::loadWorkers()
     ndbrequire(this->getInstance(instanceNo) == worker);
     c_worker[i] = worker;
 
+    if (number() == PGMAN && i == (c_workers - 1))
+    {
+      ((Pgman*)worker)->set_extra_pgman();
+    }
     mt_add_thr_map(number(), instanceNo);
   }
 }
@@ -855,8 +867,19 @@ LocalProxy::execNDB_TAMPER(Signal* signal)
 {
   Ss_NDB_TAMPER& ss = ssSeize<Ss_NDB_TAMPER>();
 
-  ndbrequire(signal->getLength() == 1);
-  ss.m_errorInsert = signal->theData[0];
+  const Uint32 siglen = signal->getLength();
+  if (siglen == 1)
+  {
+    ss.m_errorInsert = signal->theData[0];
+    ss.m_haveErrorInsertExtra = false;
+  }
+  else
+  {
+    ndbrequire(siglen == 2);
+    ss.m_errorInsert = signal->theData[0];
+    ss.m_haveErrorInsertExtra = true;
+    ss.m_errorInsertExtra = signal->theData[1];
+  }
 
   SimulatedBlock::execNDB_TAMPER(signal);
   sendREQ(signal, ss);
@@ -868,9 +891,15 @@ LocalProxy::sendNDB_TAMPER(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_NDB_TAMPER& ss = ssFind<Ss_NDB_TAMPER>(ssId);
 
+  Uint32 siglen = 1;
   signal->theData[0] = ss.m_errorInsert;
+  if (ss.m_haveErrorInsertExtra)
+  {
+    signal->theData[1] = ss.m_errorInsertExtra;
+    siglen ++;
+  }
   sendSignalNoRelease(workerRef(ss.m_worker), GSN_NDB_TAMPER,
-                      signal, 1, JBB, handle);
+                      signal, siglen, JBB, handle);
 }
 
 // GSN_TIME_SIGNAL

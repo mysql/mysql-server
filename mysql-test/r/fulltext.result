@@ -1,23 +1,25 @@
 drop table if exists t1,t2,t3;
-CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text indexes', 'are called collections'),
 ('Only MyISAM tables','support collections'),
 ('Function MATCH ... AGAINST()','is used to do a search'),
 ('Full-text search in MySQL', 'implements vector space model');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT		
-t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	NULL	5	NULL	NULL	YES	FULLTEXT			YES
+t1	1	a	2	b	NULL	5	NULL	NULL	YES	FULLTEXT			YES
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
 Full-text indexes	are called collections
-explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
@@ -104,11 +106,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
-explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+explain select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b
@@ -239,14 +240,14 @@ id int(11),
 ticket int(11),
 KEY ti (id),
 KEY tit (ticket)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (2,3),(1,2);
 CREATE TABLE t2 (
 ticket int(11),
 inhalt text,
 KEY tig (ticket),
 fulltext index tix (inhalt)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 select t1.id FROM t2 as ttxt,t1,t1 as ticket2
 WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and
@@ -264,9 +265,9 @@ match(ttxt.inhalt) against ('foobar');
 id
 3
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE		
-t2	1	tix	1	inhalt	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE			YES
+t2	1	tix	1	inhalt	NULL	NULL	NULL	NULL	YES	FULLTEXT			YES
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -274,7 +275,7 @@ t2	CREATE TABLE `t2` (
   `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t2 where MATCH inhalt AGAINST (NULL);
 ticket	inhalt
 select * from t2 where  MATCH inhalt AGAINST ('foobar');
@@ -378,6 +379,8 @@ insert into t1 select "xxxx yyyy zzzz";
 drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');
 SET NAMES koi8r;
 INSERT t1 VALUES ("üÔÏ ÍÙ - ÏÐÉÌËÉ"),("ïÔÌÅÚØ, ÇÎÉÄÁ!"),
@@ -402,8 +405,6 @@ SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MAT
 t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
 aus Osnabrück	utf8_general_ci	1.591140
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 Warnings:
 Warning	1366	Incorrect string value: '\xD0\xAD\xD1\x82\xD0\xBE...' for column 't' at row 3
@@ -419,6 +420,8 @@ t	collation(t)
 aus Osnabrück	latin1_german2_ci
 DROP TABLE t1;
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 s
@@ -451,6 +454,8 @@ insert t2 values (10, "aaaa"), (2, "cccc");
 replace t1 select * from t2;
 drop table t1, t2;
 CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
 SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
@@ -476,13 +481,13 @@ SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 a
 test's
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a));
+CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) charset utf8mb4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10000) DEFAULT NULL,
   FULLTEXT KEY `a` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a));
 INSERT INTO t1 VALUES('test'),('test1'),('test');
@@ -737,6 +742,27 @@ explain format=json SELECT 1 FROM q
 WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE z, q;
+#
+# Bug#26271244: ASSERT FAILS WHEN SHOW CREATE TABLE CALLED ON A FILE
+# CREATED FOR FULLTEXT INDEX
+#
+# Create Innodb table with full text index
+CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
+ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+# Find name of first FTS index "table"
+# SHOW CREATE TABLE on an FTS index table should give error
+# (not crash). Query log and error message suppressed as the name of
+# FTS index table is not stable.
+Got one of the listed errors
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+DROP TABLE t1, t2;
 #
 # BUG#21625016: INNODB FULL TEXT CASE SENSITIVE NOT WORKING
 #

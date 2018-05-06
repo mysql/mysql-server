@@ -1,0 +1,70 @@
+## This is test file for connection authentication using mysqlx.
+##
+--source include/not_windows.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+create user nonblank@localhost identified by 'nonblank';
+
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+-->sql
+select user(),current_user(),@@bind_address;
+-->endsql
+EOF
+
+--echo Test starts here
+--disable_query_log
+--disable_result_log
+let $restart_parameters = restart: --skip-networking;
+let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
+
+--replace_regex /restart: .+$XPLUGIN_SOCKE/restart: --skip-networking/
+--let $wait_for_tcpsocket_status = undefined_value
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--enable_query_log
+--enable_result_log
+
+--echo # Verify that UNIX socket connection still works
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+--echo # Verify that TCP is disabled
+--replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+--error 1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+--echo # Try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
+--replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
+--error 1
+--exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+
+ call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");
+ call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup .+ .., with:");
+ call mtr.add_suppression("Plugin mysqlx reported: .+ path is empt");
+ call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");
+ let $restart_parameters = $restart_parameters --loose-mysqlx-socket=;
+--replace_regex /restart: .+--loose-mysqlx-socket=/restart: --skip-networking --loose-mysqlx-socket=/
+--let $wait_for_tcpsocket_status = undefined_value
+--let $wait_for_unixsocket_status = undefined_value
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--disable_result_log
+--echo # Verify that TCP is disabled
+--error 1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+--echo # Verify that UNIX socket is disabled
+--error 1
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+
+--disable_query_log
+let $restart_parameters = restart:;
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+--enable_query_log
+--enable_result_log
+
+## Cleanup
+drop user nonblank@localhost;
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--source include/xplugin_drop_user.inc

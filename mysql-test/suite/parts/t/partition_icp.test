@@ -1,14 +1,10 @@
---source include/have_partition.inc
-
 --echo #
 --echo # test using Index Condition Pushdown for partitioned tables
 --echo #
 
---echo # Test failure of ICP calls -> don't use ICP (MyISAM does not support
---echo # ICP on BLOB indexes)
+--echo # Test behavior of ICP calls -> use ICP for InnoDB even for BLOB indexes.
 
 CREATE TABLE t1 (a int PRIMARY KEY, b BLOB, c varchar(16) DEFAULT 'Filler...', INDEX (b(4), a))
-ENGINE = MyISAM
 PARTITION BY HASH (a) PARTITIONS 3;
 
 SHOW CREATE TABLE t1;
@@ -19,15 +15,6 @@ INSERT INTO t1 (a, b) VALUES (1, 0xdeadbeef), (2, "text filler"),
 ANALYZE TABLE t1;
 
 let $query= SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
-eval EXPLAIN $query;
-eval EXPLAIN FORMAT=JSON $query;
-eval $query;
-
---echo Only MyISAM and InnoDB supports both INDEX and BLOBS...
-ALTER TABLE t1 ENGINE = InnoDB;
-
-ANALYZE TABLE t1;
-
 eval EXPLAIN $query;
 eval EXPLAIN FORMAT=JSON $query;
 eval $query;

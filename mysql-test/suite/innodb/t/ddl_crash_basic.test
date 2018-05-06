@@ -1,0 +1,208 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/have_log_bin.inc
+# Observed under high parallel load
+# [ERROR] Could not find a valid tablespace ...
+# [Note] Unable to open tablespace ...
+#        This should be fixed after data dictionary and DDL recovery later.
+# ... and the crash recovery has finally success.
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].* Tablespace.*, name 'test.t1', unable to open file '.*test.t1.ibd' - Data structure corruption");
+--enable_query_log
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+
+--echo # Test create table crash/recovery rollback.
+set global innodb_ddl_log_crash_reset_debug = 1;
+
+eval set session debug = '+d, ddl_log_crash_after_free_tree_log_2';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+-- error ER_NO_SUCH_TABLE
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test create table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test drop table crash/recovery rollback.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_crash_before_drop_log_1';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval drop table t1
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test drop table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval drop table t1
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+-- error ER_NO_SUCH_TABLE
+show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test rename table crash/recovery rollback 1.
+set global innodb_ddl_log_crash_reset_debug = 1;
+
+CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set session debug = '+d, ddl_log_crash_before_rename_space_log_1';
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval rename table t1 to t2
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+
+-- error ER_NO_SUCH_TABLE
+show create table t2;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test rename table crash/recovery rollback 2.
+set global innodb_ddl_log_crash_reset_debug = 1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval rename table t1 to t2
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+show create table t1;
+
+-- error ER_NO_SUCH_TABLE
+show create table t2;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+--echo # Test rename table crash/recovery.
+set global innodb_ddl_log_crash_reset_debug = 1;
+set session debug = '+d, ddl_log_before_post_ddl';
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+--eval rename table t1 to t2
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+let $WAIT_COUNT=6000;
+--source include/wait_time_until_connected_again.inc
+
+-- error ER_NO_SUCH_TABLE
+show create table t1;
+
+show create table t2;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
+drop table t2;
+
+--echo # Test truncate table crash/recovery.
+let $table_name= t1;
+
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+
+let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (4, "Filler4", 4), (5, "5", 5),
+(6, "filler6", 6);
+
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 1;
+let $crash_statement= TRUNCATE TABLE $table_name;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+--echo # Test optimize table crash/recovery.
+
+let $test_free= 1;
+let $test_delete= 1;
+let $test_rename= 1;
+let $test_drop= 1;
+let $crash_statement= OPTIMIZE TABLE $table_name;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
+
+--echo #
+--echo # Bug#26832347 - INNODB: CANNOT FIND SPACE FOR TBS_.*_RENAME IN TABLESPACE MEMO
+--echo #
+# This test requires bin-log, make sure it is ON
+SHOW VARIABLES LIKE 'log_bin';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+--source include/expect_crash.inc
+SET DEBUG='+d, ib_trx_commit_crash_rseg_updated';
+--error 2013
+ALTER TABLESPACE ts1 RENAME TO ts1_renamed;
+--source include/start_mysqld.inc
+ALTER TABLESPACE ts1_renamed RENAME TO ts1;
+DROP TABLESPACE ts1;

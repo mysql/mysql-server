@@ -29,10 +29,10 @@ CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
 --source include/sync_slave_sql_with_master.inc
 
 # On slave alter the name field length to varchar(255).
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: 1146");
-call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Got error 1 during COMMIT");
+call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
 ALTER TABLE t CHANGE name name VARCHAR(255);
 
 --source include/rpl_connection_master.inc

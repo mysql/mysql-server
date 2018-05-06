@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 -- source ../include/ps_truncate_all_tables.inc
 # Tests for sys schema
 # Verify the sys.io_global_by_file_by_latency view
@@ -12,7 +11,7 @@ SELECT * FROM sys.io_global_by_file_by_latency;
 --enable_result_log
 
 
-# Ensure structure changes don't slip in
+## Ensure structure changes don't slip in
 DESC sys.x$io_global_by_file_by_latency;
 
 # Make sure view select does not error, but ignore results

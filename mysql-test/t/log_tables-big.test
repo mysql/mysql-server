@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # this test needs multithreaded mysqltest
--- source include/not_embedded.inc
 
 # Test sleeps for long times
 --source include/big_test.inc

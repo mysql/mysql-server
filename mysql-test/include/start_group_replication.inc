@@ -85,6 +85,20 @@ if (!$success)
   --die Timeout in wait_condition.inc on start_group_replication.inc
 }
 
+# Due to notify first the change to state ONLINE and after disable super read only
+# when the lowest version servers are online we have two cases that need to
+# wait for super read only= 0:
+#   - when we are starting the primary in the single primary mode
+#   - when we are starting a server on multiple primary
+
+--let $_group_member_lowest_version= `SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1`
+
+if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id= "$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role = "PRIMARY" AND group_members.member_version = "$_group_member_lowest_version"`)
+{
+     --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+     --source include/wait_condition_or_abort.inc
+}
+
 --let $group_replication_start_member_state=
 
 --let $include_filename= start_group_replication.inc

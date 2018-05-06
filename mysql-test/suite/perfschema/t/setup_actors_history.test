@@ -1,9 +1,6 @@
 # Check the impact of changes done in HISTORY column in
 # performance_schema.setup_actors.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # The initial number of rows is 1. The initial row always looks like this:
 # mysql> select * from performance_schema.setup_actors;
 # +------+------+------+---------+---------+

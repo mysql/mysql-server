@@ -176,7 +176,7 @@ eval CREATE TABLE t1_selects
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
-) ENGINE=$type;
+) charset latin1 ENGINE=$type;
 # ) ENGINE=MyISAM;
 
 # MODES to be checked
@@ -198,7 +198,7 @@ eval CREATE TABLE t1_values
    id BIGINT AUTO_INCREMENT,
    select_id BIGINT,
    PRIMARY KEY(id)
-) ENGINE = $type;
+) charset latin1 ENGINE = $type;
 
 ##### BEGIN      Basic preparations      #######################################
 #
@@ -243,8 +243,9 @@ SET sql_mode = default;
 #       all sub testcases, since they blow up all result sets.
 SET sql_mode = 'traditional';
 #
-# 2.1 record -- everything to NULL
-INSERT INTO t1_values SET id = 0;
+# 2.1 record -- everything to NULL except 'NOT NULL DEFAULT '0000-00-00 00:00:00'
+#     timestamp column in STRICT and NO_ZERO_DATE sql mode.
+INSERT INTO t1_values SET id = 0, my_timestamp= NOW();
 #
 # 2.2 record -- everything to "minimum"
 #     numbers, date/time types -> minimum of range
@@ -295,10 +296,10 @@ INSERT INTO t1_values SET
 #                                 characters and preceding and trailing spaces
 #     FIXME enum, set ??
 INSERT INTO t1_values SET
-       my_char_30 = ' ---äÖüß@µ*$-- ',
-       my_varchar_1000 = ' ---äÖüß@µ*$-- ',
-       my_binary_30 = ' ---äÖüß@µ*$-- ',
-       my_varbinary_1000 = ' ---äÖüß@µ*$-- ',
+       my_char_30 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_varchar_1000 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_binary_30 = _latin1 ' ---äÖüß@µ*$-- ',
+       my_varbinary_1000 = _latin1 ' ---äÖüß@µ*$-- ',
        my_datetime = '2004-02-29 23:59:59',
        my_date = '2004-02-29',
        my_timestamp = '2004-02-29 23:59:59',
@@ -414,10 +415,12 @@ eval SET @my_select = 'SELECT sqrt($col_type), $col_type, id FROM t1_values';
 #    SET @select_id = LAST_INSERT_ID();
 #    --enable_query_log
 
+SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = 4;
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = -25;
+SET sql_mode = default;
 # SELECT * FROM t1_values;
 
 # 1.    Cast Functions and Operators
@@ -497,6 +500,7 @@ let $target_type= DATE;
 #
 let $col_type= my_char_30;
 --source suite/funcs_1/views/fv_cast.inc
+SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = '2005-06-27';
 let $col_type= my_varchar_1000;
@@ -610,7 +614,6 @@ let $col_type= my_time;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_year;
 --source suite/funcs_1/views/fv_cast.inc
-
 
 # 1.1.6. CAST --> DECIMAL
 --echo ##### 1.1.6. CAST --> DECIMAL
@@ -1244,7 +1247,8 @@ eval SET @my_select = 'SELECT my_char_30, id FROM t1_values';                  #
 eval INSERT INTO t1_values SET select_id = @select_id,
             my_char_30 = 'Viana do Castelo';
 ################################################################################
-SET sql_mode = '';                                                             #
+#Restore sql_mode
+SET sql_mode = default;
 
 ##### END        Basic preparations      #######################################
 

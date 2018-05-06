@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,10 +29,11 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NdbMain.h>
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
 #include <UtilTransactions.hpp>
+
+#include "my_alloc.h"
  
 static int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
@@ -36,8 +44,6 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 static const char* _dbname = "TEST_DB";
 static int _parallelism = 240;
 static int _lock = 0;
-
-const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
@@ -59,30 +65,22 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("<table name>[, <table name>[, ...]]");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 int main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
-  int ho_error;
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub);
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_select_count.trace";
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  if (opts.handle_options())
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   if (argc < 1) {
-    usage();
+    opts.usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_count");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);

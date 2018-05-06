@@ -2,7 +2,7 @@ set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('2004-02-29');
@@ -28,7 +28,6 @@ ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
 set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
 Warnings:
@@ -57,8 +56,6 @@ Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES ('2004-2-30');
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT IGNORE INTO t1 VALUES('2004-02-29'),('2004-13-15'),('0000-00-00');
 Warnings:
 Warning	1265	Data truncated for column 'col1' at row 2
@@ -84,7 +81,6 @@ drop table t1;
 set @@sql_mode='strict_trans_tables';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (col1 date) engine=myisam;
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
 ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
@@ -141,8 +137,6 @@ col1
 2003-02-31
 drop table t1;
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (col1 datetime);
 INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('2004-02-29 15:30:00');
 INSERT INTO t1 VALUES('0000-10-31 15:30:00');
@@ -202,7 +196,6 @@ ERROR 22007: Incorrect datetime value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('2004-0-31 15:30:00');
 ERROR 22007: Incorrect datetime value: '2004-0-31 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-10-0 15:30:00');
@@ -222,8 +215,6 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1;
 col1
 2004-10-31 15:30:00
@@ -384,14 +375,11 @@ ERROR 22012: Division by 0
 set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 values (1/0,1/0);
 Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT MOD(col1,0) FROM t1 WHERE col1 > 0 LIMIT 2;
 MOD(col1,0)
 NULL
@@ -413,12 +401,8 @@ Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 set @@sql_mode='ansi';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 values (1/0,1/0);
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -1116,8 +1100,6 @@ ERROR HY000: Incorrect time value: '22:22:33 AM' for function str_to_date
 insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
 ERROR HY000: Incorrect time value: 'abc' for function str_to_date
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '31.10.2004 15.30 abc'
@@ -1143,8 +1125,6 @@ NULL
 2004-12-12 11:22:33
 2004-12-12 10:22:59
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
 count(*)
 7
@@ -1190,7 +1170,6 @@ ERROR 22007: Incorrect datetime value: '0000-00-00'
 set sql_mode='NO_ZERO_DATE';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values (0,0,0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
@@ -1203,8 +1182,6 @@ Warning	1264	Out of range value for column 'col2' at row 1
 Warning	1264	Out of range value for column 'col3' at row 1
 drop table t1;
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (col1 date);
 insert ignore into t1 values ('0000-00-00');
 Warnings:
@@ -1275,8 +1252,6 @@ INSERT INTO t1 VALUES (DEFAULT,1);
 ERROR HY000: Field 'i' doesn't have a default value
 DROP TABLE t1;
 SET @@sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (i int not null);
 INSERT INTO t1 VALUES ();
 Warnings:
@@ -1300,9 +1275,7 @@ Warnings:
 Warning	1364	Field 'i' doesn't have a default value
 DROP TABLE t1;
 set @@sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1(a varchar(65537));
+create table t1(a varchar(65537)) charset latin1;
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
 create table t1(a varbinary(65537));
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
@@ -1314,7 +1287,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL,
   `b` date NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @@sql_mode='traditional';
 create table t1 (d date);
@@ -1338,7 +1311,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int, b timestamp not null default 20050102030405);
 alter table t1 add primary key(a);
@@ -1348,7 +1321,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` timestamp NOT NULL DEFAULT '2005-01-02 03:04:05',
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @@sql_mode='traditional';
 create table t1(a bit(2));
@@ -1364,7 +1337,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `date` date NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t1;
 set @@sql_mode= @org_mode;
 set @@sql_mode='traditional';
@@ -1438,8 +1411,6 @@ i int comment
 ERROR HY000: Comment for field 'i' is too long (max = 1024)
 set @@sql_mode= @org_mode;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1
 (i int comment
 '123456789*123456789*123456789*123456789*
@@ -1474,7 +1445,7 @@ Warning	1629	Comment for field 'i' is too long (max = 1024)
 SET sql_mode = default;
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
-column_name	column_comment
+COLUMN_NAME	COLUMN_COMMENT
 i	123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*
@@ -1501,20 +1472,22 @@ i	123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*12345
 drop table t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (i int)
 comment '123456789*123456789*123456789*123456789*123456789*123456789*';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='123456789*123456789*123456789*123456789*123456789*123456789*'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123456789*123456789*123456789*123456789*123456789*123456789*'
 drop table t1;
 CREATE TABLE t3 (f1 INT) COMMENT 'כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן';
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `f1` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן'
 DROP TABLE t3;
 set sql_mode= 'traditional';
 create table t1(col1 tinyint, col2 tinyint unsigned, 
@@ -1564,7 +1537,6 @@ ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
 set @@sql_mode='NO_ZERO_DATE';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a datetime not null);
 select count(*) from t1 where a is null;
 count(*)
@@ -1721,15 +1693,12 @@ UPDATE t1 SET a2={d '1789-07-14'} WHERE a1=0;
 # Clean-up
 DROP TABLE t1;
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG 11756690 - ERROR 22012 DIVISION BY 0 HANDLED BY HANDLER FOR SQLSTATE 23000 (ER_DUP_ENTRY)
 #
 SET sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 Id INTEGER NOT NULL AUTO_INCREMENT,
 PRIMARY KEY(Id),
@@ -1762,8 +1731,6 @@ DROP PROCEDURE p2;
 # Restore mode
 #
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#11744940 - TRADITIONAL MODE: CAST ALLOWS INVALID VALUE
 #
@@ -1822,7 +1789,6 @@ INSERT INTO t1 VALUES (1), (2), (3), (4);
 SET sql_mode= STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' FROM t1;
 SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt');
 LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt')
@@ -1852,8 +1818,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 # Restore mode
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#11751889 - TRIGGERS OVERRIDE STRICT SQL_MODE 
 # Fixed by WL#6891
@@ -1861,7 +1825,6 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SET sql_mode='STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id TINYINT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE=MyISAM;
@@ -1875,8 +1838,6 @@ DROP trigger t1_BI;
 DROP TABLE t1;
 # Restore mode
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#16976939 - FIX ERROR MESSAGE ON DUPLICATE INDEX CREATION AND STRICT MODE
 # Fixed by WL#6891
@@ -1884,7 +1845,6 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SET sql_mode='STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 varchar(50)) engine=InnoDB;
 ALTER TABLE t1 ADD KEY in_c1(c1);
 # Previously this statement was giving error ER_DUP_INDEX in STRICT MODE

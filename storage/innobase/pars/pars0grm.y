@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -31,6 +39,8 @@ que_node_t */
 
 #include "univ.i"
 #include <math.h>
+#include <stdlib.h>
+#include "my_compiler.h"
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"
@@ -112,21 +122,11 @@ yylex(void);
 %token PARS_FETCH_TOKEN
 %token PARS_CLOSE_TOKEN
 %token PARS_NOTFOUND_TOKEN
-%token PARS_TO_CHAR_TOKEN
-%token PARS_TO_NUMBER_TOKEN
 %token PARS_TO_BINARY_TOKEN
-%token PARS_BINARY_TO_NUMBER_TOKEN
 %token PARS_SUBSTR_TOKEN
-%token PARS_REPLSTR_TOKEN
 %token PARS_CONCAT_TOKEN
 %token PARS_INSTR_TOKEN
 %token PARS_LENGTH_TOKEN
-%token PARS_SYSDATE_TOKEN
-%token PARS_PRINTF_TOKEN
-%token PARS_ASSERT_TOKEN
-%token PARS_RND_TOKEN
-%token PARS_RND_STR_TOKEN
-%token PARS_ROW_PRINTF_TOKEN
 %token PARS_COMMIT_TOKEN
 %token PARS_ROLLBACK_TOKEN
 %token PARS_WORK_TOKEN
@@ -161,9 +161,7 @@ top_statement:
         procedure_definition ';'
 
 statement:
-	stored_procedure_call
-	| predefined_procedure_call ';'
-	| while_statement ';'
+	while_statement ';'
 	| for_statement ';'
 	| exit_statement ';'
 	| if_statement ';'
@@ -171,7 +169,6 @@ statement:
 	| assignment_statement ';'
 	| select_statement ';'
 	| insert_statement ';'
-	| row_printf_statement ';'
 	| delete_statement_searched ';'
 	| delete_statement_positioned ';'
 	| update_statement_searched ';'
@@ -226,41 +223,12 @@ exp:
 ;
 
 function_name:
-	PARS_TO_CHAR_TOKEN	{ $$ = &pars_to_char_token; }
-	| PARS_TO_NUMBER_TOKEN	{ $$ = &pars_to_number_token; }
-	| PARS_TO_BINARY_TOKEN	{ $$ = &pars_to_binary_token; }
-	| PARS_BINARY_TO_NUMBER_TOKEN
-				{ $$ = &pars_binary_to_number_token; }
-	| PARS_SUBSTR_TOKEN	{ $$ = &pars_substr_token; }
+	PARS_SUBSTR_TOKEN	{ $$ = &pars_substr_token; }
 	| PARS_CONCAT_TOKEN	{ $$ = &pars_concat_token; }
 	| PARS_INSTR_TOKEN	{ $$ = &pars_instr_token; }
+	/* needed for SYS_FOREIGN processing */
+	| PARS_TO_BINARY_TOKEN	{ $$ = &pars_to_binary_token; }
 	| PARS_LENGTH_TOKEN	{ $$ = &pars_length_token; }
-	| PARS_SYSDATE_TOKEN	{ $$ = &pars_sysdate_token; }
-	| PARS_RND_TOKEN	{ $$ = &pars_rnd_token; }
-	| PARS_RND_STR_TOKEN	{ $$ = &pars_rnd_str_token; }
-;
-
-question_mark_list:
-	/* Nothing */
-	| '?'
-	| question_mark_list ',' '?'
-;
-
-stored_procedure_call:
-	'{' PARS_ID_TOKEN '(' question_mark_list ')' '}'
-				{ $$ = pars_stored_procedure_call(
-					static_cast<sym_node_t*>($2)); }
-;
-
-predefined_procedure_call:
-	predefined_procedure_name '(' exp_list ')'
-				{ $$ = pars_procedure_call($1, $3); }
-;
-
-predefined_procedure_name:
-	PARS_REPLSTR_TOKEN	{ $$ = &pars_replstr_token; }
-	| PARS_PRINTF_TOKEN	{ $$ = &pars_printf_token; }
-	| PARS_ASSERT_TOKEN	{ $$ = &pars_assert_token; }
 ;
 
 user_function_call:
@@ -447,12 +415,6 @@ delete_statement_positioned:
 					static_cast<upd_node_t*>($1),
 					static_cast<sym_node_t*>($2),
 					NULL); }
-;
-
-row_printf_statement:
-	PARS_ROW_PRINTF_TOKEN select_statement
-				{ $$ = pars_row_printf_statement(
-					static_cast<sel_node_t*>($2)); }
 ;
 
 assignment_statement:

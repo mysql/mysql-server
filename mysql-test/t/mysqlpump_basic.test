@@ -1,5 +1,4 @@
-
--- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities
@@ -390,7 +389,14 @@ SELECT * FROM t5 ORDER BY 1;
 --echo # compress using lz4
 --exec $MYSQL_PUMP --databases bug21644479 --compress-output=lz4 --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.lz4
 --echo # uncompress using lz4_decompress
+if ($LZ4_DECOMPRESS)
+{
 --exec $LZ4_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
+}
+if (!$LZ4_DECOMPRESS)
+{
+--exec lz4 -d $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql 
+}
 DROP DATABASE bug21644479;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
 
@@ -405,7 +411,14 @@ SELECT * FROM t5 ORDER BY 1;
 --echo # compress using zlib
 --exec $MYSQL_PUMP --databases bug21644479 --compress-output=zlib --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.zlib
 --echo # uncompress using zlib_decompress
+if ($ZLIB_DECOMPRESS)
+{
 --exec $ZLIB_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.zlib $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
+if (!$ZLIB_DECOMPRESS)
+{
+--exec openssl zlib -d < $MYSQLTEST_VARDIR/tmp/bug21644479.zlib > $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
 DROP DATABASE bug21644479;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
 

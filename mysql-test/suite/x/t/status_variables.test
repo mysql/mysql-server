@@ -1,0 +1,275 @@
+## Preamle
+--source include/xplugin_preamble.inc
+--source include/xplugin_ssl_warnings_suppression.inc
+
+## Test case
+
+# X Plugins thread management needs to be reinitialized
+# to be able to test status variables like 'Mysqlx_worker_threads%'
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+# Please update the test case when the variable count changes
+# add/remove variable
+let $wait_condition=
+  SELECT COUNT(*)=61 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+--source include/wait_condition_or_abort.inc
+
+# Values for variables that were overwritten by MTR
+--let $mtr_overwrited_port=  $MASTER_X_MYPORT
+--let $mtr_overwrited_socket= $MASTER_X_MYSOCK
+
+if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`)
+{
+  --let $mtr_overwrited_socket= UNDEFINED
+}
+
+
+## Verify default value of system variables
+--let $assert_text= Mysqlx_port must match value set by MTR
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_port", Value, 1] = $mtr_overwrited_port
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_execute_sql must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_sql", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_execute_xplugin must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_xplugin", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_execute_mysqlx must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_mysqlx", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_update must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_update", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_update must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_update", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_delete must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_delete", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_find must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_find", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_insert must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_insert", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_create_view must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_create_view", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_modify_view must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_modify_view", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_crud_drop_view must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_crud_drop_view", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_expect_open must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_expect_open", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_expect_close must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_expect_close", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_create_collection must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_create_collection", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_create_collection_index must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_create_collection_index", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_drop_collection must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_drop_collection", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_ensure_collection must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_ensure_collection", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_drop_collection_index must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_drop_collection_index", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_list_objects must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_list_objects", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_enable_notices must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_enable_notices", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_disable_notices must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_disable_notices", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_list_notices must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_list_notices", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_list_clients must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_list_clients", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_kill_client must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_kill_client", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_ping must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_ping", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_bytes_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_bytes_received must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_bytes_received", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_errors_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_errors_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_errors_unknown_message_type must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_errors_unknown_message_type", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_rows_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_rows_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_notice_warning_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_warning_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_notice_other_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_other_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions_closed must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions_closed", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions_fatal_error must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions_fatal_error", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No init error occurred, Mysqlx_init_error must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_init_error", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions_accepted must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions_accepted", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions_rejected must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions_rejected", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_sessions_killed must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_sessions_killed", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_connections_closed must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_connections_closed", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_connections_accepted must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_connections_accepted", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_connections_rejected must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_connections_rejected", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No accept errors were triggered, Mysqlx_connection_accept_errors must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_connection_accept_errors", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections errors were simulated, Mysqlx_connection_errors must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_connection_errors", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= XPlugin run two threads in default, Mysqlx_worker_threads should be set to 2.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_worker_threads", Value, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_worker_threads_active must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_worker_threads_active", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_socket must match value set by MTR or UNDEFINED on windows
+--let $assert_cond= [select VARIABLE_VALUE="$mtr_overwrited_socket" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_socket", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_active should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_active", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_cipher_list should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_cipher_list", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_cipher should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_cipher", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_version should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_version", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_verify_depth should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_verify_depth", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= SSL not configured, Mysqlx_ssl_verify_mode should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_verify_mode", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_ctx_verify_depth must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_ssl_ctx_verify_depth", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_ctx_verify_mode must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_ssl_ctx_verify_mode", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_ssl_finished_accepts must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_ssl_finished_accepts", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_ssl_accepts must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_ssl_accepts", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_server_not_after should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_server_not_after", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_active should be empty
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_ssl_server_not_before", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_address must match default value which is "::"
+--let $assert_cond= [select VARIABLE_VALUE="::" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_address", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_aborted_clients must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_aborted_clients", Value, 1] = 0
+--source include/assert.inc
+

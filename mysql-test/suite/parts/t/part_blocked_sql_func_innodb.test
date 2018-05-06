@@ -28,14 +28,10 @@
 ##### Options, for debugging support #####
 let $debug= 0;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
---source include/have_innodb.inc
 let $engine= 'INNODB';
 
 #------------------------------------------------------------------------------#

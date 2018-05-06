@@ -8,7 +8,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` char(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP   c2;
 ALTER TABLE t1 DROP   c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -16,7 +16,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -29,7 +29,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varchar(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP   c2;
 ALTER TABLE t1 DROP   c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -37,7 +37,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -50,7 +50,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` binary(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP   c2;
 ALTER TABLE t1 DROP   c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -58,7 +58,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -71,7 +71,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varbinary(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP   c2;
 ALTER TABLE t1 DROP   c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -79,7 +79,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -92,7 +92,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL,
   `c2` char(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN c2;
 ALTER TABLE t1 DROP COLUMN c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -100,7 +100,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -113,7 +113,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL,
   `c2` varchar(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN c2;
 ALTER TABLE t1 DROP COLUMN c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -121,7 +121,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -134,7 +134,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL,
   `c2` binary(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN c2;
 ALTER TABLE t1 DROP COLUMN c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -142,7 +142,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -155,7 +155,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL,
   `c2` varbinary(30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN c2;
 ALTER TABLE t1 DROP COLUMN c1;
 ERROR 42000: You can't delete all columns with ALTER TABLE; use DROP TABLE instead
@@ -163,7 +163,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(30) NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test

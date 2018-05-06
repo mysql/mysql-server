@@ -22,12 +22,6 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
---source include/have_big5.inc
---source include/have_ujis.inc
---source include/have_sjis.inc
---source include/have_utf8.inc
---source include/have_ucs2.inc
-
 --source include/load_sysvars.inc
 
 ###################################################
@@ -200,6 +194,10 @@ SELECT @@collation_connection AS res_with_true;
 
 --Error ER_UNKNOWN_COLLATION
 SET @@collation_connection = ON;
+--Error ER_UNKNOWN_COLLATION
+SET @@collation_connection = repeat('e', 256);
+--Error ER_UNKNOWN_COLLATION
+SET @@collation_connection = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_015_11-------------------------#'
 ###############################################################################
@@ -224,6 +222,10 @@ SET @@global.collation_connection = true;
 
 --Error ER_UNKNOWN_COLLATION
 SET @@global.collation_connection = ON;
+--Error ER_UNKNOWN_COLLATION
+SET @@global.collation_connection = repeat('e', 256);
+--Error ER_UNKNOWN_COLLATION
+SET @@global.collation_connection = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_015_12-------------------------#'
 ##############################################################################
@@ -231,14 +233,14 @@ SET @@global.collation_connection = ON;
 ##############################################################################
 --disable_warnings
 SELECT @@global.collation_connection =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='collation_connection') AS res;
 --enable_warnings
 SET @@global.collation_connection = 1;
 SELECT @@global.collation_connection;
 --disable_warnings
 SELECT @@global.collation_connection =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='collation_connection') AS res;
 --enable_warnings
 
@@ -248,13 +250,13 @@ SELECT @@global.collation_connection =
 ###############################################################################
 --disable_warnings
 SELECT @@collation_connection =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='collation_connection') AS res;
 SELECT @@local.collation_connection =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='collation_connection') AS res;
 SELECT @@session.collation_connection =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='collation_connection') AS res;
 --enable_warnings
 

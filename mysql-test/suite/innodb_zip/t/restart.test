@@ -2,24 +2,22 @@
 # These test make sure that tables are visible after rebooting
 #
 
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
---source include/have_partition.inc
---source include/not_embedded.inc
+--source include/have_innodb_max_16k.inc
+
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --disable_query_log
 # This error is expected in the error log for this test.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 17 means 'File exists'");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number (17|80) in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*t55_restart.isl");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The link file: .* already exists.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\]  Error number 17 means 'File exists'");
+call mtr.add_suppression("\\[ERROR\\]  Operating system error number (17|80) in a file operation.");
+call mtr.add_suppression("\\[ERROR\\]  The link file: .* already exists.");
+call mtr.add_suppression("\\[ERROR\\]  Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\]  Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\]  The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\]  If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[Warning\\]  Tablespace .*, name 'innodb_file_per_table.*', file '.*alt_dir/move_test/.*\.ibd' has been moved to '.*alt_dir_moved/move_test/.*\.ibd'");
 --enable_query_log
 
 --echo #
@@ -32,11 +30,21 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, reme
 #
 
 --disable_query_log
-let $MYSQL_DATA_DIR= `select @@datadir`;
-let $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
-let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $SCHEMA_NAME = move_test;
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+LET $ALT_DIR = $MYSQL_TMP_DIR/alt_dir;
+LET $ALT_DATA_DIR = DATA DIRECTORY='$ALT_DIR';
+LET $ALT_DIR_MOVED = $MYSQL_TMP_DIR/alt_dir_moved;
+
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+LET $restart_parameters = restart:--innodb-directories=$ALT_DIR;
+
 --enable_query_log
+
+eval CREATE DATABASE $SCHEMA_NAME;
+eval USE $SCHEMA_NAME;
 
 set global innodb_file_per_table=on;
 
@@ -50,6 +58,7 @@ INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1_restart;
 SELECT count(*) FROM t1_restart;
 
@@ -63,6 +72,7 @@ INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2_restart;
 SELECT count(*) FROM t2_restart;
 
@@ -76,6 +86,7 @@ INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t3_restart;
 SELECT count(*) FROM t3_restart;
 
@@ -89,15 +100,17 @@ INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4_restart;
 SELECT count(*) FROM t4_restart;
 
 --echo #
 --echo # Create and insert records into a table that uses a remote DATA DIRECTORY.
 --echo #
+--echo #
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t5_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
-	ROW_FORMAT=DYNAMIC  ENGINE=InnoDB  $data_directory;
+	ROW_FORMAT=DYNAMIC  ENGINE=InnoDB  $ALT_DATA_DIR;
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
@@ -108,17 +121,15 @@ SHOW CREATE TABLE t5_restart;
 SELECT count(*) FROM t5_restart;
 
 --echo #
---echo # Create and insert records into a partitioned table that uses
---echo # a remote DATA DIRECTORY for each partition.
---echo #
+--echo # Create and insert records into a partitioned table that uses-echo # a remote DATA DIRECTORY for each partition.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t6_restart(
   c1 INT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
   ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB
   PARTITION BY HASH(c1) (
-    PARTITION p0  DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',
-    PARTITION p1  DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',
-    PARTITION p2  DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir');
+    PARTITION p0  $ALT_DATA_DIR,
+    PARTITION p1  $ALT_DATA_DIR,
+    PARTITION p2  $ALT_DATA_DIR);
 INSERT INTO t6_restart VALUES (0, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t6_restart (SELECT 0, c2, c3, c4, c5 FROM t6_restart);
 INSERT INTO t6_restart (SELECT 0, c2, c3, c4, c5 FROM t6_restart);
@@ -138,11 +149,11 @@ eval CREATE TABLE t7_restart(
 	ROW_FORMAT=DYNAMIC  ENGINE=InnoDB
         PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c1) (
           PARTITION p0 VALUES LESS THAN (10) (
-	    SUBPARTITION s0 DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',
-	    SUBPARTITION s1 DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir'),
+	    SUBPARTITION s0 $ALT_DATA_DIR,
+	    SUBPARTITION s1 $ALT_DATA_DIR),
 	  PARTITION p1 VALUES LESS THAN MAXVALUE (
-	    SUBPARTITION s2 DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',
-	    SUBPARTITION s3 DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir'));
+	    SUBPARTITION s2 $ALT_DATA_DIR,
+	    SUBPARTITION s3 $ALT_DATA_DIR));
 INSERT INTO t7_restart VALUES (0, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t7_restart (SELECT 0, c2, c3, c4, c5 FROM t7_restart);
 INSERT INTO t7_restart (SELECT 0, c2, c3, c4, c5 FROM t7_restart);
@@ -163,6 +174,7 @@ INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t8_restart;
 SELECT count(*) FROM t8_restart;
 CREATE TABLE t9_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
@@ -172,6 +184,7 @@ INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t9_restart;
 SELECT count(*) FROM t9_restart;
 
@@ -186,24 +199,28 @@ SELECT count(*) FROM t9_restart;
 --echo #
 --source include/shutdown_mysqld.inc
 
---echo ---- MYSQL_DATA_DIR/test
+--echo ---- MYSQL_DATA_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir
---list_files $MYSQL_TMP_DIR/alt_dir
---echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_DATA_DIR$SCHEMA_NAME
+--echo ---- ALT_DIR
+--list_files $ALT_DIR
+--echo ---- ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
+--list_files $ALT_DIR/$SCHEMA_NAME
 
 --echo #
 --echo # Start the server and show that tables are still visible and accessible.
---echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_file_per_table';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t3_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4_restart;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5_restart;
@@ -211,7 +228,9 @@ SHOW CREATE TABLE t5_restart;
 SHOW CREATE TABLE t6_restart;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t7_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t8_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t9_restart;
 
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
@@ -243,8 +262,6 @@ SELECT count(*) FROM t9_restart;
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
 DROP TABLE t3_restart;
-# Tablespace for t4_restart will be moved later from default directory to a new directory
-# and an ISL file will be created not using InnoDB.
 # Table t5_restart will be expanded.
 # Tables t6_restart and t7_restart will be truncated.
 DROP TABLE t8_restart;
@@ -282,20 +299,19 @@ SHOW CREATE TABLE t7_restart;
 --echo #
 --source include/shutdown_mysqld.inc
 
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
---copy_file $MYSQL_DATA_DIR/test/t5_restart.isl $MYSQL_DATA_DIR/test/t5_restart.isl.bak
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm $MYSQL_DATA_DIR/test/t5_restart.frm.bak
+--copy_file $ALT_DIR/$SCHEMA_NAME/t5_restart.ibd $ALT_DIR/$SCHEMA_NAME/t5_restart.ibd.bak
 
---echo ---- MYSQL_DATA_DIR/test
+--echo ---- MYSQL_DATA_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_DATA_DIR/$SCHEMA_NAME
+--echo ---- ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
+--list_files $ALT_DIR/$SCHEMA_NAME
 
 --echo #
 --echo # Start the server and show the tablespaces.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_file_per_table';
@@ -318,31 +334,14 @@ SHOW CREATE TABLE t7_restart;
 --echo # Try to rename a tablespace to a file that already exists
 --echo #
 
---copy_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak $MYSQL_DATA_DIR/test/t55_restart.frm
---error ER_TABLE_EXISTS_ERROR
-RENAME TABLE t5_restart TO t55_restart;
---remove_file $MYSQL_DATA_DIR/test/t55_restart.frm
---remove_file $MYSQL_DATA_DIR/test/t5_restart.frm.bak
+--remove_file $ALT_DIR/$SCHEMA_NAME/t5_restart.ibd.bak
 
---copy_file $MYSQL_DATA_DIR/test/t5_restart.isl.bak $MYSQL_DATA_DIR/test/t55_restart.isl
---error ER_ERROR_ON_RENAME
-RENAME TABLE t5_restart TO t55_restart;
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
---remove_file $MYSQL_DATA_DIR/test/t5_restart.isl.bak
-
-#--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-# This RENAME TABLE works of Linux but gets ER_ERROR_ON_RENAME on Windows
-#--error ER_ERROR_ON_RENAME
-#RENAME TABLE t5_restart TO t55_restart;
-#--remove_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
-
---echo ---- MYSQL_DATA_DIR/test
+--echo ---- MYSQL_DATA_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_DATA_DIR/$SCHEMA_NAME
+--echo ---- ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
+--list_files $ALT_DIR/$SCHEMA_NAME
 
 --echo #
 --echo # Rename file table and tablespace
@@ -369,16 +368,17 @@ SELECT count(*) FROM t77_restart;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t77_restart;
 
---echo ---- MYSQL_DATA_DIR/test
+--echo ---- MYSQL_DATA_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_DATA_DIR/$SCHEMA_NAME
+--echo ---- ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
+--list_files $ALT_DIR/$SCHEMA_NAME
 
 --echo #
 --echo # Restart the server
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
@@ -404,77 +404,17 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --source include/shutdown_mysqld.inc
 
---echo #
---echo # Move the remote tablespaces to a new location and change the ISL files
---echo #
---mkdir $MYSQL_TMP_DIR/new_dir
---mkdir $MYSQL_TMP_DIR/new_dir/test
---echo ---- MYSQL_DATA_DIR/test
+--echo ---- MYSQL_DATA_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_DATA_DIR/$SCHEMA_NAME
+--echo ---- ALT_DIR/$SCHEMA_NAME
 --replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo # Moving tablespace 't4_restart' from MYSQL_DATA_DIR to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_DATA_DIR/test/t4_restart.ibd $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t4_restart.ibd
---exec echo $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd > $MYSQL_DATA_DIR/test/t4_restart.isl
-
---echo # Moving tablespace 't55_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd > $MYSQL_DATA_DIR/test/t55_restart.isl
-
---echo # Moving tablespace 't66_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p0.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p1.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p2.ibd $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p0.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p1.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd > $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
-
---echo # Moving tablespace 't77_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s0.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s1.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s2.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s3.ibd $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s0.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p0#SP#s1.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s2.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/alt_dir/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
+--list_files $ALT_DIR/$SCHEMA_NAME
 
 --echo #
 --echo # Start the server and check tablespaces.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -506,97 +446,94 @@ SHOW CREATE TABLE t77_restart;
 --source include/shutdown_mysqld.inc
 
 --echo #
---echo # Move the remote tablespaces back to the default datadir and delete the ISL file.
---echo #
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo # Moving 't4_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd $MYSQL_DATA_DIR/test/t4_restart.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t4_restart.isl
-
---echo # Moving 't55_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd $MYSQL_DATA_DIR/test/t55_restart.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
---remove_file $MYSQL_DATA_DIR/test/t55_restart.isl
-
---echo # Moving 't66_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p0.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p1.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd $MYSQL_DATA_DIR/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p0.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p1.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t66_restart#P#p2.ibd
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p0.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p1.isl
---remove_file $MYSQL_DATA_DIR/test/t66_restart#P#p2.isl
-
---echo # Moving 't77_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.ibd
---copy_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s0.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p0#SP#s1.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s2.ibd
---remove_file $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s0.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p0#SP#s1.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s2.isl
---remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
-
---echo ---- MYSQL_DATA_DIR/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_DATA_DIR/test
---echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_result #P# #p#  #SP# #sp#
---list_files $MYSQL_TMP_DIR/new_dir/test
-
---echo #
 --echo # Start the server and check tablespaces.
 --echo #
--- source include/start_mysqld.inc
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4_restart;
 
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t55_restart;
 
 INSERT INTO t66_restart (SELECT 0, c2, c3, c4, c5 FROM t66_restart);
 SELECT count(*) FROM t66_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t66_restart;
 
 INSERT INTO t77_restart (SELECT 0, c2, c3, c4, c5 FROM t77_restart);
 SELECT count(*) FROM t77_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t77_restart;
 
+--echo #
+--echo # Shutdown the server
+--echo # Move all the files form ALT_DIR to ALT_DIR_MOVED
+--echo #
+--source include/shutdown_mysqld.inc
+
+--echo # Moving files
+--mkdir $ALT_DIR_MOVED
+--mkdir $ALT_DIR_MOVED/$SCHEMA_NAME
+--copy_files_wildcard $ALT_DIR/$SCHEMA_NAME $ALT_DIR_MOVED/$SCHEMA_NAME *
+--remove_files_wildcard $ALT_DIR/$SCHEMA_NAME *
+--rmdir $ALT_DIR/$SCHEMA_NAME
+--replace_result #P# #p#  #SP# #sp#
+--list_files $ALT_DIR_MOVED/$SCHEMA_NAME
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories="$ALT_DIR_MOVED";
+
+--echo #
+--echo # Start the server and check tablespaces.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/start_mysqld.inc
+
+INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
+SELECT count(*) FROM t4_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4_restart;
+
+INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
+SELECT count(*) FROM t55_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t55_restart;
+
+INSERT INTO t66_restart (SELECT 0, c2, c3, c4, c5 FROM t66_restart);
+SELECT count(*) FROM t66_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t66_restart;
+
+INSERT INTO t77_restart (SELECT 0, c2, c3, c4, c5 FROM t77_restart);
+SELECT count(*) FROM t77_restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t77_restart;
+
+--echo #
+--echo # Show these tables in information_schema with the updated path
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Cleanup
 --echo #
 
-DROP TABLE t4_restart;
-DROP TABLE t55_restart;
-DROP TABLE t66_restart;
-DROP TABLE t77_restart;
+eval DROP DATABASE $SCHEMA_NAME;
 
---rmdir $MYSQL_TMP_DIR/alt_dir/test
---rmdir $MYSQL_TMP_DIR/alt_dir
---rmdir $MYSQL_TMP_DIR/new_dir/test
---rmdir $MYSQL_TMP_DIR/new_dir
+--disable_query_log
 
--- disable_query_log
+--rmdir $ALT_DIR_MOVED/$SCHEMA_NAME
+--rmdir $ALT_DIR_MOVED
+
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
--- enable_query_log
-
+--enable_query_log

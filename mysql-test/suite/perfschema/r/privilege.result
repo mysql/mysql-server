@@ -1,21 +1,17 @@
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 show grants;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+create user 'pfs_user_1'@localhost;
+create user 'pfs_user_2'@localhost;
+create user 'pfs_user_3'@localhost;
 grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant ALL on performance_schema.* to 'pfs_user_2'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.* to 'pfs_user_2'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant REFERENCES on performance_schema.* to 'pfs_user_2'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INDEX on performance_schema.* to 'pfs_user_2'@localhost;
@@ -42,14 +38,15 @@ grant SELECT on performance_schema.* to 'pfs_user_2'@localhost;
 grant INSERT on performance_schema.* to 'pfs_user_2'@localhost;
 grant UPDATE on performance_schema.* to 'pfs_user_2'@localhost;
 grant DELETE on performance_schema.* to 'pfs_user_2'@localhost;
+grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
 grant LOCK TABLES on performance_schema.* to 'pfs_user_2'@localhost;
 grant ALL on performance_schema.setup_instruments to 'pfs_user_3'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant DROP on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
+ERROR 42000: DROP, GRANT command denied to user 'root'@'localhost' for table 'setup_instruments'
 grant REFERENCES on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INDEX on performance_schema.setup_instruments to 'pfs_user_3'@localhost;
@@ -74,6 +71,7 @@ grant ALL on performance_schema.events_waits_current to 'pfs_user_3'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.events_waits_current to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant DROP on performance_schema.events_waits_current to 'pfs_user_3'@localhost;
 grant REFERENCES on performance_schema.events_waits_current to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
@@ -99,7 +97,9 @@ grant ALL on performance_schema.file_instances to 'pfs_user_3'@localhost
 with GRANT OPTION;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant CREATE on performance_schema.file_instances to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant DROP on performance_schema.file_instances to 'pfs_user_3'@localhost;
+ERROR 42000: DROP, GRANT command denied to user 'root'@'localhost' for table 'file_instances'
 grant REFERENCES on performance_schema.file_instances to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INDEX on performance_schema.file_instances to 'pfs_user_3'@localhost;
@@ -550,8 +550,6 @@ WHERE name LIKE 'wait/synch/mutex/%'
 ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'setup_instruments'
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
 ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'setup_consumers'
-UPDATE performance_schema.setup_timers SET timer_name = 'TICK';
-ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'setup_timers'
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 ERROR 42000: DROP command denied to user 'pfs_user_4'@'localhost' for table 'events_waits_history_long'
 TRUNCATE TABLE performance_schema.events_waits_history;
@@ -564,7 +562,6 @@ ERROR 42000: DROP command denied to user 'pfs_user_4'@'localhost' for table 'eve
 #
 # Grant access to change tables with the root account
 GRANT UPDATE ON performance_schema.setup_consumers TO pfs_user_4;
-GRANT UPDATE ON performance_schema.setup_timers TO pfs_user_4;
 GRANT UPDATE, SELECT ON performance_schema.setup_instruments TO pfs_user_4;
 GRANT DROP ON performance_schema.events_waits_current TO pfs_user_4;
 GRANT DROP ON performance_schema.events_waits_history TO pfs_user_4;
@@ -575,9 +572,6 @@ UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name LIKE 'wait/synch/mutex/%'
    OR name LIKE 'wait/synch/rwlock/%';
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
-UPDATE performance_schema.setup_timers SET timer_name = 'TICK';
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 TRUNCATE TABLE performance_schema.events_waits_history;
 TRUNCATE TABLE performance_schema.events_waits_current;
@@ -587,21 +581,6 @@ DROP USER pfs_user_4;
 flush privileges;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
-UPDATE performance_schema.setup_timers SET timer_name = 'MICROSECOND' where name="idle";
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
-UPDATE performance_schema.setup_timers SET timer_name = 'CYCLE'       where name="wait";
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
-UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="stage";
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
-UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="statement";
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # WL#2284: Increase the length of a user name
 #

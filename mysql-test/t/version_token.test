@@ -1,6 +1,5 @@
 # Save the initial number of concurrent sessions
 --disable_ps_protocol
---source include/not_embedded.inc
 --source include/count_sessions.inc
 
 if ( !$VERSION_TOKEN ) {
@@ -171,8 +170,6 @@ select @@version_tokens_session;
 
 --echo
 set @@version_tokens_session= "token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=abc;;";
---error ER_ACCESS_DENIED_ERROR
-set @@old_passwords= 0;
 -- echo
 disconnect con1;
 --source include/wait_until_disconnected.inc
@@ -198,8 +195,6 @@ connect (con1,localhost,vbhagi,,test);
 -- echo
 connection con1;
 set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;  sdf =  ;;;;";
---error ER_ACCESS_DENIED_ERROR
-set @@old_passwords= 0;
 
 disconnect con1;
 --source include/wait_until_disconnected.inc
@@ -239,8 +234,14 @@ connection default;
 --echo # Next statement goes through as it is from a different connection.
 select 1;
 
+--echo
+--echo # Testing VERSION_TOKEN_ADMIN
+--echo
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT VERSION_TOKEN_ADMIN ON *.* TO u1@localhost;
+
 --echo # Tests related to locking
-CONNECT (vtcon1, localhost, root,,);
+CONNECT (vtcon1, localhost, u1, foo,);
 CONNECT (vtcon2, localhost, root,,);
 CONNECT (vtcon3, localhost, root,,);
 
@@ -308,6 +309,11 @@ select version_tokens_delete("token1;token3");
 --error ER_CANT_INITIALIZE_UDF
 select version_tokens_show();
 
+--echo 
+--echo # VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
+--sorted_result
+SHOW PRIVILEGES;
+
 --echo
 drop function version_tokens_set;
 drop function version_tokens_show;
@@ -317,3 +323,5 @@ drop function version_tokens_lock_shared;
 drop function version_tokens_lock_exclusive;
 drop function version_tokens_unlock;
 drop user vbhagi@localhost;
+drop user u1@localhost;
+

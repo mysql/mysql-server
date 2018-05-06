@@ -9,7 +9,6 @@
 # shouldn't be checked.
 #
 -- source include/have_ndb.inc
--- source include/have_innodb.inc
 
 --disable_query_log
 --disable_result_log
@@ -291,10 +290,10 @@ CREATE TABLE log(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, bug_text varchar(50
 CREATE TRIGGER log_deletes AFTER DELETE ON main FOR EACH ROW
 INSERT INTO log (bug_text) VALUES ("one row deleted");
 
-let $before= `select VARIABLE_VALUE from information_schema.session_status
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
                 where variable_name like 'NDB_EXECUTE_COUNT'`;
 eval DELETE FROM main WHERE id = 1;
-let $after= `select VARIABLE_VALUE from information_schema.session_status
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
                where variable_name like 'NDB_EXECUTE_COUNT'`;
 if (!`select $after-$before >= 4`)
 {
@@ -309,10 +308,10 @@ if (!`select $after-$before >= 4`)
 CREATE TRIGGER log_updates AFTER UPDATE ON main FOR EACH ROW
 INSERT INTO log (bug_text) VALUES ("one row updated");
 
-let $before= `select VARIABLE_VALUE from information_schema.session_status
+let $before= `select VARIABLE_VALUE from performance_schema.session_status
                 where variable_name like 'NDB_EXECUTE_COUNT'`;
 eval UPDATE main SET val = 111 WHERE id = 1;
-let $after= `select VARIABLE_VALUE from information_schema.session_status
+let $after= `select VARIABLE_VALUE from performance_schema.session_status
                where variable_name like 'NDB_EXECUTE_COUNT'`;
 if (!`select $after-$before >= 3`)
 {

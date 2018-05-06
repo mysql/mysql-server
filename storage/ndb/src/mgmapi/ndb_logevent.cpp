@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -93,19 +100,11 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 }
 
 extern "C"
-#ifdef NDB_WIN
-SOCKET
+ndb_native_socket_t
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
-  return h->socket.s;
+  return ndb_socket_get_native(h->socket);
 }
-#else
-int
-ndb_logevent_get_fd(const NdbLogEventHandle h)
-{
-  return h->socket.fd;
-}
-#endif
 
 extern "C"
 void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
@@ -114,7 +113,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
     return;
 
   if ( *h )
-    my_socket_close((*h)->socket);
+    ndb_socket_close((*h)->socket);
 
   free(*h);
   * h = 0;
@@ -202,6 +201,8 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( NDBStopForced, "extra",          5, extra),
 
 //  ROW( NDBStopAborted),
+
+  ROW( LCPRestored, "restored_lcp_id", 1, restored_lcp_id),
 
   ROW( StartREDOLog, "node",           1, node),
   ROW( StartREDOLog, "keep_gci",       2, keep_gci),
@@ -417,6 +418,16 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( RedoStatus,          "no_logfiles",  10, no_logfiles),
   ROW( RedoStatus,          "logfilesize",  11, logfilesize),
  
+  ROW( EventBufferStatus2, "usage",        1, usage),
+  ROW( EventBufferStatus2, "alloc",        2, alloc),
+  ROW( EventBufferStatus2, "max",          3, max),
+  ROW( EventBufferStatus2, "latest_consumed_epoch_l", 4, latest_consumed_epoch_l),
+  ROW( EventBufferStatus2, "latest_consumed_epoch_h", 5, latest_consumed_epoch_h),
+  ROW( EventBufferStatus2, "latest_buffered_epoch_l",  6, latest_buffered_epoch_l),
+  ROW( EventBufferStatus2, "latest_buffered_epoch_h",  7, latest_buffered_epoch_h),
+  ROW( EventBufferStatus2, "ndb_reference", 8, ndb_reference),
+  ROW( EventBufferStatus2, "report_reason", 9, report_reason),
+
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
@@ -504,7 +515,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     Uint32 category = (Uint32) dst->category;
     switch(category)
     {
-    case NDB_MGM_ILLEGAL_EVENT_CATEGORY:
+    case (Uint32) NDB_MGM_ILLEGAL_EVENT_CATEGORY:
       category = (Uint32) LogLevel::llInvalid;
       break;
     default:

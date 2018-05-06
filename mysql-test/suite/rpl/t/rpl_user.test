@@ -23,12 +23,11 @@ connection master;
 create user 'foo'@'fakehost';
 --error ER_CANNOT_USER
 create user 'foo'@'fakehost', 'bar'@'fakehost';
---error ER_CANNOT_USER
-create user 'foo'@'fakehost', 'bar'@'fakehost';
+create user 'bar'@'fakehost';
 
 # In log event, Plaintext password 'foo1' is replaced by ciphertext.
-create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
-  IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
+create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' BY 'foo1',
+  'foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
   'foo3'@'fakehost';
 --source include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';
@@ -53,6 +52,7 @@ select Host,User from mysql.user where Host='fakehost';
 #
 connection master;
 drop user 'foofoo'@'fakehost';
+drop user 'bar'@'fakehost';
 drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
 --error ER_CANNOT_USER
 drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
@@ -103,9 +103,38 @@ DROP USER must_change2@localhost;
 --source include/sync_slave_sql_with_master.inc
 connection master;
 
+--echo #
+--echo # WL#9591: Caching sha2 authentication plugin
+--echo #
+
+connection master;
+CREATE USER 9591_user@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd' REQUIRE NONE;
+--source include/sync_slave_sql_with_master.inc
+SELECT Host, User, Plugin FROM mysql.user WHERE user='9591_user';
+
+connect(9591_user_con_slave, localhost, 9591_user, abcd, test, $SLAVE_MYPORT,,SSL);
+connection 9591_user_con_slave;
+SELECT CURRENT_USER();
+connection master;
+disconnect 9591_user_con_slave;
+
+connect(9591_user_con_master, localhost, 9591_user, abcd,,,,SSL);
+connection 9591_user_con_master;
+SELECT CURRENT_USER();
+
+connection master;
+disconnect 9591_user_con_master;
+
+DROP USER 9591_user@localhost;
+
+--source include/sync_slave_sql_with_master.inc
+connection master;
+
 #
 # show the binlog events on the master
 #
 connection master;
+--let $mask_user_password_events=1
 source include/show_binlog_events.inc;
+--let $mask_user_password_events=0
 --source include/rpl_end.inc

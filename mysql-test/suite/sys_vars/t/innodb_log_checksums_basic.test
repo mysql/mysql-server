@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Check the default value
 SET @orig = @@global.innodb_log_checksums;

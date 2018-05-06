@@ -284,6 +284,8 @@ id	name	val
 32	mx	63616161616161616161616161616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -415,6 +417,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -546,6 +550,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_czech_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -677,6 +683,8 @@ id	name	val
 32	mx	6361616161
 32	sp	--------------------------------
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_danish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -815,12 +823,12 @@ id	name	val
 1	mx	
 1	sp	--------------------------------
 2	a	_
-2	mn	00000000000000000000000000000000
-2	mx	EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF20
+2	mn	
+2	mx	F48FBFBFF48FBFBFF48FBFBFF48FBFBF
 2	sp	--------------------------------
 3	a	%
-3	mn	00000000000000000000000000000000
-3	mx	EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF20
+3	mn	
+3	mx	F48FBFBFF48FBFBFF48FBFBFF48FBFBF
 3	sp	--------------------------------
 4	a	\_
 4	mn	5F
@@ -843,20 +851,20 @@ id	name	val
 8	mx	63
 8	sp	--------------------------------
 9	a	a_
-9	mn	61000000000000000000000000000000
-9	mx	61EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF
+9	mn	61
+9	mx	61F48FBFBFF48FBFBFF48FBFBF202020
 9	sp	--------------------------------
 10	a	c_
-10	mn	63000000000000000000000000000000
-10	mx	63EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF
+10	mn	63
+10	mx	63F48FBFBFF48FBFBFF48FBFBF202020
 10	sp	--------------------------------
 11	a	a%
-11	mn	61000000000000000000000000000000
-11	mx	61EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF
+11	mn	61
+11	mx	61F48FBFBFF48FBFBFF48FBFBF202020
 11	sp	--------------------------------
 12	a	c%
-12	mn	63000000000000000000000000000000
-12	mx	63EFBFBFEFBFBFEFBFBFEFBFBFEFBFBF
+12	mn	63
+12	mx	63F48FBFBFF48FBFBFF48FBFBF202020
 12	sp	--------------------------------
 13	a	aa
 13	mn	6161
@@ -871,28 +879,28 @@ id	name	val
 15	mx	6368
 15	sp	--------------------------------
 16	a	aa_
-16	mn	61610000000000000000000000000000
-16	mx	6161EFBFBFEFBFBFEFBFBFEFBFBF2020
+16	mn	6161
+16	mx	6161F48FBFBFF48FBFBFF48FBFBF2020
 16	sp	--------------------------------
 17	a	cc_
-17	mn	63630000000000000000000000000000
-17	mx	6363EFBFBFEFBFBFEFBFBFEFBFBF2020
+17	mn	6363
+17	mx	6363F48FBFBFF48FBFBFF48FBFBF2020
 17	sp	--------------------------------
 18	a	ch_
-18	mn	63680000000000000000000000000000
-18	mx	6368EFBFBFEFBFBFEFBFBFEFBFBF2020
+18	mn	6368
+18	mx	6368F48FBFBFF48FBFBFF48FBFBF2020
 18	sp	--------------------------------
 19	a	aa%
-19	mn	61610000000000000000000000000000
-19	mx	6161EFBFBFEFBFBFEFBFBFEFBFBF2020
+19	mn	6161
+19	mx	6161F48FBFBFF48FBFBFF48FBFBF2020
 19	sp	--------------------------------
 20	a	cc%
-20	mn	63630000000000000000000000000000
-20	mx	6363EFBFBFEFBFBFEFBFBFEFBFBF2020
+20	mn	6363
+20	mx	6363F48FBFBFF48FBFBFF48FBFBF2020
 20	sp	--------------------------------
 21	a	ch%
-21	mn	63680000000000000000000000000000
-21	mx	6368EFBFBFEFBFBFEFBFBFEFBFBF2020
+21	mn	6368
+21	mx	6368F48FBFBFF48FBFBFF48FBFBF2020
 21	sp	--------------------------------
 22	a	aaa
 22	mn	616161
@@ -907,28 +915,28 @@ id	name	val
 24	mx	636368
 24	sp	--------------------------------
 25	a	aaa_
-25	mn	61616100000000000000000000000000
-25	mx	616161EFBFBFEFBFBFEFBFBFEFBFBF20
+25	mn	616161
+25	mx	616161F48FBFBFF48FBFBFF48FBFBF20
 25	sp	--------------------------------
 26	a	ccc_
-26	mn	63636300000000000000000000000000
-26	mx	636363EFBFBFEFBFBFEFBFBFEFBFBF20
+26	mn	636363
+26	mx	636363F48FBFBFF48FBFBFF48FBFBF20
 26	sp	--------------------------------
 27	a	cch_
-27	mn	63636800000000000000000000000000
-27	mx	636368EFBFBFEFBFBFEFBFBFEFBFBF20
+27	mn	636368
+27	mx	636368F48FBFBFF48FBFBFF48FBFBF20
 27	sp	--------------------------------
 28	a	aaa%
-28	mn	61616100000000000000000000000000
-28	mx	616161EFBFBFEFBFBFEFBFBFEFBFBF20
+28	mn	616161
+28	mx	616161F48FBFBFF48FBFBFF48FBFBF20
 28	sp	--------------------------------
 29	a	ccc%
-29	mn	63636300000000000000000000000000
-29	mx	636363EFBFBFEFBFBFEFBFBFEFBFBF20
+29	mn	636363
+29	mx	636363F48FBFBFF48FBFBFF48FBFBF20
 29	sp	--------------------------------
 30	a	cch%
-30	mn	63636800000000000000000000000000
-30	mx	636368EFBFBFEFBFBFEFBFBFEFBFBF20
+30	mn	636368
+30	mx	636368F48FBFBFF48FBFBFF48FBFBF20
 30	sp	--------------------------------
 31	a	aaaaaaaaaaaaaaaaaaaa
 31	mn	61616161

@@ -1,39 +1,42 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 create table t1 (a int primary key)
 engine NDB
-comment='NDB_TABLE=NOLOGGING';
+comment='NDB_TABLE=NOLOGGING=1';
 show warnings;
 drop table t1;
 
 --disable_warnings
+create table t1 (a int primary key)
+engine NDB
+comment='NDB_TABLE=NOLOGGING';
+--enable_warnings
+show warnings;
+drop table t1;
+
+--disable_warnings
+--error 1478
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING=1,NOLOGGING';
 --enable_warnings
 show warnings;
-drop table t1;
 
 --disable_warnings
+--error 1478
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING=a,NOLOGGING';
 --enable_warnings
 show warnings;
-drop table t1;
 
 --disable_warnings
+--error 1478
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING,NOLOGGINGa';
 --enable_warnings
 show warnings;
-drop table t1;
 
 create table t1 (a int primary key,
                  b blob comment 'NDB_COLUMN=MAX_BLOB_PART_SIZE',

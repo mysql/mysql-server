@@ -12,8 +12,6 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
--- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 --echo # This test case needs the innodb_file_per_table option to be disabled.
 set global innodb_file_per_table = 0;

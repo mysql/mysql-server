@@ -1,5 +1,10 @@
---source include/not_embedded.inc
---source include/have_perfschema.inc
+--source include/have_debug.inc
+
+--echo # Prevent background threads to acquire mdl locks,
+--echo # which makes the result unstable
+SET GLOBAL innodb_fast_shutdown=0;
+let $restart_parameters = restart: --debug=d,do_not_meta_lock_in_background;
+--source include/restart_mysqld.inc
 
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 
@@ -8,11 +13,9 @@ WHERE name in ('wait/io/table/sql/handler',
                'wait/lock/table/sql/handler',
                'wait/lock/metadata/sql/mdl');
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost, user2@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
-set sql_mode= @orig_sql_mode;
 
 insert into performance_schema.setup_objects (object_type, object_schema, object_name, enabled, timed)
   values ('TABLE', 'mtr', '%', 'NO', 'NO');
@@ -66,7 +69,7 @@ select thread_id_name(@user1_tid);
 select thread_id_name(@user2_tid);
 
 prepare dump_metadata_locks from
-  "select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  "select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
     LOCK_TYPE, LOCK_DURATION, LOCK_STATUS,
     thread_id_name(OWNER_THREAD_ID) as OWNER_THREAD_ID
     from performance_schema.metadata_locks
@@ -211,6 +214,8 @@ COMMIT;
 
 echo "---- Marker 5 ----";
 
+# sleep for waiting purge to release mdl locks on dict tables.
+--sleep 1
 --vertical_results
 execute dump_metadata_locks;
 execute dump_table_handles;
@@ -281,6 +286,7 @@ UNLOCK TABLES;
 echo "---- Marker 8 ----";
 
 --vertical_results
+--replace_regex /innodb_file_per_table.[0-9]*/innodb_file_per_table.##/
 execute dump_metadata_locks;
 execute dump_table_handles;
 execute dump_waits_current;
@@ -305,6 +311,7 @@ let $wait_condition=
 echo "---- Marker 9 ----";
 
 --vertical_results
+--replace_regex /innodb_file_per_table.[0-9]*/innodb_file_per_table.##/
 execute dump_metadata_locks;
 execute dump_table_handles;
 execute dump_waits_current;
@@ -475,5 +482,7 @@ delete from performance_schema.setup_objects
   where object_schema='mtr';
 
 # In case of failure, will indicate the root cause
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 
+let $restart_parameters =;
+--source include/restart_mysqld.inc

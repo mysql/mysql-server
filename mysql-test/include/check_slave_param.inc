@@ -6,7 +6,7 @@
 #
 # --let $slave_param= COLUMN_NAME
 # --let $slave_param_value= VALUE
-# [--let $rpl_channel_name = NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # --source include/check_slave_param.inc
 #
@@ -18,23 +18,19 @@
 #       --let $slave_param_value= 4711
 #
 #   $rpl_channel_name
-#     If set, add a FOR CHANNEL '$rpl_channel_name' clause.
+#     If set, add a FOR CHANNEL $rpl_channel_name clause.
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
 
 
---let $_param= $slave_param
-
+--let $include_filename= check_slave_param.inc [$slave_param]
 --let $_csp_for_channel=
-if ($rpl_channel_name != '')
+if ($rpl_channel_name)
 {
-  --let $_csp_for_channel= FOR CHANNEL '$rpl_channel_name'
-  --let $param= $_param, channel=$rpl_channel_name
+  --let $_csp_for_channel= FOR CHANNEL $rpl_channel_name
+  --let $include_filename= check_slave_param.inc [$slave_param FOR CHANNEL $rpl_channel_name]
 }
-
-
---let $include_filename= check_slave_param.inc [$_param]
 --source include/begin_include_file.inc
 
 

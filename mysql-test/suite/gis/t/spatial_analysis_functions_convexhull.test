@@ -10,7 +10,6 @@
 #                                                                   #
 #####################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -280,20 +279,25 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometrycollection WHERE fid=115;
 --echo # ST_CONVEXHULL(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center,-1024)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points,-1)));
 
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 
-SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)));
 
-SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,123456789)));
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star,0)));
 
-SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4145)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
 
 --echo #####################################################################################
@@ -400,3 +404,25 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(0x010400000002000000010100000000000000000000));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 0)));
+
+--echo # Projected SRS (should pass)
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
+
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_CONVEXHULL(x'0A000000010100000000000000000000000000000000000000');

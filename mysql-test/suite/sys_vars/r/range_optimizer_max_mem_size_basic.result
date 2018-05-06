@@ -27,10 +27,10 @@ SET @@session.range_optimizer_max_mem_size = 0.5;
 ERROR 42000: Incorrect argument type to variable 'range_optimizer_max_mem_size'
 # Check if the value in session Table matches value in variable
 SET @@session.range_optimizer_max_mem_size = DEFAULT;
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+SELECT * FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
 VARIABLE_NAME	VARIABLE_VALUE
-RANGE_OPTIMIZER_MAX_MEM_SIZE	8388608
+range_optimizer_max_mem_size	8388608
 # Check if TRUE and FALSE values can be used on variable
 SET @@session.range_optimizer_max_mem_size = TRUE;
 SELECT @@session.range_optimizer_max_mem_size;

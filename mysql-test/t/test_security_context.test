@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # Has to be loaded here since it needs to be loaded post-flush-privleges
 --replace_regex /\.dll/.so/

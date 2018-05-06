@@ -1,5 +1,4 @@
 --source include/have_lowercase2.inc
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;

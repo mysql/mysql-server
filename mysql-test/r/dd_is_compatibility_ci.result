@@ -1,0 +1,389 @@
+#########################################################
+# WL#6599: New data dictionary and I_S.
+# 
+# The re-implemntation of I_S as views on top of DD tables,
+# together with the modified way of retrieving statistics
+# information, introduces some differences when comparing
+# with the previous I_S implementation. The purpose of this
+# test is to focus on these behavioral differences, both
+# for the purpose of regression testing, and to document
+# the changes. The issues below refer to the items listed
+# in the WL#6599 text (HLS section 6).
+USE test;
+#########################################################
+# Issue WL#6599/HLS/6a): Analyze table needed in FDS mode.
+#########################################################
+SET information_schema_stats_expiry=default;
+CREATE TABLE t1 (i INTEGER, KEY cached_key(i)) ENGINE=INNODB STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19);
+SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# After ANALYZE, cardinality is correct.
+SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	cached_key	1	i	A	19	NULL	NULL	YES	BTREE			YES
+DROP TABLE t1;
+SET information_schema_stats_expiry=0;
+# Getting latest statistics does not need ANALYZE.
+CREATE TABLE t1 (i INTEGER, KEY latest_key(i));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+# Wait until InnoDB background thread updates the statistics.
+# Cardinality is correct even without ANALYZE.
+SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	latest_key	1	i	A	#	NULL	NULL	YES	BTREE			YES
+DROP TABLE t1;
+SET information_schema_stats_expiry=default;
+#########################################################
+# Issue WL#6599/HLS/6b): DD tables listed in I_S query output.
+#########################################################
+# The DD table 'mysql.tables' will not be visible.
+SHOW TABLES in mysql LIKE 'tables';
+Tables_in_mysql (tables)
+# But the privilege table 'mysql.tables_priv' will.
+SHOW TABLES in mysql LIKE '%tables%';
+Tables_in_mysql (%tables%)
+tables_priv
+# The DD table 'mysql.tables' will not be visible.
+SELECT table_name FROM information_schema.tables
+WHERE TABLE_NAME LIKE 'tables' AND TABLE_SCHEMA LIKE 'mysql'
+  ORDER BY table_name COLLATE utf8_general_ci;
+TABLE_NAME
+# But the privilege table 'mysql.tables_priv' will.
+SELECT table_name FROM information_schema.tables
+WHERE TABLE_NAME LIKE '%tables%' AND TABLE_SCHEMA LIKE 'mysql'
+  ORDER BY table_name COLLATE utf8_general_ci;
+TABLE_NAME
+tables_priv
+# The DD table 'mysql.tables' will be visible in the
+# I_S view definitions.
+SHOW CREATE TABLE information_schema.tables;
+View	Create View	character_set_client	collation_connection
+TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,internal_table_rows(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`table_rows`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `TABLE_ROWS`,internal_avg_row_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`avg_row_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `AVG_ROW_LENGTH`,internal_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`data_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `DATA_LENGTH`,internal_max_data_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`max_data_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `MAX_DATA_LENGTH`,internal_index_length(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`index_length`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `INDEX_LENGTH`,internal_data_free(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`data_free`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `DATA_FREE`,internal_auto_increment(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`auto_increment`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0),`tbl`.`se_private_data`) AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,internal_update_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(cast(`stat`.`update_time` as unsigned),0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `UPDATE_TIME`,internal_check_time(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(cast(`stat`.`check_time` as unsigned),0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,internal_checksum(`sch`.`name`,`tbl`.`name`,if(isnull(`tbl`.`partition_type`),`tbl`.`engine`,''),`tbl`.`se_private_id`,(`tbl`.`hidden` <> 'Visible'),`ts`.`se_private_data`,coalesce(`stat`.`checksum`,0),coalesce(cast(`stat`.`cached_time` as unsigned),0)) AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from (((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`tablespaces` `ts` on((`tbl`.`tablespace_id` = `ts`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`) and is_visible_dd_object(`tbl`.`hidden`))	utf8	utf8_general_ci
+#########################################################
+# Issue WL#6599/HLS/6c): Capital cased I_S table column names.
+#########################################################
+# Default is that column names will be in upper case.
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'no such schema';
+TABLE_NAME
+# We can use an alias to get the desired case.
+SELECT table_name as 'table_name' FROM information_schema.tables
+WHERE table_schema = 'no such schema';
+table_name
+#########################################################
+# Issue WL#6599/HLS/6d): Row order of I_S queries.
+#########################################################
+# Developing such a test would sporadically fail,
+# Because the order depends on the Btree state at the time we
+# fetch rows from mysql.tables DD table.
+#########################################################
+# Issue WL#6599/HLS/6e): CREATE_TIME stored in DD table.
+#########################################################
+CREATE TABLE t1 (f1 int);
+INSERT INTO t1 VALUES (20);
+# Read create_time without analyze table.
+SELECT TABLE_NAME,
+IF(CREATE_TIME IS NULL, 'no create time', 'have create time')
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME='t1';
+TABLE_NAME	IF(CREATE_TIME IS NULL, 'no create time', 'have create time')
+t1	have create time
+DROP TABLE t1;
+#########################################################
+# Issue WL#6599/HLS/6g): CREATE TABLE LIKE and HANDLER statements.
+#########################################################
+# HANDLER statemenst on I_S views now return ER_WRONG_OBJECT rather than
+# ER_WRONG_USAGE.
+HANDLER information_schema.COLUMNS OPEN;
+ERROR HY000: 'information_schema.COLUMNS' is not BASE TABLE
+USE test;
+# Because the I_S table is a view and not a table, we get this error.
+CREATE TABLE t1 LIKE information_schema.CHARACTER_SETS;
+ERROR HY000: 'information_schema.CHARACTER_SETS' is not BASE TABLE
+# An alternative way to to the same is.
+CREATE TABLE t1 AS SELECT * FROM information_schema.CHARACTER_SETS;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
+  `MAXLEN` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# CREATE TABLE LIKE works for I_S tables that are not system view.
+CREATE TABLE t1 LIKE information_schema.processlist;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `USER` varchar(32) NOT NULL DEFAULT '',
+  `HOST` varchar(64) NOT NULL DEFAULT '',
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) NOT NULL DEFAULT '',
+  `TIME` int(7) NOT NULL DEFAULT '0',
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+DROP TABLE t1;
+#########################################################
+# Issue WL#6599/HLS/6h): I_S schema/table name,
+# case-sensitivity and l_c_t_n.
+#########################################################
+# 1. The column headings are now in upper case.
+SELECT table_name FROM information_schema.tables
+WHERE table_name LIKE 'no_such_table';
+TABLE_NAME
+SELECT table_name AS 'table_name'
+  FROM information_schema.tables
+WHERE table_name LIKE 'no_such_table';
+table_name
+# 2. The view names in I_S.tables are in upper case.
+CREATE VIEW v1 AS SELECT table_name
+FROM information_schema.tables
+WHERE table_schema LIKE 'information_schema'
+        AND table_name NOT LIKE 'INNODB%'
+        AND table_name NOT LIKE 'ndb%'
+  ORDER BY table_name COLLATE UTF8_GENERAL_CI;
+SELECT * FROM v1;
+table_name
+CHARACTER_SETS
+COLLATIONS
+COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+COLUMN_PRIVILEGES
+COLUMN_STATISTICS
+ENGINES
+EVENTS
+FILES
+KEYWORDS
+KEY_COLUMN_USAGE
+OPTIMIZER_TRACE
+PARAMETERS
+PARTITIONS
+PLUGINS
+PROCESSLIST
+PROFILING
+REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
+ROUTINES
+SCHEMATA
+SCHEMA_PRIVILEGES
+STATISTICS
+ST_GEOMETRY_COLUMNS
+ST_SPATIAL_REFERENCE_SYSTEMS
+TABLES
+TABLESPACES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
+TRIGGERS
+USER_PRIVILEGES
+VIEWS
+DROP VIEW v1;
+# 3. I_S tables/views/columns are not case sensitive, but on trunk, the
+# two statements below will have different case of the column heading.
+SELECT table_name FROM information_schema.tables
+WHERE table_name LIKE 'no_such_table';
+TABLE_NAME
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE 'no_such_table';
+TABLE_NAME
+# 4. Names collate differently. On trunk, the queries below returns
+#    the same result set.
+SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+FROM information_schema.tables
+WHERE table_name LIKE 'TAB%';
+count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+1
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
+FROM information_schema.tables
+WHERE table_name LIKE 'tab%';
+count(*) = IF(@@lower_case_table_names = 0, 5, 9)
+1
+# This is because the collation of the column is different. On trunk,
+# it is utf8_general_ci. With the global DD, it is the collation of the
+# underlying column, which depends on l_c_t_n. For l_c_t_n == 0, this
+# is utf8_bin.
+#########################################################
+# Issue WL#6599/HLS/6i): I_S schema/table name in WHERE clause should
+#                        collate like mysql.tables.name.
+#########################################################
+# lctn=0 will have table_name as utf8_bin, so we do not match
+# capital information_schema name.
+SELECT COUNT(*)+IF(@@lower_case_table_names=0, 1, 0) FROM
+INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='INFORMATION_SCHEMA' AND
+TABLE_NAME='TABLES';
+COUNT(*)+IF(@@lower_case_table_names=0, 1, 0)
+1
+#########################################################
+# WL#6599 HLS/6j
+# Prepared statements of SHOW commands fail differently for e.g.
+# ER_BAD_DB_ERROR unknown schema, instead of ER_TOO_BIG_SELECT for
+# big SELECT's.  This is consequence of we checking for existing
+# database first and then JOIN::optimize(). In 5.7 this was done in
+# the other way. For details we can see commit id
+# fb7f9ff0a3b6cafa88f6123875415a660eda15a7 by Abhishek. on 
+# mysql-trunk-wl6599
+#########################################################
+SET @old_join_size= @@session.max_join_size;
+SET @@session.max_join_size= 1;
+PREPARE ps1 FROM 'SHOW TABLES FROM no_such_schema';
+PREPARE ps2 FROM 'SHOW TABLES FROM mysql LIKE \'%tables%\'';
+EXECUTE ps1;
+ERROR 42000: Unknown database 'no_such_schema'
+EXECUTE ps2;
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+DEALLOCATE PREPARE ps1;
+DEALLOCATE PREPARE ps2;
+SET @@session.max_join_size= @old_join_size;
+#########################################################
+# WL#6599 HLS/6k
+# ANALYZE TABLE under innodb read only mode fails with
+# error/warning. This would be a restrictions with wl6599. It is
+# recommended to use 'information_schema_stats_expiry=0' to get latest
+# statistics from IS queries in read only mode.
+#########################################################
+use test;
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Warning	InnoDB: Running in read-only mode
+test.t1	analyze	Error	Table 'table_stats' is read only
+test.t1	analyze	Error	Unable to store dynamic table statistics into data dictionary.
+test.t1	analyze	status	Unable to write table statistics to DD tables
+# restart
+DROP TABLE t1;
+#########################################################
+# WL#6599 HLS/6l
+# Most of the INFORMATION_SCHEMA table are re-implemented as view as
+# WL#6599. Current method of dumping INFORMATION_SCHEMA does not work
+# for views.
+# OTOH, INFORMATION_SCHEMA DB content dump is only used to reload the
+# data into another tables for analysis purpose. This feature is not the 
+# core responsibility of mysqlpump tool. INFORMATION_SCHEMA DB
+# content can be dumped using other methods like SELECT INTO OUTFILE ...
+# for such purpose. Hence ignoring INFORMATION_SCHEMA DB dump from
+# mysqldump and mysqlpump tool.
+#########################################################
+CREATE DATABASE test1;
+# Following statements should pass as INFORMATION_SCHEMA db is not used.
+DROP DATABASE test1;
+########################################################################
+# In 5.7 code, MDL lock on the table being created in another session is
+# acquired by operation on INFORMATION_SCHMEA tables.
+# Since INFORMATION_SCHEMA views reads committed tables information from
+# new data dictionary, table being created in another session(uncommitted)
+# is not visible and no MDL is acquired on it.
+########################################################################
+CREATE TABLE t1 (f1 INT);
+LOCK TABLE t1 write;
+connect  con1,localhost,root,,test,,;
+CREATE TABLE t2 AS SELECT * FROM t1;;
+connect  con2,localhost,root,,test,,;
+# Waiting until CREATE TABLE ... SELECT ... is blocked.
+# In 5.7 code, following select is expected to wait for MDL lock on
+# table t2.
+# But no MDL lock is acquired on table being created by another
+# session(uncommited) with the INFORMATION_SCHEMA views on the
+# new data dictionary tables.
+SELECT table_name, table_type, auto_increment, table_comment
+FROM information_schema.tables
+WHERE table_schema='test' and table_name='t2';
+TABLE_NAME	TABLE_TYPE	AUTO_INCREMENT	TABLE_COMMENT
+connection default;
+UNLOCK TABLES;
+connection con1;
+DROP TABLE t1, t2;
+connection default;
+disconnect con1;
+disconnect con2;
+#########################################################
+# WL#6599 HLS/6m
+# MySQL 'DISABLE KEYS' functionality is only applicable to MyISAM
+# tables, but looks like its marked for InnoDB table too in trunk.
+# This problem is fixed now. It has been discussed with Martin Hansson
+# who worked on WL8697 which introduced invisible index. He agreed that
+# the behavior on trunk is bad and needed to be fixed. We have fixed
+# that now.
+#########################################################
+CREATE TABLE t1 ( a INT, KEY (a) INVISIBLE );
+CREATE TABLE t2 ( a INT, KEY (a) INVISIBLE ) ENGINE=MyISAM;
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+SHOW KEYS FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+CREATE TABLE t3 ( a INT, KEY (a));
+SHOW KEYS FROM t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+ALTER TABLE t3 ALTER INDEX a INVISIBLE;
+SHOW KEYS FROM t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t3	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
+CREATE TABLE t4 ( a INT, KEY (a)) ENGINE=MyISAM;
+SHOW KEYS FROM t4;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES
+ALTER TABLE t4 ALTER INDEX a INVISIBLE;
+SHOW KEYS FROM t4;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t4	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			NO
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+#
+# 6. Change in view IS_UDPATABLE value in I_S.views.
+#
+CREATE TABLE t1 (c1 INT(11) DEFAULT NULL, c2 INT(11) DEFAULT NULL);
+INSERT INTO t1 VALUES(5, 5);
+CREATE VIEW v1 AS SELECT A.c1 AS c1 FROM t1 A
+WHERE EXISTS(SELECT B.c2 FROM t1 B WHERE (B.c2 = A.c1));
+# View "v1" is non-updatable but "IS_UPDATABLE" column of I_S.views used
+# show view as "updatable". Now we get correct value for is_updatable
+# column for view "v1".
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_name = 'v1';
+TABLE_NAME	IS_UPDATABLE
+v1	NO
+INSERT INTO v1 VALUES (10);
+UPDATE v1 SET c1=25;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+DELETE FROM v1;
+ERROR HY000: The target table v1 of the DELETE is not updatable
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+########################################################################
+# In the 5.7 code while filling schema table "VIEWS", is_updatable column
+# of view is evaluated to YES/NO depending on view is mergable and view
+# has at least one updatable field in the view. 
+# Even while creating view and storing values in new DD tables, is_updatable
+# value is evaluated but there was no check to find view has at least
+# one updatable field. Without this check v1 below was evaluated to
+# updatable view instead of non-updatable.
+# Added check to find minimum one updatable field in create view code to
+# keep the behavior similar to 5.7.
+########################################################################
+CREATE TABLE t1(f1 int);
+CREATE VIEW v1 AS SELECT f1+1 AS a FROM t1;
+# With out check for minimum one updatable field, is_updatable
+# field for view v1 was evaluated to YES instead of NO here.
+SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema != 'sys' ORDER BY table_name;
+TABLE_NAME	IS_UPDATABLE
+v1	NO
+DROP TABLE t1;
+DROP VIEW v1;

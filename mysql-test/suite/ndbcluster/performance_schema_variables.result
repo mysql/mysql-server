@@ -1,0 +1,20 @@
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.global_status
+where VARIABLE_NAME = 'Ndb_sorted_scan_count';
+VARIABLE_NAME	VARIABLE_VALUE
+Ndb_sorted_scan_count	<value>
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.session_status
+where VARIABLE_NAME = 'Ndb_config_from_host';
+VARIABLE_NAME	VARIABLE_VALUE
+Ndb_config_from_host	<value>
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.global_variables
+where VARIABLE_NAME = 'ndb_version_string';
+VARIABLE_NAME	VARIABLE_VALUE
+ndb_version_string	<value>
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.session_variables
+where VARIABLE_NAME = 'ndb_nodeid';
+VARIABLE_NAME	VARIABLE_VALUE
+ndb_nodeid	<value>

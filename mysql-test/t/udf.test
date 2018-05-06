@@ -1,14 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_udf.inc
---source include/not_embedded.inc
 #
-# To run this tests the "sql/udf_example.c" need to be compiled into
+# To run this test, "sql/udf_example.cc" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
-# the library are.
+# the library are. The regular CMake build system takes care of this
+# automatically.
 #
 
 
@@ -40,6 +35,17 @@ eval CREATE FUNCTION reverse_lookup
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE AGGREGATE FUNCTION avgcost
         RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+--echo # Should get 7 rows 1 aggregate
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_library='$UDF_EXAMPLE_LIB'
+  ORDER BY UDF_NAME;
+
+--echo # Should get an index lookup
+EXPLAIN
+SELECT udf_type FROM performance_schema.user_defined_functions
+  WHERE udf_name = 'metaphon';
 
 --error ER_CANT_INITIALIZE_UDF
 select myfunc_double();
@@ -154,8 +160,8 @@ DELIMITER ;||
 CREATE VIEW v1 AS SELECT a, fn(MIN(b)) as c FROM t1 GROUP BY a;
 
 SELECT myfunc_int(a AS attr_name) FROM t1;
-EXPLAIN EXTENDED SELECT myfunc_int(a AS attr_name) FROM t1;
-EXPLAIN EXTENDED SELECT myfunc_int(a) FROM t1;
+EXPLAIN SELECT myfunc_int(a AS attr_name) FROM t1;
+EXPLAIN SELECT myfunc_int(a) FROM t1;
 SELECT a,c FROM v1;
 
 --error ER_WRONG_PARAMETERS_TO_STORED_FCT
@@ -168,10 +174,10 @@ SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(test.fn(MIN(b)) xx) as c FROM t1 GROUP BY a;
 
-EXPLAIN EXTENDED SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
-EXPLAIN EXTENDED SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
+EXPLAIN SELECT myfunc_int(test.fn(MIN(b))) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(MIN(b) xx) as c FROM t1 GROUP BY a;
 SELECT test.fn(MIN(b)) as c FROM t1 GROUP BY a;
 SELECT myfunc_int(fn(MIN(b))) as c FROM t1 GROUP BY a;
@@ -357,29 +363,6 @@ drop function myfunc_double;
 drop function myfunc_int;
 
 #
-# Bug #28921: Queries containing UDF functions are cached
-#
-
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-create table t1 (a char);
-
-set GLOBAL query_cache_size=1355776;
-reset query cache;
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-drop table t1;
-drop function metaphon;
-set GLOBAL query_cache_size=default;
-
-#
 # Bug#28318  CREATE FUNCTION (UDF) requires a schema
 #
 
@@ -541,7 +524,7 @@ CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES(1),(50);
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
+EXPLAIN SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
 DROP FUNCTION myfunc_double;
 DROP TABLE t1;
 --echo #
@@ -635,3 +618,171 @@ SELECT a, my_median(b) from t1 GROUP BY a;
 
 DROP FUNCTION my_median;
 DROP TABLE t1;
+
+
+--echo #
+--echo # WL8980 - Move udf metatable table from MyISAM to InnoDB.
+--echo #
+
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Create an auxiliary connection.
+--echo
+--echo # Connection: con1
+--connect (con1, localhost, root,,)
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+# Test Plan:
+# A. Check that UDF statements are not vulnerable to the lock-wait-timeout.
+# B. Check the implicit  transactional nature of UDF DDL.
+# C. Check it's possible to change the UDF meta table storage engine via
+#    ALTER TABLE.
+
+--echo
+--echo #######################################################
+--echo # A.1. Checking lock-wait-timeout with CREATE USER
+--echo #######################################################
+--connection default
+# Start a transaction and insert a new row into mysql.func.
+START TRANSACTION;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval INSERT INTO mysql.func(name, ret, dl, type) VALUES ('metaphon', 0, '$UDF_EXAMPLE_LIB', 'function');
+
+--echo
+--echo # Connection: con1
+--connection con1
+# CREATE FUNCTION is expected to wait for the transaction in the other connection.
+# to finish.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+let $is_windows = `select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`;
+if ($is_windows)
+{
+--replace_result udf_example.dll UDF_EXAMPLE_LIB
+--send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.dll";
+}
+
+if (!$is_windows)
+{
+--replace_result udf_example.so UDF_EXAMPLE_LIB
+--send CREATE FUNCTION metaphon RETURNS STRING SONAME "udf_example.so";
+}
+
+--echo
+--echo # Connection: default
+--connection default
+let $wait_condition=
+    SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # CREATE FUNCTION
+
+--echo
+--echo # Connection: default
+--connection default
+
+# Drop the created function (cleanup).
+DROP FUNCTION metaphon;
+
+--echo
+--echo ###############################################################
+--echo # A.2. Checking lock-wait-timeout with DROP FUNCTION.
+--echo ###############################################################
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+START TRANSACTION;
+SELECT name FROM mysql.func WHERE name ='metaphon' FOR UPDATE;
+
+--echo
+--echo # Connection: con1
+--connection con1
+# DROP FUNCTION is expected to wait for the transaction in the other connection.
+--send DROP FUNCTION metaphon
+
+--echo
+--echo # Connection: default
+--connection default
+
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for table metadata lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+ROLLBACK;
+
+--echo
+--echo # Connection: con1
+--connection con1
+
+--reap # DROP USER
+
+--echo
+--echo # Connection: default
+--connection default
+# Check the DROP FUNCTION was successful.
+SELECT name FROM mysql.func WHERE name = 'metaphon';
+
+
+--echo
+--echo ##############################################################
+--echo # B.1 Check that CREATE FUNCTION does implicit commit.
+--echo ##############################################################
+
+--connection default
+CREATE TABLE t1(a INT);
+START TRANSACTION;
+INSERT INTO t1 VALUES(1),(2),(3);
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--echo
+--echo # Connection: con1
+--connection con1
+SELECT * FROM t1;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+SELECT * FROM mysql.func;
+--echo
+--echo # Connection: default
+--connection default
+ROLLBACK;
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+SELECT * FROM mysql.func;
+DROP FUNCTION metaphon;
+DROP TABLE t1;
+--echo
+--echo ######################################################################
+--echo # C. Check that it is possible to ALTER storage engine for
+--echo #    mysql.func to MyISAM.
+--echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+--echo #    to work.
+--echo ######################################################################
+
+ALTER TABLE mysql.func ENGINE = MYISAM;
+SELECT * FROM mysql.func;
+ALTER TABLE mysql.func ENGINE = INNODB;
+disconnect con1;
+
+
+--echo #
+--echo # Bug #27270498: DROPPING A UDF FUNCTION DOES NOT REMOVE ENTRY FROM PFS TABLE
+--echo #
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--error ER_OPERAND_COLUMNS
+SELECT is_const((1,2,3));
+DROP FUNCTION  is_const;
+
+--echo # Should return 0 rows.
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_name = 'is_const';
+
+
+--echo # End of the 8.0 tests

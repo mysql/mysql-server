@@ -1,12 +1,9 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 alter table performance_schema.cond_instances add column foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 truncate table performance_schema.cond_instances;
 
 -- error ER_DBACCESS_DENIED_ERROR
@@ -15,3 +12,6 @@ ALTER TABLE performance_schema.cond_instances ADD INDEX test_index(NAME);
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.cond_instances(NAME);
 
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.cond_instances;

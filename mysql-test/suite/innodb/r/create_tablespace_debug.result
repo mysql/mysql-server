@@ -6,12 +6,14 @@ SET SESSION DEBUG='+d,innodb_fail_to_update_tablespace_dict';
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
 ERROR HY000: Failed to create TABLESPACE s_def
 SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # MYSQLD_DATADIR/
+mysql.ibd
 DROP TABLESPACE s_def;
+ERROR HY000: Tablespace s_def doesn't exist.
 #
 # Assigning general tablespace to myisam,memory is igonred
 #
@@ -23,15 +25,16 @@ CREATE TABLE t3 (a int) ENGINE=myisam TABLESPACE=s1;
 INSERT INTO t1 VALUES ( 11);
 INSERT INTO t2 VALUES ( 21);
 INSERT INTO t3 VALUES ( 31);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 ALTER TABLE t2 TABLESPACE=s1;
 ALTER TABLE t3 TABLESPACE=s1;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 # MYSQLD_DATADIR/
+mysql.ibd
 s1.ibd
 show tables;
 Tables_in_test
@@ -69,14 +72,14 @@ INSERT INTO t1 VALUES (12);
 INSERT INTO t2 VALUES (22);
 INSERT INTO t3 VALUES (32);
 INSERT INTO t4 VALUES (42);
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
 test/t3	innodb_system	161	4	Dynamic	0	System
 test/t4	test/t4	33	4	Dynamic	0	Single
 # Kill and restart
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
@@ -98,22 +101,22 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 BEGIN;
 INSERT INTO t1 VALUES (13);
 INSERT INTO t2 VALUES (23);
@@ -123,14 +126,14 @@ RENAME TABLE t1 TO tr1;
 RENAME TABLE t2 TO tr2;
 RENAME TABLE t3 TO tr3;
 RENAME TABLE t4 TO tr4;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General
 test/tr3	innodb_system	161	4	Dynamic	0	System
 test/tr4	test/tr4	33	4	Dynamic	0	Single
 # Kill and restart
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General
@@ -156,21 +159,33 @@ SHOW CREATE TABLE tr1;
 Table	Create Table
 tr1	CREATE TABLE `tr1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tr2;
 Table	Create Table
 tr2	CREATE TABLE `tr2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tr3;
 Table	Create Table
 tr3	CREATE TABLE `tr3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tr4;
 Table	Create Table
 tr4	CREATE TABLE `tr4` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE tr1,tr2,tr3,tr4;
 DROP TABLESPACE s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) INTO @dd_tbs_row_cnt FROM mysql.tablespaces;
+SELECT count(*) INTO @matching_dd_tbs_row_cnt FROM mysql.tablespaces WHERE se_private_data RLIKE 'version=[0-9]+;';
+SELECT @dd_tbs_row_cnt = @matching_dd_tbs_row_cnt ;
+@dd_tbs_row_cnt = @matching_dd_tbs_row_cnt
+1
+SELECT CONCAT(sys.version_major(),".",sys.version_minor(),".",sys.version_patch()) INTO @server_version;
+SELECT count(*) INTO @is_tbs_row_cnt FROM information_schema.innodb_tablespaces;
+SELECT count(*) INTO @matching_is_tbs_row_cnt FROM information_schema.innodb_tablespaces WHERE server_version LIKE CONCAT('%',@server_version,'%');
+SELECT @is_tbs_row_cnt = @matching_is_tbs_row_cnt ;
+@is_tbs_row_cnt = @matching_is_tbs_row_cnt
+1

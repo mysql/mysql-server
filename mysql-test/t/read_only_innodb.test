@@ -1,6 +1,6 @@
-# should work with embedded server after mysqltest is fixed
--- source include/not_embedded.inc
--- source include/have_innodb.inc
+
+# Skipping the test when binlog format is mix/statement due to Bug#22173401
+--source include/have_binlog_format_row.inc
 
 #
 # BUG#11733: COMMITs should not happen if read-only is set
@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS table_11733 ;
 # so we use a non-SUPER one:
 
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user test@localhost;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
 connect (con1,localhost,test,,test);
@@ -49,8 +49,8 @@ disconnect con1;
 # Bug #35732: read-only blocks SELECT statements in InnoDB
 #
 # Test 1: read only mode
+CREATE USER test@localhost;
 GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
-set sql_mode= @orig_sql_mode;
 connect(con1, localhost, test, , test);
 
 connection default;

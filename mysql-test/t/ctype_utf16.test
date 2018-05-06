@@ -1,9 +1,6 @@
 --source include/have_myisam.inc
-# Testcases for some bug fixes need MyISAM
 
--- source include/have_ucs2.inc
--- source include/have_utf16.inc
--- source include/have_utf8mb4.inc
+# Testcases for some bug fixes need MyISAM
 
 --echo #
 --echo # Start of 5.5 tests
@@ -696,10 +693,8 @@ create table t1 (a varchar(334) character set utf16 primary key) engine=MyISAM;
 create table t1 (a varchar(150) character set utf16 primary key);
 show create table t1;
 drop table t1;
-set GLOBAL innodb_large_prefix=OFF;
---error ER_TOO_LONG_KEY
-create table t1 (a varchar(334) character set utf16 primary key);
-set GLOBAL innodb_large_prefix=default;
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t1 (a varchar(334) character set utf16 primary key) ROW_FORMAT=COMPACT;
 
 #
 # Conversion to utf8
@@ -812,12 +807,10 @@ set collation_connection=utf16_general_ci;
 --source include/weight_string_euro.inc
 select hex(weight_string(_utf16 0xD800DC00));
 select hex(weight_string(_utf16 0xD800DC01));
---source include/weight_string_l1.inc
 
 set collation_connection=utf16_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # End of 5.6 tests

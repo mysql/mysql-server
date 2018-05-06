@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # We currently only have named pipe support on windows, so
 # in order  to optimize things we skip this test on all
 # other platforms
@@ -10,12 +5,6 @@
 
 # thread pool causes different results
 -- source include/not_threadpool.inc
-
-# Only run this test if named pipe is avaliable
-let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if ($nmp != ON){
-  skip No named pipe support;
-}
 
 # Connect using named pipe for testing
 connect(pipe_con,localhost,root,,,,,PIPE);

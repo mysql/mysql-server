@@ -1,0 +1,70 @@
+
+Creating collection in XTEST
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+name	type
+FRUIT	COLLECTION
+FrUiT	COLLECTION
+fruit	COLLECTION
+command ok
+
+Creating collection in xtest
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+name	type
+FRUIT	COLLECTION
+FrUiT	COLLECTION
+fruit	COLLECTION
+command ok
+
+Creating collection in xTeSt
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+name	type
+FRUIT	COLLECTION
+FrUiT	COLLECTION
+fruit	COLLECTION
+command ok
+
+3 rows affected
+
+3 rows affected
+
+3 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

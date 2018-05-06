@@ -13,7 +13,7 @@ SELECT @@global.character_set_database;
 utf8
 SELECT @@session.character_set_database;
 @@session.character_set_database
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_008_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1;
@@ -21,7 +21,7 @@ DROP TABLE IF EXISTS t1;
 SET @@session.character_set_server = utf8;
 SELECT @@session.character_set_database;
 @@session.character_set_database
-latin1
+utf8mb4
 SET @@session.character_set_database = latin5;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
@@ -60,6 +60,9 @@ DROP DATABASE db1;
 '------Check if load data uses character_set_database----------'
 USE test;
 CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=MyISAM CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 'Verify with latin';
 SET @@session.character_set_database = latin1;
 Warnings:
@@ -80,6 +83,8 @@ count(*)
 DROP TABLE IF EXISTS t1;
 SET GLOBAL character_set_server=latin5;
 CREATE DATABASE csdb CHARACTER SET = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE csdb;
 DROP DATABASE csdb;
 SELECT @@character_set_database;

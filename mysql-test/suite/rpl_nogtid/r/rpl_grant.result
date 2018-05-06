@@ -1,0 +1,214 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+**** On Master ****
+CREATE USER dummy@localhost;
+CREATE USER dummy1@localhost, dummy2@localhost;
+SELECT user, host FROM mysql.user WHERE user like 'dummy%';
+user	host
+dummy	localhost
+dummy1	localhost
+dummy2	localhost
+SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
+COUNT(*)
+3
+include/sync_slave_sql_with_master.inc
+**** On Slave ****
+SELECT user,host FROM mysql.user WHERE user like 'dummy%';
+user	host
+dummy	localhost
+dummy1	localhost
+dummy2	localhost
+SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
+COUNT(*)
+3
+**** On Master ****
+DROP USER nonexisting@localhost;
+ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
+DROP USER nonexisting@localhost, dummy@localhost;
+ERROR HY000: Operation DROP USER failed for 'nonexisting'@'localhost'
+DROP USER dummy@localhost, dummy1@localhost, dummy2@localhost;
+SELECT user, host FROM mysql.user WHERE user like 'dummy%';
+user	host
+SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
+COUNT(*)
+0
+include/sync_slave_sql_with_master.inc
+**** On Slave ****
+SELECT user,host FROM mysql.user WHERE user like 'dummy%';
+user	host
+SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
+COUNT(*)
+0
+##########
+########## setup (PART I)
+##########
+include/rpl_reset.inc
+CREATE DATABASE b54866 ;
+use b54866;
+CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
+##########
+########## GRANT ALL
+##########
+CREATE USER 'b54866_user'@'localhost';
+GRANT ALL ON b54866.* TO 'b54866_user'@'localhost';
+REVOKE ALL ON b54866.* FROM 'b54866_user'@'localhost', 'b54866_fake_user';
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+*************************************************************
+##########
+########## TABLE GRANTS
+##########
+GRANT ALTER,CREATE,DROP ON TABLE b54866.t1 TO 'b54866_user'@'localhost';
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+*************************************************************
+REVOKE ALTER ON TABLE b54866.t1 FROM 'b54866_user'@'localhost', 'b54866_fake_user';
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on table 't1'
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+*************************************************************
+##########
+########## setup (PART II)
+##########
+CREATE PROCEDURE b54866_p() BEGIN SELECT 1; END|
+CREATE FUNCTION b54866_f() RETURNS INT BEGIN RETURN 1; END|
+GRANT EXECUTE ON PROCEDURE b54866.b54866_p TO 'b54866_user'@'localhost';
+GRANT EXECUTE ON FUNCTION b54866.b54866_f TO 'b54866_user'@'localhost';
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+##########
+########## PROCEDURE
+##########
+#### PROCEDURE ASSERTION
+REVOKE EXECUTE ON PROCEDURE b54866.b54866_p FROM 'b54866_user'@'localhost', 'b54866_fake_user';
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on routine 'b54866_p'
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+##########
+########## FUNCTION
+##########
+REVOKE EXECUTE ON FUNCTION b54866.b54866_f FROM 'b54866_user'@'localhost', 'b54866_fake_user';
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on routine 'b54866_f'
+****** Checking grants on the master for user: b54866_user ******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+include/sync_slave_sql_with_master.inc
+****** Checking grants on the slave for user: b54866_user *******
+SHOW GRANTS FOR 'b54866_user'@'localhost';
+Grants for b54866_user@localhost
+GRANT USAGE ON *.* TO `b54866_user`@`localhost`
+GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
+GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO `b54866_user`@`localhost`
+GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
+*************************************************************
+##########
+########## empty revokes should not be binlogged
+##########
+REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
+ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost' on routine 'b54866_p'
+REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
+ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost' on routine 'b54866_f'
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+include/sync_slave_sql_with_master.inc
+##########
+########## Cleanup
+##########
+DROP PROCEDURE b54866_p;
+DROP FUNCTION b54866_f;
+DROP USER 'b54866_user'@'localhost';
+DROP DATABASE b54866;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+CREATE USER foo IDENTIFIED WITH 'my_plugin';
+ERROR HY000: Plugin 'my_plugin' is not loaded
+include/sync_slave_sql_with_master.inc
+# Search for occurrences of CREATE USER in the output from mysqlbinlog
+- Occurrences: 0
+include/rpl_end.inc

@@ -1,20 +1,18 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL,
+g GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(149 149, 151 151)'));
 INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(148 148, 152 152)'));
@@ -172,7 +170,7 @@ EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Pol
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	g	g	34	NULL	8	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geometryfromtext('Polygon((140 140,160 140,160 160,140 160,140 140))')))
+Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,st_astext(`test`.`t1`.`g`) AS `ST_AsText(g)` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 160,140 140))')))
 SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
 fid	ST_AsText(g)
 1	LINESTRING(150 150,150 150)
@@ -189,7 +187,7 @@ fid	ST_AsText(g)
 DROP TABLE t1;
 CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL
+g GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)));
 INSERT INTO t2 (g) VALUES (LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10)));
@@ -296,10 +294,10 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `fid` int(11) NOT NULL AUTO_INCREMENT,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT count(*) FROM t2;
 count(*)
 100
@@ -308,7 +306,7 @@ ST_GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	g	g	34	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fid` AS `fid`,st_astext(`test`.`t2`.`g`) AS `ST_AsText(g)` from `test`.`t2` where st_within(`test`.`t2`.`g`,<cache>(st_geometryfromtext('Polygon((40 40,60 40,60 60,40 60,40 40))')))
+Note	1003	/* select#1 */ select `test`.`t2`.`fid` AS `fid`,st_astext(`test`.`t2`.`g`) AS `ST_AsText(g)` from `test`.`t2` where st_within(`test`.`t2`.`g`,<cache>(st_geomfromtext('Polygon((40 40,60 40,60 60,40 60,40 40))')))
 SELECT fid, ST_AsText(g) FROM t2 WHERE ST_Within(g, 
 ST_GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 fid	ST_AsText(g)
@@ -316,603 +314,403 @@ fid	ST_AsText(g)
 56	LINESTRING(41 41,50 50)
 45	LINESTRING(51 51,60 60)
 55	LINESTRING(41 51,50 60)
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(10 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(10 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(10 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(10 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(10 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(10 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(10 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(10 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(10 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(10 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(10 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(9 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(9 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(9 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(9 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(9 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(9 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(9 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(9 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(9 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(9 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(9 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(8 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(8 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(8 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(8 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(8 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(8 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(8 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(8 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(8 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(8 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(8 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(7 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(7 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(7 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(7 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(7 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(7 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(7 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(7 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(7 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(7 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(7 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(6 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(6 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(6 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(6 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(6 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(6 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(6 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(6 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(6 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(6 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(6 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(5 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(5 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(5 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(5 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(5 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(5 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(5 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(5 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(5 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(5 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(5 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(4 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(4 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(4 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(4 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(4 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(4 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(4 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(4 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(4 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(4 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(4 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(3 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(3 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(3 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(3 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(3 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(3 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(3 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(3 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(3 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(3 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(3 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(2 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(2 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(2 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(2 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(2 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(2 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(2 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(2 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(2 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(2 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(2 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 10 * 10 - 9)), ST_AsWKB(Point(1 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 9 * 10 - 9)), ST_AsWKB(Point(1 * 10, 9 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 8 * 10 - 9)), ST_AsWKB(Point(1 * 10, 8 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 7 * 10 - 9)), ST_AsWKB(Point(1 * 10, 7 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 6 * 10 - 9)), ST_AsWKB(Point(1 * 10, 6 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 5 * 10 - 9)), ST_AsWKB(Point(1 * 10, 5 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 4 * 10 - 9)), ST_AsWKB(Point(1 * 10, 4 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 3 * 10 - 9)), ST_AsWKB(Point(1 * 10, 3 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 2 * 10 - 9)), ST_AsWKB(Point(1 * 10, 2 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
-DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10))));
-Warnings:
-Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point(1 * 10 - 9, 1 * 10 - 9)), ST_AsWKB(Point(1 * 10, 1 * 10)))));
 SELECT count(*) FROM t2;
 count(*)
 100
@@ -920,7 +718,7 @@ DROP TABLE t2;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a));
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (ST_GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
@@ -959,13 +757,13 @@ test.t1	analyze	status	OK
 drop table t1;
 CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-g GEOMETRY NOT NULL,
+g GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 INSERT INTO t1 (g) VALUES (ST_GeomFromText('LineString(1 2, 2 3)')),(ST_GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
-line LINESTRING NOT NULL,
+line LINESTRING NOT NULL SRID 0,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),
 SPATIAL KEY (line)
@@ -1007,13 +805,11 @@ INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", ST_GeomFromText('LINE
 drop table t1;
 CREATE TABLE t1 (st varchar(100));
 INSERT INTO t1 VALUES ("Fake string");
-CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
+CREATE TABLE t2 (geom GEOMETRY NOT NULL SRID 0, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT ST_GeomFromText(st) FROM t1;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 drop table t1, t2;
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geometry' can't have a default value
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
 -66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
@@ -1027,11 +823,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '',
+c1 geometry NOT NULL SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -1043,11 +837,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '',
+c1 geometry NOT NULL SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -1070,7 +862,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+CREATE TABLE t1 (foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1 (foo) VALUES (POINT(1,1));
 INSERT INTO t1 (foo) VALUES (POINT(1,0));
 INSERT INTO t1 (foo) VALUES (POINT(0,1));
@@ -1085,10 +877,12 @@ CREATE TABLE t1 (id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin default NULL,
 c1 varchar(15) collate utf8_bin default NULL,
 c3 varchar(10) collate utf8_bin default NULL,
-spatial_point point NOT NULL,
+spatial_point point NOT NULL SRID 0,
 PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 )ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
 ('y', 's', 'j', ST_GeomFromText('POINT(167 74)')),
 ('r', 'n', 'd', ST_GeomFromText('POINT(215 118)')),
@@ -1633,7 +1427,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-create table t1 (a geometry not null, spatial index(a));
+create table t1 (a geometry not null SRID 0, spatial index(a));
 insert into t1 values (POINT(1.1517219314031e+164, 131072));
 insert into t1 values (POINT(9.1248812352444e+192, 2.9740338169556e+284));
 insert into t1 values (POINT(4.7783097267365e-299, -0));
@@ -1664,15 +1458,15 @@ insert into t1 values (POINT(1.8033161362863e-130, 9.1248812352444e+192));
 insert into t1 values (POINT(4.7783097267365e-299, 2.2761049594727e-159));
 insert into t1 values (POINT(1.94906280228e+289, 1.2338789709327e-178));
 drop table t1;
-CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+CREATE TABLE t1(foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
 INSERT INTO t1() VALUES ();
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR HY000: Field 'foo' doesn't have a default value
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b));
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL SRID 0, KEY (a), SPATIAL KEY (b));
 INSERT INTO t1 (b) VALUES (ST_GeomFromText('POINT(1 2)'));
 INSERT INTO t1 (b) SELECT b FROM t1;
 INSERT INTO t1 (b) SELECT b FROM t1;
@@ -1683,7 +1477,7 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b));
+CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY b(b));
 INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
 SELECT COUNT(*) FROM t1 WHERE
@@ -1698,7 +1492,7 @@ DROP TABLE t1;
 #
 # Bug #48258: Assertion failed when using a spatial index
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
 (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
@@ -1706,7 +1500,7 @@ EXPLAIN SELECT 1 FROM t1 WHERE a = ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(st_geomfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a = ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 1
 1
@@ -1731,7 +1525,7 @@ DROP TABLE t1;
 #
 # Bug #51357: crash when using handler commands on spatial indexes
 #
-CREATE TABLE t1(a GEOMETRY NOT NULL,SPATIAL INDEX a(a));
+CREATE TABLE t1(a GEOMETRY NOT NULL SRID 0,SPATIAL INDEX a(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a FIRST;
 a
@@ -1755,7 +1549,7 @@ End of 5.0 tests.
 # Bug #57323/11764487: myisam corruption with insert ignore 
 # and invalid spatial data
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, b GEOMETRY NOT NULL SRID 0,
 SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(ST_GEOMFROMTEXT("point (0 0)"), ST_GEOMFROMTEXT("point (1 1)"));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -1766,13 +1560,13 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT ST_ASTEXT(a), ST_ASTEXT(b) FROM t1;
 ST_ASTEXT(a)	ST_ASTEXT(b)
 DROP TABLE t1;
-CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL SRID 0,
 KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(0, ST_GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=0, b=ST_GEOMFROMTEXT("error");
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'b' cannot be null
 SELECT a, ST_ASTEXT(b) FROM t1;
 a	ST_ASTEXT(b)
 0	POINT(1 1)
@@ -1783,6 +1577,6 @@ End of 5.1 tests
 # Bug #18412756 BOGUS ERROR FOR MYISAM SPATIAL INDEX: INCORRECT KEY FILE
 # FOR TABLE
 #
-CREATE TABLE t1 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE=MyISAM;
+CREATE TABLE t1 (g GEOMETRY NOT NULL SRID 0, SPATIAL KEY (g)) ENGINE=MyISAM;
 DELETE FROM t1 WHERE ST_DISJOINT(g, POINT(1,1));
 DROP TABLE t1;

@@ -1,0 +1,184 @@
+select OBJECT_INSTANCE_BEGIN, THREAD_ID, SOCKET_ID, IP, PORT
+from performance_schema.socket_instances
+limit 1
+into @oib, @tid, @sid, @ip, @port;
+
+====================================================================
+Testing index for columns OBJECT_INSTANCE_BEGIN
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT(*) 
+from performance_schema.socket_instances 
+where OBJECT_INSTANCE_BEGIN = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where OBJECT_INSTANCE_BEGIN > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where OBJECT_INSTANCE_BEGIN < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	const	PRIMARY	PRIMARY	8	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select COUNT(*)
+from performance_schema.socket_instances
+where OBJECT_INSTANCE_BEGIN = @oib;
+COUNT(*)
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns THREAD_ID
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT(*) 
+from performance_schema.socket_instances 
+where THREAD_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where THREAD_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where THREAD_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where THREAD_ID = @tid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+############# Explain End #########################################
+flush status;
+select COUNT(*)
+from performance_schema.socket_instances
+where THREAD_ID = @tid;
+COUNT(*)
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns SOCKET_ID
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT(*) 
+from performance_schema.socket_instances 
+where SOCKET_ID = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	SOCKET_ID	SOCKET_ID	4	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where SOCKET_ID > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	SOCKET_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where SOCKET_ID < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	SOCKET_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where SOCKET_ID = @sid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	SOCKET_ID	SOCKET_ID	4	const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select COUNT(*)
+from performance_schema.socket_instances
+where SOCKET_ID = @sid;
+COUNT(*)
+#
+OK: handler_read_key incremented
+
+====================================================================
+Testing index for columns IP, PORT
+====================================================================
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	258	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	IP	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ALL	IP	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	258	const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = "impossible"
+    and PORT = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	262	const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip
+and PORT = "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	262	const,const	#	100.00	NULL
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip
+and PORT > "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	258	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip
+and PORT < "impossible";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	258	const	#	33.33	Using where
+############ Explain for Query ####################################
+explain select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip
+and PORT = @port;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	socket_instances	NULL	ref	IP	IP	262	const,const	#	100.00	NULL
+############# Explain End #########################################
+flush status;
+select COUNT(*)
+from performance_schema.socket_instances
+where IP = @ip
+and PORT = @port;
+COUNT(*)
+#
+OK: handler_read_key incremented

@@ -1,2 +1,0 @@
---log-slave-updates=off
---relay_log_info_repository=TABLE

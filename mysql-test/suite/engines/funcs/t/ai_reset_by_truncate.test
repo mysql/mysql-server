@@ -1,5 +1,5 @@
 --disable_warnings
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
 
 --disable_warnings
@@ -1505,4 +1505,3 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
-

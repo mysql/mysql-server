@@ -28,45 +28,34 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.VIEWS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-VIEW_DEFINITION	longtext	NO		NULL	
-CHECK_OPTION	varchar(8)	NO			
-IS_UPDATABLE	varchar(3)	NO			
-DEFINER	varchar(93)	NO			
-SECURITY_TYPE	varchar(7)	NO			
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+VIEW_DEFINITION	longtext	YES		NULL	
+CHECK_OPTION	enum('NONE','LOCAL','CASCADED')	YES		NULL	
+IS_UPDATABLE	enum('NO','YES')	YES		NULL	
+DEFINER	varchar(93)	YES		NULL	
+SECURITY_TYPE	varchar(7)	YES		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
 SHOW CREATE TABLE information_schema.VIEWS;
-Table	Create Table
-VIEWS	CREATE TEMPORARY TABLE `VIEWS` (
-  `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
-  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
-  `VIEW_DEFINITION` longtext NOT NULL,
-  `CHECK_OPTION` varchar(8) NOT NULL DEFAULT '',
-  `IS_UPDATABLE` varchar(3) NOT NULL DEFAULT '',
-  `DEFINER` varchar(93) NOT NULL DEFAULT '',
-  `SECURITY_TYPE` varchar(7) NOT NULL DEFAULT '',
-  `CHARACTER_SET_CLIENT` varchar(32) NOT NULL DEFAULT '',
-  `COLLATION_CONNECTION` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+View	Create View	character_set_client	collation_connection
+VIEWS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`VIEWS` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`vw`.`name` AS `TABLE_NAME`,if((can_access_view(`sch`.`name`,`vw`.`name`,`vw`.`view_definer`,`vw`.`options`) = TRUE),`vw`.`view_definition_utf8`,'') AS `VIEW_DEFINITION`,`vw`.`view_check_option` AS `CHECK_OPTION`,`vw`.`view_is_updatable` AS `IS_UPDATABLE`,`vw`.`view_definer` AS `DEFINER`,if((`vw`.`view_security_type` = 'DEFAULT'),'DEFINER',`vw`.`view_security_type`) AS `SECURITY_TYPE`,`cs`.`name` AS `CHARACTER_SET_CLIENT`,`conn_coll`.`name` AS `COLLATION_CONNECTION` from (((((`mysql`.`tables` `vw` join `mysql`.`schemata` `sch` on((`vw`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `conn_coll` on((`conn_coll`.`id` = `vw`.`view_connection_collation_id`))) join `mysql`.`collations` `client_coll` on((`client_coll`.`id` = `vw`.`view_client_collation_id`))) join `mysql`.`character_sets` `cs` on((`cs`.`id` = `client_coll`.`character_set_id`))) where (can_access_table(`sch`.`name`,`vw`.`name`) and (`vw`.`type` = 'VIEW'))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.VIEWS;
 Field	Type	Null	Key	Default	Extra
-TABLE_CATALOG	varchar(512)	NO			
-TABLE_SCHEMA	varchar(64)	NO			
-TABLE_NAME	varchar(64)	NO			
-VIEW_DEFINITION	longtext	NO		NULL	
-CHECK_OPTION	varchar(8)	NO			
-IS_UPDATABLE	varchar(3)	NO			
-DEFINER	varchar(93)	NO			
-SECURITY_TYPE	varchar(7)	NO			
-CHARACTER_SET_CLIENT	varchar(32)	NO			
-COLLATION_CONNECTION	varchar(32)	NO			
+TABLE_CATALOG	varchar(64)	NO		NULL	
+TABLE_SCHEMA	varchar(64)	NO		NULL	
+TABLE_NAME	varchar(64)	NO		NULL	
+VIEW_DEFINITION	longtext	YES		NULL	
+CHECK_OPTION	enum('NONE','LOCAL','CASCADED')	YES		NULL	
+IS_UPDATABLE	enum('NO','YES')	YES		NULL	
+DEFINER	varchar(93)	YES		NULL	
+SECURITY_TYPE	varchar(7)	YES		NULL	
+CHARACTER_SET_CLIENT	varchar(64)	NO		NULL	
+COLLATION_CONNECTION	varchar(64)	NO		NULL	
 SELECT table_catalog, table_schema, table_name
-FROM information_schema.views WHERE table_catalog IS NOT NULL;
-table_catalog	table_schema	table_name
+FROM information_schema.views WHERE table_catalog IS NOT NULL order by table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME
 def	sys	host_summary
 def	sys	host_summary_by_file_io
 def	sys	host_summary_by_file_io_type
@@ -188,19 +177,19 @@ GRANT SHOW VIEW, CREATE VIEW ON db_datadict.* TO 'testuser2'@'localhost';
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection test_no_views (user=test_no_views)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
@@ -228,27 +217,27 @@ CREATE VIEW test.t1_view AS SELECT DISTINCT f1 FROM test.t1_table;
 SELECT * FROM information_schema.views
 WHERE table_name LIKE 't1_%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 SELECT table_name,definer FROM information_schema.views
 WHERE table_name = 't1_view';
-table_name	definer
+TABLE_NAME	DEFINER
 t1_view	root@localhost
 ALTER DEFINER = 'testuser1'@'localhost' VIEW test.t1_view AS
 SELECT DISTINCT f1 FROM test.t1_table;
 SELECT table_name,definer,security_type FROM information_schema.views
 WHERE table_name LIKE 't1_%';
-table_name	definer	security_type
+TABLE_NAME	DEFINER	SECURITY_TYPE
 t1_view	testuser1@localhost	DEFINER
 ALTER DEFINER = 'root'@'localhost' SQL SECURITY INVOKER VIEW test.t1_view AS
 SELECT f1 FROM test.t1_table WITH LOCAL CHECK OPTION;
 SELECT table_name,definer,security_type FROM information_schema.views
 WHERE table_name LIKE 't1_%';
-table_name	definer	security_type
+TABLE_NAME	DEFINER	SECURITY_TYPE
 t1_view	root@localhost	INVOKER
 SELECT table_schema,table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 test	t1_view
 RENAME TABLE test.t1_view TO db_datadict.t1_view;
 ERROR HY000: Changing schema from 'test' to 'db_datadict' is not allowed.
@@ -257,40 +246,40 @@ CREATE VIEW db_datadict.t1_view AS SELECT * FROM test.t1_table;
 SELECT table_schema,table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
-table_schema	table_name
+TABLE_SCHEMA	TABLE_NAME
 db_datadict	t1_view
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_view
 RENAME TABLE db_datadict.t1_view TO db_datadict.t1_viewx;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_viewx
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_viewx
 DROP VIEW db_datadict.t1_viewx;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 CREATE VIEW db_datadict.t1_view AS SELECT * FROM test.t1_table;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_view
 DROP TABLE test.t1_table;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_view
 CREATE TABLE test.t1_table (f1 BIGINT, f2 CHAR(10))
 DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci COMMENT = 'Initial Comment'
@@ -298,13 +287,13 @@ ENGINE = <engine_type>;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 t1_view
 DROP DATABASE db_datadict;
 SELECT table_name FROM information_schema.views
 WHERE table_name LIKE 't1_%'
 ORDER BY table_name;
-table_name
+TABLE_NAME
 DROP USER 'testuser1'@'localhost';
 DROP TABLE test.t1_table;
 ########################################################################

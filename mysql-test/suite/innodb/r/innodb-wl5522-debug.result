@@ -45,6 +45,8 @@ SELECT * FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
+unlink: t1.ibd
+unlink: t1.cfg
 SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -376,7 +378,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: While updating the <space, root page number> of index GEN_CLUST_INDEX - Generic error
+ERROR HY000: Internal error: While importing table test_wl5522/t1
 SET SESSION debug="-d,ib_import_internal_error";
 restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -430,7 +432,7 @@ c3 VARCHAR(2048),
 c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
-INDEX idx3(c4(512))) Engine=InnoDB;
+INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
 SET GLOBAL innodb_disable_background_merge=ON;
 SET GLOBAL innodb_monitor_reset = ibuf_merges;
@@ -605,7 +607,7 @@ c3 VARCHAR(2048),
 c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
-INDEX idx3(c4(512))) Engine=InnoDB;
+INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;

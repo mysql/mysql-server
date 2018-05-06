@@ -61,15 +61,13 @@ flush tables with read lock;
 create database mysqltest;
 unlock tables;
 create database mysqltest;
-# Ignore sys as this are not included in embedded
-select schema_name from information_schema.schemata where schema_name != 'sys';
+select schema_name from information_schema.schemata order by schema_name;
 flush tables with read lock;
 --error 1208,1223
 drop database mysqltest;
 unlock tables;
 drop database mysqltest;
-# Ignore sys as this are not included in embedded
-select schema_name from information_schema.schemata where schema_name != 'sys';
+select schema_name from information_schema.schemata order by schema_name;
 --error 1008
 drop database mysqltest;
 
@@ -162,62 +160,6 @@ drop table t1,t2;
 
 --echo End of 5.0 tests
 
-#
-# Bug#30152 MySQLD crash duing alter table causes DROP DATABASE to FAIL due to temp file
-#
-create database mysql_test;
-create table mysql_test.t1(f1 int);
-create table mysql_test.`#sql-347f_7` (f1 int);
-create table mysql_test.`#sql-347f_8` (f1 int);
-drop table mysql_test.`#sql-347f_8`;
-let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/mysql_test/t1.frm $MYSQLD_DATADIR/mysql_test/#sql-347f_6.frm;
-drop database mysql_test;
-
-###########################################################################
-
---echo
---echo # --
---echo # -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
---echo # -- exist.
---echo # --
-
---disable_warnings
-DROP DATABASE IF EXISTS mysql_test;
---enable_warnings
-
-CREATE DATABASE mysql_test;
-
-let $MYSQLD_DATADIR= `select @@datadir`;
-
---let $proc_frm = $MYSQLD_DATADIR/mysql/proc.frm
---let $proc_MYD = $MYSQLD_DATADIR/mysql/proc.MYD
---let $proc_MYI = $MYSQLD_DATADIR/mysql/proc.MYI
-
---let $copy_of_proc_frm = $MYSQLTEST_VARDIR/tmp/bug29958.copy.frm
---let $copy_of_proc_MYD = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYD
---let $copy_of_proc_MYI = $MYSQLTEST_VARDIR/tmp/bug29958.copy.MYI
-
---copy_file $proc_frm $copy_of_proc_frm
---copy_file $proc_MYD $copy_of_proc_MYD
---copy_file $proc_MYI $copy_of_proc_MYI
-
-DROP TABLE mysql.proc;
-
-DROP DATABASE mysql_test;
-
---copy_file $copy_of_proc_frm $proc_frm
---copy_file $copy_of_proc_MYD $proc_MYD
---copy_file $copy_of_proc_MYI $proc_MYI
-
---remove_file $copy_of_proc_frm
---remove_file $copy_of_proc_MYD
---remove_file $copy_of_proc_MYI
-
---echo
---echo # --
---echo # -- End of Bug#29958.
---echo # --
 
 ###########################################################################
 
@@ -333,7 +275,7 @@ FLUSH TABLES t1 FOR EXPORT;
 --echo # Wait until DROP DATABASE becomes blocked on table metadata lock
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table metadata lock" AND
+  WHERE state = "Waiting for schema metadata lock" AND
         info = "DROP DATABASE bug19573998";
 --source include/wait_condition.inc
 UNLOCK TABLES;

@@ -1,27 +1,29 @@
 #ifndef SERVICES_INCLUDED
 #define SERVICES_INCLUDED
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#include "my_global.h"
-#include <mysql/service_parser.h>
-#include <string>
-#include <vector>
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file services.h
+  @file plugin/rewriter/services.h
 
   Conversion layer between the parser service and this plugin. This plugin is
   written in C++, while the parser service is written in C.
@@ -35,27 +37,29 @@
   - Wrapping raw const char * in std::string classes.
 */
 
-namespace services
-{
+#include <mysql/service_parser.h>
+#include <string>
+#include <vector>
 
-class Session
-{
-public:
+#include "my_inttypes.h"
+
+namespace services {
+
+class Session {
+ public:
   Session(MYSQL_THD current_session);
 
   MYSQL_THD thd() { return m_current_session; }
 
-private:
+ private:
   MYSQL_THD m_previous_session;
   MYSQL_THD m_current_session;
 };
 
-class Digest
-{
+class Digest {
   uchar m_buf[PARSER_SERVICE_DIGEST_LENGTH];
 
-public:
-
+ public:
   /**
     Copies the digest buffer from the server.
 
@@ -68,38 +72,32 @@ public:
   const uchar *c_ptr() const { return m_buf; }
 };
 
-class Literal_visitor
-{
-public:
+class Literal_visitor {
+ public:
+  virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
-
 
 /**
   This class may inherited and passed to parse() in order to handle conditions
   raised by the server.
 */
-class Condition_handler
-{
-public:
-
+class Condition_handler {
+ public:
   /**
     This function will be called by the server via this API before raising a
     condition. The Condition_handler subclass may then decide to handle the
     condition by returning true, in which case the server does not raise it.
 
     @param sql_errno The condition number.
-
     @param sqlstate The SQLSTATE, allocated in the server.
-
-    @param sqlstate The condition's message, allocated in the server.
+    @param message The condition's message, allocated in the server.
 
     @retval true The condition is handled entirely by this object.
-
     @retval false The condition is not handled.
   */
-  virtual bool handle(int sql_errno, const char* sqlstate, const char* message)
-    = 0;
+  virtual bool handle(int sql_errno, const char *sqlstate,
+                      const char *message) = 0;
 
   virtual ~Condition_handler() = 0;
 };
@@ -125,6 +123,6 @@ std::string print_item(MYSQL_ITEM item);
 std::string get_current_query_normalized(MYSQL_THD thd);
 
 std::vector<int> get_parameter_positions(MYSQL_THD thd);
-}
+}  // namespace services
 
-#endif // SERVICES_INCLUDED
+#endif  // SERVICES_INCLUDED

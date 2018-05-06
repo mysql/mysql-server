@@ -35,8 +35,6 @@ f_charbig VARCHAR(1000) )
 ENGINE = MEMORY;
 SET AUTOCOMMIT= 1;
 SET @@session.sql_mode= '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # End of basic preparations needed for all tests
 #-----------------------------------------------
 
@@ -532,7 +530,7 @@ PARTITION part1 VALUES LESS THAN (0)
 (SUBPARTITION subpart1),
 PARTITION part2 VALUES LESS THAN (5)
 (SUBPARTITION subpart1, SUBPARTITION subpart2));
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '))' at line 14
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart1, SUBPARTITION subpart2))' at line 14
 
 #========================================================================
 #  3   VALUES clauses
@@ -659,8 +657,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,2))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 2))
 (PARTITION part1 VALUES IN (NULL) ENGINE = InnoDB,
  PARTITION part3 VALUES IN (1) ENGINE = InnoDB) */
 
@@ -686,8 +684,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (MOD(f_int1,2))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY LIST ((`f_int1` % 2))
 (PARTITION part1 VALUES IN (NULL) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part3 VALUES IN (1) ENGINE = InnoDB) */
@@ -720,8 +718,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1) */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`) */
 
 DROP TABLE t1;
 # 4.1.2 no partition number, named partitions
@@ -742,8 +740,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 (PARTITION part1 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
 
@@ -789,7 +787,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10)
 (SUBPARTITION subpart11 , SUBPARTITION subpart12 ), PARTITION part2 VALUES LESS THAN (20), PARTITION part3 VALUES LESS THAN (2147483646)) ;
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ' PARTITION part3 VALUES LESS THAN (2147483646))' at line 7
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ', PARTITION part3 VALUES LESS THAN (2147483646))' at line 7
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
 f_char1 CHAR(20),
@@ -798,8 +796,8 @@ f_charbig VARCHAR(1000) )
 PARTITION BY RANGE(f_int1) SUBPARTITION BY HASH(f_int1) (PARTITION part1 VALUES LESS THAN (10)
 (SUBPARTITION subpart11 , SUBPARTITION subpart12 ), PARTITION part2 VALUES LESS THAN (20), PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31 , SUBPARTITION subpart32 )) ;
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ' PARTITION part3 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart31 , SUBPART' at line 7
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ', PARTITION part3 VALUES LESS THAN (2147483646)
+(SUBPARTITION subpart31 , SUBPAR' at line 7
 CREATE TABLE t1 (  f_int1 INTEGER,
 f_int2 INTEGER,
 f_char1 CHAR(20),
@@ -827,9 +825,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
+SUBPARTITION BY HASH (`f_int1`)
 (PARTITION part1 VALUES LESS THAN (10)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -863,8 +861,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 2 */
 
 DROP TABLE t1;
@@ -888,9 +886,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 2
 (PARTITION part1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
@@ -913,8 +911,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 PARTITIONS 1 */
 
 DROP TABLE t1;
@@ -938,9 +936,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
+SUBPARTITION BY HASH (`f_int1`)
 SUBPARTITIONS 1
 (PARTITION part1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
@@ -1682,8 +1680,8 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`f_int1`)
 (PARTITION part1 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
 
@@ -1711,9 +1709,9 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY HASH (f_int1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`f_int1`)
+SUBPARTITION BY HASH (`f_int1`)
 (PARTITION part1 VALUES LESS THAN (1000)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -1735,7 +1733,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 2 ( PARTITION part1 ) ;
-ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near ')' at line 8
+ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near '( PARTITION part1 )' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1750,9 +1748,9 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart11 ),
 PARTITION part2 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart21, SUBPAR' at line 11
+(SUBPAR' at line 11
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1769,9 +1767,9 @@ PARTITION part2 VALUES LESS THAN (2000)
 PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31, SUBPARTITION subpart32)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart21 ),
 PARTITION part3 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart31, SUBPAR' at line 13
+(SUBPAR' at line 13
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1786,7 +1784,7 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21                        )
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near ')
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart21                        )
 )' at line 13
 # 4.3.4 (negative) number of partitions < number of named partitions
 CREATE TABLE t1 (
@@ -1797,7 +1795,7 @@ f_char2 CHAR(20),
 f_charbig VARCHAR(1000)
 )
 PARTITION BY HASH(f_int1) PARTITIONS 1 ( PARTITION part1, PARTITION part2 ) ;
-ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near ')' at line 8
+ERROR 42000: Wrong number of partitions defined, mismatch with previous setting near '( PARTITION part1, PARTITION part2 )' at line 8
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1812,9 +1810,8 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 1
 PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
-PARTITION part2 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart21, SUBPAR' at line 11
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart11, SUBPARTITION subpart12),
+PARTITION part2 VALUES LESS TH' at line 11
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1831,9 +1828,8 @@ PARTITION part2 VALUES LESS THAN (2000)
 PARTITION part3 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart31, SUBPARTITION subpart32)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
-PARTITION part2 VALUES LESS THAN (2000)
-(SUBPARTITION subpart21              ' at line 11
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart11, SUBPARTITION subpart12),
+PARTITION part2 VALUES LESS TH' at line 11
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1848,9 +1844,8 @@ SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 1
 PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21, SUBPARTITION subpart22)
 );
-ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '),
-PARTITION part2 VALUES LESS THAN (2147483646)
-(SUBPARTITION subpart21, SUBPAR' at line 11
+ERROR 42000: Wrong number of subpartitions defined, mismatch with previous setting near '(SUBPARTITION subpart11, SUBPARTITION subpart12),
+PARTITION part2 VALUES LESS TH' at line 11
 
 #========================================================================
 #  5. Checks of logical partition/subpartition name

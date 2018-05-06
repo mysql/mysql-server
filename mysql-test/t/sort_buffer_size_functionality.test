@@ -19,10 +19,7 @@
 #                                                                             #
 ###############################################################################
 
--- source include/have_innodb.inc
--- source include/not_embedded.inc
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb_16k.inc
 
 --echo '#---------------------WL6372_VAR_8_01----------------------#'
 ####################################################################
@@ -93,12 +90,12 @@ SELECT @@GLOBAL.sort_buffer_size;
 #################################################################
 --disable_warnings
 SELECT @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='sort_buffer_size';
 --echo 1 Expected
 
 SELECT @@session.sort_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
 --echo 1 Expected
 
@@ -106,7 +103,7 @@ SELECT COUNT(@@GLOBAL.sort_buffer_size);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sort_buffer_size';
 --echo 1 Expected
 --enable_warnings
@@ -191,18 +188,18 @@ SET @@GLOBAL.sort_buffer_size=32768;
 SET @@SESSION.sort_buffer_size=32768;
 
 --disable_warnings
-select variable_value from information_schema.session_status where variable_name ='Sort_merge_passes';
+select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes';
 --echo 0 Expected
-select variable_value from information_schema.session_status where variable_name ='Sort_rows';
+select variable_value from performance_schema.session_status where variable_name ='Sort_rows';
 --echo 0 Expected
-select variable_value from information_schema.session_status where variable_name ='Sort_scan';
+select variable_value from performance_schema.session_status where variable_name ='Sort_scan';
 --enable_warnings
 --echo 0 Expected
 
 --disable_warnings
-set @Sort_merge_passes = (select variable_value from information_schema.session_status where variable_name ='Sort_merge_passes');
-set @Sort_rows = (select variable_value from information_schema.session_status where variable_name ='Sort_rows');
-set @Sort_scan = (select variable_value from information_schema.session_status where variable_name ='Sort_scan');
+set @Sort_merge_passes = (select variable_value from performance_schema.session_status where variable_name ='Sort_merge_passes');
+set @Sort_rows = (select variable_value from performance_schema.session_status where variable_name ='Sort_rows');
+set @Sort_scan = (select variable_value from performance_schema.session_status where variable_name ='Sort_scan');
 --enable_warnings
 
 set @optimizer_switch_saved=@@optimizer_switch;
@@ -212,11 +209,11 @@ select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d
 --echo 100000 Expected
 
 --disable_warnings
-select ( select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537;
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537;
 --echo 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000;
 --echo 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1;
 --enable_warnings
 --echo 1 Expected
 
@@ -224,11 +221,11 @@ select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d
 --echo 100000 Expected
 
 --disable_warnings
-select ( select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074;
+select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074;
 --echo 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000;
 --echo 1 Expected
-select (select variable_value from information_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2;
+select (select variable_value from performance_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2;
 --enable_warnings
 --echo 1 Expected
 

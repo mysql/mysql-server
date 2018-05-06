@@ -1,6 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -32,6 +30,7 @@ SELECT SLEEP(10);
 ALTER TABLE test.t1 ADD COLUMN foo varchar(200) AS (j->'$.foo') VIRTUAL;
 END//
 connection con1;
+set session lock_wait_timeout=1;
 call alter_column();;
 connection default;
 Here the memcached results with E:
@@ -39,13 +38,11 @@ Darmstadt
 connection con1;
 SLEEP(10)
 0
-ERROR HY000: Cannot complete the operation because table is referenced by another connection.
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 connection default;
 disconnect con1;
 drop procedure alter_column;
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;

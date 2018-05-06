@@ -1,9 +1,0 @@
-call mtr.add_suppression("Message of size .* received, exceeding the limit of");
-Setup
-install plugin mysqlx soname "mysqlx.so";
-call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
-call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-Test
-License ok
-Cleanup
-UNINSTALL PLUGIN `mysqlx`;

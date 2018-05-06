@@ -1,0 +1,15 @@
+--source include/not_have_innodb_4k.inc
+--source include/have_innodb_max_16k.inc
+
+create table t1(`d` int(11) NOT NULL, `b` longblob NOT NULL, `c` longtext)
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+
+insert into t1 values(1,repeat('0.416750067002489lracacurlraollrooccruuoollolalcraloarauorcurouuaccraccooolluaaucclooalruloaouoacrcullularoacouooccocooooooauluoooclrlulloalaularuouulracccarruclouooolcououururuoraarulruaolooloaaracarouoclarlouroouullr','47008'),repeat('0.871079606078116aarcouroroauulorulorcaorrooclacoaacoococroauuoooauolrclrlcraoauaccloouuuoooourlaucouarorolocaouoaaalrlouuoucrlllrorrlulclcoroocolururuaolccrrclrcuoccrccoacaoauccaalaououuorcoouaaouuoocorooaoloocraoaroocr','4211'));
+
+drop table t1;
+
+CREATE TABLE ibstd_02 (   a int(11) NOT NULL,   d int(11) NOT NULL,   b longblob NOT NULL,   c longtext,   vadcol int(11) GENERATED ALWAYS AS ((a + length(d))) STORED,   vbcol char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,   vbidxcol char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,   KEY d (d),   KEY a (a),   KEY b (b(10),a,d),   KEY c (c(58),b(58)),   KEY b_2 (b(5),c(10),a),   KEY vbidxcol (vbidxcol),   KEY vbidxcol_2 (vbidxcol,d) ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='N';
+
+insert into ibstd_02 (a,d,b,c, vadcol) values ('100','6',repeat('0.873505420056237caolooacroaauoorccocrlcocuracuooulcroraurouclaacoorccoaouaacraloucococoaucrooralolouluccuaocaoaouooaulolcacorarauuluucoaoaocrcuoooraauoououracooalcooocolararrrolrocooaoooluoluuoarlararcalolroalloaooac','26362'),repeat('ocucurccollcurorocloooualooaaloouooaooalcoooocoaooroollolccluucoolcolloccoloroacaalaaloroooraoroaculaaouroollaraolrrluluoaarlrarooruooolluororuaauuualoucaclrroocurucuuooclrlroaarolauuocolcacororrolru','3'),default);
+
+drop table ibstd_02;

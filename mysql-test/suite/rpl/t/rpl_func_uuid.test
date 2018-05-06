@@ -1,0 +1,187 @@
+#############################################################################################
+#                                                                                           #
+# The aim of this test is to set up replication between a master                            #
+# and slave and test the functions UUID_TO_BIN, BIN_TO_UUID,                                #
+# and IS_UUID which were added as part of the WL#8920: Improve usability of UUID            #
+# manipulations.                                                                            #
+#                                                                                           #
+# Tables with binary data types are created and the newly introduced functions              #
+# UUID_TO_BIN, BIN_TO_UUID, and IS_UUID are used on the uuid values inserted                #
+# into the table.                                                                           #
+#                                                                                           #
+# Creation Date : 2015-2-10                                                                  #
+# Author : Deepa Dixit                                                                      #
+#                                                                                           #
+#############################################################################################
+
+--source include/master-slave.inc
+
+
+--echo # Create table with columns of binary data types and insert uuid values
+
+--connection master
+
+CREATE TABLE uuid_table ( pkey INT NOT NULL PRIMARY KEY AUTO_INCREMENT, bin BINARY(16), vbn VARBINARY(16), tbl TINYBLOB, ttx TINYTEXT CHARACTER SET binary, blb BLOB );
+
+# Valid values of uuid
+
+INSERT INTO uuid_table VALUES( NULL, UUID_TO_BIN('12345678123456781234567812345678'),
+                               UUID_TO_BIN('12345678123456781234567812345678'),
+                               UUID_TO_BIN('12345678123456781234567812345678'),
+                               UUID_TO_BIN('12345678123456781234567812345678'),
+                               UUID_TO_BIN('12345678123456781234567812345678'));
+
+INSERT INTO uuid_table VALUES( NULL, UUID_TO_BIN('12345678-1234-5678-1234-567812345678'),
+                               UUID_TO_BIN('12345678-1234-5678-1234-567812345678'),
+                               UUID_TO_BIN('12345678-1234-5678-1234-567812345678'),
+                               UUID_TO_BIN('12345678-1234-5678-1234-567812345678'),
+                               UUID_TO_BIN('12345678-1234-5678-1234-567812345678'));
+
+INSERT INTO uuid_table VALUES( NULL, UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}'),
+                               UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}'),
+                               UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}'),
+                               UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}'),
+                               UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}'));
+
+# Invalid values cannot be inserted using the function
+
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15cb09-48bb-bbb2-e6a0b6b4d5c7}'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c76}'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c}'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2e6-a0b6b4d5c7}'));
+--error ER_WRONG_VALUE_FOR_TYPE
+INSERT INTO uuid_table(bin) VALUES ( UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d}5c7'));
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # check whether table was created and uuids were inserted on slave
+
+SELECT BIN_TO_UUID(bin) AS a, BIN_TO_UUID(vbn) AS b, BIN_TO_UUID(tbl) AS c, BIN_TO_UUID(ttx) AS d, BIN_TO_UUID(blb) AS e
+FROM uuid_table
+WHERE pkey <= 2;
+
+SELECT HEX(UUID_TO_BIN(BIN_TO_UUID(bin, TRUE))) AS a, BIN_TO_UUID(vbn, TRUE) AS b, HEX(UUID_TO_BIN(BIN_TO_UUID(tbl, TRUE))) AS c, BIN_TO_UUID(ttx, IS_UUID(BIN_TO_UUID(ttx))) AS d, HEX(UUID_TO_BIN(BIN_TO_UUID(blb, FALSE))) AS e
+FROM uuid_table
+WHERE pkey = 3;
+
+SELECT IS_UUID(BIN_TO_UUID(bin)) AS a, IS_UUID(BIN_TO_UUID(vbn)) AS b, IS_UUID(BIN_TO_UUID(tbl)) AS c, IS_UUID(BIN_TO_UUID(ttx)) AS d, IS_UUID(BIN_TO_UUID(blb)) AS e
+FROM uuid_table
+WHERE pkey <= 3;
+
+
+--let $diff_tables = master:uuid_table, slave:uuid_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update values in table
+
+UPDATE uuid_table SET bin = (UUID_TO_BIN('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7', IS_UUID('12345678-1234-5678-1234-567812345678')))
+WHERE pkey = 1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether value is updated on slave
+
+SELECT HEX(UUID_TO_BIN(BIN_TO_UUID(bin))), BIN_TO_UUID(vbn), HEX(UUID_TO_BIN(BIN_TO_UUID(tbl))), BIN_TO_UUID(ttx), HEX(UUID_TO_BIN(BIN_TO_UUID(blb)))
+FROM uuid_table
+WHERE pkey = 1;
+
+--let $diff_tables = master:uuid_table, slave:uuid_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Delete a row from the table
+
+DELETE FROM uuid_table WHERE blb = UUID_TO_BIN('{c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7}');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether row has been deleted
+
+SELECT * FROM uuid_table WHERE pkey = 3;
+
+--let $diff_tables = master:uuid_table, slave:uuid_table
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create a table and insert invalid values of uuid
+
+CREATE TABLE invalid_uuid ( pkey INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col VARCHAR(50) );
+
+INSERT into invalid_uuid VALUES ( NULL, '1234567812345678123456781234567' ),
+                      ( NULL, '1234-5678-1234-567812345678-12345678' ),
+                      ( NULL, '123456781234567812345678123456789' ),
+                      ( NULL, '12345678-1234-5678-1234567812345678' ),
+                      ( NULL, '{123456781234567812345678123456}78' );
+
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether table has been created on slave
+
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT BIN_TO_UUID(UNHEX(col)) FROM invalid_uuid;
+
+--let $diff_tables = master:invalid_uuid, slave:invalid_uuid
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # create table with generated column
+
+CREATE TABLE uuid_gencol (col1 VARCHAR(100), gcol2 BINARY(16) AS (UUID_TO_BIN(col1)) VIRTUAL, INDEX(gcol2));
+
+INSERT INTO uuid_gencol (col1) VALUES
+('{12345678-1234-5678-1234-567812345678}'),
+('12345679123456781234567812345678'),
+('12345670-1234-5678-1234-567812345678');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether table is created
+
+EXPLAIN SELECT * FROM uuid_gencol WHERE gcol2=x'12345679123456781234567812345678';
+SELECT col1, BIN_TO_UUID(gcol2) FROM uuid_gencol WHERE gcol2=x'12345679123456781234567812345678';
+
+EXPLAIN SELECT * FROM uuid_gencol WHERE UUID_TO_BIN(col1)=x'12345679123456781234567812345678';
+SELECT col1, HEX(UUID_TO_BIN(BIN_TO_UUID(gcol2))) FROM uuid_gencol WHERE UUID_TO_BIN(col1)=x'12345679123456781234567812345678';
+
+--let $diff_tables = master:uuid_gencol, slave:uuid_gencol
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Drop tables and clean up
+
+DROP TABLE uuid_table;
+DROP TABLE invalid_uuid;
+DROP TABLE uuid_gencol;
+
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether table is dropped
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM uuid_table;
+
+--source include/rpl_end.inc
+

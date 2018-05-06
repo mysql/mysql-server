@@ -93,15 +93,15 @@ SET @@session.sql_safe_updates = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_safe_updates = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = TRÜE;
+SET @@session.sql_safe_updates = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_safe_updates = Ã•N;
+--error ER_PARSE_ERROR
 SET @@session.sql_safe_updates = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = ÓFF;
+SET @@session.sql_safe_updates = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_safe_updates = '¹';
+SET @@session.sql_safe_updates = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_safe_updates = NO;
 
@@ -123,7 +123,7 @@ SELECT @@global.sql_safe_updates;
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_safe_updates';
 --enable_warnings
 
@@ -134,13 +134,13 @@ WHERE VARIABLE_NAME='sql_safe_updates';
 
 --disable_warnings
 SELECT IF(@@session.sql_safe_updates, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_safe_updates';
 --enable_warnings
 SELECT @@session.sql_safe_updates;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_safe_updates';
 --enable_warnings
 

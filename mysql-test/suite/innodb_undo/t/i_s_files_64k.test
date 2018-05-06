@@ -1,11 +1,12 @@
+--source include/not_valgrind.inc
+
 --echo #
 --echo # WL7943 Implement INFORMATION_SCHEMA.FILES
 --echo #
 
-# This test must be run from MTR with innodb_undo_tablespaces >= 2
-# and innodb-page-size = 64k in order to get the correct results.
-# Example: ./mtr innodb_undo.i_s_files_64k  --mysqld=--innodb-page-size=64k
-#          --mysqld=--innodb_undo_tablespaces=2 --bootstrap=--innodb_undo_tablespaces=2
+--echo # Mysqld is initialized in this test with with:
+--echo # --innodb_undo_tablespaces=127
+--echo # --innodb_rollback_segments=1
+--echo # --bootstrap --innodb_page_size=64k
 
---source include/have_innodb_64k.inc
 --source suite/innodb_undo/include/i_s_files.inc

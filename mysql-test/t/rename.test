@@ -31,7 +31,7 @@ rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
 show tables like "t_";
 --error ER_TABLE_EXISTS_ERROR,ER_TABLE_EXISTS_ERROR
 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
---error ER_FILE_NOT_FOUND,ER_FILE_NOT_FOUND
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
 
 select * from t1;
@@ -94,5 +94,52 @@ drop table t1;
 
 --echo End of 5.0 tests
 
+--echo #
+--echo # Bug#20197870: sql_table.cc: bool mysql_rename_table ...
+--echo #               assertion `error==0\' failed.
+--echo # The test crashes server without the fix.
+--echo #
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+create table t1(f1 int) engine=innodb;
+--error ER_BAD_DB_ERROR
+rename table test.t1 to nonexistingdb.t2;
+drop table t1;
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#24807594 SDI FILE LOSTS AFTER ALTERING DATABASE
+--echo # Verify that .sdi files are cleaned up correctly
+--echo #
+let $MYSQLD_DATADIR = `select @@datadir`;
+
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+RENAME TABLE t1 TO tt1;
+--echo # Should only see tt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tt1 TO tt1tt1;
+--echo # Should only see tt1tt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tt1tt1 TO ttt1ttt1ttt1ttt1_xyz;
+--echo # Should only see ttt1ttt1ttt1ttt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE ttt1ttt1ttt1ttt1_xyz TO tttttttttttttttt1_abc;
+--echo # Should only see tttttttttttttttt_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tttttttttttttttt1_abc TO t1;
+--echo # Should only see t1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+DROP TABLE t1;
 

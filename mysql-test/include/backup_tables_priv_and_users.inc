@@ -15,8 +15,8 @@
 if ($backup)
 {
   # Save a copy of the user/tables_priv tables, to restore later
-  CREATE TEMPORARY TABLE tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
-  CREATE TEMPORARY TABLE tmp_backup_user AS SELECT * FROM mysql.user;
+  CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+  CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
 
   # Reset the backup flag
   --let $backup= 0;
@@ -26,12 +26,12 @@ if ($restore)
 {
   # Restore the saved contents of mysql.tables_priv and mysql.user
   TRUNCATE TABLE mysql.tables_priv;
-  INSERT INTO mysql.tables_priv (SELECT * FROM tmp_backup_tables_priv);
-  DROP TEMPORARY TABLE tmp_backup_tables_priv;
+  INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+  DROP TABLE mysql.tmp_backup_tables_priv;
 
   TRUNCATE TABLE mysql.user;
-  INSERT INTO mysql.user (SELECT * FROM tmp_backup_user);
-  DROP TEMPORARY TABLE tmp_backup_user;
+  INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+  DROP TABLE mysql.tmp_backup_user;
 
   # Reset the restore flag
   --let $restore= 0;

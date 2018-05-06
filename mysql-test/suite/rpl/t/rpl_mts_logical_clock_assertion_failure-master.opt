@@ -1,0 +1,1 @@
+--binlog-transaction-dependency-tracking=COMMIT_ORDER

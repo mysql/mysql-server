@@ -1,19 +1,25 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
-# License as published by the Free Software Foundation; version 2
-# of the License.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Library General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -253,15 +259,7 @@ sub has_expired ($) { return $_[0] && time gt $_[0]; }
 
 use Time::HiRes qw(gettimeofday);
 
-my %time_used= (
-  'collect' => 0,
-  'restart' => 0,
-  'check'   => 0,
-  'ch-warn' => 0,
-  'test'    => 0,
-  'init'    => 0,
-  'admin'   => 0,
-);
+my %time_used;
 
 my %time_text= (
  'collect' => "Collecting test cases",
@@ -281,6 +279,17 @@ my $last_timer_set;
 
 sub init_timers() {
   $last_timer_set= gettimeofday();
+
+  # Initialize the 'time_used' hash for each worker
+  %time_used= (
+    'collect' => 0,
+    'restart' => 0,
+    'check'   => 0,
+    'ch-warn' => 0,
+    'test'    => 0,
+    'init'    => 0,
+    'admin'   => 0,
+  );
 }
 
 sub mark_time_used($) {

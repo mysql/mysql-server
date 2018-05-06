@@ -5,6 +5,11 @@
 
 connect (con1, localhost, user1, , );
 
+# Make sure this thread is instrumented
+select INSTRUMENTED, HISTORY
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
+
 --disable_warnings
 drop function if exists test.f1;
 --enable_warnings
@@ -16,6 +21,11 @@ begin;
 select test.f1();
 
 connect (con2, localhost, user2, , );
+
+# Make sure this thread is instrumented
+select INSTRUMENTED, HISTORY
+  from performance_schema.threads
+  where PROCESSLIST_ID = connection_id();
 
 # Will wait on con1, "Waiting for stored function metadata lock"
 --send

@@ -481,9 +481,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 ******************** CREATE USER ********************
-CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111';
 ==========MASTER==========
 SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
 host	user	authentication_string	select_priv
@@ -566,7 +564,7 @@ test_rpl.t1	check	status	OK
 ******************** CHECKSUM TABLE ********************
 CHECKSUM TABLE t1;
 Table	Checksum
-test_rpl.t1	1837058639
+test_rpl.t1	3445341981
 
 ******************** OPTIMIZE TABLE ********************
 OPTIMIZE TABLE t1;
@@ -686,12 +684,12 @@ CREATE EVENT e1 ON SCHEDULE EVERY '1' SECOND COMMENT 'e_second_comment' DO DELET
 ==========MASTER==========
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========SLAVE===========
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e1	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -746,12 +744,12 @@ ALTER EVENT e1 RENAME TO e2;
 ==========MASTER==========
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========SLAVE===========
 USE test_rpl;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test_rpl	e2	root@localhost	SYSTEM	RECURRING	NULL	1	#	#	NULL	SLAVESIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ==========MASTER==========
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -796,7 +794,7 @@ CREATE VIEW v2 AS SELECT * FROM t1 WHERE b <> UUID();
 ==========MASTER==========
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM v1 ORDER BY a;
 a	b
 1	test1
@@ -804,7 +802,7 @@ a	b
 USE test_rpl;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 1)	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM v1 ORDER BY a;
 a	b
 1	test1
@@ -812,7 +810,7 @@ ALTER VIEW v1 AS SELECT * FROM t1 WHERE a = 2;
 ==========MASTER==========
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM v1 ORDER BY a;
 a	b
 2	test2
@@ -820,7 +818,7 @@ a	b
 USE test_rpl;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 2)	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM v1 ORDER BY a;
 a	b
 2	test2

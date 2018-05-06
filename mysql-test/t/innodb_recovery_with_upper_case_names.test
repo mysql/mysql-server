@@ -1,8 +1,6 @@
 --echo Bug #18412598  UNCLEAN SYSTEM SHUTDOWN RECOVERY FAILS
 --echo		      FOR SCHEMA WITH CAPITAL LETTERS
 
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_case_insensitive_file_system.inc
 
 # Start the server with innodb-fast-shutdown=2,so that
@@ -61,3 +59,6 @@ DROP TABLE mytable;
 use test;
 DROP DATABASE MYDB;
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing");
+--enable_query_log

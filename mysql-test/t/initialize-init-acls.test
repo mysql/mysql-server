@@ -1,17 +1,12 @@
 --source include/big_test.inc
---source include/not_embedded.inc
---source include/have_no_undo_tablespaces.inc
 
 
 let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
-
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -84,6 +79,7 @@ SHOW GRANTS FOR u1@localhost;
 --sorted_result
 SHOW GRANTS FOR u3@localhost;
 --echo # Must have a password
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
 SHOW CREATE USER u2@localhost;
 
 --echo # shut server down
@@ -106,11 +102,7 @@ remove_file $MYSQLD_LOG;
 remove_file $BOOTSTRAP_SQL;
 
 --echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 
 

@@ -1,2 +1,2 @@
 ${?PB_HOST_SPECIFIC_MYSQLD_ARGS}
---query_cache_type=1
+--thread_stack=524288

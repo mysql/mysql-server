@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 --echo #
 --echo # Bug#20923066 SSL AND RSA KEY MATERIAL EXPIRATION SHOULD BE EXTENDED

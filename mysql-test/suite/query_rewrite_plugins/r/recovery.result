@@ -2,10 +2,6 @@
 # Test of recovery. We load some rewrite rule and restart the server.
 # The rewrite rule should now be loaded.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # checks that the plugin is well installed
 SELECT plugin_name, plugin_type
@@ -16,8 +12,6 @@ Rewriter	AUDIT
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
 1	SELECT "Rewrite"	NULL	SELECT "Rewritten"	YES	NULL

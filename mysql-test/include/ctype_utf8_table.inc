@@ -32,7 +32,8 @@ ORDER BY head, tail;
 
 # 
 # Populate 3-byte characters: U+800..U+FFFF: [E0-EF][80-BF][80-BF] 
-# excluding overlong [E0][80-9F][80-BF]
+# excluding overlong [E0][80-9F][80-BF] and surrogate code points
+# [ED][A0-BF][80-BF]
 #
 INSERT INTO t1
 SELECT UNHEX(CONCAT(head, middle, tail))
@@ -41,6 +42,7 @@ WHERE (head BETWEEN 'E0' AND 'EF')
 AND (middle BETWEEN '80' AND 'BF')
 AND (tail BETWEEN '80' AND 'BF')
 AND NOT (head='E0' AND middle BETWEEN '80' AND '9F')
+AND NOT (head='ED' AND middle BETWEEN 'A0' AND 'BF')
 ORDER BY head, middle, tail;
 --disable_warnings
 

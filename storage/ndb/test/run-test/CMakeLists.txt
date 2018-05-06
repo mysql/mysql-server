@@ -1,20 +1,26 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
- ${CMAKE_SOURCE_DIR}/include
  ${CMAKE_SOURCE_DIR}/storage/ndb/include
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger
@@ -26,12 +32,13 @@ INCLUDE_DIRECTORIES(
  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
- ${CMAKE_SOURCE_DIR}/sql
 )
 IF(NOT WIN32)
   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
 ENDIF()
-ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
+MYSQL_ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp
+  DESTINATION mysql-test/ndb
+  )
 TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
@@ -52,7 +59,6 @@ ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
 ADD_CUSTOM_TARGET(check_testcase_files ALL
                   SOURCES check_testcase_files.passed)
 
-INSTALL(TARGETS atrt DESTINATION mysql-test/ndb)
 INSTALL(PROGRAMS   atrt-testBackup atrt-mysql-test-run
         DESTINATION bin)
 INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
@@ -60,11 +66,8 @@ INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
                  check-tests.sh make-config.sh make-html-reports.sh
                  make-index.sh ndb-autotest.sh upgrade-boot.sh
         DESTINATION mysql-test/ndb)
-INSTALL(FILES   daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
-                conf-ndbmaster.cnf conf-fimafeng08.cnf conf-fimafeng09.cnf 
-                conf-dl145a.cnf conf-loki27.cnf conf-ndb07.cnf conf-repl.cnf
-                conf-techra29.cnf conf-test.cnf conf-tyr64.cnf conf-upgrade.cnf
-                test-tests.txt upgrade-tests.txt release-bigmem-tests.txt
-                conf-tyr13.cnf
-		conf-blade08.cnf conf-mikael1.cnf
-        DESTINATION mysql-test/ndb)
+INSTALL(DIRECTORY .
+        DESTINATION mysql-test/ndb
+        FILES_MATCHING
+        PATTERN "*-tests.txt"
+        PATTERN "conf-*.cnf")

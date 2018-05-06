@@ -1,0 +1,95 @@
+#
+# Bug #17479594 AVOID INTERMEDIATE COMMIT WHILE DOING
+#		ALTER TABLE...ALGORITHM=COPY
+#
+CREATE TABLE t(a SERIAL, b INT, c INT, d INT) ENGINE=InnoDB;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+INSERT INTO t(a) SELECT a+16 FROM t;
+INSERT INTO t(a) SELECT a+33 FROM t;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+INSERT INTO t(a) SELECT a+81 FROM t;
+INSERT INTO t(a) SELECT a+162 FROM t;
+INSERT INTO t(a) SELECT a+324 FROM t;
+INSERT INTO t(a) SELECT a+648 FROM t;
+INSERT INTO t(a) SELECT a+1296 FROM t;
+INSERT INTO t(a) SELECT a+2592 FROM t;
+INSERT INTO t(a) SELECT a+5186 FROM t;
+INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+select count(*) from t;
+count(*)
+9999
+UPDATE t SET b=a%7, c=a%11, d=a%13;
+SET DEBUG='+d,crash_copy_before_commit';
+ALTER TABLE t ADD INDEX(b,c,d,a),ADD INDEX(b,c,a,d),ADD INDEX(b,a,c,d),ADD INDEX(b,a,d,c),
+ADD INDEX(b,d,a,c),ADD INDEX(b,d,c,a),ADD INDEX(a,b,c,d),ADD INDEX(a,b,d,c),
+ADD INDEX(a,c,b,d),ADD INDEX(a,c,d,b),ADD INDEX(a,d,b,c),ADD INDEX(a,d,c,b),
+ADD INDEX(c,a,b,d),ADD INDEX(c,a,d,b),ADD INDEX(c,b,a,d),ADD INDEX(c,b,d,a),
+ADD INDEX(c,d,a,b),ADD INDEX(c,d,b,a),ADD INDEX(d,a,b,c),ADD INDEX(d,a,c,b),
+ADD INDEX(d,b,a,c),ADD INDEX(d,b,c,a),ADD INDEX(d,c,a,b),ADD INDEX(d,c,b,a),
+ADD INDEX(a,b,c), ADD INDEX(a,c,b), ADD INDEX(a,c,d), ADD INDEX(a,d,c),
+ADD INDEX(a,b,d), ADD INDEX(a,d,b), ADD INDEX(b,c,d), ADD INDEX(b,d,c),
+ALGORITHM=COPY;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=10384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+CREATE TABLE t1(a INT, b TEXT, c TEXT,
+FULLTEXT(b), FULLTEXT(c(3)), FULLTEXT(b,c))ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "This is a first b column", "This is a first c column");
+INSERT INTO t1 VALUES(2, "This is a second b column", "This is a second c column");
+INSERT INTO t1(a) VALUES(3);
+INSERT INTO t1 VALUES(4, "This is a third b column", "This is a third c column");
+DELETE FROM t1 WHERE a = 2;
+SELECT * FROM t1 WHERE MATCH(b) AGAINST ("first");
+a	b	c
+1	This is a first b column	This is a first c column
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
+a	b	c
+1	This is a first b column	This is a first c column
+SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
+a	b	c
+1	This is a first b column	This is a first c column
+4	This is a third b column	This is a third c column
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text,
+  `c` text,
+  FULLTEXT KEY `b` (`b`),
+  FULLTEXT KEY `c` (`c`),
+  FULLTEXT KEY `b_2` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 FORCE, ALGORITHM=COPY;
+SELECT * FROM t1 WHERE MATCH(b) AGAINST ("first");
+a	b	c
+1	This is a first b column	This is a first c column
+SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
+a	b	c
+1	This is a first b column	This is a first c column
+SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
+a	b	c
+1	This is a first b column	This is a first c column
+4	This is a third b column	This is a third c column
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text,
+  `c` text,
+  FULLTEXT KEY `b` (`b`),
+  FULLTEXT KEY `c` (`c`),
+  FULLTEXT KEY `b_2` (`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

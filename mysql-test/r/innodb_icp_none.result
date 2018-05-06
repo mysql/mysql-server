@@ -12,9 +12,9 @@ SELECT * FROM t1 WHERE c1='3' FOR UPDATE;
 c1	c2
 3	NULL
 DROP TABLE t1;
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) charset latin1;
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-CREATE TABLE t2 (a INT);
+CREATE TABLE t2 (a INT) charset latin1;
 INSERT INTO t2 SELECT A.a + 10*(B.a + 10*C.a) FROM t1 A, t1 B, t1 C;
 CREATE TABLE t3 (
 c1 CHAR(10) NOT NULL,
@@ -215,8 +215,6 @@ DROP TABLE t1, t2, t3;
 #             null-safe operator <=> NULL
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 c1 DATE NOT NULL, 
 c2 DATE NULL, 
@@ -250,8 +248,6 @@ SET sql_mode = default;
 # (Note: Fixed by patch for BUG#42580)
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL, 
 c2 TIMESTAMP NULL, 
@@ -357,7 +353,7 @@ WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00'
 ORDER BY ts DESC
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Backward index scan
 
 DROP TABLE t1;
 #
@@ -388,11 +384,11 @@ CREATE TABLE t3 (
 c1 TINYTEXT NOT NULL,
 i1 INT NOT NULL,
 KEY (c1(6),i1)
-);
+) charset utf8mb4;
 INSERT INTO t3 SELECT CONCAT('c-',1000+t2.a,'=w'), 1 FROM t2;
 EXPLAIN SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	c1	c1	12	NULL	2	33.33	Using where
+1	SIMPLE	t3	NULL	range	c1	c1	30	NULL	2	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c1` >= 'c-1004=w') and (`test`.`t3`.`c1` <= 'c-1006=w') and (`test`.`t3`.`i1` > 2))
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
@@ -474,14 +470,14 @@ c1 TINYTEXT NOT NULL,
 c2 INT NOT NULL,
 PRIMARY KEY (c2),
 KEY id1 (c1(4))
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES ('Anastasia', 5);
 INSERT INTO t1 VALUES ('Karianne', 4);
 SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
 c1	c2
 EXPLAIN SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,id1	id1	6	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,id1	id1	18	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where ((`test`.`t1`.`c1` <= '6566-06-15') and (`test`.`t1`.`c2` <> 3))
 DROP TABLE t1;
@@ -495,7 +491,7 @@ col_int_key INTEGER,
 col_varchar_key VARCHAR(1),
 KEY (col_int_key),
 KEY (col_varchar_key, col_int_key)
-) stats_persistent=0;
+) charset utf8mb4 stats_persistent=0;
 INSERT INTO t1 VALUES (NULL,2,'w');
 INSERT INTO t1 VALUES (7,9,'m');
 INSERT INTO t1 VALUES (9,3,'m');
@@ -527,7 +523,7 @@ WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	col_int_key	NULL	NULL	NULL	19	100.00	NULL
 1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	table2	NULL	ref	col_varchar_key	col_varchar_key	4	test.table3.col_varchar_key	1	100.00	Using index
+1	PRIMARY	table2	NULL	ref	col_varchar_key	col_varchar_key	7	test.table3.col_varchar_key	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table1`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` `table1` join `test`.`t1` `table2` join `test`.`t1` `table3` where ((`test`.`table2`.`col_varchar_key` = `test`.`table3`.`col_varchar_key`) and (`test`.`table3`.`col_int_nokey` = `test`.`table1`.`col_int_key`) and <nop>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, (<cache>(`test`.`table3`.`col_int_key`) <> `test`.`t2`.`c1`), true)))))
@@ -560,7 +556,7 @@ FROM t2)
 ORDER BY t1.c2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where 0 order by `test`.`t1`.`c2`
 SELECT t1.c1
@@ -573,19 +569,19 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (
 i1 INTEGER NOT NULL,
 c1 VARCHAR(1) NOT NULL
-);
+) charset latin1;
 INSERT INTO t1 VALUES (2,'w');
 CREATE TABLE t2 (
 i1 INTEGER NOT NULL,
 c1 VARCHAR(1) NOT NULL,
 c2 VARCHAR(1) NOT NULL,
 KEY (c1, i1)
-);
+) charset latin1;
 INSERT INTO t2 VALUES (8,'d','d');
 INSERT INTO t2 VALUES (4,'v','v');
 CREATE TABLE t3 (
 c1 VARCHAR(1) NOT NULL
-);
+) charset latin1;
 INSERT INTO t3 VALUES ('v');
 EXPLAIN SELECT i1
 FROM t1
@@ -615,6 +611,8 @@ DROP TABLE t1,t2,t3;
 #            when running innodb_mrr_icp test"
 #
 create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 1
@@ -864,20 +862,20 @@ CREATE TABLE t1 (
 i1 INTEGER,
 c1 VARCHAR(1),
 KEY col_varchar_key (c1)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'j'), (0,'e'), (210,'f'), (8,'v'), (7,'x'),
 (5,'m'), (NULL,'c');
 CREATE TABLE t2 (  
 i1 INTEGER,
 c1 VARCHAR(1),
 KEY col_varchar_key (c1)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (8,NULL);
 CREATE TABLE t3 (  
 i1 INTEGER,
 c1 VARCHAR(1),
 KEY col_varchar_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 set @old_opt_switch=@@optimizer_switch;
 EXPLAIN SELECT i1
@@ -892,7 +890,7 @@ XOR i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	col_varchar_key	col_varchar_key	4	func	2	33.33	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	col_varchar_key	col_varchar_key	7	func	2	33.33	Using where; Full scan on NULL key
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`i1` AS `i1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`c1` > `test`.`t2`.`c1`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c1`) or isnull(`test`.`t1`.`c1`)), true) and (`test`.`t2`.`i1` >= `test`.`t1`.`i1`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`c1`), true))) xor `test`.`t3`.`i1`)
 SELECT i1
@@ -917,7 +915,7 @@ pk INTEGER PRIMARY KEY,
 a INTEGER NOT NULL, 
 b CHAR(1), 
 KEY(b)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (23,5,'d');
 EXPLAIN SELECT a1.pk 
 FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
@@ -925,8 +923,8 @@ WHERE a1.a = (SELECT pk FROM t1 LIMIT 1)
 AND (a1.a != a2.a OR a1.b IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	a1	NULL	ref	b	b	2	const	1	100.00	Using where
-3	SUBQUERY	t1	NULL	index	NULL	b	2	NULL	1	100.00	Using index
+1	PRIMARY	a1	NULL	ref	b	b	5	const	1	100.00	Using where
+3	SUBQUERY	t1	NULL	index	NULL	b	5	NULL	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a1`.`pk` AS `pk` from `test`.`t1` `a1` where ((`test`.`a1`.`b` = 'd') and (`test`.`a1`.`a` = (/* select#3 */ select `test`.`t1`.`pk` from `test`.`t1` limit 1)) and (((/* select#3 */ select `test`.`t1`.`pk` from `test`.`t1` limit 1) <> '5') or isnull(`test`.`a1`.`b`)))
@@ -942,8 +940,8 @@ WHERE a1.a = (SELECT pk FROM v1 LIMIT 1)
 AND (a1.a != a2.a OR a1.b IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	ref	b	b	2	const	1	100.00	Using where
-3	SUBQUERY	t1	NULL	index	NULL	b	2	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	ref	b	b	5	const	1	100.00	Using where
+3	SUBQUERY	t1	NULL	index	NULL	b	5	NULL	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where ((`test`.`t1`.`b` = 'd') and (`test`.`t1`.`a` = (/* select#3 */ select `test`.`t1`.`pk` from `test`.`t1` limit 1)) and ((`test`.`t1`.`a` <> '5') or isnull(`test`.`t1`.`b`)))

@@ -1,248 +1,147 @@
 CREATE DATABASE test_user_db;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
 ========== test 1.1 ======================================================
 CREATE USER plug IDENTIFIED WITH test_plugin_server;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	123
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	123
+CREATE USER plug IDENTIFIED WITH test_plugin_server BY '123';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS '';
-ERROR 42000: Can't find any matching row in the user table
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 CREATE USER plug IDENTIFIED WITH test_plugin_server AS plug_dest;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS plug_dest;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest' at line 1
 ========== test 1.1 syntax errors ========================================
 CREATE USER plug IDENTIFIED WITH AS plug_dest;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS plug_dest' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH AS plug_dest;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS plug_dest' at line 1
 CREATE USER plug IDENTIFIED WITH;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 CREATE USER plug IDENTIFIED AS '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS ''' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED AS '';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS ''' at line 1
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' IDENTIFIED WITH 'test_plugin_server';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server'' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug 
-IDENTIFIED WITH 'test_plugin_server' IDENTIFIED WITH 'test_plugin_server';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server'' at line 2
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS 'plug_dest'' at line 1
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug AS '' AS 'plug_dest';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS '' AS 'plug_dest'' at line 1
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS '' 
 IDENTIFIED WITH test_plugin_server   AS 'plug_dest';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH test_plugin_server   AS 'plug_dest'' at line 2
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS ''
-                 IDENTIFIED WITH test_plugin_server   AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH test_plugin_server   AS 'plug_dest'' at line 2
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd' 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd'
-                      IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
 USER plug_dest IDENTIFIED by 'plug_dest_pwd';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USER plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-       USER plug_dest IDENTIFIED by 'plug_dest_pwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USER plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
 plug_dest IDENTIFIED by 'plug_dest_pwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-       plug_dest IDENTIFIED by 'plug_dest_pwd';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'plug_dest IDENTIFIED by 'plug_dest_pwd'' at line 2
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest' 
 IDENTIFIED by 'plug_dest_pwd';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED by 'plug_dest_pwd'' at line 2
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-       IDENTIFIED by 'plug_dest_pwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED by 'plug_dest_pwd'' at line 2
 ========== test 1.1  combinations ==========================
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ========== test 1.1.1.6/1.1.2.5 ============================
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+plug_dest	caching_sha2_password
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
-DROP USER plug, plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
+CREATE USER plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug;
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
-DROP USER plug, plug_dest;
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
-DROP USER plug_dest;
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-GRANT IDENTIFIED WITH for existing users is now allowed
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-GRANT IDENTIFIED WITH for existing users is now allowed
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
-DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: Operation CREATE USER failed for 'plug'@'%'
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
-ERROR HY000: Operation CREATE USER failed for 'plug'@'%'
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-CREATE USER plug IDENTIFIED BY 'plug_dest_passwd';
-ERROR HY000: Operation CREATE USER failed for 'plug'@'%'
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-plug_dest	test_plugin_server	plug_dest
-DROP USER plug,plug_dest;
-CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest 
-IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plug_dest
-plug_dest	test_plugin_server	plug_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
+plug_dest	test_plugin_server
 DROP USER plug,plug_dest;
 ========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg	test_plugin_server	plüg_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
 SET NAMES ascii;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-pl??g	test_plugin_server	pl??g_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+pl??g	test_plugin_server
 DROP USER 'plüg';
 Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-pl??g_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+pl??g_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
@@ -251,37 +150,39 @@ SET NAMES latin1;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
 ERROR HY000: Plugin 'test_plügin_server' is not loaded
 CREATE USER 'plug' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	plüg_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER 'plug';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 SET NAMES utf8;
-CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
-ERROR HY000: Plugin 'test_plügin_server' is not loaded
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
+ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg	test_plugin_server	plüg_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
 DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg	test_plugin_server	plüg_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg	test_plugin_server
 DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plüg_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
 ========== test 1.1.1.2/1.1.2.2=============================
 SET @auth_name= 'test_plugin_server';
@@ -294,73 +195,16 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE USER plug IDENTIFIED WITH 'hh''s_test_plugin_server' AS 'plug_dest';
 ERROR HY000: Plugin 'hh's_test_plugin_server' is not loaded
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'hh''s_plug_dest';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-plug	test_plugin_server	hh's_plug_dest
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+plug	test_plugin_server
 DROP USER plug;
 CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-hh's_plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
+SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
+user	plugin
+hh's_plug_dest	caching_sha2_password
 DROP USER 'hh''s_plug_dest';
 ========== test 1.1.1.4 ====================================
 CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '''s_test_plugin_server AS 'plug_dest'' at line 1
-========== test 1.1.3.1 ====================================
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-CREATE USER plug_dest;
-DROP USER plug_dest;
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	
-DROP USER grant_user,plug_dest;
-set @save_sql_mode= @@sql_mode;
-SET @@sql_mode=no_auto_create_user;
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-CREATE USER plug_dest;
-DROP USER plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-ERROR 42000: Can't find any matching row in the user table
-DROP USER grant_user;
-GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
-DROP USER plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_user_passwd';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
-user	plugin	authentication_string
-grant_user	test_plugin_server	plug_dest
-plug_dest	mysql_native_password	*560881EB651416CEF77314D07D55EDCD5FC1BD6D
-DROP USER grant_user,plug_dest;
 DROP DATABASE test_user_db;

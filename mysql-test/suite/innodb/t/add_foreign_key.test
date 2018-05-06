@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo #
 --echo # Bug #19471516 SERVER CRASHES WHEN EXECUTING ALTER TABLE ADD

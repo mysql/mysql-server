@@ -2,9 +2,6 @@
 # To test the effect of disabling/enabling instrumentation for a table
 # in setup_objects table.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_warnings
 drop table if exists test.setup_objects;
 --enable_warnings
@@ -48,17 +45,6 @@ insert into db1.t1 values('13', 'db1.t1');
 insert into db1.t2 values('21', 'db1.t2');
 insert into db1.t2 values('22', 'db1.t2');
 insert into db1.t2 values('23', 'db1.t2');
-
-# Query P_S tables. Stats should be updated.
-select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
-       from performance_schema.table_lock_waits_summary_by_table
-       where OBJECT_SCHEMA='db1';
-select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
-       from performance_schema.table_io_waits_summary_by_table
-       where OBJECT_SCHEMA='db1';
-
-truncate table db1.t1;
-truncate table db1.t2;
 
 # Query P_S tables. Stats should be updated.
 select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE

@@ -1,9 +1,8 @@
-let $numa_support = `SELECT COUNT(VARIABLE_VALUE) = 1 FROM
-  INFORMATION_SCHEMA.GLOBAL_VARIABLES
-  WHERE VARIABLE_NAME='innodb_numa_interleave'`;
-
-if ( $numa_support == 0 )
+--let $_hn_unknown_var= convert_error(ER_UNKNOWN_SYSTEM_VARIABLE)
+--error 0, $_hn_unknown_var
+--let $_hn_innodb_numa_interleave= `SELECT @@GLOBAL.innodb_numa_interleave`
+--let $_hn_error= query_get_value(SHOW ERRORS, Code, 1)
+if ($_hn_error == $_hn_unknown_var)
 {
-    --skip Test requires: Binary must be built with NUMA support.
+  --skip Required NUMA support
 }
-

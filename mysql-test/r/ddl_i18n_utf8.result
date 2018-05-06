@@ -1,4 +1,6 @@
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 -------------------------------------------------------------------
 Views
@@ -6,6 +8,8 @@ Views
 
 DROP DATABASE IF EXISTS mysqltest1|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 CREATE TABLE t1(кол INT)|
 INSERT INTO t1 VALUES(1)|
@@ -70,6 +74,8 @@ SELECT * FROM mysqltest1.v2|
 SELECT * FROM mysqltest1.v3|
 use mysqltest1|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE VIEW v1|
@@ -127,6 +133,8 @@ SELECT * FROM mysqltest1.v2|
 SELECT * FROM mysqltest1.v3|
 use mysqltest1|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE VIEW v1|
@@ -178,7 +186,11 @@ Stored procedures/functions
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 
 CREATE PROCEDURE p1(
@@ -199,6 +211,8 @@ COLLATION(_koi8r    '�����') AS c6,
 SET парам1 = 'a';
 SET парам2 = 'b';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE PROCEDURE p2(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
@@ -218,6 +232,11 @@ COLLATION(_koi8r    '�����') AS c6,
 SET парам1 = 'a';
 SET парам2 = 'b';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE PROCEDURE mysqltest2.p3(
 INOUT парам1 CHAR(10),
@@ -237,6 +256,8 @@ COLLATION(_koi8r    '�����') AS c6,
 SET парам1 = 'a';
 SET парам2 = 'b';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE PROCEDURE mysqltest2.p4(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
@@ -256,11 +277,16 @@ COLLATION(_koi8r    '�����') AS c6,
 SET парам1 = 'a';
 SET парам2 = 'b';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE PROCEDURE p1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -281,7 +307,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
+p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -302,7 +328,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -323,7 +349,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
+p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -376,7 +402,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p2'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -394,7 +420,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p3'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -412,7 +438,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p4'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -430,7 +456,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a = '1'|
@@ -442,6 +468,10 @@ c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8_unicode_ci	utf8_unicode_ci
@@ -451,6 +481,11 @@ c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8_general_ci	utf8_general_ci
@@ -460,6 +495,10 @@ c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8_unicode_ci	utf8_unicode_ci
@@ -469,6 +508,11 @@ c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
 utf8_general_ci	utf8_general_ci
@@ -486,27 +530,47 @@ c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE PROCEDURE p1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -527,7 +591,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
+p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -548,7 +612,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -569,7 +633,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
+p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -622,7 +686,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p2'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -640,7 +704,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p3'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -658,7 +722,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p4'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -676,7 +740,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a = '1'|
@@ -732,7 +796,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
 INOUT парам1 CHAR(10),
@@ -766,7 +830,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
@@ -808,7 +872,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
 INOUT парам1 CHAR(10),
@@ -842,7 +906,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
@@ -888,27 +952,47 @@ c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p3(@a, @b)|
 c1	c2	c3
 utf8_unicode_ci	utf8_unicode_ci	utf8_unicode_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
 utf8_general_ci	utf8_general_ci	utf8_general_ci
 c4	c5	c6	c7	c8
 utf8_general_ci	utf8_general_ci	koi8r_general_ci	utf8_general_ci	utf8
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE PROCEDURE p1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -929,7 +1013,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
+p2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -950,7 +1034,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
 INOUT парам1 CHAR(10),
 OUT парам2 CHAR(10))
 BEGIN
@@ -971,7 +1055,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
+p4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
 INOUT парам1 CHAR(10) CHARACTER SET utf8,
 OUT парам2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -1024,7 +1108,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p2'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1042,7 +1126,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p3'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1060,7 +1144,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_name = 'p4'|
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1078,7 +1162,7 @@ COLLATION(    'текст') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	CREATED	ALTERED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a = '1'|
@@ -1133,7 +1217,11 @@ Triggers
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 CREATE TABLE t1(c INT)|
 CREATE TABLE mysqltest2.t1(c INT)|
@@ -1153,6 +1241,9 @@ SET @a1 = 'текст';
 SET @a2 = _utf8 'текст';
 SET @a3 = _koi8r    '�����';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
 BEGIN
@@ -1167,6 +1258,10 @@ SET @b1 = 'текст';
 SET @b2 = _utf8 'текст';
 SET @b3 = _koi8r    '�����';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
 BEGIN
@@ -1181,6 +1276,9 @@ SET @a1 = 'текст';
 SET @a2 = _utf8 'текст';
 SET @a3 = _koi8r    '�����';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
 BEGIN
@@ -1195,13 +1293,16 @@ SET @b1 = 'текст';
 SET @b2 = _utf8 'текст';
 SET @b3 = _koi8r    '�����';
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1216,8 +1317,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1232,8 +1332,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1248,8 +1347,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1276,7 +1374,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg2	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -1288,7 +1386,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 use mysqltest2|
 
@@ -1305,7 +1403,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg4	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -1317,7 +1415,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 use mysqltest1|
 
 
@@ -1334,7 +1432,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg2'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1349,7 +1447,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg3'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1364,7 +1462,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg4'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1379,7 +1477,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a1 = '1'|
@@ -1395,18 +1493,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1426,18 +1524,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1468,13 +1566,14 @@ INSERT INTO mysqltest2.t1 VALUES(0)|
 DELETE FROM mysqltest1.log|
 DELETE FROM mysqltest2.log|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1489,8 +1588,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1505,8 +1603,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1521,8 +1618,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1549,7 +1645,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg2	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -1561,7 +1657,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 use mysqltest2|
 
@@ -1578,7 +1674,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg4	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -1590,7 +1686,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 use mysqltest1|
 
 
@@ -1607,7 +1703,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg2'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1622,7 +1718,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg3'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1637,7 +1733,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg4'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -1652,7 +1748,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a1 = '1'|
@@ -1668,18 +1764,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1699,18 +1795,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -1730,16 +1826,16 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqltest1` /*!40100 DEFAULT CHARACTER
 
 USE `mysqltest1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
@@ -1750,10 +1846,9 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1779,10 +1874,9 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1809,16 +1903,16 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqltest2` /*!40100 DEFAULT CHARACTER
 
 USE `mysqltest2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `log` (
   `msg` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1),(0),(1);
 ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
@@ -1829,10 +1923,9 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1858,10 +1951,9 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET character_set_results = utf8 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1903,13 +1995,14 @@ INSERT INTO mysqltest2.t1 VALUES(0)|
 DELETE FROM mysqltest1.log|
 DELETE FROM mysqltest2.log|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 
 
 SHOW CREATE TRIGGER trg1|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1924,8 +2017,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER trg2|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER trg2 AFTER INSERT ON t1 FOR EACH ROW
-BEGIN
+trg2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg2` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1940,8 +2032,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg3|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg3 BEFORE INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg3` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10);
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1956,8 +2047,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci	CREATED
 
 SHOW CREATE TRIGGER mysqltest2.trg4|
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER mysqltest2.trg4 AFTER INSERT ON mysqltest2.t1 FOR EACH ROW
-BEGIN
+trg4	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg4` AFTER INSERT ON `t1` FOR EACH ROW BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
 INSERT INTO log VALUES(COLLATION('текст'));
@@ -1984,7 +2074,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg2	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -1996,7 +2086,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 use mysqltest2|
 
@@ -2013,7 +2103,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	BEFORE	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 trg4	INSERT	t1	BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 INSERT INTO log VALUES(COLLATION(перем1));
@@ -2025,7 +2115,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	AFTER	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 use mysqltest1|
 
 
@@ -2042,7 +2132,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg2'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2057,7 +2147,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg3'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2072,7 +2162,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @a1 = 'текст';
 SET @a2 =  'текст';
 SET @a3 =     'текст';
-END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	BEFORE	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS WHERE trigger_name = 'trg4'|
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2087,7 +2177,7 @@ INSERT INTO log VALUES(@@character_set_client);
 SET @b1 = 'текст';
 SET @b2 =  'текст';
 SET @b3 =     'текст';
-END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
+END	ROW	AFTER	NULL	NULL	OLD	NEW	CREATED	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 SET @a1 = '1'|
@@ -2103,18 +2193,18 @@ INSERT INTO t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2134,18 +2224,18 @@ INSERT INTO mysqltest2.t1 VALUES(1)|
 ---> Log:
 SELECT msg FROM mysqltest2.log|
 msg
+koi8r_general_ci
+koi8r_general_ci
+utf8
+utf8
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
+utf8_general_ci
 utf8_unicode_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
-utf8_general_ci
-utf8_general_ci
-utf8_general_ci
-koi8r_general_ci
-utf8_general_ci
-utf8
 
 SELECT
 COLLATION(@a1) AS ca1,
@@ -2171,7 +2261,11 @@ Events
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO
@@ -2185,6 +2279,8 @@ COLLATION(_koi8r    '�����') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE EVENT ev2 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
@@ -2197,6 +2293,9 @@ COLLATION(_koi8r    '�����') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE EVENT mysqltest2.ev3 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
@@ -2209,6 +2308,9 @@ COLLATION(_koi8r    '�����') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 CREATE EVENT mysqltest2.ev4 ON SCHEDULE AT '2030-01-01 00:00:00' DO
 BEGIN
@@ -2221,12 +2323,15 @@ COLLATION(_koi8r    '�����') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
 END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 
 SHOW CREATE EVENT ev1|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10);
 SELECT
 COLLATION(перем1) AS c1,
@@ -2239,7 +2344,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2252,7 +2357,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2265,7 +2370,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2303,7 +2408,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev2'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2316,7 +2421,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev3'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2329,7 +2434,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev4'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2342,7 +2447,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 
 ALTER DATABASE mysqltest1 COLLATE cp866_general_ci|
@@ -2357,11 +2462,13 @@ SHOW CREATE EVENT ev2|
 SHOW CREATE EVENT mysqltest2.ev3|
 SHOW CREATE EVENT mysqltest2.ev4|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE EVENT ev1|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10);
 SELECT
 COLLATION(перем1) AS c1,
@@ -2374,7 +2481,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2387,7 +2494,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2400,7 +2507,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2438,7 +2545,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev2'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2451,7 +2558,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev3'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2464,7 +2571,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev4'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2477,7 +2584,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 ---> Dump of mysqltest1
 
@@ -2494,7 +2601,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;;
 /*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
 /*!50003 SET @saved_time_zone      = @@time_zone */ ;;
 /*!50003 SET time_zone             = 'SYSTEM' */ ;;
 /*!50106 CREATE*/ /*!50117 DEFINER=`root`@`localhost`*/ /*!50106 EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
@@ -2522,7 +2629,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;;
 /*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
 /*!50003 SET @saved_time_zone      = @@time_zone */ ;;
 /*!50003 SET time_zone             = 'SYSTEM' */ ;;
 /*!50106 CREATE*/ /*!50117 DEFINER=`root`@`localhost`*/ /*!50106 EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
@@ -2561,7 +2668,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;;
 /*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
 /*!50003 SET @saved_time_zone      = @@time_zone */ ;;
 /*!50003 SET time_zone             = 'SYSTEM' */ ;;
 /*!50106 CREATE*/ /*!50117 DEFINER=`root`@`localhost`*/ /*!50106 EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
@@ -2589,7 +2696,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;;
 /*!50003 SET character_set_results = utf8 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
 /*!50003 SET @saved_time_zone      = @@time_zone */ ;;
 /*!50003 SET time_zone             = 'SYSTEM' */ ;;
 /*!50106 CREATE*/ /*!50117 DEFINER=`root`@`localhost`*/ /*!50106 EVENT `ev4` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
@@ -2630,11 +2737,13 @@ SHOW CREATE EVENT ev2|
 SHOW CREATE EVENT mysqltest2.ev3|
 SHOW CREATE EVENT mysqltest2.ev4|
 set names utf8|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 
 SHOW CREATE EVENT ev1|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10);
 SELECT
 COLLATION(перем1) AS c1,
@@ -2647,7 +2756,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev2` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2660,7 +2769,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2673,7 +2782,7 @@ END	utf8	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+ev3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev3` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
 DECLARE перем1 CHAR(10) CHARACTER SET utf8;
 SELECT
 COLLATION(перем1) AS c1,
@@ -2711,7 +2820,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev2'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2724,7 +2833,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev3'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2737,7 +2846,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 SELECT * FROM INFORMATION_SCHEMA.EVENTS WHERE event_name = 'ev4'|
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
@@ -2750,7 +2859,7 @@ COLLATION( 'текст') AS c3,
 COLLATION(    'текст') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
+END	ONE TIME	2030-01-01 00:00:00	NULL	NULL	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	NULL	ENABLED	NOT PRESERVE	CREATED	LAST_ALTERED	NULL		1	utf8	utf8_general_ci	utf8_unicode_ci
 
 -------------------------------------------------------------------
 DDL statements within stored routine.
@@ -2759,7 +2868,11 @@ DDL statements within stored routine.
 DROP DATABASE IF EXISTS mysqltest1|
 DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 use mysqltest1|
 
 CREATE PROCEDURE p1()
@@ -2778,26 +2891,26 @@ CALL p1()|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 SHOW CREATE TABLE t1|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 
 CALL mysqltest2.p2()|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 SHOW CREATE TABLE mysqltest2.t2|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 
 ALTER DATABASE mysqltest1 COLLATE cp1251_general_cs|
 ALTER DATABASE mysqltest2 COLLATE cp1251_general_cs|
@@ -2808,26 +2921,26 @@ CALL p1()|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 SHOW CREATE TABLE t1|
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 
 CALL mysqltest2.p2()|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 SHOW CREATE TABLE mysqltest2.t2|
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `col1` varchar(10) COLLATE cp1251_general_cs DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_general_cs
 
 ---> connection: con2
 

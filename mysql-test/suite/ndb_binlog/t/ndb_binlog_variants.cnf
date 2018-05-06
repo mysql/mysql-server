@@ -19,6 +19,9 @@ ndb-wait-setup=120
 ndb-cluster-connection-pool=1
 binlog-format=row
 
+# Enable load data local functionality
+local-infile=true
+
 [mysqld.1.1]
 ndb-log-update-as-write=1
 ndb-log-updated-only=1
@@ -35,12 +38,24 @@ ndb-log-updated-only=1
 ndb-log-update-as-write=0
 ndb-log-updated-only=0
 
+[mysqld.5.1]
+ndb-log-update-as-write=0
+ndb-log-updated-only=1
+ndb-log-update-minimal=1
+
+[mysqld.6.1]
+ndb-log-update-as-write=0
+ndb-log-updated-only=0
+ndb-log-update-minimal=1
+
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
 MASTER_MYPORT=                 @mysqld.1.1.port
 MASTER_MYPORT1=                @mysqld.2.1.port
 MASTER_MYPORT2=                @mysqld.3.1.port
 MASTER_MYPORT3=                @mysqld.4.1.port
+MASTER_MYPORT4=                @mysqld.5.1.port
+MASTER_MYPORT5=                @mysqld.6.1.port
 
 NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
 

@@ -54,16 +54,16 @@ SET @@session.pseudo_slave_mode = "T";
 ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'T'
 SET @@session.pseudo_slave_mode = "Y";
 ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'Y'
-SET @@session.pseudo_slave_mode = TRÜE;
-ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'TRÜE'
-SET @@session.pseudo_slave_mode = ÕN;
-ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'ÕN'
+SET @@session.pseudo_slave_mode = TRÃœE;
+ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'TRÃœE'
+SET @@session.pseudo_slave_mode = Ã•N;
+ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'Ã•N'
 SET @@session.pseudo_slave_mode = OF;
-ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'OF'
-SET @@session.pseudo_slave_mode = ÓFF;
-ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'ÓFF'
-SET @@session.pseudo_slave_mode = '¹';
-ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of '¹'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
+SET @@session.pseudo_slave_mode = Ã“FF;
+ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'Ã“FF'
+SET @@session.pseudo_slave_mode = 'Â¹';
+ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'Â¹'
 SET @@session.pseudo_slave_mode = NO;
 ERROR 42000: Variable 'pseudo_slave_mode' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_156_05----------------------------#'
@@ -72,12 +72,12 @@ ERROR HY000: Variable 'pseudo_slave_mode' is a SESSION variable and can't be use
 SELECT @@global.pseudo_slave_mode;
 ERROR HY000: Variable 'pseudo_slave_mode' is a SESSION variable
 '#----------------------FN_DYNVARS_156_06------------------------#'
-SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='pseudo_slave_mode';
+SELECT count(VARIABLE_VALUE) FROM performance_schema.session_variables WHERE VARIABLE_NAME='pseudo_slave_mode';
 count(VARIABLE_VALUE)
 1
 '#----------------------FN_DYNVARS_156_07------------------------#'
 SELECT IF(@@session.pseudo_slave_mode, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
 IF(@@session.pseudo_slave_mode, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -85,7 +85,7 @@ SELECT @@session.pseudo_slave_mode;
 @@session.pseudo_slave_mode
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='pseudo_slave_mode';
 VARIABLE_VALUE
 ON

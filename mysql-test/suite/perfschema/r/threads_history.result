@@ -41,6 +41,9 @@ update performance_schema.threads
 set INSTRUMENTED='NO', HISTORY='NO'
   where PROCESSLIST_ID = connection_id();
 # Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='NO', HISTORY='NO'
+  where PROCESSLIST_ID = connection_id();
 truncate table performance_schema.events_transactions_current;
 truncate table performance_schema.events_transactions_history;
 truncate table performance_schema.events_transactions_history_long;
@@ -638,6 +641,9 @@ count(*)
 count(*)
 0
 # Switch to connection default
+update performance_schema.threads
+set INSTRUMENTED='YES', HISTORY='YES'
+  where PROCESSLIST_ID = connection_id();
 revoke all privileges, grant option from user1@localhost;
 revoke all privileges, grant option from user2@localhost;
 revoke all privileges, grant option from user3@localhost;

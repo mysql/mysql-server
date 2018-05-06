@@ -16,10 +16,6 @@ CREATE TEMPORARY TABLE shortn2 (a INT);
 ##############################################################################
 # BUG#46572 DROP TEMPORARY table IF EXISTS does not have a consistent behavior
 # in ROW mode 
-# 
-# In RBR, 'DROP TEMPORARY TABLE ...' statement should never be binlogged no
-# matter if the tables exist or not. In contrast, both in SBR and MBR, the
-# statement should be always binlogged no matter if the tables exist or not.
 ##############################################################################
 CREATE TEMPORARY TABLE tmp(c1 int);
 CREATE TEMPORARY TABLE tmp1(c1 int);
@@ -30,20 +26,13 @@ CREATE TABLE t(c1 int);
 DROP TEMPORARY TABLE IF EXISTS tmp;
 
 --disable_warnings
-# Before fixing BUG#46572, 'DROP TEMPORARY TABLE IF EXISTS...' statement was
-# binlogged when the table did not exist in RBR.
 DROP TEMPORARY TABLE IF EXISTS tmp;
 
-# In RBR, 'DROP TEMPORARY TABLE ...' statement is never binlogged no matter if
-# the tables exist or not.
 DROP TEMPORARY TABLE IF EXISTS tmp, tmp1;
 DROP TEMPORARY TABLE tmp3;
 
-#In RBR, tmp2 will NOT be binlogged, because it is a temporary table.
 DROP TABLE IF EXISTS tmp2, t;
 
-#In RBR, tmp2 will be binlogged, because it does not exist and master do not know
-# whether it is a temporary table or not.
 DROP TABLE IF EXISTS tmp2, t;
 --enable_warnings
 
@@ -67,8 +56,11 @@ connection con2;
 SELECT GET_LOCK("a",10);
 let $VERSION=`SELECT VERSION()`;
 
-let $wait_binlog_event=DROP /*!40005 TEMPORARY */ TABLE IF EXISTS;
-source include/wait_for_binlog_event.inc;
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  let $wait_binlog_event=DROP /*!40005 TEMPORARY */ TABLE IF EXISTS;
+  source include/wait_for_binlog_event.inc;
+}
 
 source include/show_binlog_events.inc;
 DROP DATABASE `drop-temp+table-test`;
@@ -86,26 +78,59 @@ DROP DATABASE `drop-temp+table-test`;
 
 RESET MASTER;
 
-CREATE TABLE t1 ( i text );
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  CREATE TABLE t1 ( i text );
 
---connect(con1,localhost,root,,)
-CREATE TEMPORARY TABLE ttmp1 ( i text );
-SET @@session.binlog_format=ROW;
-INSERT INTO t1 VALUES ('1');
-SELECT @@session.binlog_format;
---disconnect con1
+  --connect(con1,localhost,root,,)
+  CREATE TEMPORARY TABLE ttmp1 ( i text );
+  SET @@session.binlog_format='ROW';
+  INSERT INTO t1 VALUES ('1');
+  SELECT @@session.binlog_format;
+  --disconnect con1
 
--- connection default
---let $wait_binlog_event= DROP
---source include/wait_for_binlog_event.inc
---let $mask_binlog_commit_events= 1
--- source include/show_binlog_events.inc
---let $mask_binlog_commit_events= 0
-RESET MASTER;
+  -- connection default
+  --let $wait_binlog_event= DROP
+  --source include/wait_for_binlog_event.inc
+  --let $mask_binlog_commit_events= 1
+  -- source include/show_binlog_events.inc
+  --let $mask_binlog_commit_events= 0
 
-DROP TABLE t1;
+  DROP TABLE t1;
+  RESET MASTER;
+}
 
 # End of 4.1 tests
+
+--echo #
+--echo # Bug 83003: Using temporary tables on slaves increases GTID sequence number
+--echo #
+
+--source include/count_sessions.inc
+--connect (con1,localhost,root,,)
+
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET SESSION binlog_format= STATEMENT;
+CREATE TEMPORARY TABLE temp_needs_logging(a INT) ENGINE=InnoDB;
+SET SESSION binlog_format= @saved_binlog_format;
+
+# Check with both transactional and non-transactional tables as those are logged
+# separately in close_temporary_tables.
+CREATE TEMPORARY TABLE temp_trx(a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
+
+CREATE TEMPORARY TABLE temp_needs_logging_in_stmt(a INT) ENGINE=InnoDB;
+SET SESSION sql_log_bin= 0;
+CREATE TEMPORARY TABLE temp_binlog_disabled(a INT) ENGINE=InnoDB;
+SET SESSION sql_log_bin= 1;
+
+--disconnect con1
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--source include/show_binlog_events.inc
+
+# End of 5.6 tests
 
 --echo #
 --echo # BUG#21638823: ASSERTION FAILED:
@@ -133,11 +158,14 @@ XA END 'idle_at_disconnect';
 --disconnect con3
 --source include/wait_until_disconnected.inc
 --connection default
---let $wait_binlog_event= DROP
---source include/wait_for_binlog_event.inc
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  --let $wait_binlog_event= DROP
+  --source include/wait_for_binlog_event.inc
+}
 --echo # Dump binlog to show that, either the generated DROP comes after tx
---echo # commit (stmt or mixed), or there is no trace of the XA txn and
---echo # the temp table (row)
+--echo # commit (stmt), or there is no trace of the XA txn and
+--echo # the temp table (row or mixed)
 --source include/show_binlog_events.inc
 --echo #
 --echo # Start XA txn and leave in XA_idle

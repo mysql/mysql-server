@@ -10,12 +10,8 @@ ENGINE=INNODB;
 SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
-SET @old_tx_isolation = @@tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
-SET GLOBAL tx_isolation = 'READ-COMMITTED';
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -46,9 +42,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
-SET GLOBAL tx_isolation = @old_tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t1 (
@@ -60,12 +54,8 @@ ENGINE=INNODB;
 SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
-SET @old_tx_isolation = @@tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
-SET GLOBAL tx_isolation = 'READ-COMMITTED';
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -96,8 +86,24 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
-SET GLOBAL tx_isolation = @old_tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';
+#
+# Bug#24344131 ASSERT !OTHER_LOCK IN LOCK_REC_ADD_TO_QUEUE AT LOCK0LOCK.CC:1641
+#
+CREATE TABLE t1(a INT, b INT, primary key(a));
+INSERT INTO t1 VALUES(101, 20);
+SET DEBUG_SYNC="transaction_commit_start SIGNAL s1 WAIT_FOR s2";
+SET DEBUG_SYNC="before_lock_trx_release_locks SIGNAL s3 WAIT_FOR s5";
+INSERT INTO t1 VALUES(10, 20);
+SET DEBUG_SYNC="now WAIT_FOR s1";
+SET DEBUG_SYNC="before_lock_rec_convert_impl_to_expl_for_trx SIGNAL s2 WAIT_FOR s4";
+SET DEBUG_SYNC="before_lock_wait_suspend SIGNAL s5 WAIT_FOR s7";
+UPDATE t1 SET b=25 WHERE a=10;
+SET DEBUG_SYNC="now WAIT_FOR s3";
+SET DEBUG_SYNC="after_lock_clust_rec_read_check_and_lock SIGNAL s4 WAIT_FOR s6";
+UPDATE t1 SET b=30 WHERE a=10;
+SET DEBUG_SYNC="now SIGNAL s6";
+SET DEBUG_SYNC="now SIGNAL s7";
+DROP TABLE t1;

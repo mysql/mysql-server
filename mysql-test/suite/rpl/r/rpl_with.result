@@ -1,0 +1,905 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Goals: test CTEs in prepared statements, in stored routines,
+# and if those are replicated correctly.
+#
+# In-memory tmp tables
+set big_tables=0;
+# CTE in Prepared statement with parameters
+create table t1(c1 int,c2 int);
+insert into t1 values(1,2),(3,4);
+create table t2(a int, b int, c int, d int, e int);
+# Parameters in CTE which is referenced twice
+prepare s from
+'with qn as (select * from t1 where c1=?)
+select * from qn, qn as qn1';
+set @p_qn=1;
+execute s using @p_qn;
+c1	c2	c1	c2
+1	2	1	2
+# Parameters in two CTEs which are referenced in FROM
+# in the opposite order of their WITH definitions.
+prepare s from
+'with qn  as (select * from t1 where c1=?),
+      qn2 as (select * from t1 where c1=?)
+select ? , qn.*, qn2.* from qn2 left join qn on 1';
+# Test binlogging, with INSERT SELECT, to see if the
+# parameter-substituted query is correct.
+prepare si from
+'insert into t2
+with qn  as (select * from t1 where c1=?),
+      qn2 as (select * from t1 where c1=?)
+select ? , qn.*, qn2.* from qn2 left join qn on 1';
+set @p_qn=1,@p_qn2=2,@p_select=10;
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+# We execute twice, as 2nd-exec bugs are common.
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+execute si using @p_qn,@p_qn2,@p_select;
+execute si using @p_qn,@p_qn2,@p_select;
+select * from t2;
+a	b	c	d	e
+# On slave:
+select * from t2;
+a	b	c	d	e
+# Back to Master.
+set @p_qn=2,@p_qn2=1,@p_select=20;
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+20	NULL	NULL	1	2
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+20	NULL	NULL	1	2
+execute si using @p_qn,@p_qn2,@p_select;
+execute si using @p_qn,@p_qn2,@p_select;
+select * from t2;
+a	b	c	d	e
+20	NULL	NULL	1	2
+20	NULL	NULL	1	2
+# On slave:
+select * from t2;
+a	b	c	d	e
+20	NULL	NULL	1	2
+20	NULL	NULL	1	2
+# Back to Master.
+drop table t1;
+# CTE in SP
+create table t1(a int)|
+insert into t1 values(1),(2)|
+create table t3(a char(16), b int)|
+# Materialized CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with qn(x,y) as (select * from t1, t1 t2 limit 4)
+select x,y from qn where y<3 order by x;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Merged CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with qn(x,y) as (select * from t1, t1 t2)
+select x,y from qn where y<3 order by x;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Recursive CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with recursive qn(x) as (
+select t1.a from t1 union all select x*3 from qn where x<100)
+select "got ",x from qn;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# On slave:
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# On slave:
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# A stored function, returning the highest generated number
+# under a limit provided in input.
+create function func1(M int) returns int
+return (
+with recursive qn (n,x) as (
+select 1, t1.a from t1 union all
+select n+1, x*3 from qn where (x*3)<M)
+select max(x) from qn )|
+select func1(100),func1(200)|
+func1(100)	func1(200)
+81	162
+drop function func1|
+# A trigger, which when inserting "b" in t3,
+# sets "a" to the highest generated number under "b"; indeed a
+# WITH cannot be used in a generated column's expression (which
+# cannot contain a subquery), so a workaround is a trigger.
+create trigger t3_bi before insert on t3 for each row
+begin
+declare tmp int;
+set tmp = (
+with recursive qn (n,x) as (
+select 1, t1.a from t1 union all
+select n+1, x*3 from qn where (x*3)<new.b)
+select max(x) from qn );
+set new.a= tmp;
+end|
+delete from t3|
+insert into t3 (b) values(300),(1000)|
+select * from t3|
+a	b
+243	300
+729	1000
+# On slave:
+select * from t3|
+a	b
+243	300
+729	1000
+# Back to Master.
+delete from t3|
+drop trigger t3_bi|
+# A local variable used in CTE which is referenced twice
+insert into t1 values(3),(4)|
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+declare done int default 0;
+declare c cursor for
+with qn(x) as (select * from t1 where t1.a>b)
+select x*10 from qn union all
+select x*100 from qn;
+declare continue handler for sqlstate '02000' set done = 1;
+set b=2;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,1);
+end if;
+until done end repeat;
+close c;
+set b=3;
+set done=0;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,2);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+30	1
+40	1
+300	1
+400	1
+40	2
+400	2
+# On slave:
+select * from t3|
+a	b
+30	1
+40	1
+300	1
+400	1
+40	2
+400	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Test binlogging, with INSERT SELECT, to see if the
+# parameter-substituted query is correct.
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+set b=2;
+insert into t3
+with qn(x) as (select * from t1 where t1.a>b)
+select x*10,1 from qn union all
+select x*100,2 from qn;
+end|
+call cur1()|
+select * from t3|
+a	b
+30	1
+40	1
+300	2
+400	2
+# On slave:
+select * from t3|
+a	b
+30	1
+40	1
+300	2
+400	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Two local variables in two CTEs which are referenced in FROM
+# in the opposite order of their WITH definitions.
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+declare done int default 0;
+declare c cursor for
+with qn(x)  as (select t1.a from t1 where t1.a=b),
+qn1(x) as (select t1.a*10 from t1 where t1.a=a)
+select qn1.x-qn.x from qn1, qn;
+declare continue handler for sqlstate '02000' set done = 1;
+set a=2,b=3;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,1);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+17	1
+# On slave:
+select * from t3|
+a	b
+17	1
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+17	1
+# On slave:
+select * from t3|
+a	b
+17	1
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Similar, with INSERT SELECT, to test binlogging
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+set b=3,a=2;
+insert into t3(a)
+with qn(x)  as (select t1.a from t1 where t1.a=b),
+qn1(x) as (select t1.a*10 from t1 where t1.a=a)
+select qn1.x-qn.x from qn1, qn;
+end|
+call cur1()|
+select * from t3|
+a	b
+17	NULL
+# On slave:
+select * from t3|
+a	b
+17	NULL
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+17	NULL
+# On slave:
+select * from t3|
+a	b
+17	NULL
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+drop table t1,t2,t3|
+# On-disk tmp tables
+set big_tables=1;
+# CTE in Prepared statement with parameters
+create table t1(c1 int,c2 int);
+insert into t1 values(1,2),(3,4);
+create table t2(a int, b int, c int, d int, e int);
+# Parameters in CTE which is referenced twice
+prepare s from
+'with qn as (select * from t1 where c1=?)
+select * from qn, qn as qn1';
+set @p_qn=1;
+execute s using @p_qn;
+c1	c2	c1	c2
+1	2	1	2
+# Parameters in two CTEs which are referenced in FROM
+# in the opposite order of their WITH definitions.
+prepare s from
+'with qn  as (select * from t1 where c1=?),
+      qn2 as (select * from t1 where c1=?)
+select ? , qn.*, qn2.* from qn2 left join qn on 1';
+# Test binlogging, with INSERT SELECT, to see if the
+# parameter-substituted query is correct.
+prepare si from
+'insert into t2
+with qn  as (select * from t1 where c1=?),
+      qn2 as (select * from t1 where c1=?)
+select ? , qn.*, qn2.* from qn2 left join qn on 1';
+set @p_qn=1,@p_qn2=2,@p_select=10;
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+# We execute twice, as 2nd-exec bugs are common.
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+execute si using @p_qn,@p_qn2,@p_select;
+execute si using @p_qn,@p_qn2,@p_select;
+select * from t2;
+a	b	c	d	e
+# On slave:
+select * from t2;
+a	b	c	d	e
+# Back to Master.
+set @p_qn=2,@p_qn2=1,@p_select=20;
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+20	NULL	NULL	1	2
+execute s using @p_qn,@p_qn2,@p_select;
+?	c1	c2	c1	c2
+20	NULL	NULL	1	2
+execute si using @p_qn,@p_qn2,@p_select;
+execute si using @p_qn,@p_qn2,@p_select;
+select * from t2;
+a	b	c	d	e
+20	NULL	NULL	1	2
+20	NULL	NULL	1	2
+# On slave:
+select * from t2;
+a	b	c	d	e
+20	NULL	NULL	1	2
+20	NULL	NULL	1	2
+# Back to Master.
+drop table t1;
+# CTE in SP
+create table t1(a int)|
+insert into t1 values(1),(2)|
+create table t3(a char(16), b int)|
+# Materialized CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with qn(x,y) as (select * from t1, t1 t2 limit 4)
+select x,y from qn where y<3 order by x;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Merged CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with qn(x,y) as (select * from t1, t1 t2)
+select x,y from qn where y<3 order by x;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# On slave:
+select * from t3|
+a	b
+1	1
+1	2
+2	1
+2	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Recursive CTE
+create procedure cur1()
+begin
+declare a char(16);
+declare b int;
+declare done int default 0;
+declare c cursor for
+with recursive qn(x) as (
+select t1.a from t1 union all select x*3 from qn where x<100)
+select "got ",x from qn;
+declare continue handler for sqlstate '02000' set done = 1;
+open c;
+repeat
+fetch c into a, b;
+if not done then
+insert into test.t3 values (a,b);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# On slave:
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# On slave:
+select * from t3|
+a	b
+got	1
+got	2
+got	3
+got	6
+got	9
+got	18
+got	27
+got	54
+got	81
+got	162
+got	243
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# A stored function, returning the highest generated number
+# under a limit provided in input.
+create function func1(M int) returns int
+return (
+with recursive qn (n,x) as (
+select 1, t1.a from t1 union all
+select n+1, x*3 from qn where (x*3)<M)
+select max(x) from qn )|
+select func1(100),func1(200)|
+func1(100)	func1(200)
+81	162
+drop function func1|
+# A trigger, which when inserting "b" in t3,
+# sets "a" to the highest generated number under "b"; indeed a
+# WITH cannot be used in a generated column's expression (which
+# cannot contain a subquery), so a workaround is a trigger.
+create trigger t3_bi before insert on t3 for each row
+begin
+declare tmp int;
+set tmp = (
+with recursive qn (n,x) as (
+select 1, t1.a from t1 union all
+select n+1, x*3 from qn where (x*3)<new.b)
+select max(x) from qn );
+set new.a= tmp;
+end|
+delete from t3|
+insert into t3 (b) values(300),(1000)|
+select * from t3|
+a	b
+243	300
+729	1000
+# On slave:
+select * from t3|
+a	b
+243	300
+729	1000
+# Back to Master.
+delete from t3|
+drop trigger t3_bi|
+# A local variable used in CTE which is referenced twice
+insert into t1 values(3),(4)|
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+declare done int default 0;
+declare c cursor for
+with qn(x) as (select * from t1 where t1.a>b)
+select x*10 from qn union all
+select x*100 from qn;
+declare continue handler for sqlstate '02000' set done = 1;
+set b=2;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,1);
+end if;
+until done end repeat;
+close c;
+set b=3;
+set done=0;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,2);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+30	1
+40	1
+300	1
+400	1
+40	2
+400	2
+# On slave:
+select * from t3|
+a	b
+30	1
+40	1
+300	1
+400	1
+40	2
+400	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Test binlogging, with INSERT SELECT, to see if the
+# parameter-substituted query is correct.
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+set b=2;
+insert into t3
+with qn(x) as (select * from t1 where t1.a>b)
+select x*10,1 from qn union all
+select x*100,2 from qn;
+end|
+call cur1()|
+select * from t3|
+a	b
+30	1
+40	1
+300	2
+400	2
+# On slave:
+select * from t3|
+a	b
+30	1
+40	1
+300	2
+400	2
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Two local variables in two CTEs which are referenced in FROM
+# in the opposite order of their WITH definitions.
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+declare done int default 0;
+declare c cursor for
+with qn(x)  as (select t1.a from t1 where t1.a=b),
+qn1(x) as (select t1.a*10 from t1 where t1.a=a)
+select qn1.x-qn.x from qn1, qn;
+declare continue handler for sqlstate '02000' set done = 1;
+set a=2,b=3;
+open c;
+repeat
+fetch c into a;
+if not done then
+insert into test.t3 values (a,1);
+end if;
+until done end repeat;
+close c;
+end|
+call cur1()|
+select * from t3|
+a	b
+17	1
+# On slave:
+select * from t3|
+a	b
+17	1
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+17	1
+# On slave:
+select * from t3|
+a	b
+17	1
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+# Similar, with INSERT SELECT, to test binlogging
+create procedure cur1()
+begin
+declare a char(16);
+declare b int default 0;
+set b=3,a=2;
+insert into t3(a)
+with qn(x)  as (select t1.a from t1 where t1.a=b),
+qn1(x) as (select t1.a*10 from t1 where t1.a=a)
+select qn1.x-qn.x from qn1, qn;
+end|
+call cur1()|
+select * from t3|
+a	b
+17	NULL
+# On slave:
+select * from t3|
+a	b
+17	NULL
+# Back to Master.
+delete from t3|
+call cur1()|
+select * from t3|
+a	b
+17	NULL
+# On slave:
+select * from t3|
+a	b
+17	NULL
+# Back to Master.
+delete from t3|
+drop procedure cur1|
+drop table t1,t2,t3|
+include/rpl_end.inc

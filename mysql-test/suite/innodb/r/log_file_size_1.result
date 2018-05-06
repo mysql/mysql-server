@@ -1,8 +1,5 @@
 # restart: --innodb-fast-shutdown=2 --innodb-log-file-size=4M
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
 4194304
@@ -43,6 +40,7 @@ id	LEFT(bfield,20)
 11	aaaaaaaaaaaaaaaaaaaa
 12	bbbbbbbbbbbbbbbbbbbb
 13	cccccccccccccccccccc
+Pattern "Starting crash recovery" found
 The size of the ib_logfile0 file: 4
 The size of the ib_logfile1 file: 4
 The size of the ib_logfile2 file: 4
@@ -122,6 +120,7 @@ SELECT @@innodb_log_file_size;
 SELECT @@innodb_log_files_in_group;
 @@innodb_log_files_in_group
 2
+Pattern "Starting crash recovery" found
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)
@@ -149,10 +148,15 @@ id	LEFT(bfield,20)
 23	cccccccccccccccccccc
 SET GLOBAL innodb_fast_shutdown=0;
 "test misc 1"
+Pattern "syntax error in innodb_log_group_home_dir" found
 "test misc 3"
+Pattern "Cannot resize log files in read-only mode" found
 "test misc 4"
+Pattern "Only one log file found" found
 "test misc 5"
+Pattern ".*ib_logfile0 size 7 is not a multiple of innodb_page_size" found
 "test misc 6"
+Pattern ".*ib_logfile1 is of different size" found
 # restart
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;

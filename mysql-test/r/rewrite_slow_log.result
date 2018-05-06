@@ -1,4 +1,6 @@
 TRUNCATE TABLE mysql.slow_log;
+SET @old_master_info_repository = @@GLOBAL.master_info_repository;
+SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -7,32 +9,29 @@ SET GLOBAL slow_query_log_file= '.../log/rewrite_slow.log';
 SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL slow_query_log=    'ON';
 SET SESSION long_query_time=  0;
-GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
-CHANGE MASTER TO MASTER_PASSWORD='azundris3';
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
+SET GLOBAL master_info_repository = 'TABLE';
+SET GLOBAL relay_log_info_repository = 'TABLE';
+CHANGE MASTER TO MASTER_PASSWORD='azundris3',
+MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
 MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 0,
 MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name',
 MASTER_SSL_CAPATH = 'ca_directory_name',
 MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_KEY = 'key_file_name',
-MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 0,
-IGNORE_SERVER_IDS = (99,100);
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
-MASTER_LOG_FILE = '', MASTER_LOG_POS = 0,
-MASTER_SSL = 0, MASTER_SSL_CA = '',
-MASTER_SSL_CAPATH = '',
-MASTER_SSL_CERT = '', MASTER_SSL_KEY = '',
-MASTER_SSL_CIPHER = '', MASTER_SSL_VERIFY_SERVER_CERT = 0,
-IGNORE_SERVER_IDS = ( );
+MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1,
+MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name',
+IGNORE_SERVER_IDS = (99,100), MASTER_TLS_VERSION = 'TLSv1.2',
+MASTER_BIND = 'eth4n', MASTER_RETRY_COUNT = 7,
+MASTER_DELAY = 4711, MASTER_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
+RESET SLAVE ALL;
+SET GLOBAL master_info_repository = DEFAULT;
+SET GLOBAL relay_log_info_repository = DEFAULT;
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 SET SESSION long_query_time=  @old_long_query_time;
 SET GLOBAL slow_query_log='OFF';
 DROP USER 'test_user4'@'localhost';
 DROP USER test_user2;
-DROP USER test_user1;
 CREATE TABLE test_log (sql_text TEXT);
 LOAD DATA LOCAL INFILE '.../log/rewrite_slow.log'
      INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
@@ -42,27 +41,25 @@ sql_text
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 sql_text
 ------ from file ------
-SELECT sql_text FROM test_log WHERE sql_text like '%AS %';
+SELECT count(*) FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+count(*)
+1
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
 sql_text
-GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3';
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0';
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
-sql_text
-CHANGE MASTER TO MASTER_PASSWORD = <secret>;
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
-sql_text
-SET PASSWORD FOR `test_user4`@`localhost`=<secret>;
+CHANGE MASTER TO MASTER_BIND = 'eth4n', MASTER_PASSWORD = <secret>, MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 7, MASTER_DELAY = 4711, MASTER_HEARTBEAT_PERIOD = 1.010000, MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 4, MASTER_AUTO_POSITION = 0, MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name', MASTER_SSL_CAPATH = 'ca_directory_name', MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name', MASTER_SSL_KEY = 'key_file_name', MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1, MASTER_TLS_VERSION = 'TLSv1.2', IGNORE_SERVER_IDS = ( 99, 100 ) FOR CHANNEL 'chan_jackie';
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
+count(*)
+1
 ------ from table ------
-SELECT sql_text FROM mysql.slow_log WHERE sql_text like '%AS %';
+SELECT count(*) FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+count(*)
+1
+SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
 sql_text
-GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*A142844DBF024D282D88FE19CB4D3FA13B1E96E0'
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_PASSWORD %';
-sql_text
-CHANGE MASTER TO MASTER_PASSWORD = <secret>;
-SELECT sql_text FROM test_log WHERE sql_text like '%SET PASSWORD %';
-sql_text
-SET PASSWORD FOR `test_user4`@`localhost`=<secret>;
+CHANGE MASTER TO MASTER_BIND = 'eth4n', MASTER_PASSWORD = <secret>, MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 7, MASTER_DELAY = 4711, MASTER_HEARTBEAT_PERIOD = 1.010000, MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 4, MASTER_AUTO_POSITION = 0, MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name', MASTER_SSL_CAPATH = 'ca_directory_name', MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name', MASTER_SSL_KEY = 'key_file_name', MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1, MASTER_TLS_VERSION = 'TLSv1.2', IGNORE_SERVER_IDS = ( 99, 100 ) FOR CHANNEL 'chan_jackie';
+SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
+count(*)
+1
 ------ done ------
 DROP TABLE test_log;
 End of 5.6 tests!
@@ -79,3 +76,5 @@ SET SESSION long_query_time=    @old_long_query_time;
 SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
 SET GLOBAL  slow_query_log=     @old_slow_query_log;
 SET GLOBAL  log_output=         @old_log_output;
+SET GLOBAL  master_info_repository= @old_master_info_repository;
+SET GLOBAL  relay_log_info_repository= @old_relay_log_info_repository;

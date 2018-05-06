@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #### t/events_bugs.test
 #
 # Last change:
@@ -135,9 +130,6 @@ let $fixed_bug41925= 0;
 #                   might occur (concurrent_inserts=on).
 #
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 --disable_warnings
 drop database if exists events_test;
 drop database if exists mysqltest_db1;
@@ -145,8 +137,6 @@ drop database if exists mysqltest_db2;
 --enable_warnings
 create database events_test;
 use events_test;
-# We use MyISAM tables and must avoid effects (visibility of changes might be
-# delayed) caused by concurrent_insert on (default).
 set @concurrent_insert= @@global.concurrent_insert;
 set @@global.concurrent_insert = 0;
 
@@ -158,7 +148,7 @@ set @@global.concurrent_insert = 0;
 # option with no argument in events_bugs-master.opt turns the scheduler on.
 
 --disable_warnings
-select * from information_schema.global_variables where variable_name like 'event_scheduler';
+select * from performance_schema.global_variables where variable_name like 'event_scheduler';
 --enable_warnings
 # Check that the event_scheduler is really running
 --source include/running_event_scheduler.inc
@@ -178,16 +168,19 @@ CREATE EVENT lower_case ON SCHEDULE EVERY 1 MINUTE DO SELECT 1;
 CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
 DROP EVENT Lower_case;
 SET NAMES cp1251;
+--character_set cp1251
 CREATE EVENT äîëåí_ðåãèñòúð_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
 --error ER_EVENT_ALREADY_EXISTS
 CREATE EVENT ÄîËåÍ_ðåãèñòúð_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
 DROP EVENT ÄîËåÍ_ðåãèñòúð_1251;
 SET NAMES utf8;
+--character_set utf8mb4
 CREATE EVENT Ð´Ð¾Ð»ÐµÐ½_Ñ€ÐµÐ³Ð¸ÑÑ‚ÑŠÑ€_ÑƒÑ‚Ñ„8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
 --error ER_EVENT_ALREADY_EXISTS
 CREATE EVENT Ð”ÐžÐ›Ð•Ð_Ñ€ÐµÐ³Ð¸ÑÑ‚ÑŠÑ€_ÑƒÑ‚Ñ„8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
 DROP EVENT Ð”ÐžÐ›Ð•Ð_Ñ€ÐµÐ³Ð¸ÑÑ‚ÑŠÑ€_ÑƒÑ‚Ñ„8;
 SET NAMES latin1;
+
 #
 # END   - 16415: Events: event names are case sensitive
 #
@@ -240,7 +233,6 @@ create event e_55 on schedule every 10 hour starts 10000101000000 do drop table 
 #
 set global event_scheduler=off;
 --source include/check_events_off.inc
-delete from mysql.event;
 set global event_scheduler= on;
 --source include/running_event_scheduler.inc
 set @old_sql_mode:=@@sql_mode;
@@ -908,16 +900,15 @@ CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
 # START - BUG#28924 If I drop the user who is the definer of an active event
 #                   then server cores
 #
-let $engine=MyISAM;
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 SET GLOBAL event_scheduler = ON;
 --source include/running_event_scheduler.inc
 eval
 CREATE TABLE events_test.event_log
-(id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp)
-ENGINE=$engine;
-SET autocommit=0;
+(id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp);
+SET @save_session_autocommit = @@session.autocommit;
+SET @@session.autocommit=0;
 CREATE USER evtest1@localhost;
 ALTER USER evtest1@localhost IDENTIFIED BY 'ev1';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
@@ -981,6 +972,7 @@ disconnect e1;
 DROP EVENT events_test.ev_sched_1823;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
+SET @@session.autocommit = @save_session_autocommit;
 --source include/check_events_off.inc
 
 
@@ -1023,10 +1015,8 @@ DROP EVENT IF EXISTS e2;
 # Check that an ordinary user can not create/update/drop events in the
 # read-only mode.
 
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER mysqltest_u1@localhost;
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
-set sql_mode= @orig_sql_mode;
 
 --echo
 
@@ -1047,12 +1037,12 @@ CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
 
 --echo
 
---error ER_OPTION_PREVENTS_STATEMENT
+--error ER_EVENT_DOES_NOT_EXIST
 ALTER EVENT e1 COMMENT 'comment';
 
 --echo
 
---error ER_OPTION_PREVENTS_STATEMENT
+--error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT e1;
 
 --echo
@@ -1203,21 +1193,21 @@ DROP USER mysqltest_u1@localhost;
 # Bug#32633 Can not create any routine if SQL_MODE=no_engine_substitution
 #
 # Ensure that when new SQL modes are introduced, they are also added to
-# the mysql.event table.
+# the mysql.events table.
 #
 
 --disable_warnings
 drop procedure if exists p;
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
 # Rename SQL modes that differ in name between the server and the table definition.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.event where name = 'e1' and sql_mode = @full_mode;
+select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
 drop event e1;
 
 #
@@ -1315,21 +1305,6 @@ DROP DATABASE event_test11764334;
 USE test; 
 
 --echo #
---echo # BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
---echo #                UPGRADE FOR TRIGGERS
---echo #
---echo # Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
---echo # manually into mysql.event table do not show up in SHOW CREATE event OUTPUT.
---echo #
-INSERT IGNORE INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
-
---echo # NO_ZERO_* modes should not show up in the output.
-SHOW CREATE EVENT ev1;
-
---echo # Clean-up
-DROP EVENT ev1;
-
---echo #
 --echo # Bug#17435114 ASSERTION FAILED: THD->LEX->LOCK_TABLES_STATE == QUERY_TABLES_LIST::LTS_NOT_LOCK
 --echo #
 
@@ -1340,9 +1315,27 @@ EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (1) MINUTE_SECOND;
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
 CREATE EVENT e1 ON SCHEDULE EVERY 2 HOUR DO SELECT 1;
+--disable_warnings
 ALTER EVENT e1 ON SCHEDULE EVERY
 EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
+--enable_warnings
 DROP EVENT e1;
+
+
+--echo #
+--echo # Bug#27041552 - M_THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT) ETC. ASSERTION
+--echo #
+
+SET GLOBAL event_scheduler= 'ON';
+CREATE TABLE t1(_userid CHAR (1)KEY) ENGINE=InnoDB;
+SET @save_autocommit_value= @@global.autocommit;
+SET @@global.autocommit= OFF;
+SET @@session.TIMESTAMP=200;
+CREATE EVENT e1 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO INSERT INTO t1 VALUES(1);
+SELECT SLEEP(3);
+SET @@global.autocommit=@save_autocommit_value;
+SET @@session.TIMESTAMP=default;
+DROP TABLE t1;
 
 ###########################################################################
 #

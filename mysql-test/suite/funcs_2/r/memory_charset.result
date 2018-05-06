@@ -1,5 +1,3 @@
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES armscii8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET armscii8 COLLATE armscii8_bin) ENGINE=Memory CHARACTER SET armscii8 COLLATE armscii8_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -229,8 +227,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES armscii8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET armscii8 COLLATE armscii8_general_ci) ENGINE=Memory CHARACTER SET armscii8 COLLATE armscii8_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -460,8 +456,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES ascii;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ascii COLLATE ascii_bin) ENGINE=Memory CHARACTER SET ascii COLLATE ascii_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -691,8 +685,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES ascii;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ascii COLLATE ascii_general_ci) ENGINE=Memory CHARACTER SET ascii COLLATE ascii_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -922,8 +914,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES big5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET big5 COLLATE big5_bin) ENGINE=Memory CHARACTER SET big5 COLLATE big5_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -1027,8 +1017,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES big5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET big5 COLLATE big5_chinese_ci) ENGINE=Memory CHARACTER SET big5 COLLATE big5_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -1132,8 +1120,6 @@ a_ascii	a_len
 7D	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES binary;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET binary) ENGINE=Memory CHARACTER SET binary;
 SHOW TABLE STATUS LIKE 't1';
@@ -1363,8 +1349,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_bin) ENGINE=Memory CHARACTER SET cp1250 COLLATE cp1250_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -1594,8 +1578,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_croatian_ci) ENGINE=Memory CHARACTER SET cp1250 COLLATE cp1250_croatian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -1825,8 +1807,6 @@ BD	1
 D7	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_czech_cs) ENGINE=Memory CHARACTER SET cp1250 COLLATE cp1250_czech_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -2056,8 +2036,6 @@ BD	1
 D7	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1250;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1250 COLLATE cp1250_general_ci) ENGINE=Memory CHARACTER SET cp1250 COLLATE cp1250_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -2287,8 +2265,6 @@ BD	1
 D7	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_bin) ENGINE=Memory CHARACTER SET cp1251 COLLATE cp1251_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -2518,8 +2494,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci) ENGINE=Memory CHARACTER SET cp1251 COLLATE cp1251_bulgarian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -2749,8 +2723,6 @@ BD	1
 BE	1
 BF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_general_ci) ENGINE=Memory CHARACTER SET cp1251 COLLATE cp1251_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -2980,8 +2952,6 @@ B7	1
 B9	1
 BB	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_general_cs) ENGINE=Memory CHARACTER SET cp1251 COLLATE cp1251_general_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -3211,8 +3181,6 @@ B7	1
 B9	1
 BB	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1251;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1251 COLLATE cp1251_ukrainian_ci) ENGINE=Memory CHARACTER SET cp1251 COLLATE cp1251_ukrainian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -3442,8 +3410,6 @@ BC	1
 BD	1
 BE	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1256;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1256 COLLATE cp1256_bin) ENGINE=Memory CHARACTER SET cp1256 COLLATE cp1256_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -3673,8 +3639,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1256;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1256 COLLATE cp1256_general_ci) ENGINE=Memory CHARACTER SET cp1256 COLLATE cp1256_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -3904,8 +3868,6 @@ D7	1
 F7	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_bin) ENGINE=Memory CHARACTER SET cp1257 COLLATE cp1257_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -4135,8 +4097,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_general_ci) ENGINE=Memory CHARACTER SET cp1257 COLLATE cp1257_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -4366,8 +4326,6 @@ BC	1
 BD	1
 BE	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp1257;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp1257 COLLATE cp1257_lithuanian_ci) ENGINE=Memory CHARACTER SET cp1257 COLLATE cp1257_lithuanian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -4597,8 +4555,6 @@ FA	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp850;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp850 COLLATE cp850_bin) ENGINE=Memory CHARACTER SET cp850 COLLATE cp850_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -4828,8 +4784,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp850;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp850 COLLATE cp850_general_ci) ENGINE=Memory CHARACTER SET cp850 COLLATE cp850_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -5059,8 +5013,6 @@ AB	1
 F3	1
 A8	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp852;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp852 COLLATE cp852_bin) ENGINE=Memory CHARACTER SET cp852 COLLATE cp852_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -5290,8 +5242,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp852;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp852 COLLATE cp852_general_ci) ENGINE=Memory CHARACTER SET cp852 COLLATE cp852_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -5521,8 +5471,6 @@ F8	1
 F9	1
 FA	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp866;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp866 COLLATE cp866_bin) ENGINE=Memory CHARACTER SET cp866 COLLATE cp866_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -5752,8 +5700,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp866;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp866 COLLATE cp866_general_ci) ENGINE=Memory CHARACTER SET cp866 COLLATE cp866_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -5983,8 +5929,6 @@ DD	1
 DE	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp932;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp932 COLLATE cp932_bin) ENGINE=Memory CHARACTER SET cp932 COLLATE cp932_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -6151,8 +6095,6 @@ DD	1
 DE	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES cp932;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET cp932 COLLATE cp932_japanese_ci) ENGINE=Memory CHARACTER SET cp932 COLLATE cp932_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -6319,8 +6261,6 @@ DD	1
 DE	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES dec8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_bin) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -6550,8 +6490,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES dec8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_swedish_ci) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -6781,8 +6719,6 @@ DE	1
 DF	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES eucjpms;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET eucjpms COLLATE eucjpms_bin) ENGINE=Memory CHARACTER SET eucjpms COLLATE eucjpms_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -6886,8 +6822,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES eucjpms;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET eucjpms COLLATE eucjpms_japanese_ci) ENGINE=Memory CHARACTER SET eucjpms COLLATE eucjpms_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -6991,8 +6925,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES euckr;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET euckr COLLATE euckr_bin) ENGINE=Memory CHARACTER SET euckr COLLATE euckr_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -7096,8 +7028,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES euckr;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET euckr COLLATE euckr_korean_ci) ENGINE=Memory CHARACTER SET euckr COLLATE euckr_korean_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -7201,8 +7131,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gb2312;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb2312 COLLATE gb2312_bin) ENGINE=Memory CHARACTER SET gb2312 COLLATE gb2312_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -7306,8 +7234,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gb2312;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb2312 COLLATE gb2312_chinese_ci) ENGINE=Memory CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -7411,8 +7337,6 @@ a_ascii	a_len
 7D	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gbk;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gbk COLLATE gbk_bin) ENGINE=Memory CHARACTER SET gbk COLLATE gbk_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -7516,8 +7440,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gbk;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gbk COLLATE gbk_chinese_ci) ENGINE=Memory CHARACTER SET gbk COLLATE gbk_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -7621,8 +7543,6 @@ a_ascii	a_len
 7D	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gb18030;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb18030 COLLATE gb18030_bin) ENGINE=Memory CHARACTER SET gb18030 COLLATE gb18030_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -7726,8 +7646,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES gb18030;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET gb18030 COLLATE gb18030_chinese_ci) ENGINE=Memory CHARACTER SET gb18030 COLLATE gb18030_chinese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -7831,8 +7749,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES geostd8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET geostd8 COLLATE geostd8_bin) ENGINE=Memory CHARACTER SET geostd8 COLLATE geostd8_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -8062,8 +7978,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES geostd8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET geostd8 COLLATE geostd8_general_ci) ENGINE=Memory CHARACTER SET geostd8 COLLATE geostd8_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -8293,8 +8207,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES greek;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET greek COLLATE greek_bin) ENGINE=Memory CHARACTER SET greek COLLATE greek_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -8524,8 +8436,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES greek;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET greek COLLATE greek_general_ci) ENGINE=Memory CHARACTER SET greek COLLATE greek_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -8755,8 +8665,6 @@ BF	1
 D9	1
 F9	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES hebrew;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hebrew COLLATE hebrew_bin) ENGINE=Memory CHARACTER SET hebrew COLLATE hebrew_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -8986,8 +8894,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES hebrew;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hebrew COLLATE hebrew_general_ci) ENGINE=Memory CHARACTER SET hebrew COLLATE hebrew_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -9217,8 +9123,6 @@ FC	1
 FD	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES hp8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_bin) ENGINE=Memory CHARACTER SET hp8 COLLATE hp8_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -9448,8 +9352,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES hp8;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET hp8 COLLATE hp8_english_ci) ENGINE=Memory CHARACTER SET hp8 COLLATE hp8_english_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -9679,8 +9581,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES keybcs2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET keybcs2 COLLATE keybcs2_bin) ENGINE=Memory CHARACTER SET keybcs2 COLLATE keybcs2_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -9910,8 +9810,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES keybcs2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET keybcs2 COLLATE keybcs2_general_ci) ENGINE=Memory CHARACTER SET keybcs2 COLLATE keybcs2_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -10141,8 +10039,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES koi8r;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8r COLLATE koi8r_bin) ENGINE=Memory CHARACTER SET koi8r COLLATE koi8r_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -10372,8 +10268,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES koi8r;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8r COLLATE koi8r_general_ci) ENGINE=Memory CHARACTER SET koi8r COLLATE koi8r_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -10603,8 +10497,6 @@ E0	1
 D1	1
 F1	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES koi8u;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8u COLLATE koi8u_bin) ENGINE=Memory CHARACTER SET koi8u COLLATE koi8u_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -10834,8 +10726,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES koi8u;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET koi8u COLLATE koi8u_general_ci) ENGINE=Memory CHARACTER SET koi8u COLLATE koi8u_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -11065,8 +10955,6 @@ BC	1
 BE	1
 BF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_bin) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -11296,8 +11184,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_danish_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_danish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -11527,8 +11413,6 @@ DE	1
 DF	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_general_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -11758,8 +11642,6 @@ BD	1
 BE	1
 BF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_general_cs) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_general_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -11989,8 +11871,6 @@ BD	1
 BE	1
 BF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_german1_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_german1_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -12220,8 +12100,6 @@ D7	1
 DE	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_german2_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_german2_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -12451,8 +12329,6 @@ F8	1
 DE	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_spanish_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_spanish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -12682,8 +12558,6 @@ BD	1
 BE	1
 BF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin1;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin1 COLLATE latin1_swedish_ci) ENGINE=Memory CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -12913,8 +12787,6 @@ DE	1
 DF	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_bin) ENGINE=Memory CHARACTER SET latin2 COLLATE latin2_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -13144,8 +13016,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_croatian_ci) ENGINE=Memory CHARACTER SET latin2 COLLATE latin2_croatian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -13375,8 +13245,6 @@ BD	1
 D7	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_czech_cs) ENGINE=Memory CHARACTER SET latin2 COLLATE latin2_czech_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -13606,8 +13474,6 @@ AF	1
 38	1
 39	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_general_ci) ENGINE=Memory CHARACTER SET latin2 COLLATE latin2_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -13837,8 +13703,6 @@ DF	1
 F0	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin2;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin2 COLLATE latin2_hungarian_ci) ENGINE=Memory CHARACTER SET latin2 COLLATE latin2_hungarian_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -14068,8 +13932,6 @@ DF	1
 F0	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin5 COLLATE latin5_bin) ENGINE=Memory CHARACTER SET latin5 COLLATE latin5_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -14299,8 +14161,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin5;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin5 COLLATE latin5_turkish_ci) ENGINE=Memory CHARACTER SET latin5 COLLATE latin5_turkish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -14530,8 +14390,6 @@ BF	1
 D7	1
 F7	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_bin) ENGINE=Memory CHARACTER SET latin7 COLLATE latin7_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -14761,8 +14619,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_estonian_cs) ENGINE=Memory CHARACTER SET latin7 COLLATE latin7_estonian_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -14992,8 +14848,6 @@ FC	1
 A1	1
 A5	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_general_ci) ENGINE=Memory CHARACTER SET latin7 COLLATE latin7_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -15223,8 +15077,6 @@ DE	1
 A1	1
 A5	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES latin7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET latin7 COLLATE latin7_general_cs) ENGINE=Memory CHARACTER SET latin7 COLLATE latin7_general_cs;
 SHOW TABLE STATUS LIKE 't1';
@@ -15454,8 +15306,6 @@ DE	1
 A1	1
 A5	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES macce;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_bin) ENGINE=Memory CHARACTER SET macce COLLATE macce_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -15685,8 +15535,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES macce;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_general_ci) ENGINE=Memory CHARACTER SET macce COLLATE macce_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -15916,8 +15764,6 @@ DD	1
 E2	1
 E3	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES macroman;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_bin) ENGINE=Memory CHARACTER SET macroman COLLATE macroman_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -16147,8 +15993,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES macroman;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_general_ci) ENGINE=Memory CHARACTER SET macroman COLLATE macroman_general_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -16378,8 +16222,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES sjis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET sjis COLLATE sjis_bin) ENGINE=Memory CHARACTER SET sjis COLLATE sjis_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -16546,8 +16388,6 @@ DD	1
 DE	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES sjis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET sjis COLLATE sjis_japanese_ci) ENGINE=Memory CHARACTER SET sjis COLLATE sjis_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -16714,8 +16554,6 @@ DD	1
 DE	1
 DF	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES swe7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET swe7 COLLATE swe7_bin) ENGINE=Memory CHARACTER SET swe7 COLLATE swe7_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -16945,8 +16783,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES swe7;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET swe7 COLLATE swe7_swedish_ci) ENGINE=Memory CHARACTER SET swe7 COLLATE swe7_swedish_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -17176,8 +17012,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES tis620;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET tis620 COLLATE tis620_bin) ENGINE=Memory CHARACTER SET tis620 COLLATE tis620_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -17407,8 +17241,6 @@ FB	1
 FC	1
 FD	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES tis620;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET tis620 COLLATE tis620_thai_ci) ENGINE=Memory CHARACTER SET tis620 COLLATE tis620_thai_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -17638,8 +17470,6 @@ EA	1
 FD	1
 EB	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES ujis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ujis COLLATE ujis_bin) ENGINE=Memory CHARACTER SET ujis COLLATE ujis_bin;
 SHOW TABLE STATUS LIKE 't1';
@@ -17743,8 +17573,6 @@ a_ascii	a_len
 7E	1
 7F	1
 DROP TABLE test.t1;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES ujis;
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET ujis COLLATE ujis_japanese_ci) ENGINE=Memory CHARACTER SET ujis COLLATE ujis_japanese_ci;
 SHOW TABLE STATUS LIKE 't1';
@@ -17853,7 +17681,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -20394,7 +20227,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -22935,7 +22773,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -25476,7 +25319,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -28017,7 +27865,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -30558,7 +30411,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -33099,7 +32957,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -35640,7 +35503,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -38181,7 +38049,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -40722,7 +40595,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -43263,7 +43141,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -45804,7 +45687,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -48345,7 +48233,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -50886,7 +50779,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -53427,7 +53325,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -55968,7 +55871,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -58509,7 +58417,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -61050,7 +60963,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -63591,7 +63509,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -66132,7 +66055,12 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=Memory CHARACTER SET utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -68673,6 +68601,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_bin) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_bin	#	#	#
@@ -71212,6 +71143,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_czech_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_czech_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_czech_ci	#	#	#
@@ -73751,6 +73685,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_danish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_danish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_danish_ci	#	#	#
@@ -76290,6 +76227,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_estonian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_estonian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_estonian_ci	#	#	#
@@ -78829,6 +78769,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_general_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_general_ci	#	#	#
@@ -81368,6 +81311,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_hungarian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_hungarian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_hungarian_ci	#	#	#
@@ -83907,6 +83853,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_icelandic_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_icelandic_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_icelandic_ci	#	#	#
@@ -86446,6 +86395,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_latvian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_latvian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_latvian_ci	#	#	#
@@ -88985,6 +88937,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_lithuanian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_lithuanian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_lithuanian_ci	#	#	#
@@ -91524,6 +91479,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_persian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_persian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_persian_ci	#	#	#
@@ -94063,6 +94021,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_polish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_polish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_polish_ci	#	#	#
@@ -96602,6 +96563,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_roman_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_roman_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_roman_ci	#	#	#
@@ -99141,6 +99105,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_romanian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_romanian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_romanian_ci	#	#	#
@@ -101680,6 +101647,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovak_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_slovak_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovak_ci	#	#	#
@@ -104219,6 +104189,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_slovenian_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_slovenian_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_slovenian_ci	#	#	#
@@ -106758,6 +106731,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish2_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_spanish2_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish2_ci	#	#	#
@@ -109297,6 +109273,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_spanish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_spanish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_spanish_ci	#	#	#
@@ -111836,6 +111815,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_swedish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_swedish_ci	#	#	#
@@ -114375,6 +114357,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_turkish_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_turkish_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_turkish_ci	#	#	#
@@ -116914,6 +116899,9 @@ DROP DATABASE test;
 CREATE DATABASE test CHARACTER SET utf8;
 USE test;
 CREATE TABLE test.t1 (a CHAR(4) CHARACTER SET utf8 COLLATE utf8_unicode_ci) ENGINE=Memory CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	utf8_unicode_ci	#	#	#
@@ -119449,4 +119437,4 @@ DFBE	1
 DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP database test;
-CREATE database test;
+CREATE database test CHARACTER SET utf8mb4;

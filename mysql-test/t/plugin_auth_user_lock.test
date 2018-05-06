@@ -2,7 +2,6 @@
 # Test account lock / unlock of the proxy and proxied users
 #
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 
 --echo # Create proxy and proxied users
 CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';

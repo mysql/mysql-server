@@ -13,49 +13,50 @@
 # WL#8313: Set ROW based binary log format by default
 #
 --source include/have_myisam.inc
---source include/have_innodb.inc
+# The testcase requires binary logging disabled.
+--source include/not_log_bin.inc
 
 CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');
 
 --let $storage_engine=MyISAM
-SET binlog_format= ROW;
+SET binlog_format= 'ROW';
 --echo #
---echo # MyISAM, binlog_format= ROW
---echo #
---source include/delete_all_rows.inc
---echo
-
-SET binlog_format= MIXED;
---echo #
---echo # MyISAM, binlog_format= MIXED
+--echo # MyISAM, binlog_format= 'ROW'
 --echo #
 --source include/delete_all_rows.inc
 --echo
 
-SET binlog_format= STATEMENT;
+SET binlog_format= 'MIXED';
 --echo #
---echo # MyISAM, binlog_format= STATEMENT
+--echo # MyISAM, binlog_format= 'MIXED'
+--echo #
+--source include/delete_all_rows.inc
+--echo
+
+SET binlog_format= 'STATEMENT';
+--echo #
+--echo # MyISAM, binlog_format= 'STATEMENT'
 --echo #
 --source include/delete_all_rows.inc
 --echo
 
 --let $storage_engine=InnoDB
-SET binlog_format= ROW;
+SET binlog_format= 'ROW';
 --echo #
---echo # InnoDB, binlog_format= ROW
---echo #
---source include/delete_all_rows.inc
---echo
-
-SET binlog_format= MIXED;
---echo #
---echo # InnoDB, binlog_format= MIXED
+--echo # InnoDB, binlog_format= 'ROW'
 --echo #
 --source include/delete_all_rows.inc
 --echo
 
-SET binlog_format= STATEMENT;
+SET binlog_format= 'MIXED';
 --echo #
---echo # InnoDB, binlog_format= STATEMENT
+--echo # InnoDB, binlog_format= 'MIXED'
+--echo #
+--source include/delete_all_rows.inc
+--echo
+
+SET binlog_format= 'STATEMENT';
+--echo #
+--echo # InnoDB, binlog_format= 'STATEMENT'
 --echo #
 --source include/delete_all_rows.inc

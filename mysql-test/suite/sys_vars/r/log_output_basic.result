@@ -84,7 +84,7 @@ SELECT @@session.log_output;
 ERROR HY000: Variable 'log_output' is a GLOBAL variable
 '#----------------------FN_DYNVARS_065_06------------------------#'
 SELECT @@log_output = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='log_output';
 @@log_output = VARIABLE_VALUE
 1

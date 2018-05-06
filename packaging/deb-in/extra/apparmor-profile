@@ -16,6 +16,7 @@
   capability dac_override,
   capability setuid,
   capability setgid,
+  capability sys_nice,
 
 # Allow network access
   network tcp,
@@ -30,9 +31,16 @@
   /var/run/mysqld/mysqld.pid rw,
   /var/run/mysqld/mysqld.sock rw,
   /var/run/mysqld/mysqld.sock.lock rw,
+  /var/run/mysqld/mysqlx.sock rw,
+  /var/run/mysqld/mysqlx.sock.lock rw,
   /run/mysqld/mysqld.pid rw,
   /run/mysqld/mysqld.sock rw,
   /run/mysqld/mysqld.sock.lock rw,
+  /run/mysqld/mysqlx.sock rw,
+  /run/mysqld/mysqlx.sock.lock rw,
+
+# Allow systemd notify messages
+  /{,var/}run/systemd/notify w,
 
 # Allow execution of server binary
   /usr/sbin/mysqld mr,
@@ -45,6 +53,8 @@
 # Allow error msg and charset access
   /usr/share/mysql/ r,
   /usr/share/mysql/** r,
+  /usr/share/mysql-@MYSQL_BASE_VERSION@/ r,
+  /usr/share/mysql-@MYSQL_BASE_VERSION@/** r,
 
 # Allow data dir access
   /var/lib/mysql/ r,

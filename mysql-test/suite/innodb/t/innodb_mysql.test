@@ -10,18 +10,12 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
--- source include/have_innodb.inc
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYs
 let $test_foreign_keys= 1;
-set global innodb_large_prefix=off;
 --source include/mix1.inc
-set global innodb_large_prefix=default;
 
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
 --echo #
 --echo # BUG#35850: Performance regression in 5.1.23/5.1.24
 --echo #
@@ -40,13 +34,19 @@ drop table t1, t2;
 # This bug is triggered when the binlog format is STATEMENT and the
 # binary log is turned off. In this case, no error should be shown for
 # the statement since there are no replication issues.
+SET @save_log_bin= @@sql_log_bin;
+SET @save_binlog_format=@@binlog_format;
+SET @@sql_log_bin = 0;
 
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
+query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
+
+SET @@sql_log_bin=@save_log_bin;
+SET @@binlog_format=@save_binlog_format;
 
 --echo #
 --echo # Bug#37284 Crash in Field_string::type()
@@ -81,7 +81,9 @@ CREATE TABLE bar (a int, b int, c char(10),
 
 INSERT INTO foo VALUES
    (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
-   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+   (6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+   (9,10,'reykjavik');
 
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
@@ -253,7 +255,7 @@ DROP TABLES t4,t5;
 CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (a VARCHAR(100)) ENGINE=InnoDB;
 CREATE TABLE t3 (i INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT, 
+CREATE TABLE t4 (i INT NOT NULL PRIMARY KEY, t1i INT,
   FOREIGN KEY (t1i) REFERENCES t1(i))
   ENGINE=InnoDB;
 delimiter ||;
@@ -377,7 +379,7 @@ DROP TABLE t1, t2, t3, t4;
 
 --echo #
 --echo # Bug#44886: SIGSEGV in test_if_skip_sort_order() -
---echo #            uninitialized variable used as subscript 
+--echo #            uninitialized variable used as subscript
 --echo #
 
 CREATE TABLE t1 (a INT, b INT, c INT, d INT, PRIMARY KEY (b), KEY (a,c))
@@ -398,7 +400,7 @@ SET sql_mode=default;
 DROP TABLE t1, t2, t3;
 
 --echo #
---echo # Bug #45828: Optimizer won't use partial primary key if another 
+--echo # Bug #45828: Optimizer won't use partial primary key if another
 --echo # index can prevent filesort
 --echo #
 
@@ -433,7 +435,7 @@ SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 # index on c3 will be used instead of primary key
 EXPLAIN SELECT * FROM t1 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 
-# if we force the primary key, we can see the estimate is 1 
+# if we force the primary key, we can see the estimate is 1
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 
 
@@ -488,27 +490,27 @@ DROP TABLE t1;
 --echo # Bug #47963: Wrong results when index is used
 --echo #
 CREATE TABLE t1(
-  a VARCHAR(5) NOT NULL, 
+  a VARCHAR(5) NOT NULL,
   b VARCHAR(5) NOT NULL,
   c DATETIME NOT NULL,
-  KEY (c) 
+  KEY (c)
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES('TEST', 'TEST', '2009-10-09 00:00:00');
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00.0';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.0' AND c <= '2009-10-09 00:00:00';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00' AND c <= '2009-10-09 00:00:00.0';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.000' AND c <= '2009-10-09 00:00:00.000';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.00' AND c <= '2009-10-09 00:00:00.001';
-SELECT * FROM t1 WHERE a = 'TEST' AND 
+SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
-EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND 
+EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 DROP TABLE t1;
 
@@ -520,7 +522,7 @@ CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
 CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
 INSERT INTO t1 VALUES (),();
 INSERT INTO t2 VALUES (),();
-CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2
   WHERE b =(SELECT a FROM t1 LIMIT 1);
 
 CONNECT (con1, localhost, root,,);
@@ -591,8 +593,8 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT,
 
 INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
                       (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
-		      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
-		      (11,11,11,11,11,11);
+      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
+      (11,11,11,11,11,11);
 
 ANALYZE TABLE t1;
 
@@ -605,43 +607,16 @@ DROP TABLE t1;
 --echo #   corrupt definition at engine
 --echo #
 
-CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b))
   ENGINE=InnoDB;
 
 ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
 
+ANALYZE TABLE t1;
+
 --query_vertical SHOW INDEXES FROM t1;
 
 DROP TABLE t1;
-
-
---echo #
---echo # Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
---echo #  JOINed during an UPDATE
---echo #
-
-CREATE TABLE t1 (d INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT, b INT, 
-  c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-  ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB;
-
---echo # set up our data elements
-INSERT INTO t1 (d) VALUES (1);
-INSERT INTO t2 (a,b) VALUES (1,1);
-SELECT SECOND(c) INTO @bug47453 FROM t2;
-
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-
-SELECT SLEEP(1);
-
-UPDATE t1 JOIN t2 ON d=a SET b=1 WHERE a=1;
-
---echo # should be 0
-SELECT SECOND(c)-@bug47453 FROM t1 JOIN t2 ON d=a;
-
-DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug #53334: wrong result for outer join with impossible ON condition
@@ -803,16 +778,16 @@ CREATE INDEX b ON t1(a,b,c,d);
 DROP TABLE t1;
 
 --echo #
---echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+--echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA
 --echo #  is returned
 --echo #
 
 CREATE TABLE t1(a INT) ENGINE=innodb;
 INSERT INTO t1 VALUES (0);
 --error ER_TRUNCATED_WRONG_VALUE
-CREATE TABLE t2 
+CREATE TABLE t2
   SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
-DROP TABLE t1;  
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#56862 Moved to innodb_16k.test
@@ -829,6 +804,9 @@ create table t1 (pk int primary key) engine=InnoDB;
 # foreign key definition it still should be able to find explicitly
 # created supporting index. So it should succeed and should not
 # create any additional supporting indexes.
+# TODO: NewDD: Bug 25587256 - NEWDD: FK: NEED TO SET PROPER REFERENCED
+# COLUMN CASE 
+
 create table t2 (fk int, key x (fk),
                  constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
@@ -858,7 +836,7 @@ DROP TEMPORARY TABLE t1;
 
 
 --echo #
---echo # Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+--echo # Bug#49604 "6.0 processing compound WHERE clause incorrectly
 --echo #            with Innodb - extra rows"
 --echo #
 
@@ -885,7 +863,7 @@ INSERT INTO t2 VALUES (1,2);
 INSERT INTO t2 VALUES (2,9);
 
 SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
-FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+FROM t1 JOIN t2 ON t1.c2 = t2.c1
 WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
 
 DROP TABLE t1, t2;
@@ -937,7 +915,7 @@ CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
- 
+
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 
@@ -946,7 +924,7 @@ SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 DROP TABLE t1,t2;
 
 --echo #
---echo # Bug#48093: 6.0 Server not processing equivalent IN clauses properly 
+--echo # Bug#48093: 6.0 Server not processing equivalent IN clauses properly
 --echo #            with Innodb tables
 --echo #
 
@@ -964,21 +942,21 @@ INSERT INTO t1 VALUES (2,'h','yes-h');
 INSERT INTO t1 VALUES (3,'d','no');
 
 --echo
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 
 --echo
 --echo # Should not use index_merge
 EXPLAIN
-SELECT v2  
+SELECT v2
 FROM t1
 WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 
 DROP TABLE t1;
 
 --echo #
---echo # Bug#54606 innodb fast alter table + pack_keys=0 
+--echo # Bug#54606 innodb fast alter table + pack_keys=0
 --echo #           prevents adding new indexes
 --echo #
 
@@ -986,8 +964,8 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
-  ENGINE=InnoDB 
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b))
+  ENGINE=InnoDB
   PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
@@ -1027,5 +1005,35 @@ ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Check the prefix index on BLOB could not be promoted to PRIMARY KEY
+--echo #
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, b TEXT NOT NULL, c TEXT,
+UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25650516. The problem is the index order for the old and new
+--echo # dd::Table are different
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB;
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col2 );
+ALTER TABLE t1 ADD UNIQUE KEY uidx ( col1 ), RENAME KEY uidx TO new_uidx;
+ALTER TABLE t1 ADD PRIMARY KEY ( col1 );
+# This will pass different index order for old and new table
+ALTER TABLE t1 ALTER COLUMN col1 DROP DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG 25674492 - INNODB: ASSERTION FAILURE: HA_INNODB.CC:13881
+--echo # :DD_TABLE_MATCH(TABLE, DD_TABLE)
+--echo #
+CREATE TABLE t1 (col1 INT, col4 TEXT) ENGINE = InnoDB ROW_FORMAT = COMPACT;
+ALTER TABLE t1 ADD KEY idx ( col1 ), ADD FULLTEXT KEY ftidx ( col4 );
+ALTER TABLE t1 DROP KEY ftidx;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
 
 --echo End of 6.0 tests

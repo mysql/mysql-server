@@ -1,6 +1,6 @@
 SELECT  @@GLOBAL.default_authentication_plugin;
 @@GLOBAL.default_authentication_plugin
-mysql_native_password
+caching_sha2_password
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1
@@ -13,7 +13,7 @@ COUNT(@@GLOBAL.default_authentication_plugin)
 1
 1 Expected
 SELECT @@GLOBAL.default_authentication_plugin = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='default_authentication_plugin';
 @@GLOBAL.default_authentication_plugin = VARIABLE_VALUE
 1
@@ -23,7 +23,7 @@ COUNT(@@GLOBAL.default_authentication_plugin)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='default_authentication_plugin';
 COUNT(VARIABLE_VALUE)
 1

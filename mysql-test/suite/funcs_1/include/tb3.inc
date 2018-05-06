@@ -63,4 +63,4 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = $engine_type;
+) charset latin1 engine = $engine_type;

@@ -2,7 +2,6 @@
 
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/big_test.inc
 

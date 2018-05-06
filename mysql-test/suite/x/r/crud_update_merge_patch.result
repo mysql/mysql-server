@@ -1,0 +1,216 @@
+CREATE SCHEMA xtest;
+#
+# Requirement:
+# * F8 - Must work for collections
+
+command ok
+
+# Implementations of test-cases from RFC 7396
+#############################################
+# It covers requirements from the worklog:
+# * F3 - Must allow deletion of a field
+# * F4 - Must allow setting the value of a field to
+#        a literal value
+# * F6 - Must allow above operations to be performed on nested documents
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"a": "c"} = {"a": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"b": "c"} = {"a": "b", "b": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"a": null} = {"_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "b":"c", "_id": 1} patch {"a": null} = {"b": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": ["b"], "_id": 1} patch {"a": "c"} = {"a": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "c", "_id": 1} patch {"a": ["b"]} = {"a": ["b"], "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": {"b":"c"}, "_id": 1} patch {"a": {"b":"d", "c": null}} = {"a": {"b": "d"}, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": [{"b": "c"}], "_id": 1} patch {"a": [1]} = {"a": [1], "_id": 1}]
+Got expected error (code 0)
+
+# Test not applicable:
+# doc:["a", "b"]  patch:["c", "d"] result:["c", "d"]
+# document can't be an array
+in main, line 157:ERROR: Undefined macro DocumentProtobuf_OnlyTable_UpdatePatch_Find
+# Test not applicable:
+# doc:{}  patch:["c", "d"] result:["c", "d"]
+# document can't be an array
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch ["c"] = {"a": "foo", "_id": 1}]
+Got expected error: Document is missing a required field (code 5115)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch {"_id": "foo"} = {"a": "foo", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch null = {"a": "foo", "_id": 1}]
+Got expected error: Document is missing a required field (code 5115)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch "bar" = {"a": "foo", "_id": 1}]
+Got expected error: Document is missing a required field (code 5115)
+
+# Verification of JSON patch [{"e": null, "_id": 1} patch {"a": 1} = {"a": 1, "e": null, "_id": 1}]
+Got expected error (code 0)
+
+# Test not applicable:
+# doc:[1, 2]  patch:{"a": "b","c": null} result:{"a": "b"}
+# document can't be an array
+# Verification of JSON patch [{"_id": 1} patch {"a": "b", "c": null} = {"a": "b", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1} patch {"a": {"bb": {"ccc": null}}} = {"a": {"bb": {}}, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1} patch PROTOBUF_EXPR = {"_id": 1, "my_value_as_int": 10, "my_value_as_string": "ten"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40.0, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "old_field_name": {"field": "fields value"}, "other_fields": {"a": 1}} patch PROTOBUF_EXPR = {"_id": 1, "other_fields": {"a": 1}, "new_field_name": {"field": "fields value"}}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "a": [100, {"c": "nested_value"}, 4]} patch PROTOBUF_EXPR = {"a": [100, {"c": "nested_value"}, 4], "_id": 1, "new_field": "nested_value"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "old_field": true} patch PROTOBUF_EXPR = {"_id": 1, "old_field": true, "func_call1": "xtest", "func_call2": "AB"}]
+Got expected error (code 0)
+
+
+3 rows affected
+Rows matched: 3  Changed: 3  Warnings: 0
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xdoc"
+  }
+  data_model: DOCUMENT
+}
+
+doc
+{"_id": 1, "new_field": 10, "should_be_updated": "yes"}
+{"_id": 2, "new_field": 10, "should_be_updated": "yes"}
+{"_id": 3, "should_be_updated": "no"}
+{"_id": 4, "should_be_updated": "no"}
+{"_id": 5, "should_be_updated": "no"}
+{"_id": 6, "new_field": 10, "should_be_updated": "yes"}
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+#
+# Requirement:
+# * F10 - Must work for JSON document fields in tables
+RUN DROP TABLE	IF EXISTS xtest.xdoc
+
+0 rows affected
+RUN CREATE TABLE	xtest.xdoc(doc JSON)
+
+0 rows affected
+
+# Implementations of test-cases from RFC 7396
+#############################################
+# It covers requirements from the worklog:
+# * F3 - Must allow deletion of a field
+# * F4 - Must allow setting the value of a field to
+#        a literal value
+# * F6 - Must allow above operations to be performed on nested documents
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"a": "c"} = {"a": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"b": "c"} = {"a": "b", "b": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "_id": 1} patch {"a": null} = {"_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "b", "b":"c", "_id": 1} patch {"a": null} = {"b": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": ["b"], "_id": 1} patch {"a": "c"} = {"a": "c", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "c", "_id": 1} patch {"a": ["b"]} = {"a": ["b"], "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": {"b":"c"}, "_id": 1} patch {"a": {"b":"d", "c": null}} = {"a": {"b": "d"}, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": [{"b": "c"}], "_id": 1} patch {"a": [1]} = {"a": [1], "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [["a", "b"] patch ["c", "d"] = ["c", "d"]]
+Got expected error (code 0)
+
+in main, line 157:ERROR: Undefined macro DocumentProtobuf_OnlyTable_UpdatePatch_Find
+# Verification of JSON patch [{} patch ["c", "d"] = ["c", "d"]]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch ["c"] = ["c"]]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch {"_id": "foo"} = {"a": "foo", "_id": "foo"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch null = null]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a": "foo", "_id": 1} patch "bar" = "bar"]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"e": null, "_id": 1} patch {"a": 1} = {"a": 1, "e": null, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [[1, 2] patch {"a": "b","c": null} = {"a": "b"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1} patch {"a": "b", "c": null} = {"a": "b", "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1} patch {"a": {"bb": {"ccc": null}}} = {"a": {"bb": {}}, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1} patch PROTOBUF_EXPR = {"_id": 1, "my_value_as_int": 10, "my_value_as_string": "ten"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40.0, "_id": 1}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "old_field_name": {"field": "fields value"}, "other_fields": {"a": 1}} patch PROTOBUF_EXPR = {"_id": 1, "other_fields": {"a": 1}, "new_field_name": {"field": "fields value"}}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "a": [100, {"c": "nested_value"}, 4]} patch PROTOBUF_EXPR = {"a": [100, {"c": "nested_value"}, 4], "_id": 1, "new_field": "nested_value"}]
+Got expected error (code 0)
+
+# Verification of JSON patch [{"_id": 1, "old_field": true} patch PROTOBUF_EXPR = {"_id": 1, "old_field": true, "func_call1": "xtest", "func_call2": "AB"}]
+Got expected error (code 0)
+
+
+3 rows affected
+Rows matched: 3  Changed: 3  Warnings: 0
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xdoc"
+  }
+  data_model: TABLE
+}
+
+doc
+{"_id": 1, "new_field": 10, "should_be_updated": "yes"}
+{"_id": 2, "new_field": 10, "should_be_updated": "yes"}
+{"_id": 3, "should_be_updated": "no"}
+{"_id": 4, "should_be_updated": "no"}
+{"_id": 5, "should_be_updated": "no"}
+{"_id": 6, "new_field": 10, "should_be_updated": "yes"}
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

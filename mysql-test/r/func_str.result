@@ -296,19 +296,7 @@ LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL
 NULL	NULL
 select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
 least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
-33	4	1.0	1.0	1.1	9	B
-select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
-decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
-1
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select decode(encode("abcdef","monty"),"monty")="abcdef";
-decode(encode("abcdef","monty"),"monty")="abcdef"
-1
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
+33	4	1.0	1.0	1.1	10	B
 select quote('\'\"\\test');
 quote('\'\"\\test')
 '\'"\\test'
@@ -363,7 +351,7 @@ select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
@@ -688,10 +676,7 @@ latin2_general_ci	4
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	4
-select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
-collation(encode('abcd','ab'))	coercibility(encode('abcd','ab'))
-binary	4
-create table t1 
+create table t1 charset latin1
 select
 bin(130),
 oct(130),
@@ -722,11 +707,8 @@ quote(_latin2'ab'),
 soundex(_latin2'ab'),
 substring(_latin2'ab',1),
 insert(_latin2'abcd',2,3,_latin2'ef'),
-replace(_latin2'abcd',_latin2'b',_latin2'B'),
-encode('abcd','ab')
+replace(_latin2'abcd',_latin2'b',_latin2'B')
 ;
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -755,12 +737,11 @@ t1	CREATE TABLE `t1` (
   `trim(BOTH _latin2' ' FROM _latin2' a ')` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `repeat(_latin2'a',10)` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `reverse(_latin2'ab')` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
-  `quote(_latin2'ab')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `quote(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `soundex(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
-  `encode('abcd','ab')` varbinary(4) DEFAULT NULL
+  `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) CHARACTER SET latin2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a char character set latin2);
@@ -781,11 +762,15 @@ where collation(t2.a) = _utf8'binary' order by t1.a,t2.a;
 a	b	a	b
 1	1	NULL	NULL
 2	2	2	2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
 where charset(t2.a) = _utf8'binary' order by t1.a,t2.a;
 a	b	a	b
 1	1	NULL	NULL
 2	2	2	2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
 where coercibility(t2.a) = 5 order by t1.a,t2.a;
 a	b	a	b
@@ -813,7 +798,7 @@ SUBSTR('abcdefg',-1,-1)
 select SUBSTR('abcdefg',1,-1) FROM DUAL;
 SUBSTR('abcdefg',1,-1)
 
-create table t7 (s1 char);
+create table t7 (s1 char) charset latin1;
 select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'concat'
@@ -821,276 +806,226 @@ drop table t7;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)	substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2)
 1abcd;2abcd	3abcd;4abcd
-explain extended select md5('hello');
+explain select md5('hello');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select md5('hello') AS `md5('hello')`
-explain extended select sha('abc');
+explain select sha('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sha('abc') AS `sha('abc')`
-explain extended select sha1('abc');
+explain select sha1('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sha('abc') AS `sha1('abc')`
-explain extended select soundex('');
+explain select soundex('');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select soundex('') AS `soundex('')`
-explain extended select 'mood' sounds like 'mud';
+explain select 'mood' sounds like 'mud';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (soundex('mood') = soundex('mud')) AS `'mood' sounds like 'mud'`
-explain extended select aes_decrypt(aes_encrypt('abc','1'),'1');
+explain select aes_decrypt(aes_encrypt('abc','1'),'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select aes_decrypt(aes_encrypt('abc','1'),'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`
-explain extended select concat('*',space(5),'*');
+explain select concat('*',space(5),'*');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat('*',space(5),'*') AS `concat('*',space(5),'*')`
-explain extended select reverse('abc');
+explain select reverse('abc');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select reverse('abc') AS `reverse('abc')`
-explain extended select rpad('a',4,'1');
+explain select rpad('a',4,'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select rpad('a',4,'1') AS `rpad('a',4,'1')`
-explain extended select lpad('a',4,'1');
+explain select lpad('a',4,'1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select lpad('a',4,'1') AS `lpad('a',4,'1')`
-explain extended select concat_ws(',','',NULL,'a');
+explain select concat_ws(',','',NULL,'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat_ws(',','',NULL,'a') AS `concat_ws(',','',NULL,'a')`
-explain extended select make_set(255,_latin2'a', _latin2'b', _latin2'c');
+explain select make_set(255,_latin2'a', _latin2'b', _latin2'c');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select make_set(255,_latin2'a',_latin2'b',_latin2'c') AS `make_set(255,_latin2'a', _latin2'b', _latin2'c')`
-explain extended select elt(2,1);
+explain select elt(2,1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select elt(2,1) AS `elt(2,1)`
-explain extended select locate("a","b",2);
+explain select locate("a","b",2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select locate('a','b',2) AS `locate("a","b",2)`
-explain extended select format(130,10);
+explain select format(130,10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select format(130,10) AS `format(130,10)`
-explain extended select char(0);
+explain select char(0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select char(0) AS `char(0)`
-explain extended select conv(130,16,10);
+explain select conv(130,16,10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select conv(130,16,10) AS `conv(130,16,10)`
-explain extended select hex(130);
+explain select hex(130);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select hex(130) AS `hex(130)`
-explain extended select binary 'HE';
+explain select binary 'HE';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('HE' as char charset binary) AS `binary 'HE'`
-explain extended select export_set(255,_latin2'y', _latin2'n', _latin2' ');
+explain select export_set(255,_latin2'y', _latin2'n', _latin2' ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select export_set(255,_latin2'y',_latin2'n',_latin2' ') AS `export_set(255,_latin2'y', _latin2'n', _latin2' ')`
-explain extended select FIELD('b' COLLATE latin1_bin,'A','B');
+explain select FIELD('b' COLLATE latin1_bin,'A','B');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select field(('b' collate latin1_bin),'A','B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`
-explain extended select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
+explain select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select find_in_set(_latin1'B',_latin1'a,b,c,d') AS `FIND_IN_SET(_latin1'B', _latin1'a,b,c,d')`
-explain extended select collation(conv(130,16,10));
+explain select collation(conv(130,16,10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select collation(conv(130,16,10)) AS `collation(conv(130,16,10))`
-explain extended select coercibility(conv(130,16,10));
+explain select coercibility(conv(130,16,10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select coercibility(conv(130,16,10)) AS `coercibility(conv(130,16,10))`
-explain extended select length('\n\t\r\b\0\_\%\\');
+explain select length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select length('\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
-explain extended select concat('monty',' was here ','again');
+explain select concat('monty',' was here ','again');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat('monty',' was here ','again') AS `concat('monty',' was here ','again')`
-explain extended select length('hello');
+explain select length('hello');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select length('hello') AS `length('hello')`
-explain extended select char(ascii('h'));
+explain select char(ascii('h'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select char(ascii('h')) AS `char(ascii('h'))`
-explain extended select ord('h');
+explain select ord('h');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ord('h') AS `ord('h')`
-explain extended select quote(1/0);
+explain select quote(1/0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select quote((1 / 0)) AS `quote(1/0)`
-explain extended select crc32("123");
+explain select crc32("123");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select crc32('123') AS `crc32("123")`
-explain extended select replace('aaaa','a','b');
+explain select replace('aaaa','a','b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select replace('aaaa','a','b') AS `replace('aaaa','a','b')`
-explain extended select insert('txs',2,1,'hi');
+explain select insert('txs',2,1,'hi');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select insert('txs',2,1,'hi') AS `insert('txs',2,1,'hi')`
-explain extended select left(_latin2'a',1);
+explain select left(_latin2'a',1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select left(_latin2'a',1) AS `left(_latin2'a',1)`
-explain extended select right(_latin2'a',1);
+explain select right(_latin2'a',1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select right(_latin2'a',1) AS `right(_latin2'a',1)`
-explain extended select lcase(_latin2'a');
+explain select lcase(_latin2'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select lower(_latin2'a') AS `lcase(_latin2'a')`
-explain extended select ucase(_latin2'a');
+explain select ucase(_latin2'a');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select upper(_latin2'a') AS `ucase(_latin2'a')`
-explain extended select SUBSTR('abcdefg',3,2);
+explain select SUBSTR('abcdefg',3,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select substr('abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`
-explain extended select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
+explain select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select substring_index('1abcd;2abcd;3abcd;4abcd',';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`
-explain extended select trim(_latin2' a ');
+explain select trim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select trim(_latin2' a ') AS `trim(_latin2' a ')`
-explain extended select ltrim(_latin2' a ');
+explain select ltrim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ltrim(_latin2' a ') AS `ltrim(_latin2' a ')`
-explain extended select rtrim(_latin2' a ');
+explain select rtrim(_latin2' a ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select rtrim(_latin2' a ') AS `rtrim(_latin2' a ')`
-explain extended select decode(encode(repeat("a",100000),"monty"),"monty");
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select decode(encode(repeat('a',100000),'monty'),'monty') AS `decode(encode(repeat("a",100000),"monty"),"monty")`
 SELECT lpad(12345, 5, "#");
 lpad(12345, 5, "#")
 12345
@@ -1101,8 +1036,12 @@ SELECT conv(71, 10, 37), conv('1Z', 37, 10), conv(0,1,10),conv(0,0,10), conv(0,-
 conv(71, 10, 37)	conv('1Z', 37, 10)	conv(0,1,10)	conv(0,0,10)	conv(0,-1,10)
 NULL	NULL	NULL	NULL	NULL
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
 create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
 select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
 where t2.id=t1.id order by name;
@@ -1182,7 +1121,7 @@ ySQL
 SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
 my_column
 4
-CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL) charset latin1;
 CREATE TABLE t2 (id int NOT NULL UNIQUE);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
@@ -1282,9 +1221,34 @@ abc	abc	c	bc	abc
 abcd	abcd	d	cd	bcd	abcd	
 abcde	abcde	e	de	cde	bcde	abcde
 drop table t1;
-select hex(29223372036854775809), hex(-29223372036854775809);
-hex(29223372036854775809)	hex(-29223372036854775809)
-FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+select hex(29223372036854775809) as hex_signed,
+hex(cast(29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+select conv(29223372036854775809, -10, 16) as conv_signed,
+conv(29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+select hex(-29223372036854775809) as hex_signed,
+hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+8000000000000000	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+select conv(-29223372036854775809, -10, 16) as conv_signed,
+conv(-29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+8000000000000000	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
 create table t1 (i int);
 insert into t1 values (1000000000),(1);
 select lpad(i, 7, ' ') as t from t1;
@@ -1303,9 +1267,9 @@ drop table t1;
 select load_file("lkjlkj");
 load_file("lkjlkj")
 NULL
-select ifnull(load_file("lkjlkj"),"it's null");
-ifnull(load_file("lkjlkj"),"it's null")
-it's null
+select ifnull(load_file("lkjlkj"),"it is null");
+ifnull(load_file("lkjlkj"),"it is null")
+it is null
 create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
 insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
 select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
@@ -1338,63 +1302,40 @@ xyz	xyz xyz
 DROP TABLE t1;
 CREATE TABLE t1 (s varchar(10));
 INSERT INTO t1 VALUES ('yadda'), ('yaddy');
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim('y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading 'y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing 'y' from `test`.`t1`.`s`) > 'ab')
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both 'y' from `test`.`t1`.`s`) > 'ab')
 DROP TABLE t1;
-create table t1(f1 varchar(4));
-explain extended select encode(f1,'zxcv') as 'enc' from t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select encode(NULL,'zxcv') AS `enc` from `test`.`t1`
-explain extended select decode(f1,'zxcv') as 'enc' from t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select decode(NULL,'zxcv') AS `enc` from `test`.`t1`
-drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
 Warnings:
 Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 SET SQL_MODE=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a char(36) not null)engine=myisam;
 insert ignore into t1 set a = ' ';
@@ -1433,7 +1374,7 @@ conv("18383815659218730760",10,10) + 0
 select "18383815659218730760" + 0;
 "18383815659218730760" + 0
 1.838381565921873e19
-CREATE TABLE t1 (code varchar(10));
+CREATE TABLE t1 (code varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
 SELECT ASCII(code), code FROM t1 WHERE code='A12';
 ASCII(code)	code
@@ -1442,51 +1383,32 @@ ASCII(code)	code
 SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
 ASCII(code)	code
 65	A12
-INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+INSERT INTO t1 VALUES (_utf16 0x0061003100320007), (_utf16 0x00410031003200070007);
 SELECT LENGTH(code), code FROM t1 WHERE code='A12';
 LENGTH(code)	code
 3	a12
 3	A12
-4	a12 
-5	A12  
+4	a12
+5	A12
 SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;
 LENGTH(code)	code
-5	A12  
+5	A12
 ALTER TABLE t1 ADD INDEX (code);
-CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
+CREATE TABLE t2 (id varchar(10) PRIMARY KEY) charset utf8mb4;
 INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
 SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
 WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 code	id
-A12  	a12
-EXPLAIN EXTENDED 
+A12	a12
+EXPLAIN 
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
 WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	code	code	13	const	3	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	code	code	43	const	3	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
-select encode(NULL, NULL);
-encode(NULL, NULL)
-NULL
-select encode("data", NULL);
-encode("data", NULL)
-NULL
-select encode(NULL, "password");
-encode(NULL, "password")
-NULL
-select decode(NULL, NULL);
-decode(NULL, NULL)
-NULL
-select decode("data", NULL);
-decode("data", NULL)
-NULL
-select decode(NULL, "password");
-decode(NULL, "password")
-NULL
 select format(NULL, NULL);
 format(NULL, NULL)
 NULL
@@ -1513,89 +1435,6 @@ benchmark(-1, 1)
 NULL
 Warnings:
 Warning	1411	Incorrect count value: '-1' for function benchmark
-set @password="password";
-set @my_data="clear text to encode";
-select md5(encode(@my_data, "password"));
-md5(encode(@my_data, "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _utf8 "password"));
-md5(encode(@my_data, _utf8 "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, binary "password"));
-md5(encode(@my_data, binary "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _latin1 "password"));
-md5(encode(@my_data, _latin1 "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, _koi8r "password"));
-md5(encode(@my_data, _koi8r "password"))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, (select "password" from dual)));
-md5(encode(@my_data, (select "password" from dual)))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, concat("pass", "word")));
-md5(encode(@my_data, concat("pass", "word")))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-select md5(encode(@my_data, @password));
-md5(encode(@my_data, @password))
-44320fd2b4a0ec92faa2da2122def917
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-set @my_data="binary encoded data";
-select md5(decode(@my_data, "password"));
-md5(decode(@my_data, "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _utf8 "password"));
-md5(decode(@my_data, _utf8 "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, binary "password"));
-md5(decode(@my_data, binary "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _latin1 "password"));
-md5(decode(@my_data, _latin1 "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, _koi8r "password"));
-md5(decode(@my_data, _koi8r "password"))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, (select "password" from dual)));
-md5(decode(@my_data, (select "password" from dual)))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, concat("pass", "word")));
-md5(decode(@my_data, concat("pass", "word")))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-select md5(decode(@my_data, @password));
-md5(decode(@my_data, @password))
-5bea8c394368dbc03b76684483b7756b
-Warnings:
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
 set @dec=5;
 select format(pi(), (1+1));
 format(pi(), (1+1))
@@ -2128,7 +1967,7 @@ select repeat('hello', 4294967295);
 repeat('hello', 4294967295)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -4294967296);
 repeat('hello', -4294967296)
 
@@ -2136,7 +1975,7 @@ select repeat('hello', 4294967296);
 repeat('hello', 4294967296)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -4294967297);
 repeat('hello', -4294967297)
 
@@ -2144,7 +1983,7 @@ select repeat('hello', 4294967297);
 repeat('hello', 4294967297)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551615);
 repeat('hello', -18446744073709551615)
 
@@ -2155,7 +1994,7 @@ select repeat('hello', 18446744073709551615);
 repeat('hello', 18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551616);
 repeat('hello', -18446744073709551616)
 
@@ -2168,7 +2007,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select repeat('hello', -18446744073709551617);
 repeat('hello', -18446744073709551617)
 
@@ -2181,7 +2020,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 select space(-1);
 space(-1)
 
@@ -2192,7 +2031,7 @@ select space(4294967295);
 space(4294967295)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-4294967296);
 space(-4294967296)
 
@@ -2200,7 +2039,7 @@ select space(4294967296);
 space(4294967296)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-4294967297);
 space(-4294967297)
 
@@ -2208,7 +2047,7 @@ select space(4294967297);
 space(4294967297)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551615);
 space(-18446744073709551615)
 
@@ -2219,7 +2058,7 @@ select space(18446744073709551615);
 space(18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551616);
 space(-18446744073709551616)
 
@@ -2232,7 +2071,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
@@ -2245,7 +2084,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
 NULL
@@ -2256,7 +2095,7 @@ select rpad('hello', 4294967295, '1');
 rpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -4294967296, '1');
 rpad('hello', -4294967296, '1')
 NULL
@@ -2264,7 +2103,7 @@ select rpad('hello', 4294967296, '1');
 rpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -4294967297, '1');
 rpad('hello', -4294967297, '1')
 NULL
@@ -2272,7 +2111,7 @@ select rpad('hello', 4294967297, '1');
 rpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551615, '1');
 rpad('hello', -18446744073709551615, '1')
 NULL
@@ -2283,7 +2122,7 @@ select rpad('hello', 18446744073709551615, '1');
 rpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551616, '1');
 rpad('hello', -18446744073709551616, '1')
 NULL
@@ -2296,7 +2135,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select rpad('hello', -18446744073709551617, '1');
 rpad('hello', -18446744073709551617, '1')
 NULL
@@ -2309,7 +2148,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -1, '1');
 lpad('hello', -1, '1')
 NULL
@@ -2320,7 +2159,7 @@ select lpad('hello', 4294967295, '1');
 lpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -4294967296, '1');
 lpad('hello', -4294967296, '1')
 NULL
@@ -2328,7 +2167,7 @@ select lpad('hello', 4294967296, '1');
 lpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -4294967297, '1');
 lpad('hello', -4294967297, '1')
 NULL
@@ -2336,7 +2175,7 @@ select lpad('hello', 4294967297, '1');
 lpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551615, '1');
 lpad('hello', -18446744073709551615, '1')
 NULL
@@ -2347,7 +2186,7 @@ select lpad('hello', 18446744073709551615, '1');
 lpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551616, '1');
 lpad('hello', -18446744073709551616, '1')
 NULL
@@ -2360,7 +2199,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551616'
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 select lpad('hello', -18446744073709551617, '1');
 lpad('hello', -18446744073709551617, '1')
 NULL
@@ -2373,18 +2212,20 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
-Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (67108864) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
 SELECT CHAR(0xff,0x8f USING utf8);
 CHAR(0xff,0x8f USING utf8)
 NULL
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
 CHAR(0xff,0x8f USING utf8) IS NULL
 1
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 SET SQL_MODE=@orig_sql_mode;
 select substring('abc', cast(2 as unsigned int));
@@ -2483,16 +2324,16 @@ CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
 CRC32(a)	COUNT(*)
+2212294583	1
 450215437	1
+1842515611	1
+4088798008	1
+2226203566	1
 498629140	1
 1790921346	1
-1842515611	1
-2212294583	1
-2226203566	1
+4194326291	1
 2366072709	1
 2707236321	1
-4088798008	1
-4194326291	1
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
 CRC32(a)	COUNT(*)
 450215437	1
@@ -2682,65 +2523,6 @@ LOAD_MIN
 LOAD_MAX
 DROP TABLE t1, t2;
 End of 5.0 tests
-drop table if exists t1;
-create table t1(f1 tinyint default null)engine=myisam;
-insert into t1 values (-1),(null);
-explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t1` join `test`.`t1`
-explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t1` join `test`.`t1`
-drop table t1;
-#
-# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
-#
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 (a VARCHAR(20), b INT);
-CREATE TABLE t2 (a VARCHAR(20), b INT);
-INSERT INTO t1 VALUES ('ABC', 1);
-INSERT INTO t2 VALUES ('ABC', 1);
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-SELECT DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
-FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-INSERT INTO t1 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
-INSERT INTO t2 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
-FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
-DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
-secret
-Warnings:
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'ENCODE' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
-Warning	1287	'DECODE' is deprecated and will be removed in a future release. Please use AES_DECRYPT instead
-DROP TABLE t1, t2;
 #
 # Bug#52164 Assertion failed: param.sort_length, file .\filesort.cc, line 149
 #
@@ -2803,7 +2585,7 @@ NULL
 SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
 LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?')
 NULL
-CREATE TABLE t1
+CREATE TABLE t1 charset utf8mb4
 SELECT SUBSTRING('1', DAY(FROM_UNIXTIME(-1))) AS f1,
 LEFT('1', DAY(FROM_UNIXTIME(-1))) AS f2,
 RIGHT('1', DAY(FROM_UNIXTIME(-1))) AS f3,
@@ -2813,13 +2595,13 @@ LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?') AS f6;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` varchar(1) DEFAULT NULL,
-  `f2` varchar(1) DEFAULT NULL,
-  `f3` varchar(1) DEFAULT NULL,
-  `f4` longtext,
-  `f5` longtext,
-  `f6` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `f1` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f2` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f3` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f4` longtext CHARACTER SET latin1,
+  `f5` longtext CHARACTER SET latin1,
+  `f6` longtext CHARACTER SET latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#11766684 59851: UNINITIALISED VALUE IN ITEM_FUNC_LIKE::SELECT_OPTIMIZE WITH SUBQUERY AND
@@ -2975,12 +2757,12 @@ FORMAT(123.33, 2, 'no_NO')	FORMAT(1123.33, 2, 'no_NO')
 SELECT FORMAT(12333e-2, 2, 'no_NO'), FORMAT(112333e-2, 2, 'no_NO');
 FORMAT(12333e-2, 2, 'no_NO')	FORMAT(112333e-2, 2, 'no_NO')
 123,33	1.123,33
-CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+CREATE TABLE t1 charset utf8mb4 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(37) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
@@ -3033,7 +2815,7 @@ SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 #              EXTRAORDINARY LONG TIME TO EXECUTE
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -3059,7 +2841,7 @@ sha1('P'),
 )
 )
 );
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests
@@ -3070,1350 +2852,1350 @@ SET @@global.max_allowed_packet:= @tmp_max;
 #
 # WL#5510 Functions to_base64 and from_base64
 #
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',63)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',63)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYWFh	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	63
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',62)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',62)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYWE=	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	62
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',61)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',61)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYQ==	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	61
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',60)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',60)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFh	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	60
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',59)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',59)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWE=	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	59
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',58)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',58)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YQ==	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	58
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',57)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',57)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	57
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',56)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',56)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	56
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',55)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',55)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	55
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',54)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',54)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	54
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',53)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',53)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	53
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',52)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',52)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	52
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',51)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',51)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	51
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',50)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',50)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	50
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',49)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',49)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	49
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',48)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',48)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	48
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',47)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',47)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	47
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',46)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',46)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	46
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',45)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',45)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	45
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',44)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',44)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	44
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',43)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',43)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	43
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',42)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',42)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	42
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',41)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',41)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	41
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',40)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',40)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	40
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',39)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',39)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	39
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',38)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',38)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	38
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',37)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',37)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	37
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',36)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',36)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	36
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',35)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',35)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	35
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',34)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',34)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	34
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',33)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',33)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	33
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',32)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',32)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	32
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',31)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',31)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	31
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',30)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',30)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	30
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',29)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',29)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaa	29
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',28)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',28)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaa	28
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',27)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',27)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaa	27
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',26)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',26)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaa	26
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',25)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',25)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaa	25
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',24)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',24)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaa	24
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',23)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',23)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaa	23
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',22)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',22)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaa	22
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',21)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',21)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFh	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaa	21
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',20)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',20)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWE=	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaa	20
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',19)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',19)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYQ==	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaa	19
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',18)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',18)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFh	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaa	18
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',17)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',17)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWE=	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaa	17
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',16)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',16)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYQ==	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaa	16
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',15)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',15)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFh	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaa	15
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',14)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',14)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWE=	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaa	14
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',13)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',13)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYQ==	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaa	13
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',12)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',12)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFh	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaa	12
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',11)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',11)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWE=	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaa	11
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',10)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',10)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYQ==	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaa	10
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',9)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',9)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFh	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaa	9
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',8)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',8)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWE=	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaa	8
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',7)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',7)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYQ==	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaa	7
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',6)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',6)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFh	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaa	6
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',5)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',5)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWE=	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaa	5
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',4)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',4)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYQ==	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaa	4
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',3)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',3)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFh	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaa	3
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',2)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',2)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWE=	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aa	2
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',1)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',1)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YQ==	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 a	1
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',0)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',0)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` char(0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` char(0) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 	0
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` binary(0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 	0
@@ -4540,7 +4322,7 @@ SELECT LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)));
 LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)))
 NULL
 Warnings:
-Warning	1301	Result of to_base64() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of to_base64() was larger than max_allowed_packet (67108864) - truncated
 #
 # Testing base64 with various data types
 #
@@ -4588,7 +4370,7 @@ DROP TABLE t1;
 #
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4603,7 +4385,7 @@ SELECT SPACE(@@global.max_allowed_packet*2);
 SPACE(@@global.max_allowed_packet*2)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
 SET NAMES latin1;
 PREPARE stmt FROM "SELECT COLLATION(space(2))";
 EXECUTE stmt;
@@ -4640,6 +4422,8 @@ DROP TABLE t;
 # Bug#13812875 ILLEGAL MIX OF COLLATIONS WITH FUNCTIONS THAT USED TO WORK
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a varchar(1));
 SELECT * FROM t1 WHERE a=md5('a');
 a
@@ -4703,9 +4487,7 @@ do concat('a',concat_ws('a', 0x2859, 'a' ,
 trim(period_add('a',1) from (1&''))
 )
 );
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: 'a'
+ERROR HY000: Incorrect arguments to period_add
 #
 # End of 5.6 tests
 #
@@ -4737,7 +4519,7 @@ SET @@global.max_allowed_packet:= DEFAULT;
 #              EXPLOITABLE
 do rpad(_utf16"33",1073741826,_latin1"44");
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (67108864) - truncated
 #
 # Bug#13740934 ASSERTION FAILED: ARGS[0]->FIXED ITEM_FUNC_CONV_CHARSET::ITEM_FUNC_CONV_CHARSET
 #
@@ -4753,19 +4535,31 @@ DROP TABLE t1;
 SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
 data
 131072
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT length(data) AS len FROM (
 SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
 ) AS sub;
 len
 131072
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
 data
 131070
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT length(data) AS len FROM (
 SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
 ) AS sub;
 len
 131070
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
 data
 65532
@@ -4784,6 +4578,8 @@ len
 # Bug #22884187 RTRIM GETS EXPONENTIALLY SLOWER ON LARGE STRINGS
 #
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT TRIM(BOTH 'å' FROM 'aæaå');
 TRIM(BOTH 'å' FROM 'aæaå')
 aæa
@@ -4810,3 +4606,424 @@ AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
 COUNTRY
 Australia
 DROP TABLE t1;
+#
+# Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
+#              BUT EMPTY SET
+#
+CREATE DATABASE testt CHARACTER SET utf8mb4;
+USE testt;
+SET NAMES 'utf8mb4';
+CREATE TABLE t1(c1 CHAR(20));
+INSERT INTO t1 VALUES('11');
+SELECT c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 ) FROM t1;
+c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 )
+1
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+c1
+11
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+c1
+11
+DROP TABLE t1;
+DROP DATABASE testt;
+SET NAMES DEFAULT;
+USE test;
+#
+# Bug#22297983 HEX() FUNCTION CONVERTS DECIMAL TO DOUBLE AND
+#              THUS RETURNS WRONG RESULT
+#
+select hex(cast(9007199254740992 as decimal(30,0)));
+hex(cast(9007199254740992 as decimal(30,0)))
+20000000000000
+select hex(cast(9007199254740993 as decimal(30,0)));
+hex(cast(9007199254740993 as decimal(30,0)))
+20000000000001
+select hex(cast(9007199254740994 as decimal(30,0)));
+hex(cast(9007199254740994 as decimal(30,0)))
+20000000000002
+select hex(cast(0x20000000000000 as unsigned) + 1);
+hex(cast(0x20000000000000 as unsigned) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
+hex(cast(0x20000000000000 as decimal(30,0)) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
+hex(cast(0x20000000000000 as decimal(30,0)) + 2)
+20000000000002
+#
+# Bug#22523836 FUNCTION REPLACE WITH BINARY OP DOESNT RETURN EXPECTED
+#              NULL, WITH PARAM AS NULL
+#
+SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, 'b', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, '', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', NULL, 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
+xxx
+NULL
+#
+# Bug#22565155 DATA ROWS LOST AFTER ADDING DISTINCT WITH
+# SUBSTR() IN SELECT LIST
+#
+CREATE TABLE t1(c1 CHAR(30));
+INSERT INTO t1 VALUES('111'),('222');
+SELECT DISTINCT substr(c1, 1, 2147483647) FROM t1;
+substr(c1, 1, 2147483647)
+111
+222
+SELECT DISTINCT substr(c1, 1, 2147483648) FROM t1;
+substr(c1, 1, 2147483648)
+111
+222
+SELECT DISTINCT substr(c1, -1, 2147483648) FROM t1;
+substr(c1, -1, 2147483648)
+1
+2
+SELECT DISTINCT substr(c1, -2147483647, 2147483648) FROM t1;
+substr(c1, -2147483647, 2147483648)
+
+SELECT DISTINCT substr(c1, 9223372036854775807, 23) FROM t1;
+substr(c1, 9223372036854775807, 23)
+
+SELECT DISTINCT left(c1, 3) FROM t1;
+left(c1, 3)
+111
+222
+SELECT DISTINCT left(c1, 2147483647) FROM t1;
+left(c1, 2147483647)
+111
+222
+SELECT DISTINCT left(c1, 2147483648) FROM t1;
+left(c1, 2147483648)
+111
+222
+SELECT DISTINCT right(c1, 3) FROM t1;
+right(c1, 3)
+111
+222
+SELECT DISTINCT right(c1, 2147483647) FROM t1;
+right(c1, 2147483647)
+111
+222
+SELECT DISTINCT right(c1, 2147483648) FROM t1;
+right(c1, 2147483648)
+111
+222
+DROP TABLE t1;
+#
+# Bug#22545429 FUNC SUBSTRING_INDEX WORKS INCORRECTLY
+#              WHEN THE COUNT PARAM IS A BIGINT UNSIGNED
+#
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
+SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 )
+xyz
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
+SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 )
+xyz
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 1);
+SUBSTRING_INDEX('www.mysql.com', '.', 1)
+www
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -1);
+SUBSTRING_INDEX('www.mysql.com', '.', -1)
+com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 100);
+SUBSTRING_INDEX('www.mysql.com', '.', 100)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -100);
+SUBSTRING_INDEX('www.mysql.com', '.', -100)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483647);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483647)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483647);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483647)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483648);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483648)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483648);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483648)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483649);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483649)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483649);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483649)
+www.mysql.com
+set names default;
+#
+# Bug#22882717 "BIN", "OCT" FUNCTION LEADS TO MANY VALGRIND ERRORS
+#
+SELECT BIN(MID(REPEAT('b',64),21,229));
+BIN(MID(REPEAT('b',64),21,229))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT BIN(MID(1.051098E+308,9,99));
+BIN(MID(1.051098E+308,9,99))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'e308'
+SELECT BIN(RIGHT(REPEAT('b',64),30));
+BIN(RIGHT(REPEAT('b',64),30))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT BIN(SUBSTRING(REPEAT('b',64),9));
+BIN(SUBSTRING(REPEAT('b',64),9))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT OCT(LEFT(REPEAT('b',64),15));
+OCT(LEFT(REPEAT('b',64),15))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbb'
+#
+# Bug#22900560 CAST .. AS BINARY.. HEAP-USE-AFTER-FREE FROM ASAN
+#
+do
+from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
+rand(to_days('2028-12-04 15:50:01.284969'))));
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'5d44f4d736397d92c8267c12''
+Warning	1264	Out of range value for column '(null)' at row 1
+do from_base64(cast(right(11,1)as binary(24)));
+do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1411	Incorrect string value: 'cast(left(-(1),1) as char(30) charset binary)' for function inet_aton
+do from_base64(cast((left(collation(4097),((repeat('1',32))or((-18772)))))
+as binary(40)));
+do from_base64(cast((mid(17653,row('-688:20:12.162697',(null)) >=
+row(('*.)$'),(0xc254b6)),1))as binary(34)));
+do from_base64(cast((mid(uuid(),20,64)) as binary(55)));
+set @e:=_latin1'77';
+do inet_aton(aes_encrypt(left(@e,1),5));
+Warnings:
+Warning	1411	Incorrect string value: 'aes_encrypt(left((@`e`),1),5)' for function inet_aton
+#
+# Bug#23194118 WEIGHT_STRING: ASSERTION FAILED:
+#              SRC, FILE .\STRINGS\CTYPE-UTF8.CC, LINE 8686
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t(a INT) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
+1
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
+1
+SET NAMES DEFAULT;
+DROP TABLE t;
+#
+# Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
+#              CONSIDERING INDEXES
+CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
+INSERT INTO dd_table VALUES('t1'), ('t2');
+CREATE VIEW view1 AS SELECT name AS table_name FROM dd_table;
+CREATE VIEW view2 AS SELECT name COLLATE utf8_tolower_ci AS table_name FROM dd_table;
+CREATE PROCEDURE sub1(id CHAR(10) CHARACTER SET utf8)
+BEGIN
+SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
+EXPLAIN SELECT * FROM view1 WHERE table_name=id COLLATE utf8_tolower_ci;
+SELECT * FROM view2 WHERE table_name=id;
+EXPLAIN SELECT * FROM view2 WHERE table_name=id;
+SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
+EXPLAIN SELECT * FROM dd_table WHERE name COLLATE utf8_tolower_ci = id;
+SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
+EXPLAIN SELECT * FROM view1 WHERE id COLLATE utf8_tolower_ci=table_name;
+SELECT * FROM view2 WHERE id=table_name;
+EXPLAIN SELECT * FROM view2 WHERE id=table_name;
+SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
+EXPLAIN SELECT * FROM dd_table WHERE id = name COLLATE utf8_tolower_ci;
+SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
+EXPLAIN SELECT * FROM view1 WHERE table_name COLLATE utf8_tolower_ci = id;
+END |
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CALL sub1('t1');
+table_name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+table_name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+table_name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+table_name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	const	name	name	195	const	1	100.00	Using index
+table_name
+t1
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dd_table	NULL	index	NULL	name	195	NULL	2	100.00	Using where; Using index
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Note	1003	/* select#1 */ select `test`.`dd_table`.`name` AS `table_name` from `test`.`dd_table` where ((`test`.`dd_table`.`name` collate utf8_tolower_ci) = <cache>(id@0))
+DROP PROCEDURE sub1;
+DROP VIEW view1;
+DROP VIEW view2;
+DROP TABLE dd_table;
+#
+# Bug#24911350 LOCATE('HE','HELLO',NULL) SHOULD RETURN NULL INSTEAD OF 0
+#
+select locate('he','hello',null),locate('he',null,2),locate(null,'hello',2);
+locate('he','hello',null)	locate('he',null,2)	locate(null,'hello',2)
+NULL	NULL	NULL
+select locate(null,'hello',null),locate('he',null,null);
+locate(null,'hello',null)	locate('he',null,null)
+NULL	NULL
+select left('hello',null),left(null,1),left(null,null);
+left('hello',null)	left(null,1)	left(null,null)
+NULL	NULL	NULL
+select right('hello',null),right(null,1),right(null,null);
+right('hello',null)	right(null,1)	right(null,null)
+NULL	NULL	NULL
+select mid('hello',1,null),mid('hello',null,1),mid(null,1,1);
+mid('hello',1,null)	mid('hello',null,1)	mid(null,1,1)
+NULL	NULL	NULL
+select substr('hello',null,2),substr('hello',2,null),substr(null,1,2);
+substr('hello',null,2)	substr('hello',2,null)	substr(null,1,2)
+NULL	NULL	NULL
+select substr(null,null,null),mid(null,null,null);
+substr(null,null,null)	mid(null,null,null)
+NULL	NULL
+select substring_index('the king of the the null','the',null);
+substring_index('the king of the the null','the',null)
+NULL
+select substring_index('the king of the the null',null,3);
+substring_index('the king of the the null',null,3)
+NULL
+select substring_index(null,'the',3);
+substring_index(null,'the',3)
+NULL
+select substring_index(null,null,3);
+substring_index(null,null,3)
+NULL
+select substring_index(null,null,null);
+substring_index(null,null,null)
+NULL
+select insert(null,2,1,'hi'),insert('txs',null,1,'hi');
+insert(null,2,1,'hi')	insert('txs',null,1,'hi')
+NULL	NULL
+select insert('txs',2,null,'hi'),insert('txs',2,1,null);
+insert('txs',2,null,'hi')	insert('txs',2,1,null)
+NULL	NULL
+select insert('txs',null,null,'hi'),insert(null,null,null,null);
+insert('txs',null,null,'hi')	insert(null,null,null,null)
+NULL	NULL
+#
+# Bug #24930038 BITWISE SHIFT: ASSERTION FAILED: NULL_VALUE OR LOST CONNECTION TO SERVER ERROR
+#
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+SELECT REPEAT(0x1111, 40000000) >> 1;
+REPEAT(0x1111, 40000000) >> 1
+NULL
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+SELECT (~(REPEAT(0xb822, 0x5C9C380)));
+(~(REPEAT(0xb822, 0x5C9C380)))
+NULL
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+SET SQL_MODE=@orig_sql_mode;
+#
+# Bug#25688192 ASSERTION FAILED: MAYBE_NULL IN ITEM_FUNC_CONCAT::VAL_STR
+#
+set @max_allowed_packet=@@global.max_allowed_packet;
+set global max_allowed_packet=2048;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+connect  con1,localhost,root,,;
+set sql_mode="";
+do concat(export_set(1,1,repeat('a',31),' $',213));
+Warnings:
+Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - truncated
+disconnect con1;
+connection default;
+set global max_allowed_packet=@max_allowed_packet;
+#
+# Bug#26524721 ASSERTION MAYBE_NULL FAILED IN ITEM_FUNC_CONCAT::VAL_STR
+#
+CREATE TABLE t(x VARCHAR(10) NOT NULL);
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
+COUNT(*)	CONCAT(x, 'x')
+0	NULL
+DROP TABLE t;
+SET default_storage_engine=InnoDB;
+# Bug#26049942 create table .. as select .. quote() give wrong length
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT quote('a');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `quote('a')` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t2 AS SELECT quote('a');
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `quote('a')` varchar(3) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET NAMES utf8mb4;
+CREATE TABLE t3 AS SELECT quote('a');
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `quote('a')` varchar(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET NAMES DEFAULT;
+DROP TABLE t1, t2, t3;

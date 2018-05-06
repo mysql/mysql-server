@@ -1,15 +1,14 @@
---source include/have_innodb.inc
-
 --echo #
---echo # WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+--echo # WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
 --echo #
 
 --echo # Setup.
 SET @session_transaction_isolation = @@SESSION.transaction_isolation;
 SET @global_transaction_isolation = @@GLOBAL.transaction_isolation;
 
---enable_connect_log
 --echo # Creating connections
+
+--enable_connect_log
 connect (con0,localhost,root,,);
 connection con0;
 
@@ -131,7 +130,6 @@ connection con0;
 
 COMMIT;
 
-
 --echo # Testing for value REPEATABLE-READ
 connection con0;
 SET SESSION transaction_isolation = 'REPEATABLE-READ';
@@ -163,6 +161,7 @@ SELECT * FROM t1;
 
 COMMIT;
 
+--echo ** Connection con0 **
 connection con0;
 
 COMMIT;
@@ -259,6 +258,7 @@ connection con0;
 
 COMMIT;
 
+
 --echo # Session data integrity check & GLOBAL Value check
 
 SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
@@ -292,6 +292,7 @@ SELECT @@GLOBAL.transaction_isolation;
 
 connection default;
 
+--echo Disconnecting Connections con_int1, con_int2
 disconnect con_int1;
 disconnect con_int2;
 
@@ -301,8 +302,9 @@ SET @@SESSION.transaction_isolation = @session_transaction_isolation;
 SET @@GLOBAL.transaction_isolation = @global_transaction_isolation;
 
 connection default;
+--echo Disconnecting Connections con0, con1
 disconnect con0;
 disconnect con1;
-
 --disable_connect_log
+
 DROP TABLE t1;

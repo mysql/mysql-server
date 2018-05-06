@@ -6,6 +6,8 @@
 connect (spj,localhost,root,,test);
 connect (ddl,localhost,root,,test);
 
+select @@session.optimizer_switch;
+
 --disable_warnings
 connection ddl;
 drop table if exists t1,t2,t3,t4;
@@ -15,7 +17,7 @@ connection spj;
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts_at_startup
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_pruned_scan_count',
         'Ndb_sorted_scan_count',
@@ -48,7 +50,7 @@ insert into t1 values
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -65,7 +67,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 # Check that we do not push an operation if this prevents us from using
 # 'join buffer'.
-explain extended 
+explain
 select straight_join count(*) 
 from t1 as x1 
 join t1 as x2 on x1.d > x2.a + 1000 
@@ -77,7 +79,7 @@ join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
 
 # Check that we do not push an operation if this prevents us from using
 # 'join buffer'.
-explain extended select * 
+explain select *
 from t1 as x1 
 join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b 
 join t1 as x3 
@@ -89,7 +91,7 @@ join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b
 join t1 as x3 
 join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -98,7 +100,7 @@ select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -111,7 +113,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a = 1 and t1.b = 1;
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -122,7 +124,7 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -133,7 +135,7 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -145,12 +147,9 @@ left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 
 set ndb_join_pushdown=true;
-explain extended
-select *
-from t1
-join t1 as t2 on t2.a = t1.c and t2.b = t1.d procedure analyse();
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -189,6 +188,7 @@ where t1.a = 2 and t1.b = 3;
 # ... and is a much simpler testcase..... 
 LOCK TABLES t1 read, t1 as t2 read;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -208,7 +208,8 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 3 and t1.b = 3;
 UNLOCK TABLES;
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -218,7 +219,8 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -231,7 +233,8 @@ where t1.a = 2 and t1.b = 3
 order by t1.c;
 
 set ndb_join_pushdown=false;
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -241,7 +244,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -252,7 +256,7 @@ left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
 set ndb_join_pushdown=true;
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -262,7 +266,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -273,7 +277,7 @@ left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
 set ndb_join_pushdown=false;
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -283,7 +287,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 1 and t1.b = 1;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -300,7 +304,7 @@ where t1.a = 1 and t1.b = 1;
 ## should be consulted in order to replace 't1.c' with 't2.a'
 ## inside the scope
 set ndb_join_pushdown=true;
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -317,7 +321,7 @@ join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
 ## (pseudo constant) paramValue wrt. the pushed join.
 ## As we have a dependency on previous rows these 
 ## should not be join cached (ref. HA_PUSH_BLOCK_JOINCACHE)
-explain extended
+explain
 select straight_join *
   from (t1 as x cross join t1 as y)
      join t1 as z on z.a=x.a and z.b=y.b;
@@ -332,7 +336,7 @@ select straight_join *
 ## these tests t3 is also linked with t2 through another join condition.
 ## This makes t3 join pushable by specifying the value of t1.c as a
 ## paramValue()
-explain extended
+explain
 select *
 from t1
   straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -344,7 +348,7 @@ from t1
   straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select *
 from t1
   straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
@@ -357,7 +361,7 @@ from t1
   straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
 where t1.a=1 and t1.d=1;
 
-explain extended
+explain
 select *
 from t1
   straight_join t1 as t2 on t2.a = t1.b+0
@@ -396,7 +400,7 @@ insert into t1_myisam values
 
 set ndb_join_pushdown=true;
 
-explain extended
+explain
 select *
 from t1_myisam as t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -423,7 +427,7 @@ set ndb_join_pushdown=true;
 
 # Table scan
 --replace_column 10 # 11 #
-explain extended select *
+explain select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.d = 3;
@@ -435,7 +439,7 @@ where t1.d = 3;
 
 # Ordered index scan
 --replace_column 10 # 11 #
-explain extended select * 
+explain select *
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.a > 2 and t1.d = 3;
@@ -447,7 +451,7 @@ where t1.a > 2 and t1.d = 3;
 
 # Sorted scan of ordered index.
 --replace_column 10 # 11 #
-explain extended select * 
+explain select *
 from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.d = 3 
 order by t1.a;
@@ -464,7 +468,7 @@ order by t1.a;
 # SQL stmt. are therefore written with pushable JT_REFs from table 2 -> 
 #
 set ndb_join_pushdown=true;
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -477,7 +481,7 @@ join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c
@@ -491,7 +495,7 @@ left join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 
 set ndb_join_pushdown=false;
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -504,7 +508,7 @@ join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 
-explain extended
+explain
 select *
 from t1
 left join t1 as t2 on t2.a = t1.c
@@ -519,7 +523,7 @@ where t1.a = 1 and t1.b = 1;
 
 # JT_REF as root operations is now supported as pushed joins
 set ndb_join_pushdown=true;
-explain extended
+explain
 select *
 from t1 as t2
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
@@ -542,7 +546,7 @@ set ndb_join_pushdown=true;
 # t3 refer both t1,t2 as parrent.
 # t1 should be identifed as a grandparent available
 # through its child t2.
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -554,7 +558,7 @@ from t1
  join t1 as t3 on t3.a = t2.c and t3.b = t1.c;
 
 # t4 is pushable iff we force an artificial parental dependency between t2 & t3.
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -569,7 +573,7 @@ from t1
 
 # t3 is a child of t2 and grandchild of t1
 # t4 is a child of t3 and grandchild of t2
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -584,7 +588,7 @@ from t1
 
 # t3 is a child of t2 and grandchild of t1
 # t4 is a child of t3 and grandgrandchild of t1
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -605,7 +609,7 @@ from t1
 #    provide multiple similar testcases and hope that
 #    some of them will trigger the replacement code in 
 #    ha_ndbcluster_push :-o
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -618,7 +622,7 @@ from t1
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t3.a and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -631,7 +635,7 @@ from t1
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t3.b and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -644,7 +648,7 @@ from t1
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t3.c and t4.b = t2.a;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -657,7 +661,7 @@ from t1
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t3.c and t4.b = t2.b;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -670,7 +674,7 @@ from t1
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t1.c and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -686,7 +690,7 @@ from t1
 # Added more multidependency tests;
 #
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2  on t2.a = t1.a and t2.b = t1.b
@@ -694,7 +698,7 @@ from t1
  join t1 as t3x on t3x.a = t1.c and t3x.b = t1.d
  join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2  on t2.a = t1.a and t2.b = t1.b
@@ -703,7 +707,7 @@ from t1
  join t1 as t3x on t3x.a = t3.c and t3x.b = t3.d
  join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c; 
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2  on t2.a = t1.a and t2.b = t1.b
@@ -716,7 +720,7 @@ from t1
 # included in the forced dependencies
 # (Depends directly on 't1' and can be bushy wrt. to
 #  the other tables)
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2  on t2.a = t1.a and t2.b = t1.b
@@ -726,7 +730,7 @@ from t1
  join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c;
 
 # 't3' is still independent - see comment above.
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2  on t2.a = t1.a and t2.b = t1.b
@@ -737,42 +741,42 @@ from t1
 
 ## It should not be possible to force grandparent dependencies
 ## via a previously outer joined table:
-explain extended
+explain
 select straight_join *
 from t1
  left join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  left join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  left join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  left join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  left join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  left join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c and t4.b = t2.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  left join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c;
 
-explain extended
+explain
 select straight_join *
 from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
@@ -785,7 +789,7 @@ from t1
 # concluded that its grandparent ref of 't2' through 't3'
 # introduced dependencies on the outer joined t1.
 #
-explain extended
+explain
 select straight_join *
 from
  ( t1 as t0 left join t1 as t1 on t1.a = t0.a and t1.b = t0.b
@@ -796,7 +800,7 @@ from
  )
  on t2.a = t1.a and t2.b = t1.b;
 
-explain extended
+explain
 select straight_join *
 from
   t1 as x1
@@ -819,7 +823,7 @@ from
 # outer joined 't2' into t3.
 # (As that would implicit cause t3 to depend on t2.)
 #
-explain extended
+explain
 select straight_join * from
  (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
  inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
@@ -838,7 +842,7 @@ select straight_join * from
 # Note: Both these two queries are fully pushable, but 
 # the later will likely result in a better query plan.
 #
-explain extended
+explain
 select straight_join * from
  (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
  inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
@@ -854,7 +858,7 @@ select straight_join * from
 #  & pushed EQ-bound (indexScan) (z, t1)
 # This used to give incorrect results with random result for last table (t1)
 set ndb_join_pushdown=true;
-explain extended 
+explain
   select * from t1 x, t1 y, t1 z, t1 where 
     y.a=x.d and y.b=x.b and 
     z.a=y.d and 
@@ -866,7 +870,7 @@ explain extended
     t1.a = z.d and t1.b=z.b;
 
 # Pushed scanIndex() with (multi-)range:
-explain extended 
+explain
   select * from t1 x, t1 y where
     x.a <= 2 and
     y.a=x.d and y.b=x.b;
@@ -875,7 +879,7 @@ explain extended
     x.a <= 2 and
     y.a=x.d and y.b=x.b;
 
-explain extended 
+explain
   select * from t1 x, t1 y where
     (x.a <= 2 or x.a > 3) and
     y.a=x.d and y.b=x.b;
@@ -886,7 +890,7 @@ explain extended
 
 # 'open' range:
 --replace_column 10 # 11 #
-explain extended 
+explain
   select * from t1 x, t1 y where
     (x.a >= 2 or x.a < 3) and
     y.a=x.d and y.b=x.b;
@@ -896,7 +900,7 @@ explain extended
     y.a=x.d and y.b=x.b;
 
 # Combination of range and 'in' list
-explain extended 
+explain
   select * from t1 x, t1 y where
     (x.a <= 2 or x.a in (0,5,4)) and
     y.a=x.d and y.b=x.b;
@@ -908,7 +912,7 @@ explain extended
 # Combination of range and 'in' list with exact match
 # NOTE: Due to simplification in pushed mrr, exact matches are also
 #       executed as range scans
-explain extended 
+explain
   select * from t1 x, t1 y where
     (x.a <= 2 or (x.a,x.b) in ((0,0),(5,0),(4,3))) and
     y.a=x.d and y.b=x.b;
@@ -946,7 +950,7 @@ explain extended
 #           
 
 ## Non-pushed join w/ 'simple order' on non_PK - Presorts parent table.
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -962,7 +966,7 @@ order by t1.c,t1.d,
 t1.a, t1.b;
 
 ## pushed join w/ non-'simple order' on non_PK - Need temp table + filesort
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -978,7 +982,7 @@ order by t1.c,t2.d,
 t1.a, t1.b;
 
 ## pushed join w/ 'simple order' on PK - Should use ordered index scan 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -992,7 +996,7 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a,t1.b;
 
 ## pushed join w/ non-'simple order' on PK - will need temp table + filesort 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1008,7 +1012,7 @@ order by t1.a,t2.b,
 t1.a, t1.b;
 
 ## Descending ordering on PK - use reversed ordered index scan
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1022,7 +1026,7 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a desc,t1.b desc;
 
 ## Simple-PK column in incorrect order, -> Presort parent table, (no-push)
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1038,7 +1042,7 @@ order by t1.b,t1.a;
 ## Explore other permutations of PK columns in ORDER BY clause
 ## Don't care about the results here....
 # Subset of first part of PK -> ordered index scan
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1046,7 +1050,7 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a;
 
 # PK columns not including first part -> Presort parent table, (no-push)
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1058,7 +1062,7 @@ order by t1.b;
 ## PK grouping (or subpart) may be optimized
 ## by ordered index access.
 ##
-explain extended
+explain
 select t1.a, t1.b, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1071,7 +1075,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a, t1.b;
 
-explain extended
+explain
 select t1.a, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1084,7 +1088,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a;
 
-explain extended
+explain
 select t1.b, count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -1097,7 +1101,8 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.b;
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
+explain
 select t2.c, count(distinct t2.a)
 from t1
 join t1 as t2 on t1.a = t2.c and t1.b = t2.d
@@ -1110,7 +1115,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4 and t2.b=4
 group by t2.c;
 
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from t1
 join t1 as t2 on t1.a = t2.c and t1.b = t2.d
@@ -1123,7 +1128,8 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4
 group by t2.c;
 
-explain extended
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
+explain
 select t2.c, count(distinct t2.a)
 from t1
 join t1 as t2 on t1.a = t2.c and t1.b = t2.d
@@ -1174,7 +1180,7 @@ connection ddl;
 CREATE TABLE tx (
   a int NOT NULL,
   PRIMARY KEY (`a`)
-);
+) comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 delete from t1;
@@ -1215,7 +1221,9 @@ create table t1 (
   c int not null,
   d int not null,
   primary key (`a`,`b`)
-) engine=ndbcluster partition by key(a);
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+  partition by key(a);
 
 connection spj;
 insert into t1 values
@@ -1226,7 +1234,7 @@ insert into t1 values
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 
 # Only this query('partition by key') should be pushed
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -1235,7 +1243,7 @@ connection ddl;
 set new=on;
 alter table t1 partition by hash(a);
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -1248,7 +1256,7 @@ alter table t1 partition by list(a) (
   partition p4 values in (4)
 );
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -1261,7 +1269,7 @@ alter table t1 partition by range(a) partitions 4 (
   partition p4 values less than (99999)
 );
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -1276,7 +1284,8 @@ set new=default;
 # *** join push is currently dissabled for these ****
 #
 connection ddl;
-create table t1 (a int, b int, primary key(a) using hash) engine = ndb;
+create table t1 (a int, b int, primary key(a) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2);
@@ -1295,7 +1304,7 @@ set ndb_join_pushdown=true;
 #   ndbapi counters, and instead measure #round-trips
 set autocommit=off;
 
-explain extended
+explain
 select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
@@ -1316,7 +1325,8 @@ drop table t1;
 
 # Same case when there is an ordered index on PK
 connection ddl;
-create table t1 (a int, b int, primary key(a)) engine = ndb;
+create table t1 (a int, b int, primary key(a)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2);
@@ -1335,7 +1345,7 @@ set ndb_join_pushdown=true;
 #   ndbapi counters, and instead measure #round-trips
 set autocommit=off;
 
-explain extended
+explain
 select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
@@ -1358,7 +1368,7 @@ set autocommit=on;
 ## join execution (EXPLAIN still says 'pushdown') which
 ## should test handling of this in ha_ndbcluster::index_read_pushed()
 
-explain extended
+explain
 select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
@@ -1377,12 +1387,16 @@ drop table t1;
 set ndb_join_pushdown=true;
 
 connection ddl;
-create table t1 (a int, b int, primary key(a)) engine = ndb;
-create table t2 (c int, d int, primary key(c)) engine = ndb;
+create table t1 (a int, b int, primary key(a)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (c int, d int, primary key(c)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3 (a3 int, b3 int, c3 int not null, d3 int not null,
- primary key(a3, b3)) engine = ndb;
+ primary key(a3, b3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t3_hash (a3 int, b3 int, c3 int not null, d3 int not null,
- primary key(a3, b3) using hash) engine = ndb;
+ primary key(a3, b3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (0x1f, 0x2f);
@@ -1401,12 +1415,12 @@ insert into t3_hash values (0x1f, 0x2f, 1, 0x1f);
 insert into t3_hash values (0x2f, 0x3f, 2, 0x2f);
 insert into t3_hash values (0x3f, 0x1f, 3, 0x3f);
 
-explain extended
+explain
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 --sorted_result
 select * from t3 x, t3 y, t1 where y.a3=x.d3 and y.b3=x.b3 and t1.a = y.d3;
 
-explain extended
+explain
 select *
 from t3 x, t3 y, t3 z, t3 z2, t1
 where y.a3=x.d3 and y.b3=x.b3 and
@@ -1423,14 +1437,14 @@ where y.a3=x.d3 and y.b3=x.b3 and
 
 # Table expressions wo/ parent-child linkage should *not* be executes as a pushed join:
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 
 # NOTE: Due to constValue replacement in equality sets, query below are
 # effectively the same as the one above. -> Don't push either
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 
@@ -1443,34 +1457,34 @@ commit;
 
 connection spj;
 # Use an unique key to lookup root in pushed join:
-explain extended
+explain
   select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
   select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 
 # No data-found on unique key lookup root
-explain extended
+explain
   select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
   select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
 
 # Use an unique key to lookup joined child tables
-explain extended
+explain
   select * from t1 x, t3 y where y.d3=x.b;
 --sorted_result
   select * from t1 x, t3 y where y.d3=x.b;
 
 # Unique index used both for root lookup and child linkage.
-explain extended
+explain
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
 
 # No data-found on unique key lookup child
-explain extended
+explain
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
 
 # 'index_merge' between PRIMARY and index t3.d3
 # NOTE: currently unhandled
-explain extended
+explain
   select * from t3 x, t3 y 
   where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
     and  (y.a3=x.d3 and y.b3=x.b3);
@@ -1479,7 +1493,7 @@ explain extended
  where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
    and  (y.a3=x.d3 and y.b3=x.b3);
 
-explain extended
+explain
   select * from t3_hash x, t3_hash y
   where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
     and  (y.a3=x.d3 and y.b3=x.b3);
@@ -1489,7 +1503,7 @@ explain extended
     and  (y.a3=x.d3 and y.b3=x.b3);
 
 # Any ordered index may also be used to scan a 'range'
-explain extended
+explain
   select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 --sorted_result
   select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
@@ -1505,7 +1519,7 @@ select * from t1 left join t1 as t2 on t2.a = t1.b;
 insert into t3 values (8,8,8,8);
 
 # Unique lookups only.
-explain extended select count(*) from t3 as x0
+explain select count(*) from t3 as x0
  join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
  join t3 as x2 on x1.b3=x2.d3
  join t3 as x3 on x2.b3=x3.d3
@@ -1545,7 +1559,7 @@ select count(*) from t3 as x0
 
 
 # Max scans
-explain extended select count(*) from t3 as x0
+explain select count(*) from t3 as x0
  join t3 as x1 on x0.c3=x1.a3
  join t3 as x2 on x1.c3=x2.a3
  join t3 as x3 on x2.c3=x3.a3
@@ -1616,7 +1630,7 @@ select count(*) from t3 as x0
  join t3 as x33 on x32.c3=x33.a3;
 
 #Mixed join
-explain extended select count(*) from t3 as x0
+explain select count(*) from t3 as x0
  join t3 as x1 on x0.b3=x1.d3
  join t3 as x2 on x1.b3=x2.d3
  join t3 as x3 on x2.b3=x3.d3
@@ -1665,13 +1679,16 @@ drop table t1,t2,t3, t3_hash;
 
 connection ddl;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
- primary key(b3, a3)) engine = ndb;
+ primary key(b3, a3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t3_hash (a3 int, b3 int, c3 int, d3 int,
- primary key(b3,a3) using hash) engine = ndb;
+ primary key(b3,a3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t3_unq (pk int, a3 int not null, b3 int not null, c3 int, d3 int,
- primary key(pk) using hash, unique key(b3,a3) using hash) engine = ndb;
+ primary key(pk) using hash, unique key(b3,a3) using hash) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -1687,35 +1704,35 @@ insert into t3_unq values (1002, 0x2f, 0x3f, 2, 0x2f);
 insert into t3_unq values (1003, 0x3f, 0x1f, 3, 0x3f);
 
 ## Table scans (ALL) as pushed root
-explain extended
+explain
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3;
 --sorted_result
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3;
 
-explain extended
+explain
 select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3;
 --sorted_result
 select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3;
 
-explain extended
+explain
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3;
 --sorted_result
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3;
 
 ## Lookup (eq_ref/const) as pushed root
-explain extended
+explain
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 
-explain extended
+explain
 select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 
-explain extended
+explain
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
@@ -1728,7 +1745,8 @@ drop table t3, t3_hash, t3_unq;
 
 connection ddl;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
- primary key(a3), unique key(d3)) engine = ndb;
+ primary key(a3), unique key(d3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
@@ -1736,7 +1754,7 @@ insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 insert into t3 values (0x4f, 0,    null, null);
 
-explain extended
+explain
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.d3
  left outer join t3 as t3 on t3.a3 = t2.d3;
@@ -1746,7 +1764,7 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3;
 
 ## Test usage of nullable unique key column in where clause on pushed parent node
-explain extended
+explain
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
@@ -1757,7 +1775,7 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 = 47;
 
-explain extended
+explain
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
@@ -1768,7 +1786,7 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 >= 47;
 
-explain extended
+explain
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
@@ -1779,7 +1797,7 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 is null;
 
-explain extended
+explain
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
@@ -1798,7 +1816,8 @@ drop table t3;
 
 connection ddl;
 create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
- primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb;
+ primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values (0x1f, 0x2f, 1,    0x1f);
@@ -1810,7 +1829,7 @@ insert into t3 values (0x42, 0,    4,    null);
 insert into t3 values (0x43, 0,    null, 0x43);
 
 ## Baseline: Not pushed as only one of the columns in unique indexes are REF'ed
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3;
 --sorted_result
@@ -1818,7 +1837,7 @@ select straight_join *
   from t3 as x join t3 as y on x.b3 = y.b3;
 
 ## Extend query above with 'where <const cond>'
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 = 0x2f;
@@ -1828,7 +1847,7 @@ select straight_join *
   where y.d3 = 0x2f;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.c3 = y.c3
   where y.d3 = 0x2f;
@@ -1837,7 +1856,7 @@ select straight_join *
   from t3 as x join t3 as y on x.c3 = y.c3
   where y.d3 = 0x2f;
 
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.d3 = y.d3
   where y.b3 = 0x2f;
@@ -1846,7 +1865,7 @@ select straight_join *
   from t3 as x join t3 as y on x.d3 = y.d3
   where y.b3 = 0x2f;
 
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.d3 = y.d3
   where y.b3 = 0x20+0x2f;
@@ -1858,7 +1877,7 @@ select straight_join *
 
 ## Not pushable as 'not null' is actually not a single const value
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 is not null;
@@ -1869,7 +1888,7 @@ select straight_join *
 
 ## Neither 'is null' pushable as uniqueness is not defined for null
 ## ... and null's are not present in the unique index
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 is null;
@@ -1878,7 +1897,7 @@ select straight_join *
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 is null;
 
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.c3 = y.c3
   where y.b3 = 0;
@@ -1888,7 +1907,7 @@ select straight_join *
   where y.b3 = 0;
 
 ## As 'b3' is defined as 'not null', this query will optimized as 'Impossible WHERE' (No push)
-explain extended
+explain
 select straight_join * 
   from t3 as x join t3 as y on x.c3 = y.c3
   where y.b3 is null;
@@ -1901,7 +1920,7 @@ select straight_join *
 ## Last join (join t3 as y2) refer x1.c3 which will
 ## be handled as a constant paramValue wrt. scope of the 
 ## second pushed join.
-explain extended
+explain
 select straight_join * from
   t3 as x1
   join t3 as y1 on y1.b3 = x1.b3 and y1.d3 = x1.d3
@@ -2034,7 +2053,8 @@ execute stmt1 using @a;
 
 # test index scan disguised as JT_ALL
 connection ddl;
-create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,null, 2);
@@ -2055,7 +2075,7 @@ join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=off */;
 
 set ndb_join_pushdown=true;
 
-explain extended
+explain
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
@@ -2071,7 +2091,7 @@ join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 ## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
 ## as part of the pushed join NdbQuery
-explain extended
+explain
 select *
 from t1 where b in 
   (select x.a from t1 as x join t1 as y on (y.a = x.b))
@@ -2088,7 +2108,7 @@ xor c > 5;
 ## the scope of our JOIN_TAB's
 ##############
 --replace_column 10 # 11 #
-explain extended
+explain
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 --sorted_result
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
@@ -2099,14 +2119,15 @@ drop table t1;
 # mixed engines
 
 connection ddl;
-create table t1 (a int primary key, b int) engine = ndb;
+create table t1 (a int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (a int primary key, b int) engine = myisam;
 
 connection spj;
 insert into t1 values(1,1), (2,2), (3,3), (4,4);
 insert into t2 values(1,1), (2,2), (3,3), (4,4);
 
-explain extended
+explain
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
   and t3.a = t2.b /* mixed engines */;
@@ -2121,8 +2142,10 @@ drop table t1, t2;
 # Tables with blob, but not in the selected columns:
 
 connection ddl;
-create table t1 (a int primary key, b int, c blob) engine = ndb;
-create table t2 (a int primary key, b int) engine = ndb;
+create table t1 (a int primary key, b int, c blob) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (a int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1, 'kalle');
@@ -2136,7 +2159,7 @@ insert into t2 values (3,3);
 insert into t2 values (4,1);
 
 set ndb_join_pushdown=true;
-explain extended
+explain
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t2.a = t1.b;
@@ -2145,7 +2168,7 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t2.a = t1.b;
 
-explain extended
+explain
 select t1.a, t1.b, t2.a, t2.b 
 from t1, t2
 where t2.a = t1.b
@@ -2156,7 +2179,7 @@ from t1, t2
 where t2.a = t1.b
   and t1.a = 2;
 
-explain extended
+explain
 select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t1.a = t2.b;
@@ -2165,7 +2188,7 @@ select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t2.a = t1.b;
 
-explain extended
+explain
 select t1.a, t1.b, t2.a, t2.b
 from t1, t2
 where t1.a = t2.b
@@ -2179,7 +2202,7 @@ where t1.a = t2.b
 #
 # result sets contain blob
 #   i.e no push
-explain extended
+explain
 select *
 from t1, t2
 where t2.a = t1.b;
@@ -2188,7 +2211,7 @@ select *
 from t1, t2
 where t2.a = t1.b;
 
-explain extended
+explain
 select *
 from t1, t2
 where t2.a = t1.b
@@ -2199,7 +2222,7 @@ from t1, t2
 where t2.a = t1.b
   and t1.a = 2;
 
-explain extended
+explain
 select *
 from t1, t2
 where t1.a = t2.b;
@@ -2208,7 +2231,7 @@ select *
 from t1, t2
 where t2.a = t1.b;
 
-explain extended
+explain
 select *
 from t1, t2
 where t1.a = t2.b
@@ -2228,217 +2251,235 @@ drop table t1, t2;
 ##
 connection ddl;
   create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 smallint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 mediumint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 int, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 bigint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 boolean, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0, 1, 0x1f);
   insert into t3 values (0x2f, 1, 2, 0x2f);
   insert into t3 values (0x3f, 0, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 float, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.00, 2, 0x2f);
   insert into t3 values (0x3f, 0.50, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.00, 2, 0x2f);
   insert into t3 values (0x3f, 0.50, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 double, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
   insert into t3 values (0x3f, 0.50, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
   insert into t3 values (0x3f, 0.50, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 decimal(12,4), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 2.71, 1, 0x1f);
   insert into t3 values (0x2f, 3.14, 2, 0x2f);
   insert into t3 values (0x3f, 0.50, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 date, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, '1905-05-17', 1, 0x1f);
   insert into t3 values (0x2f, '2000-02-28', 2, 0x2f);
   insert into t3 values (0x3f, '2000-02-29', 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
 
@@ -2451,7 +2492,7 @@ connection spj;
 #  insert into t3 values (0x1f, '1905-05-17 12:30:00', 1, 0x1f);
 #  insert into t3 values (0x2f, '2000-02-28 23:59:00', 2, 0x2f);
 #  insert into t3 values (0x3f, '2000-02-29 12:59:59', 2, 0x3f);
-#  explain extended
+#  explain
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 #
@@ -2463,67 +2504,72 @@ connection spj;
 #  insert into t3 values (0x1f, '12:30:00', 1, 0x1f);
 #  insert into t3 values (0x2f, '23:59:00', 2, 0x2f);
 #  insert into t3 values (0x3f, '12:59:59', 2, 0x3f);
-#  explain extended
+#  explain
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 char(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
   insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
   insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 varchar(512), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
   insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
   insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
 connection ddl;
   drop table t3;
     create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+    comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 connection spj;
   insert into t3 values (0x1f, 'Ole', 1, 0x1f);
   insert into t3 values (0x2f, 'Dole', 2, 0x2f);
   insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
@@ -2536,13 +2582,14 @@ connection ddl;
 ##
 connection ddl;
   create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
-    primary key(a3,b3)) engine = ndb;
+    primary key(a3,b3)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
   insert into t3 values (0x1f, 0x2f, 1, 0x1f);
   insert into t3 values (0x2f, 0x3f, 2, 0x2f);
   insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-  explain extended
+  explain
   select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
   select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
 
@@ -2556,7 +2603,8 @@ connection ddl;
 
 connection ddl;
 create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
-  primary key(a3,b3)) engine = ndb;
+  primary key(a3,b3)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t3 values ('Ole', 0x1f, 1, 0x1f);
@@ -2564,12 +2612,12 @@ insert into t3 values ('Dole', 0x2f, 2, 0x2f);
 insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 
 # Varchar is lookup key
-explain extended
+explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 
 # Varchar as hi/low bound
-explain extended
+explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 
@@ -2577,7 +2625,8 @@ connection ddl;
 drop table t3;
 
 connection ddl;
-create table t1 (k int primary key, b int) engine = ndb;
+create table t1 (k int primary key, b int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1), (2,1), (3,1), (4,1);
@@ -2590,7 +2639,7 @@ insert into t1 values (1,1), (2,1), (3,1), (4,1);
 ## row caching in join_read_key() where we eliminate redundant lookups
 ## where 'next row == current row'. In order to work for linked operations,
 ## the value and status for all linked tables should be kept unaltered.
-explain extended
+explain
 select *
 from t1
   straight_join t1 as t2 on t2.k = t1.b+0
@@ -2605,7 +2654,7 @@ from t1
 
 ## Similar example as above, except that access to 't2' is made
 ## a const table access
-explain extended
+explain
 select *
 from t1
   straight_join t1 as t2 on t2.k = t1.b+0
@@ -2636,7 +2685,8 @@ create table t1 (
   c int not null,
   d char(255) not null,
   primary key (`a`,`b`)
-) engine=ndbcluster;
+) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 let $1=1000;
@@ -2649,7 +2699,7 @@ while ($1)
 }
 enable_query_log;
 
-explain extended
+explain
 select count(*)
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -2659,7 +2709,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 
-explain extended
+explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -2669,7 +2719,7 @@ from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 
-explain extended
+explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -2683,7 +2733,7 @@ connection ddl;
 alter table t1 partition by key(a);
 
 connection spj;
-explain extended
+explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -2718,7 +2768,8 @@ create table t1 (a int not null,
                  b int not null storage disk, 
        		 c int not null storage memory, 
 		 primary key(a)) 
-		 tablespace ts1 storage disk engine = ndb;
+		 tablespace ts1 storage disk engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (10, 11, 11);
@@ -2727,7 +2778,8 @@ insert into t1 values (12, 13, 13);
 
 connection ddl;
 create table t2 (a int not null, 
-       	     	 b int not null, primary key(a)) engine = ndb;
+       	     	 b int not null, primary key(a)) engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t2 values (10, 11);
@@ -2735,27 +2787,27 @@ insert into t2 values (11, 12);
 insert into t2 values (12, 13);
 
 # Disk data in projection of first op.
-explain extended select * from t1, t2 where t1.c = t2.a;
+explain select * from t1, t2 where t1.c = t2.a;
 --sorted_result
 select * from t1, t2 where t1.c = t2.a;
 
-explain extended select * from t1, t2 where t1.a=11 and t1.c = t2.a;
+explain select * from t1, t2 where t1.a=11 and t1.c = t2.a;
 select * from t1, t2 where t1.a=11 and t1.c = t2.a;
 
 # Disk data in projection of second op.
-explain extended select * from t2, t1 where t2.b = t1.a;
+explain select * from t2, t1 where t2.b = t1.a;
 --sorted_result
 select * from t2, t1 where t2.b = t1.a;
 
-explain extended select * from t2, t1 where t2.a=11 and t2.b = t1.a;
+explain select * from t2, t1 where t2.a=11 and t2.b = t1.a;
 select * from t2, t1 where t2.a=11 and t2.b = t1.a;
 
 # Disk data in predicate but not in projection
-explain extended select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
+explain select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
 --sorted_result
 select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
 
-explain extended select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
+explain select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
 select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
 
 connection ddl;
@@ -2763,11 +2815,9 @@ drop table t1;
 drop table t2;
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;
@@ -2839,7 +2889,8 @@ connection ddl;
 create table t1 (
        a int primary key, 
        b int,
-       c int) engine = ndb;
+       c int) engine = ndb
+ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1, 2, 3);
@@ -2853,7 +2904,7 @@ let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counter
 # Root scan should give only one tuple if scan filter is pushed. 
 # Therefore only one lookup on 'y'.
 --replace_column 10 # 11 #
-explain extended select * from t1 x, t1 y where x.b=y.a and x.c=4;
+explain select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
@@ -2864,7 +2915,7 @@ select * from t1 x, t1 y where x.b=y.a and x.c=4;
 # Lookup on y should only give one result tuple if filter is pushed.
 # This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
 --replace_column 10 # 11 #
-explain extended select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
+explain select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
@@ -2883,7 +2934,9 @@ create table t1(
        b int not null,
        c int not null,
        primary key(a,b))
-engine = ndb partition by key (a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (a);
 
 connection spj;
 insert into t1 values (10, 10, 11);
@@ -2901,7 +2954,7 @@ select * from t1 t1, t1 t2
 # Save old mysqld counter values.
 --disable_warnings ONCE
 create temporary table server_counts
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name in 
        ('Ndb_scan_count',
         'Ndb_pruned_scan_count',
@@ -2931,7 +2984,7 @@ select count(*) from t1 t1, t1 t2
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 
@@ -2948,7 +3001,9 @@ create table t1(
        a int not null,
        b int not null,
        primary key using hash (a,b))
-engine = ndb partition by key (a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (a);
 
 connection spj;
 insert into t1(a,b,c,d) values (10, 10, 11, 11);
@@ -2963,7 +3018,6 @@ connection ddl;
 create index i1 on t1(c,a);
 
 connection spj;
-explain extended select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
 select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
@@ -2984,7 +3038,6 @@ connection ddl;
 create index i2 on t1(a,b);
 
 connection spj;
-explain extended select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -2994,7 +3047,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should give pruned scan. Upper and lower bounds for t1.a are the sane. 
-explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3004,7 +3056,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should not give pruned scan. Upper and lower bounds for t1.a are different. 
-explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3015,8 +3066,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
---replace_column 10 # 11 #
-explain extended select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3028,7 +3077,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 # Should give pruned scan. There will be two sets of bounds, but they have the
 # same distribution key.
 
-explain extended select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3048,7 +3096,9 @@ create table t2(
        b int not null,
        c int not null,
        primary key using hash (a,b,c))
-engine = ndb partition by key (b,a);
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+partition by key (b,a);
 
 connection spj;
 insert into t2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3); 
@@ -3064,14 +3114,11 @@ connection ddl;
 create index i2_1 on t2(d, a, b, e);
 
 connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
-explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-connection spj;
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
@@ -3082,16 +3129,13 @@ connection ddl;
 drop index i2_1 on t2;
 create index i2_3 on t2(a, d, b, e);
 
+connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
 
-connection spj;
-
 # Turn off condition_fanout_filter to keep "old" QEP
 set optimizer_switch='condition_fanout_filter=off';
-
-explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 # Restore condition_fanout_filter to default value
@@ -3106,13 +3150,14 @@ connection ddl;
 drop table t2;
 
 connection ddl;
-create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb;
+create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values ('\0123456789', '1234567890');
 insert into t1 values ('1234567890', '\0123456789');
 
-explain extended
+explain
 select count(*)
 from t1 join t1 as t2 on t2.a = t1.b
 where t1.a = '\0123456789';
@@ -3131,7 +3176,8 @@ drop table t1;
 # Have been merged from 5.1 main branch.
 
 connection ddl;
-create table t1 (pk int primary key, a int unique key) engine = ndb;
+create table t1 (pk int primary key, a int unique key) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,10), (2,20), (3,30);
@@ -3142,7 +3188,7 @@ set ndb_join_pushdown = false;
 # Join should be optimized as 'Impossible On condition'
 # ... *not* 'Impossible WHERE'
 
-explain extended
+explain
 select * from t1 as x right join t1 as y
   on x.pk = y.pk
  and x.pk = y.a
@@ -3157,7 +3203,7 @@ where y.pk = 2;
 
 set ndb_join_pushdown = true;
 
-explain extended
+explain
 select * from t1 as x right join t1 as y
   on x.pk = y.pk
  and x.pk = y.a
@@ -3179,7 +3225,8 @@ drop table t1;
 # Test scan-lookup-scan query (see http://lists.mysql.com/commits/115164)
 
 connection ddl;
-create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
+create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
       
 connection spj;
@@ -3188,7 +3235,7 @@ insert into t1 values (1,2,20,30);
 insert into t1 values (2,3,30,40);
 
 --replace_column 10 # 11 #
-explain extended select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
+explain select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 --sorted_result
 select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 
@@ -3197,7 +3244,8 @@ drop table t1;
 
 # Test sorted scan where inner join eliminates all rows (known regression).
 connection ddl;
-create table t1 (pk int primary key, u int not null) engine=ndb;
+create table t1 (pk int primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1), 
@@ -3222,7 +3270,7 @@ insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1),
 --error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
-explain extended select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
+explain select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 
 --error 0,1193
@@ -3234,7 +3282,8 @@ drop table t1;
 # Test query using "scan -> unique index lookup -> index scan".
 
 connection ddl;
-create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
+create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 create unique index ix2 on t1(u);
 
@@ -3253,13 +3302,13 @@ insert into t1 values (10,10,10,10);
 insert into t1 values (11,11,10,10);
 
 
-explain extended select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
+explain select count(*) from t1 as x1 join t1 as x2 join t1 as x3
 on x1.a=x2.u and x2.a = x3.b;
 
 select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
 on x1.a=x2.u and x2.a = x3.b;
 
-explain extended select count(*) from t1 as x1, t1 as x2, t1 as x3 
+explain select count(*) from t1 as x1, t1 as x2, t1 as x3
 where x1.u=x2.pk and x1.a=x3.b;
 
 select count(*) from t1 as x1, t1 as x2, t1 as x3 
@@ -3270,14 +3319,14 @@ where x1.u=x2.pk and x1.a=x3.b;
 
 insert into t1 values (12,12,20,10);
 
-explain extended select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
+explain select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 set ndb_join_pushdown=off;
 select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 set ndb_join_pushdown=on;
 
 # Test left join with mix of scan and lookup.
-explain extended select count(*) from t1 as x1 
+explain select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk 
 left join t1 as x3 on x2.a=x3.b;
 
@@ -3290,7 +3339,7 @@ left join t1 as x2 on x1.u=x2.pk
 left join t1 as x3 on x2.a=x3.b;
 set ndb_join_pushdown=on;
 
-explain extended select count(*) from t1 as x1
+explain select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk
 left join t1 as x3 on x2.a=x3.b
 left join t1 as x4 on x3.u=x4.pk
@@ -3316,7 +3365,7 @@ set ndb_join_pushdown=on;
 # This in turn caused a pushed 'lookup-scan' query to be produced - which we don't support
 
 # Should not be pushed (lookup-scan query)
-explain extended select count(*) from t1 as x1
+explain select count(*) from t1 as x1
  join t1 as x2 on x1.a=x2.b
  where x1.pk = 1 or x1.u=1;
 
@@ -3341,7 +3390,7 @@ select count(*) from t1 as x1
 set global debug='+d,max_4rows_in_spj_batches';
 
 set ndb_join_pushdown=on;
-explain extended
+explain
 select straight_join * from t1 as table1
   left join 
    (t1 as table2  join t1 as table3 on table2.pk = table3.b)
@@ -3361,20 +3410,20 @@ set global debug=@save_debug;
 # may cause the parent row to be returned multiple times:
 
 # Push scan-scan when inner joined
-explain extended select straight_join * from t1 as x1 
+explain select straight_join * from t1 as x1
   inner join t1 as x2 on x2.b = x1.a;
 
 # Outer joined scans are not pushed.
-explain extended select straight_join * from t1 as x1 
+explain select straight_join * from t1 as x1
   left join t1 as x2 on x2.b = x1.a;
-explain extended select straight_join * from t1 as x1 
+explain select straight_join * from t1 as x1
   right join t1 as x2 on x2.b = x1.a;
 
 # If there is a lookup operation(s) inbetween the scans
 # pushing is disabled if any of these are outer joined
 
 # inner joined lookups, push allowed
-explain extended select straight_join * from 
+explain select straight_join * from
   t1 as x1 inner join
     (t1 as x2 inner join t1 as x3 on x3.b = x2.a)
   on x2.pk = x1.a;
@@ -3382,7 +3431,7 @@ explain extended select straight_join * from
 # Even if x3 is inner joined with x2 (lookup)
 # push is dissabled as x2 is outer joined with embedding scan operation
 # which makes join relation between the scans on x1 & x3 an 'indirect' outer join
-explain extended select straight_join * from 
+explain select straight_join * from
   t1 as x1 left join
     (t1 as x2 inner join t1 as x3 on x3.b = x2.a)
   on x2.pk = x1.a;
@@ -3393,7 +3442,7 @@ explain extended select straight_join * from
 # only the root operation
 #
 
-explain extended select straight_join count(*) from t1 as x1 
+explain select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
 set ndb_join_pushdown=off;
@@ -3410,7 +3459,7 @@ select straight_join count(*) from t1 as x1
 # adding artificial parent dependencies)
 # 
 --replace_column 10 # 11 #
-explain extended select straight_join count(*) from t1 as x1 
+explain select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.a
   join t1 as x4 on x4.b = x1.a
@@ -3441,7 +3490,7 @@ set global debug=@save_debug;
 # If we have an outer join, we can't create an artificial dep. 'through' the outer join.
 # In this case the child scan can't be part of the pushed query.
 #
-explain extended select straight_join count(*) from t1 as x1 
+explain select straight_join count(*) from t1 as x1
   left join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
  
@@ -3457,7 +3506,7 @@ select straight_join count(*) from t1 as x1
 ############
 # However, When the scanchild itself is an outer join, we *can* push that scan operation
 #
-explain extended select straight_join count(*) from t1 as x1 
+explain select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   left join t1 as x3 on x3.b = x1.b;
  
@@ -3476,7 +3525,7 @@ select straight_join count(*) from t1 as x1
 #
 # Bushy execution is expected for these scans (x2 & x4) wrt. root (x1)
 #
-explain extended
+explain
 select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
@@ -3496,7 +3545,7 @@ select straight_join count(*) from t1 as x1
 # Repeatable child rangescan with same parent should be allowed to be in 
 # 'm_iterState != Iter_finished' if the child row didn't exist (outer join):
 
-explain extended select straight_join count(*) from t1 as x1 
+explain select straight_join count(*) from t1 as x1
   left join t1 as x3 on x3.b = x1.a
   join t1 as x2 on x2.pk = x1.a;
 select straight_join count(*) from t1 as x1 
@@ -3531,7 +3580,7 @@ set ndb_join_pushdown=on;
 --error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
-explain extended select straight_join count(*) from 
+explain select straight_join count(*) from
   (t1 as x join t1 as y on y.b = x.a)
  left outer join t1 as z on z.u = x.a;
 select straight_join count(*) from 
@@ -3552,7 +3601,7 @@ create unique index ix2 on t1(a,u);
 
 connection spj;
 set ndb_join_pushdown=on;
-explain extended
+explain
 select straight_join * from
 t1 as table1 join 
  (t1 as table2 join t1 as table3 on table3.a = table2.a)
@@ -3580,7 +3629,8 @@ CREATE TABLE t1 (
   c int NOT NULL,
   d int NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values (1,1,1,1), (1,2,1,1), (1,3,1,1), (1,4,1,2);
@@ -3589,13 +3639,15 @@ connection ddl;
 CREATE TABLE t2 (
   a int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t3 (
   a int NOT NULL,
   b int NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection ddl;
 insert into t2 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
@@ -3689,7 +3741,7 @@ let $const_pruned_range = query_get_value(select sum(val) as Value from ndbinfo.
 set ndb_join_pushdown=on;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 --sorted_result
@@ -3757,7 +3809,7 @@ create index ix1 on t1(b,d,a);
 
 connection spj;
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 ###########
@@ -3790,7 +3842,8 @@ drop table t1;
 # (At the cost of more roundrtrips)
 ###
 connection ddl;
-create table t1 (pk int primary key, a int, b int) engine=ndb;
+create table t1 (pk int primary key, a int, b int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create index ix1 on t1(b,a);
 
 connection spj;
@@ -3807,7 +3860,7 @@ insert into t1 values (9,10,10);
 
 
 # This sorted scan-scan is pushed since V7.2.6
-explain extended select x1.pk,x1.a,x1.b from t1 as x1 
+explain select x1.pk,x1.a,x1.b from t1 as x1
    join t1 as x2 on x1.a=x2.b 
    join t1 as x3 on x2.a=x3.b 
    order by x1.pk limit 70;
@@ -3818,7 +3871,7 @@ select x1.pk,x1.a,x1.b from t1 as x1
 
 # This query should not be pushed, since mysqld requires sorted
 # results for the root scan.
-explain extended select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
+explain select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 
 connection ddl;
@@ -3830,7 +3883,8 @@ drop table t1;
 # the specific testcase commited together with patch for this bug.
 #######
 connection ddl;
-create table t (pk int primary key, a int) engine=ndb;
+create table t (pk int primary key, a int) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values 
   (1,1), (2,1),
   (4,3), (6,3),
@@ -3838,7 +3892,7 @@ insert into t values
 
 connection spj;
 --replace_column 10 # 11 #
-explain extended
+explain
 select distinct straight_join table1.pk FROM 
    t as table1  join
     (t as table2  join  
@@ -3864,13 +3918,14 @@ drop table t;
 # Test correct format of an 'open bound'
 ########
 connection ddl;
-create table t (b int, a int, primary key (a,b)) engine=ndb;
+create table t (b int, a int, primary key (a,b)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values(0,0);
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 
@@ -3886,13 +3941,14 @@ drop table t;
 # is not expected to happen any more.
 #######
 connection ddl;
-create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,6), (6,9), (9,1);
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select * from t as t1 join t as t2
   on t1.pk2 = t2.pk1 
   where t1.pk1 != 6
@@ -3911,14 +3967,15 @@ drop table t;
 # 'ref_or_null' contains elements of left outer join wo/ being identical.
 # 
 connection ddl;
-create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
+create table t (k int, uq int, unique key ix1 (uq)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 
 # Currently we do not handle 'ref_or_null' correctly.
 # It is therefore disabled as pushable
-explain extended
+explain
 select straight_join * from t as a join t as b 
   on a.uq=b.uq or b.uq is null;
 
@@ -3935,12 +3992,13 @@ drop table t;
 # even requiring to access left table (b) which becomes 'system' -> No pushed joins !
 ########
 connection ddl;
-create table t (k int primary key, uq int) engine = ndb;
+create table t (k int primary key, uq int) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 
-explain extended
+explain
 select * from t as a left join t as b 
   on a.k is null and a.uq=b.uq;
 
@@ -3961,13 +4019,14 @@ create table tc(
   b varchar(10),
   c varchar(10),
   primary key (a),
-  unique key uk1 (b, c) 
-)engine=ndbcluster;
+  unique key uk1 (b, c)
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
 
-explain extended select * from tc as x1 
+explain select * from tc as x1
   right outer join tc as x2 on x1.b=x2.a   
   left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
 
@@ -3980,9 +4039,9 @@ select * from tc as x1
 # Test that 'select ... for update' is not pushed, since this requires locking.
 ####
 
-explain extended select * from tc as x1, tc as x2 where x1.b=x2.a for update;
+explain select * from tc as x1, tc as x2 where x1.b=x2.a for update;
 
-explain extended select * from tc as x1, tc as x2 where x1.b=x2.a;
+explain select * from tc as x1, tc as x2 where x1.b=x2.a;
 
 connection ddl;
 drop table tc;
@@ -3997,12 +4056,12 @@ create table t1 (
   c varchar(16) not null,
   d int not null,
   primary key (a,b)
-) engine ndb partition by key (a);
+) engine ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+  partition by key (a);
 
 connection spj;
 insert into t1  values ('aaa', 1, 'aaa', 1);
-explain extended
-select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 
 connection ddl;
@@ -4019,25 +4078,29 @@ CREATE TABLE t1 (
   id int NOT NULL AUTO_INCREMENT,
   t2_id int,
   PRIMARY KEY (id)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t2 (
   id int NOT NULL AUTO_INCREMENT,
   t3_id varchar(20) DEFAULT NULL,
   PRIMARY KEY (id)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t3 (
   id varchar(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE t4 (
   pk int NOT NULL,
   id varchar(20) NOT NULL,
   PRIMARY KEY (pk),
   UNIQUE KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 connection spj;
@@ -4046,7 +4109,7 @@ INSERT INTO t1 VALUES (23, 24);
 
 INSERT INTO t2 VALUES (24, NULL);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT *
   FROM t1
        INNER JOIN t2 ON t2.id = t1.t2_id
@@ -4059,7 +4122,7 @@ SELECT *
  WHERE t1.id = 20;
 
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT *
   FROM t1
        INNER JOIN t2 ON t2.id = t1.t2_id
@@ -4071,7 +4134,7 @@ SELECT *
        LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
  WHERE t1.id = 23;
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT *
   FROM t1
        INNER JOIN t2 ON t2.id = t1.t2_id
@@ -4084,7 +4147,7 @@ SELECT *
  WHERE t1.id = 23;
 
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT *
   FROM t1
        LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
@@ -4109,7 +4172,8 @@ CREATE TABLE t1 (
   d int,
   PRIMARY KEY (`a`,`b`),
   unique key(c)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values
@@ -4122,7 +4186,7 @@ insert into t1 values
 (1,7,7,2), 
 (1,8,8,2);
 
-explain extended select count(*) from t1 as x1 
+explain select count(*) from t1 as x1
    join (t1 as x2 
       left join (t1 as x3 
          cross join t1 as x4) 
@@ -4135,7 +4199,7 @@ select count(*) from t1 as x1
       on x2.d=x3.a) 
    on x2.c is null or x1.a=x4.d;
 
-explain extended select count(*) from t1 as x1 
+explain select count(*) from t1 as x1
    left join (t1 as x2 
       cross join t1 as x3) 
    on x1.d=x2.a;
@@ -4145,7 +4209,7 @@ select count(*) from t1 as x1
    on x1.d=x2.a;
 
 
-explain extended select count(*) from t1 as x0 
+explain select count(*) from t1 as x0
    left join (t1 as x1 
       join (t1 as x2 
          left join (t1 as x3 
@@ -4167,8 +4231,10 @@ drop table t1;
 
 ## Test scan sorted on string field.
 connection ddl;
-create table t1 (pk char(10) primary key, u int not null) engine=ndb;
-create table t2 (pk int primary key, u int not null) engine=ndb;
+create table t1 (pk char(10) primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t2 (pk int primary key, u int not null) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values ('wh',1);
@@ -4226,7 +4292,7 @@ create table t1 (
   l30 char(255) not null,
   l31 char(255) not null,
   index(c, b)
-) engine=ndb partition by key(a) partitions 8;
+) engine=ndb character set latin1 partition by key(a) partitions 8;
 
 connection spj;
 
@@ -4252,7 +4318,9 @@ create table t1
        b int not null, 
        c int not null,
        d int not null,
-       primary key(a,b,c,d)) engine=ndb partition by key (b,c);
+       primary key(a,b,c,d)) engine=ndb
+       comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM"
+       partition by key (b,c);
 
 connection spj;
 insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
@@ -4299,12 +4367,19 @@ create table t1 (
   key (name)
 )
 default charset = utf8
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values (1, 1, 'Ole');
 insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
+
+# These queries with large IN clauses exceeds the default memory limit of the
+# range optimizer on 64 bit but not on 32 bit, thus cauing different result.
+# Fix by setting a fairly low value in order to get consistent behaviour
+set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
+set range_optimizer_max_mem_size = 512*512;
 
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
@@ -4354,6 +4429,8 @@ let $query = $query );
 eval explain $query;
 eval $query;
 
+set range_optimizer_max_mem_size = @save_range_opt_max;
+
 drop table t1;
 
 ############################################################
@@ -4378,7 +4455,8 @@ create table t(
   index(i),
   index(j),
   index(k)
-) engine = ndb;
+) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t(i,j,k) values
    (1,1,1), (1,1,1), (1,1,1),
@@ -4411,7 +4489,8 @@ drop table t;
 ####################################################
 # Test LQH handling of zero-length key in LQHKEYREQ
 # Bug#
-create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (4,null, 2);
 
 explain
@@ -4432,7 +4511,8 @@ CREATE TABLE t1 (
   c int NOT NULL,
   d int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create unique index ix1 on t1(b,c) using hash;
 
@@ -4441,12 +4521,12 @@ connection spj;
 insert into t1 values (1,NULL,1,1);
 
 
-explain extended select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
+explain select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 
 # Record value before query.
 --disable_warnings ONCE
 create temporary table scan_count
-       select * from information_schema.global_status 
+       select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
 
 # Query gives wrong result on mysql-trunk-cluster, and extra scan on both
@@ -4457,7 +4537,7 @@ select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x
 --disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
-       from scan_count,information_schema.global_status as old 
+       from scan_count, performance_schema.global_status as old 
        where old.variable_name = 'Ndb_scan_count';
 
 drop table scan_count;
@@ -4474,23 +4554,27 @@ connection ddl;
 CREATE TABLE table1 (
   col_int_unique int(11), 
   PRIMARY KEY (col_int_unique)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table3 (
   col_int int(11) NOT NULL DEFAULT '0',
   KEY (col_int)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table4 (
   col_int int(11) DEFAULT NULL,
   pk int(11) NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE table6 (
   col_int int(11) DEFAULT NULL,
   col_int_unique int(11) DEFAULT NULL
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into table6 values
@@ -4506,7 +4590,7 @@ insert into table6 values
 --error 0,1193
 set global debug='+d,max_4rows_in_spj_batches';
 
-EXPLAIN EXTENDED
+EXPLAIN
  SELECT * FROM
  table1 RIGHT JOIN 
    table3 LEFT JOIN table4 ON table3.col_int = table4.col_int 
@@ -4540,6 +4624,13 @@ drop table table1;
 # test for handling limitations / problems
 # specific to these features
 
+#############################################
+# Testing of subqueries and join pushdown
+#
+#  Note that subqueries has limitations very similar
+#  to outer joins. 
+#############################################
+
 ##############
 # Bug #16664035
 # PUSHED JOIN TOGETHER WITH 'FIRSTMATCH' STRATEGY MAY RETURN TOO MANY ROWS
@@ -4552,7 +4643,8 @@ create table t1 (
   d int not null,
   primary key (`a`,`b`),
   key(c), key(d)
-) engine=ndbcluster;
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 connection spj;
 insert into t1 values
@@ -4567,16 +4659,17 @@ insert into t1 values
 set global debug='+d,max_4rows_in_spj_batches';
 
 # Make use of FirstMatch more likely:
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 
 # 'subq' should use 'ref, FirstMatch(t1)', preventing join pushdown
-explain extended
+explain
 select count(*) from t1 where 
   t1.c in (select c from t1 as subq);
 select count(*) from t1 where
   t1.c in (select c from t1 as subq);
 
-explain extended
+explain
 select count(*) from t1 where 
   t1.c in (select c from t1 as subq1) and
   t1.d in (select d from t1 as subq2);
@@ -4584,7 +4677,7 @@ select count(*) from t1 where
   t1.c in (select c from t1 as subq1) and
   t1.d in (select d from t1 as subq2);
 
-explain extended
+explain
 select count(*) from t1 where 
   t1.c in (select c from t1 as subq1 where 
     subq1.c in (select c from t1 as subq2));
@@ -4592,16 +4685,315 @@ select count(*) from t1 where
   t1.c in (select c from t1 as subq1 where 
     subq1.c in (select c from t1 as subq2));
 
-explain extended
+explain
 select count(*) from t1 where 
   t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 select count(*) from t1 where 
   t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 
 --error 0,1193
 set global debug=@save_debug;
+
+
+##################################################
+# Bug##26926666
+#   'LOOSESCAN' TABLES SHOULD NOT BE CHILD MEMBERS IN A PUSHED JOIN
+#
+##################################################
+
+######
+# Expect a query plan where the subquery table1s becomes
+# a child candidate in a pushed join. 'LooseScan' require
+# sorted results to be returned from the (child) table, which
+# we do not implement.
+
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
+
+explain SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+
+########
+# Same query with 'FirstMatch', suplements FirstMatch (bug#16664035)
+# testcase above
+
+set @@optimizer_switch='firstmatch=on';
+
+explain SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+
+set optimizer_switch=@save_optimizer_switch;
+
+##################################################
+# Bug#26919289:
+#    mysqld crash during join_pushdown analysis
+#
+# The mysql optimizer introduce syntetic JOIN_TAB
+# elements representing where the materialized subq
+# should be accessed in the query plan. As these
+# are not representing 'real tables', their 'tableno'
+# was not set up in ndb_pushed_builder_ctx C'tor.
+# It effectively contained uninitialized data, which was
+# then later used to access a 'tableno-bitmask'.
+###################################################
+
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+
+
+set optimizer_switch='block_nested_loop=off';
+
+explain
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+
+set optimizer_switch=@save_optimizer_switch;
+
+
+###################################################
+# Bug #26984919
+#   SPJ: 'DUPLICATE WEEDOUT' STRATEGY MAY RETURN INCORRECT RESULTS
+
+###################################################
+
+# Use debug hook to enforce only 4 rows in each batch (multiple roundtips)
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+--error 0,1193
+set global debug=@save_debug;
+
+set optimizer_switch=@save_optimizer_switch;
+
+###################################################
+# Bug#27022925
+#   SPJ: 'MATERIALIZED' SEMI JOINS ARE NOT CONSIDDERED FOR JOIN PUSHOWN
+#
+#   Joins entirely inside a 'MATERIALIZED' semi join
+#   not considdered for join pushdown.
+#
+# Test cases should demonstrate that the 't3s join t4s'
+# subqueries can now be pushed down, and materialized.
+#
+###################################################
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+  join t1 as t4s1 on t4s1.a = t3s1.b
+ )
+and t1.d IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+  join t1 as t4s2 on t4s2.a = t3s2.b
+ );
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+  join t1 as t4s1 on t4s1.a = t3s1.b
+ )
+and t1.d IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+  join t1 as t4s2 on t4s2.a = t3s2.b
+ );
+
+
+#############################################
+# Subqueries-end
+#############################################
+
 
 connection ddl;
 drop table t1;
@@ -4616,13 +5008,15 @@ CREATE TABLE ndb_order_test (
   user_id int(10) unsigned NOT NULL,
   sort_number int(10) unsigned NOT NULL,
   KEY node_id (node_id,sort_number)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 CREATE TABLE ndb_user_test (
   user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
   name varchar(20) NOT NULL,
   PRIMARY KEY (user_id)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 
 connection spj;
@@ -4669,7 +5063,7 @@ connection spj;
 --disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
-         information_schema.global_status as new
+         performance_schema.global_status as new
        where new.variable_name = old.variable_name
        order by new.variable_name;
 

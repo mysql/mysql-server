@@ -1,7 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Tests for PERFORMANCE_SCHEMA table io
+
 --source ../include/table_io_setup_helper.inc
 
 let $engine_type= MEMORY;
@@ -25,4 +25,3 @@ eval drop table $table_item;
 
 # Cleanup
 --source ../include/table_io_cleanup_helper.inc
-

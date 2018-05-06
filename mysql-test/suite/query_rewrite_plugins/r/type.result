@@ -5,10 +5,6 @@ CREATE TABLE t1 ( c1 INT, c2 DECIMAL(2,1), c3 FLOAT, c4 CHAR(4) );
 INSERT INTO t1 VALUES ( 2, 2.1, -32032.6809e+10, 0x63617474 ),
 ( 3, 3.5, -56.58, 'abcd' ),
 ( x'ffff', 2.2, 59e-5, 'aaaa' );
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Insert some rewrite rules in the plugin
 INSERT INTO query_rewrite.rewrite_rules( pattern, replacement )
@@ -23,8 +19,6 @@ VALUES ( 'SELECT * FROM test.t1 WHERE c1 = ?',
 ( 'SELECT * FROM test.t1 WHERE c4 = ?',
 'SELECT c4 FROM test.t1 WHERE c4 = ?' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * FROM test.t1 WHERE c1 = x'02';
 c1
 2

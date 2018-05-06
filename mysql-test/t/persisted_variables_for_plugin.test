@@ -1,0 +1,93 @@
+-- source include/have_validate_password_plugin.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#8688: Support ability to persist SET GLOBAL settings
+--echo #
+
+SET PERSIST server_id=47, @@persist.general_log=0;
+SET PERSIST concurrent_insert=NEVER;
+
+--echo # TEST plugin variables
+call mtr.add_suppression("Dictionary file not specified");
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+
+--echo # before restart
+SELECT @@global.validate_password_policy, @@global.validate_password_length;
+--echo # persist plugin variables
+SET PERSIST validate_password_policy= 2;
+SET PERSIST validate_password_length= 13;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.server_id;
+SELECT @@global.general_log;
+SELECT @@global.concurrent_insert;
+SELECT @@global.validate_password_policy;
+SELECT @@global.validate_password_length;
+
+--echo # uninstall plugin
+UNINSTALL PLUGIN validate_password;
+
+CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
+
+--echo # Restart server after plugin uninstall this should report
+--echo # warnings in server log
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+--echo # Search for warnings in error log.
+--let $log_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let LOGF= $log_file
+
+CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Test RESET PERSIST for plugin variables.
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+SET PERSIST validate_password_policy= 2;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+SET PERSIST validate_password_length= 13;
+# return 2 rows
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+RESET PERSIST validate_password_length;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo # uninstall plugin
+UNINSTALL PLUGIN validate_password;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo # Test RESET PERSIST after plugin is uninstalled
+RESET PERSIST;
+# return 0 rows
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;

@@ -1,95 +1,18 @@
-DROP TABLE IF EXISTS t1, t2;
 #
-# Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
-# (bad/confusing error message)
-CREATE TABLE t1
-(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-b VARCHAR(200),
-c TEXT)
-ENGINE=MyISAM
-PARTITION BY HASH(a) PARTITIONS 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-CREATE FULLTEXT INDEX msg ON t1 (b, c);
-ERROR HY000: FULLTEXT index is not supported for partitioned tables.
-DROP TABLE t1;
-CREATE TABLE t1
-(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
-b VARCHAR(200),
-c TEXT,
-FULLTEXT (b, c))
-ENGINE=MyISAM
-PARTITION BY HASH(a) PARTITIONS 1;
-ERROR HY000: FULLTEXT index is not supported for partitioned tables.
+# Bug #27816: Log tables ran with partitions crashes the server when logging
+#             is enabled.
 #
-# BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
-#
-CREATE TABLE t1 (
-i INT
-)
-ENGINE=MyISAM
-PARTITION BY RANGE (i)
-(PARTITION p3 VALUES LESS THAN (3),
-PARTITION p5 VALUES LESS THAN (5),
-PARTITION pMax VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-CHECKSUM TABLE t1;
-Table	Checksum
-test.t1	2653438147
-ALTER TABLE t1 CHECKSUM = 1;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-CHECKSUM TABLE t1 EXTENDED;
-Table	Checksum
-test.t1	2653438147
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-# Before patch this returned 0!
-CHECKSUM TABLE t1;
-Table	Checksum
-test.t1	2653438147
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 CHECKSUM=1
-/*!50100 PARTITION BY RANGE (i)
-(PARTITION p3 VALUES LESS THAN (3) ENGINE = MyISAM,
- PARTITION p5 VALUES LESS THAN (5) ENGINE = MyISAM,
- PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-DROP TABLE t1;
-# Same test without partitioning
-CREATE TABLE t1 (
-i INT
-) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
-CHECKSUM TABLE t1;
-Table	Checksum
-test.t1	2653438147
-ALTER TABLE t1 CHECKSUM = 1;
-CHECKSUM TABLE t1 EXTENDED;
-Table	Checksum
-test.t1	2653438147
-CHECKSUM TABLE t1;
-Table	Checksum
-test.t1	2653438147
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 CHECKSUM=1
-DROP TABLE t1;
+USE mysql;
+TRUNCATE TABLE general_log;
+SET @old_general_log_state = @@global.general_log;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
+(PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
+ERROR HY000: Incorrect usage of PARTITION and log table
+ALTER TABLE general_log ENGINE = CSV;
+SET GLOBAL general_log = @old_general_log_state;
+USE test;
 #
 # Bug#31931: Mix of handlers error message
 #
@@ -107,185 +30,8 @@ PARTITION p1 VALUES IN (1)
 ( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
 ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 #
-# Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
-#
-CREATE TABLE t1 (a INT)
-ENGINE = MyISAM
-PARTITION BY HASH (a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-FLUSH TABLES;
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Failed to read from the .par file
-test.t1	check	Error	Incorrect information in file: './test/t1.frm'
-test.t1	check	error	Corrupt
-SELECT * FROM t1;
-ERROR HY000: Failed to read from the .par file
-# Note that we will remove the frm file when we detect that
-# .par file has been deleted.
-DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
-#
-# Bug#50392: insert_id is not reset for partitioned tables
-#            auto_increment on duplicate entry
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
-ENGINE = MyISAM;
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-SET INSERT_ID= 12;
-# For transactional engines, 12 will not be inserted, since the failing
-# statement is rolled back.
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-INSERT INTO t1 VALUES (NULL);
-# NOTE: 12 exists only in non transactional engines!
-SELECT * FROM t1;
-a
-12
-13
-14
-DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
-ENGINE = MyISAM
-PARTITION BY KEY(a);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SET INSERT_ID= 12;
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES (NULL);
-SELECT * FROM t1;
-a
-12
-13
-14
-DROP TABLE t1;
-# Bug#30102 test
-CREATE TABLE t1 (a INT)
-ENGINE = MyISAM
-PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (6),
-PARTITION `p1....................` VALUES LESS THAN (9),
-PARTITION p2 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-# List of files in database `test`, all original t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
-t1.frm
-t1.par
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-# Renaming to a file name where the first partition is 250 chars
-# and the second partition is 350 chars
-RENAME TABLE t1 TO `t2_new..............................................end`;
-Got one of the listed errors
-# List of files in database `test`, should not be any t2-files here
-# List of files in database `test`, should be all t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
-t1.frm
-t1.par
-SELECT * FROM t1;
-a
-1
-10
-2
-3
-4
-5
-6
-7
-8
-9
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
-# List of files in database `test`, should be all t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
-t1.frm
-t1.par
-# Renaming to a file name where the first partition is 156 chars
-# and the second partition is 256 chars
-RENAME TABLE t1 TO `t2_............................_end`;
-Got one of the listed errors
-# List of files in database `test`, should not be any t2-files here
-# List of files in database `test`, should be all t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
-t1.frm
-t1.par
-SELECT * FROM t1;
-a
-1
-10
-2
-3
-4
-5
-6
-7
-8
-9
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
-DROP TABLE t1;
-# Should not be any files left here
-# End of bug#30102 test.
-# Test of post-push fix for bug#11766249/59316
-CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
-ENGINE = MyISAM
-PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
-PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
-PARTITION pMax VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES (1, "Partition p1, first row");
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-DROP TABLE t1;
-#
 # bug#11760213-52599: ALTER TABLE REMOVE PARTITIONING ON NON-PARTITIONED
 #                                 TABLE CORRUPTS MYISAM
-DROP TABLE if exists `t1`;
 CREATE TABLE  `t1`(`a` INT)ENGINE=myisam;
 ALTER TABLE `t1` ADD COLUMN `b` INT;
 CREATE UNIQUE INDEX `i1` ON `t1`(`b`);
@@ -296,4 +42,672 @@ ERROR HY000: Partition management on a not partitioned table is not possible
 CHECK TABLE `t1` EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+DROP TABLE t1;
+#
+# WL#1074 - Descending index support.
+#
+CREATE TABLE t1
+(a VARCHAR(10),
+b VARCHAR(10),
+PRIMARY KEY (a DESC, b DESC),
+KEY ab_asc (a ASC, b ASC),
+KEY a_asc_b_desc (a ASC, b DESC),
+key a_desc_b_asc (a DESC, b ASC))
+ENGINE = InnoDB 
+PARTITION BY KEY (a, b) PARTITIONS 3;
+INSERT INTO t1 VALUES ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"),
+("4", "4"), ("55", "55"), ("54", "54"), ("1", "2"), ("1", "4"), ("1", "3"),
+("55", "54"), ("0", "1");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Test non ordered index access
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
+a	b
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+55	55
+55	54
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	3
+Handler_external_lock	6
+Handler_read_first	3
+Handler_read_key	5
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`ab_asc`);
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
+a	b
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+55	54
+55	55
+54	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+# Test sorted index access
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b DESC;
+a	b
+55	55
+55	54
+54	54
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "ab_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_asc_b_desc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "a_desc_b_asc",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+# Test index access in different sort order
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+a	b
+0	0
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
+54	54
+55	54
+55	55
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_key	3
+Handler_read_last	3
+Handler_read_prev	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_rnd_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+a	b
+0	1
+0	0
+1	4
+1	3
+1	2
+1	1
+2	2
+3	3
+4	4
+54	54
+55	55
+55	54
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_rnd_next	12
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+a	b
+55	54
+55	55
+54	54
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	1
+Handler_external_lock	2
+Handler_read_first	3
+Handler_read_key	3
+Handler_read_rnd_next	12
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "backward_index_scan": true,
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "X"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "X"
+      },
+      "table": {
+        "table_name": "t1",
+        "partitions": [
+          "p0",
+          "p1",
+          "p2"
+        ],
+        "access_type": "index",
+        "key": "PRIMARY",
+        "used_key_parts": [
+          "a",
+          "b"
+        ],
+        "key_length": "84",
+        "rows_examined_per_scan": "X",
+        "rows_produced_per_join": "X",
+        "filtered": "X",
+        "using_index": true,
+        "cost_info": {
+          "read_cost": "X",
+          "eval_cost": "X",
+          "prefix_cost": "X",
+          "data_read_per_join": "X"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+# Test HANDLER statements.
+FLUSH STATUS;
+HANDLER t1 OPEN;
+HANDLER t1 READ `PRIMARY` FIRST;
+a	b
+55	55
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+55	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+54	54
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+4	4
+HANDLER t1 READ `PRIMARY` NEXT;
+a	b
+3	3
+HANDLER t1 READ `PRIMARY` LAST;
+a	b
+0	0
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+0	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	1
+HANDLER t1 READ `PRIMARY` PREV;
+a	b
+1	2
+HANDLER t1 READ ab_asc FIRST;
+a	b
+0	0
+HANDLER t1 READ ab_asc NEXT;
+a	b
+0	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	1
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	2
+HANDLER t1 READ ab_asc NEXT;
+a	b
+1	3
+HANDLER t1 READ ab_asc LAST;
+a	b
+55	55
+HANDLER t1 READ ab_asc PREV;
+a	b
+55	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+54	54
+HANDLER t1 READ ab_asc PREV;
+a	b
+4	4
+HANDLER t1 CLOSE;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+Variable_name	Value
+Handler_commit	18
+Handler_external_lock	36
+Handler_read_first	6
+Handler_read_key	12
+Handler_read_last	6
+Handler_read_next	8
+Handler_read_prev	6
 DROP TABLE t1;

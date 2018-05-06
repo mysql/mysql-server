@@ -1,0 +1,190 @@
+# Create t3 with MAX_ROWS set
+let $t3_table_options = MAX_ROWS=333333;
+# and t2 with partition balance FOR_RP_BY_NODE
+let $t2_table_options = COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+--source setup.inc
+
+#
+# Test ALTER TABLE .. MAX_ROWS in combination with tables with
+# or without MAX_ROWS
+#
+
+
+#
+# Check that inplace ALTER TABLE ... MAX_ROWS on a table which does
+# not already have MAX_ROWS set is not allowed.
+#
+
+if (`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
+{
+  die t1 has MAX_ROWS set;
+}
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  algorithm=inplace,
+  max_rows=1111111;
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS on a table which does
+# not already have MAX_ROWS set is allowed.
+#
+ALTER TABLE t1
+  algorithm=copy,
+  max_rows=1111111;
+
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
+{
+  die t1 does not have MAX_ROWS set;
+}
+
+#
+# Check that inplace ALTER TABLE ... MAX_ROWS on a table which
+# already have MAX_ROWS set is allowed.
+#
+
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 does not have MAX_ROWS set;
+}
+
+ALTER TABLE t3
+  algorithm=inplace,
+  max_rows=4444444;
+
+if (!`select LOCATE("max_rows=4444444", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die The value of MAX_ROWS for t3 did not change;
+}
+
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS on a table which
+# already have MAX_ROWS set is allowed.
+#
+
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 does not have MAX_ROWS set;
+}
+
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=5555555;
+
+if (!`select LOCATE("max_rows=5555555", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die The value of MAX_ROWS for t3 did not change;
+}
+
+
+#
+# Check that inplace ALTER TABLE to reduce MAX_ROWS which does
+# not cause reduction in number of fragments is allowed
+#
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=33333 /* Small enough to get default number of frags */;
+ALTER TABLE t3
+  algorithm=inplace,
+  max_rows=33332 /* Small enough to still be at default number of frags */;
+
+--echo Note! The value of MAX_ROWS in NDB is still 33333
+--let $ndb_desc_opts= -d ndb_ddl_test t3
+--source suite/ndb/include/ndb_desc_print.inc
+
+#
+# Check that inplace ALTER TABLE ... REORGANIZE PARTITION is
+# not allowed when MAX_ROWS is set
+#
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3
+  algorithm=inplace,
+  reorganize partition;
+
+# Check that the inplace ALTER TABLE to set MAX_ROWS to 0 is not allowed
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3
+  algorithm=inplace,
+  max_rows=0;
+
+# Check that copy ALTER TABLE to reset MAX_ROWS to 0 is allowed
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=0;
+
+# Check that MySQL says MAX_ROWS=0
+if (`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die MySQL Still reported a MAX_ROWS value for t3;
+}
+
+# Check that online ALTER TABLE .. REORGANIZE is now allowed
+ALTER TABLE t3
+  algorithm=inplace,
+  reorganize partition;
+INSERT INTO t3 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t3 WHERE a > 10;
+DELETE FROM t3 WHERE a = 37;
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS=0 yields a table
+# which can be reorganized
+#
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=444444444 /* Large with many frags */;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3
+  algorithm=inplace,
+  max_rows=0 /* Not allowed since number of frags reduced */;
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=0 /* Back to zero by using copying */;
+
+#
+# Check that inplace ALTER TABLE ... REORGANIZE PARTITION is ok
+# now when the table is back to MAX_ROWS=0
+#
+ALTER TABLE t3
+  algorithm=inplace,
+  reorganize partition;
+INSERT INTO t3 VALUES(37, "MySQL Cluster", '2015-12-15');
+SELECT b FROM t3 WHERE a > 10;
+DELETE FROM t3 WHERE a = 37;
+
+#
+# Check that inplace ALTER TABLE setting MAX_ROWS to 0
+# is not allowed in table with user specified partition balance
+#
+ALTER TABLE t2
+  algorithm=copy,
+  max_rows=33333;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2
+  algorithm=inplace,
+  max_rows=0;
+
+# Check that copy ALTER variant is allowed
+ALTER TABLE t2
+  algorithm=copy,
+  max_rows=0;
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+

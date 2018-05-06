@@ -146,6 +146,9 @@ while ($not_proven)
   insert into test.ndbt2 values (123, "A most unlikely sequence if I may say so");
   flush tables with read lock;
 
+  # Allow some time(100ms) to elapse to let the insert reach server 2 binlog
+  --sleep 0.1
+
   --connection server2
   #--echo Disable binlogging of the binlog examination on server2
   set sql_log_bin=0;
@@ -153,9 +156,9 @@ while ($not_proven)
   create table raw_binlog_rows_server1 (txt varchar(1000));
   create table raw_binlog_rows_server2 (txt varchar(1000));
 
-  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
+  --exec $MYSQL_BINLOG --verbose $SERVER1_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog1.sql' into table raw_binlog_rows_server1 columns terminated by '\n';
-  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
+  --exec $MYSQL_BINLOG --verbose $SERVER2_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog2.sql' into table raw_binlog_rows_server2 columns terminated by '\n';
 
 

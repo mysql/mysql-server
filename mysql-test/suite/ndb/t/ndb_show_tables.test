@@ -1,0 +1,83 @@
+--source include/have_ndb.inc
+--source include/have_case_sensitive_file_system.inc
+# This test requires case sensitive file system as the database TEST_DB
+# is in upper case
+
+# BUG 11758430 - NDB_SHOW_TABLES SHOULD REQUIRE A DATABASE WHEN TABLE IS SUPPLIED
+
+--echo # BUG 11758430
+--echo "NDB_SHOW_TABLES SHOULD REQUIRE A DATABASE WHEN TABLE IS SUPPLIED"
+
+CREATE TABLE test.t1 (
+  a int primary key,
+  b int
+)engine=ndbcluster;
+--echo "Table exists in user db and db specified in ndb_show_tables command"
+--replace_regex /[^ ][0-9]+/XX/
+--exec $NDB_SHOW_TABLES --no-defaults -dtest t1
+--echo "Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
+--error 1
+--exec $NDB_SHOW_TABLES --no-defaults t1
+
+CREATE DATABASE TEST_DB;
+CREATE TABLE TEST_DB.t1 (
+  d int primary key,
+  e int
+)engine=ndbcluster;
+--echo "Table exists in TEST_DB and no db specified in ndb_show_tables command"
+--replace_regex /[^ ][0-9]+/XX/
+--exec $NDB_SHOW_TABLES --no-defaults t1
+
+DROP TABLE test.t1;
+--echo "Table doesn't exist in user db and db specified in ndb_show_tables command"
+--error 1
+--exec $NDB_SHOW_TABLES --no-defaults -dtest t1
+
+DROP TABLE TEST_DB.t1;
+--echo "Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
+--error 1
+--exec $NDB_SHOW_TABLES --no-defaults t1
+DROP DATABASE TEST_DB;
+
+# BUG #24383742 NDB : NDB_SHOW_TABLES MISSING TYPE NAME TEXT FOR SOME TYPES
+
+# Create fully replicated table which will also create a fully replicated
+# trigger
+create table t1 (
+ id1 int primary key
+)engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE';
+
+# Create temporary table to store ndb_show_tables result
+create temporary table if not exists ndb_show_tables_results (
+ id int,
+ type varchar(20),
+ state varchar(20),
+ logging varchar(20),
+ _database varchar(255),
+ _schema varchar(20),
+ name varchar(255)
+);
+
+--source ndb_show_tables_result.inc
+
+# Check type of HashMap
+select type from ndb_show_tables_results
+where type like '%HashMap%'
+limit 1;
+
+# Check type of FullyReplicatedTrigger
+select type from ndb_show_tables_results
+where type like '%FullyRepTrigger%'
+limit 1;
+
+drop table t1,ndb_show_tables_results;
+
+# Check working of --fully-qualified
+CREATE TABLE test.t1 (
+  a int primary key,
+  b int
+)engine=ndbcluster;
+--replace_regex /[^ ][0-9]+/XX/
+--exec $NDB_SHOW_TABLES --no-defaults --fully-qualified -dtest t1
+# Cleanup
+DROP TABLE test.t1;

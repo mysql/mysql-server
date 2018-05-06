@@ -54,7 +54,7 @@ SELECT COUNT(@@GLOBAL.ssl_key);
 
 --disable_warnings
 SELECT @@GLOBAL.ssl_key = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='ssl_key';
 --enable_warnings
 --echo 1 Expected
@@ -64,7 +64,7 @@ SELECT COUNT(@@GLOBAL.ssl_key);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='ssl_key';
 --enable_warnings
 --echo 1 Expected

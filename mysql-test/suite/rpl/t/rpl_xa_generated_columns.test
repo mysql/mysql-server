@@ -1,0 +1,316 @@
+###############################################################################
+# This test checks the behaviour of Generated Columns with async replication.
+#
+# Test
+# 0. This test requires 2 servers.(Master and slave)
+# 1. Check the behaviour of replication with Stored Columns.
+#	1.1 Create table st1 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		st1: Table with stored column genarated on primary key
+#	1.2 Create table st2 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		st2: Table with stored column as primary key
+#	1.3 Create table st3 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		st3: Table with stored column as unique key
+#	1.4 Create table st4 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		st4: Table with Stored column as foreign key
+# 2. Check the behaviour of replication with Virtual Columns.
+#	2.1 Create table vt1 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		vt1: Table with virtual column genarated on primary key
+#	2.2 Create table vt2 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		vt2: Table with virtual column as unique key
+#	2.3 Create table vt3 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		vt3: Table with Index on virtual column and foreign key constraints
+# 3. Check the behaviour of replication with Generated Columns
+#	3.1 Create table gt1 and execute basic DMLs and XA transactions on master.
+#           Test if data is replicated properly by verifying data on both servers.
+#		gt1: Table with both stored and virtual columns.
+# 4. Clean up.
+###############################################################################
+
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+
+# Scenario 1.1 :
+
+--echo # Table st1: stored column genarated on primary key
+
+CREATE TABLE st1 (c1 INT PRIMARY KEY);
+ALTER TABLE st1 ADD COLUMN (c2 INT GENERATED ALWAYS AS (c1+1) STORED, INDEX(c2));
+
+# Perform some basic DML on st1
+INSERT INTO st1(c1) VALUES(1);
+INSERT INTO st1(c1) VALUES(2);
+
+--disable_warnings
+
+# Perform XA Transaction on st1
+XA START 'xstatement';
+UPDATE st1 SET c1=3 WHERE c2=3;
+UPDATE st1 SET c1=4 WHERE c1=3;
+DELETE FROM st1 WHERE c2=5;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check that st1 exists and has same values in both servers
+--let $diff_tables=master:st1, slave:st1
+--source include/diff_tables.inc
+
+# Scenario 1.2 :
+
+--echo # Table st2: stored column as primary key
+--source include/rpl_connection_master.inc
+
+CREATE TABLE st2 (
+	c1 VARCHAR(10),
+	c2 CHAR(2) GENERATED ALWAYS AS (SUBSTRING(c1,1,2)) STORED PRIMARY KEY
+);
+
+# Perform some basic DML on st2
+INSERT INTO st2(c1) VALUES("abcd");
+INSERT INTO st2(c1) VALUES("efgh");
+
+# Perform XA Transaction on st2
+XA START 'xstatement';
+UPDATE st2 SET c1="abgh" WHERE c1='abcd';
+UPDATE st2 SET c1="cdgh" WHERE c2='ef';
+DELETE FROM st2 WHERE c2='cd';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that st2 exists and has same values in both servers
+--let $diff_tables=master:st2, slave:st2
+--source include/diff_tables.inc
+
+# Scenario 1.3 :
+
+--echo # Table st3: stored column as unique
+--source include/rpl_connection_master.inc
+
+CREATE TABLE st3 (
+	c1 INT AUTO_INCREMENT PRIMARY KEY,
+	c2 VARCHAR(10) NOT NULL,
+	c3 VARCHAR(10) NOT NULL,
+	c4 VARCHAR(21) AS (CONCAT(c2,c3)) STORED UNIQUE
+);
+
+# Perform some basic DML on st3
+INSERT INTO st3(c2,c3) VALUES('first','insert');
+INSERT INTO st3(c2,c3) VALUES('second','insert');
+# Error for duplicate entry
+--error ER_DUP_ENTRY
+INSERT INTO st3(c2,c3) VALUES('first','insert');
+
+# Perform XA Transaction on st3
+XA START 'xstatement';
+UPDATE st3 SET c3='update' WHERE c2='first';
+UPDATE st3 SET c3='update' WHERE c2='second';
+DELETE FROM st3 WHERE c2='first';
+DELETE FROM st3 WHERE c3='update';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check that st3 exists and has same values in both servers
+--let $diff_tables=master:st3, slave:st3
+--source include/diff_tables.inc
+
+# Scenario 1.4 :
+
+--echo # Table st4: Stored column as foreign key
+--source include/rpl_connection_master.inc
+
+# Parent table
+CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a-10) STORED, PRIMARY KEY(b));
+
+CREATE TABLE st4 (
+	c1 INT PRIMARY KEY,
+	c2 INT GENERATED ALWAYS AS (c1%10) STORED,
+	FOREIGN KEY(c2) REFERENCES t1(b)
+);
+
+# Insert on parent table
+INSERT INTO t1(a) VALUES(11);
+INSERT INTO t1(a) VALUES(12);
+
+# Perform some basic DML on st4
+INSERT INTO st4(c1) VALUES(31);
+INSERT INTO st4(c1) VALUES(32);
+
+# Perform XA Transaction on st4
+XA START 'xstatement';
+UPDATE st4 SET c1=21 WHERE c2=1;
+DELETE FROM st4 WHERE c2=2;
+DELETE FROM st4 WHERE c1=21;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check that st4 exists and has same values in both servers
+--let $diff_tables=master:st4, slave:st4
+--source include/diff_tables.inc
+
+# Scenario 2.1 :
+
+--echo # Table vt1: virtual column genarated on primary key
+--source include/rpl_connection_master.inc
+
+CREATE TABLE vt1 (c1 DATE PRIMARY KEY, c2 INT AS (year(c1)) VIRTUAL);
+
+# Perform some basic DML on vt1
+INSERT INTO vt1(c1) VALUES('2008-09-02');
+INSERT INTO vt1(c1) VALUES('1998-06-17');
+UPDATE vt1 SET c1='2009-09-02' WHERE c2=2008;
+
+# Perform XA transaction on vt1
+XA START 'xstatement';
+UPDATE vt1 SET c1='1999-06-17' WHERE c1='1998-06-17';
+DELETE FROM vt1 WHERE c1='2009-09-02';
+DELETE FROM vt1 WHERE c2=1999;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that vt1 exists and has same values in both servers
+--let $diff_tables=master:vt1, slave:vt1
+--source include/diff_tables.inc
+
+# Scenario 2.2 :
+
+--echo # Table  vt2: virtual column as unique key
+--source include/rpl_connection_master.inc
+
+CREATE TABLE vt2 (
+	c1 TEXT, PRIMARY KEY(c1(20)),
+	c2 TEXT GENERATED ALWAYS AS (SUBSTRING(c1, 1, 2)) VIRTUAL,
+	UNIQUE(c2(2))
+);
+
+# Perform some basic DML on vt2
+INSERT INTO vt2(c1) VALUES('first insert');
+INSERT INTO vt2(c1) VALUES('second insert');
+UPDATE vt2 SET c1='first update' WHERE c1='first insert';
+
+# Perform XA Transaction on vt2
+XA START 'xstatement';
+UPDATE vt2 SET c1='second update' WHERE c2='se';
+DELETE FROM vt2 WHERE c1='first update';
+DELETE FROM vt2 WHERE c2='se';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that vt2 exists and has same values in both servers
+--let $diff_tables=master:vt2, slave:vt2
+--source include/diff_tables.inc
+
+# Scenario 2.3 :
+
+--echo # Table vt3: Virtual Column with foreign keys
+--source include/rpl_connection_master.inc
+
+#Parent table
+CREATE TABLE t2(
+	a INT PRIMARY KEY,
+	b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
+	INDEX(b)
+);
+
+CREATE TABLE vt3(
+	a INT PRIMARY KEY,
+	b INT,
+	FOREIGN KEY(b) REFERENCES t2(a) ON UPDATE SET NULL ON DELETE RESTRICT,
+	c INT AS (a*b) VIRTUAL
+);
+
+# Insert on Parent table
+INSERT INTO t2(a) VALUES(1);
+INSERT INTO t2(a) VALUES(3);
+
+# Perform some basic DML on vt3
+INSERT INTO vt3(a,b) VALUES(100,1),(200,3);
+UPDATE t2 SET a=2 WHERE b=4;
+
+UPDATE vt3 SET b=2 WHERE b IS NULL;
+UPDATE t2,vt3 SET vt3.a=t2.a WHERE t2.b=vt3.b;
+
+# Error due to foreign key constraint
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM t2 WHERE a=2;
+
+# Perform XA Transaction on vt3
+XA START 'xstatement';
+DELETE FROM vt3 WHERE a=1;
+DELETE FROM vt3 WHERE c=100;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that vt3 exists and has same values in both servers
+--let $diff_tables=master:vt3, slave:vt3
+--source include/diff_tables.inc
+
+# Scenario 3.1 :
+
+--echo # Table gt1: gt1: both stored and virtual columns
+--source include/rpl_connection_master.inc
+
+CREATE TABLE gt1 (a INT, b INT AS (a+1) STORED PRIMARY KEY);
+ALTER TABLE gt1 ADD COLUMN c INT GENERATED ALWAYS AS (b+1) VIRTUAL;
+ALTER TABLE gt1 ADD COLUMN d INT GENERATED  ALWAYS AS (c+10) STORED;
+
+# Perform some basic DML on gt1
+--let $i=5
+while ($i>0){
+  --eval INSERT INTO gt1(a) VALUES($i)
+  --dec $i
+}
+UPDATE gt1 SET a=21 WHERE b=2;
+UPDATE gt1 SET a=22 WHERE c=4;
+UPDATE gt1 SET a=23 WHERE d=15;
+
+# Perform XA Transaction on gt1
+XA START 'xstatement';
+UPDATE gt1 SET a=24 WHERE a=4;
+DELETE FROM gt1 WHERE a=5;
+DELETE FROM gt1 WHERE b=24;
+DELETE FROM gt1 WHERE c=24;
+DELETE FROM gt1 WHERE d=33;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo # check that gt1 exists and has same values in both servers
+--let $diff_tables=master:gt1, slave:gt1
+--source include/diff_tables.inc
+
+--echo # Clean Up
+
+--source include/rpl_connection_master.inc
+DROP TABLE st1,st2,st3,st4;
+DROP TABLE vt1,vt2,vt3;
+DROP TABLE gt1;
+DROP TABLE t1,t2;
+
+--source include/rpl_end.inc

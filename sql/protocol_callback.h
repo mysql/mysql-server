@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,22 +29,36 @@
   service as proxy protocol.
 */
 
+#include <stddef.h>
+#include <sys/types.h>
 
-#include "protocol.h"
+#include "m_ctype.h"
+#include "my_command.h"
+#include "my_inttypes.h"
 #include "mysql/service_command.h"
+#include "mysql_time.h"
+#include "sql/protocol.h"
+#include "violite.h"
 
-class Protocol_callback : public Protocol
-{
-public:
+class Item_param;
+class Proto_field;
+class Send_field;
+class String;
+class my_decimal;
+template <class T>
+class List;
+union COM_DATA;
+
+class Protocol_callback : public Protocol {
+ public:
   Protocol_callback(const struct st_command_service_cbs *cbs,
-                    enum cs_text_or_binary t_or_b, void *cbs_ctx) :
-    callbacks_ctx(cbs_ctx),
-    callbacks(*cbs),
-    client_capabilities(0),
-    client_capabilities_set(false),
-    text_or_binary(t_or_b),
-    in_meta_sending(false)
-    {}
+                    enum cs_text_or_binary t_or_b, void *cbs_ctx)
+      : callbacks_ctx(cbs_ctx),
+        callbacks(*cbs),
+        client_capabilities(0),
+        client_capabilities_set(false),
+        text_or_binary(t_or_b),
+        in_meta_sending(false) {}
 
   /**
     Forces read of packet from the connection
@@ -65,7 +86,6 @@ public:
       true   failure
   */
   virtual enum enum_protocol_type type() { return PROTOCOL_PLUGIN; }
-
 
   /**
     Returns the type of the connection
@@ -133,19 +153,15 @@ public:
     Sends DECIMAL value
 
     @param d    value
-    @param prec field's precision, unused
-    @param dec  field's decimals, unused
 
     @return
       false  success
       true   failure
   */
-  virtual bool store_decimal(const my_decimal * d, uint, uint);
+  virtual bool store_decimal(const my_decimal *d, uint, uint);
 
   /**
     Sends string (CHAR/VARCHAR/TEXT/BLOB) value
-
-    @param d value
 
     @return
       false  success
@@ -234,7 +250,7 @@ public:
   /**
     Checks if the protocol supports a capability
 
-    @param cap the capability
+    @param capability the capability
 
     @return
       true   supports
@@ -275,7 +291,7 @@ public:
     0   success
     !0  failure
   */
-  virtual int shutdown(bool server_shutdown= false);
+  virtual int shutdown(bool server_shutdown = false);
 
   /**
     This function always returns true as in many places in the server this
@@ -285,11 +301,6 @@ public:
       true   alive
   */
   virtual bool connection_alive();
-
-  /**
-    Returns SSL info
-  */
-  virtual SSL_handle get_ssl();
 
   /**
     Should return protocol's reading/writing status. Returns 0 (idle) as it
@@ -348,7 +359,7 @@ public:
 
     @param server_status Bit field with different statuses. See SERVER_STATUS_*
     @param warn_count      Warning count from the execution
-    @param affected_row    Rows changed/deleted during the operation
+    @param affected_rows   Rows changed/deleted during the operation
     @param last_insert_id  ID of the last insert row, which has AUTO_INCROMENT
                            column
     @param message         Textual message from the execution. May be NULL.
@@ -391,7 +402,14 @@ public:
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
 
-private:
+  virtual bool store_ps_status(ulong stmt_id, uint column_count,
+                               uint param_count, ulong cond_count);
+
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare);
+  virtual bool flush();
+
+ private:
   void *callbacks_ctx;
   struct st_command_service_cbs callbacks;
   unsigned long client_capabilities;

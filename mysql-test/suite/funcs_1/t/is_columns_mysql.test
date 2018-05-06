@@ -2,9 +2,6 @@
 #
 # Check the content of information_schema.columns about tables within
 # the database mysql.
-# Variant for the non embedded server
-#    The expected results must equal is_columns_mysql_embedded except that
-#    columns.privileges are not empty.
 #
 # Author:
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
@@ -12,7 +9,6 @@
 #                   Create this script based on older scripts and new code.
 #
 
---source include/not_embedded.inc
 
-let $my_where = WHERE table_schema = 'mysql';
+let $my_where = WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index';
 --source suite/funcs_1/datadict/columns.inc

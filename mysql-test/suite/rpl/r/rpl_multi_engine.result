@@ -23,7 +23,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 alter table t1 engine=myisam;
 show create table t1;
@@ -39,7 +39,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -73,7 +73,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -107,7 +107,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -141,7 +141,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 alter table t1 engine=myisam;
 show create table t1;
@@ -157,7 +157,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -191,7 +191,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -225,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -259,7 +259,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/sync_slave_sql_with_master.inc
 alter table t1 engine=myisam;
 show create table t1;
@@ -275,7 +275,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -309,7 +309,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t
@@ -343,7 +343,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(42,1,'Testing MySQL databases is a cool ', 'Must make it bug free for the customer',654321.4321,15.21,0,1965,"2005-11-14");
 select id,hex(b1),vc,bc,d,f,total,y,t from t1 order by id;
 id	hex(b1)	vc	bc	d	f	total	y	t

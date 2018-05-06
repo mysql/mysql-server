@@ -1,133 +1,116 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/fts0types.ic
-Full text search types.
+/** @file include/fts0types.ic
+ Full text search types.
 
-Created 2007-03-27 Sunny Bains
-*******************************************************/
+ Created 2007-03-27 Sunny Bains
+ *******************************************************/
 
 #ifndef INNOBASE_FTS0TYPES_IC
 #define INNOBASE_FTS0TYPES_IC
 
-#include "rem0cmp.h"
 #include "ha_prototypes.h"
+#include "rem0cmp.h"
 
-/******************************************************************//**
-Duplicate a string.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+/** Duplicate a string.
+ @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
-void
-fts_string_dup(
-/*===========*/
-	fts_string_t*		dst,		/*!< in: dup to here */
-	const fts_string_t*	src,		/*!< in: src string */
-	mem_heap_t*		heap)		/*!< in: heap to use */
+void fts_string_dup(fts_string_t *dst,       /*!< in: dup to here */
+                    const fts_string_t *src, /*!< in: src string */
+                    mem_heap_t *heap)        /*!< in: heap to use */
 {
-	dst->f_str = (byte*)mem_heap_alloc(heap, src->f_len + 1);
-	memcpy(dst->f_str, src->f_str, src->f_len);
+  dst->f_str = (byte *)mem_heap_alloc(heap, src->f_len + 1);
+  memcpy(dst->f_str, src->f_str, src->f_len);
 
-	dst->f_len = src->f_len;
-	dst->f_str[src->f_len] = 0;
-	dst->f_n_char = src->f_n_char;
+  dst->f_len = src->f_len;
+  dst->f_str[src->f_len] = 0;
+  dst->f_n_char = src->f_n_char;
 }
 
-/******************************************************************//**
-Compare two fts_trx_row_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+/** Compare two fts_trx_row_t doc_ids.
+ @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
-int
-fts_trx_row_doc_id_cmp(
-/*===================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
+int fts_trx_row_doc_id_cmp(const void *p1, /*!< in: id1 */
+                           const void *p2) /*!< in: id2 */
 {
-	const fts_trx_row_t*	tr1 = (const fts_trx_row_t*) p1;
-	const fts_trx_row_t*	tr2 = (const fts_trx_row_t*) p2;
+  const fts_trx_row_t *tr1 = (const fts_trx_row_t *)p1;
+  const fts_trx_row_t *tr2 = (const fts_trx_row_t *)p2;
 
-	return((int)(tr1->doc_id - tr2->doc_id));
+  return ((int)(tr1->doc_id - tr2->doc_id));
 }
 
-/******************************************************************//**
-Compare two fts_ranking_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+/** Compare two fts_ranking_t doc_ids.
+ @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
-int
-fts_ranking_doc_id_cmp(
-/*===================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
+int fts_ranking_doc_id_cmp(const void *p1, /*!< in: id1 */
+                           const void *p2) /*!< in: id2 */
 {
-	const fts_ranking_t*	rk1 = (const fts_ranking_t*) p1;
-	const fts_ranking_t*	rk2 = (const fts_ranking_t*) p2;
+  const fts_ranking_t *rk1 = (const fts_ranking_t *)p1;
+  const fts_ranking_t *rk2 = (const fts_ranking_t *)p2;
 
-	return((int)(rk1->doc_id - rk2->doc_id));
+  return ((int)(rk1->doc_id - rk2->doc_id));
 }
 
-/******************************************************************//**
-Compare two fts_update_t doc_ids.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+/** Compare two fts_update_t doc_ids.
+ @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
-int
-fts_update_doc_id_cmp(
-/*==================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
+int fts_update_doc_id_cmp(const void *p1, /*!< in: id1 */
+                          const void *p2) /*!< in: id2 */
 {
-	const fts_update_t*	up1 = (const fts_update_t*) p1;
-	const fts_update_t*	up2 = (const fts_update_t*) p2;
+  const fts_update_t *up1 = (const fts_update_t *)p1;
+  const fts_update_t *up2 = (const fts_update_t *)p2;
 
-	return((int)(up1->doc_id - up2->doc_id));
+  return ((int)(up1->doc_id - up2->doc_id));
 }
 
-/******************************************************************//**
-Get the first character's code position for FTS index partition */
-extern
-ulint
-innobase_strnxfrm(
-/*==============*/
-        const CHARSET_INFO*	cs,	/*!< in: Character set */
-        const uchar*		p2,	/*!< in: string */
-        const ulint		len2);	/*!< in: string length */
+/** Get the first character's code position for FTS index partition */
+extern ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
+                               const uchar *p2,        /*!< in: string */
+                               const ulint len2);      /*!< in: string length */
 
 /** Check if fts index charset is cjk
 @param[in]	cs	charset
 @retval	true	if the charset is cjk
 @retval	false	if not. */
 UNIV_INLINE
-bool
-fts_is_charset_cjk(
-	const CHARSET_INFO*	cs)
-{
-	if (strcmp(cs->name, "gb2312_chinese_ci") == 0
-	    || strcmp(cs->name, "gbk_chinese_ci") == 0
-	    || strcmp(cs->name, "big5_chinese_ci") == 0
-	    || strcmp(cs->name, "gb18030_chinese_ci") == 0
-	    || strcmp(cs->name, "ujis_japanese_ci") == 0
-	    || strcmp(cs->name, "sjis_japanese_ci") == 0
-	    || strcmp(cs->name, "cp932_japanese_ci") == 0
-	    || strcmp(cs->name, "eucjpms_japanese_ci") == 0
-	    || strcmp(cs->name, "euckr_korean_ci") == 0) {
-		return(true);
-	} else {
-		return(false);
-	}
+bool fts_is_charset_cjk(const CHARSET_INFO *cs) {
+  if (strcmp(cs->name, "gb2312_chinese_ci") == 0 ||
+      strcmp(cs->name, "gbk_chinese_ci") == 0 ||
+      strcmp(cs->name, "big5_chinese_ci") == 0 ||
+      strcmp(cs->name, "gb18030_chinese_ci") == 0 ||
+      strcmp(cs->name, "ujis_japanese_ci") == 0 ||
+      strcmp(cs->name, "sjis_japanese_ci") == 0 ||
+      strcmp(cs->name, "cp932_japanese_ci") == 0 ||
+      strcmp(cs->name, "eucjpms_japanese_ci") == 0 ||
+      strcmp(cs->name, "euckr_korean_ci") == 0) {
+    return (true);
+  } else {
+    return (false);
+  }
 }
 
 /** Select the FTS auxiliary index for the given character by range.
@@ -136,32 +119,25 @@ fts_is_charset_cjk(
 @param[in]	len	string length
 @retval	the index to use for the string */
 UNIV_INLINE
-ulint
-fts_select_index_by_range(
-	const CHARSET_INFO*	cs,
-	const byte*		str,
-	ulint			len)
-{
-	ulint			selected = 0;
-	ulint			value = innobase_strnxfrm(cs, str, len);
+ulint fts_select_index_by_range(const CHARSET_INFO *cs, const byte *str,
+                                ulint len) {
+  ulint selected = 0;
+  ulint value = innobase_strnxfrm(cs, str, len);
 
-	while (fts_index_selector[selected].value != 0) {
+  while (fts_index_selector[selected].value != 0) {
+    if (fts_index_selector[selected].value == value) {
+      return (selected);
 
-		if (fts_index_selector[selected].value == value) {
+    } else if (fts_index_selector[selected].value > value) {
+      return (selected > 0 ? selected - 1 : 0);
+    }
 
-			return(selected);
+    ++selected;
+  }
 
-		} else if (fts_index_selector[selected].value > value) {
+  ut_ad(selected > 1);
 
-			return(selected > 0 ? selected - 1 : 0);
-		}
-
-		++selected;
-	}
-
-	ut_ad(selected > 1);
-
-	return(selected - 1);
+  return (selected - 1);
 }
 
 /** Select the FTS auxiliary index for the given character by hash.
@@ -170,31 +146,27 @@ fts_select_index_by_range(
 @param[in]	len	string length
 @retval the index to use for the string */
 UNIV_INLINE
-ulint
-fts_select_index_by_hash(
-	const CHARSET_INFO*	cs,
-	const byte*		str,
-	ulint			len)
-{
-	int	char_len;
-	ulong	nr1 = 1;
-	ulong	nr2 = 4;
+ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
+                               ulint len) {
+  int char_len;
+  ulong nr1 = 1;
+  ulong nr2 = 4;
 
-	ut_ad(!(str == NULL && len > 0));
+  ut_ad(!(str == NULL && len > 0));
 
-	if (str == NULL || len == 0) {
-		return 0;
-	}
+  if (str == NULL || len == 0) {
+    return 0;
+  }
 
-	/* Get the first char */
-	char_len = my_mbcharlen_ptr(cs, reinterpret_cast<const char*>(str),
-				    reinterpret_cast<const char*>(str + len));
-	ut_ad(static_cast<ulint>(char_len) <= len);
+  /* Get the first char */
+  char_len = my_mbcharlen_ptr(cs, reinterpret_cast<const char *>(str),
+                              reinterpret_cast<const char *>(str + len));
+  ut_ad(static_cast<ulint>(char_len) <= len);
 
-	/* Get collation hash code */
-	cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
+  /* Get collation hash code */
+  cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
 
-	return(nr1 % FTS_NUM_AUX_INDEX);
+  return (nr1 % FTS_NUM_AUX_INDEX);
 }
 
 /** Select the FTS auxiliary index for the given character.
@@ -203,32 +175,31 @@ fts_select_index_by_hash(
 @param[in]	len	string length in bytes
 @retval	the index to use for the string */
 UNIV_INLINE
-ulint
-fts_select_index(
-	const CHARSET_INFO*	cs,
-	const byte*		str,
-	ulint			len)
-{
-	ulint	selected;
+ulint fts_select_index(const CHARSET_INFO *cs, const byte *str, ulint len) {
+  ulint selected;
 
-	if (fts_is_charset_cjk(cs)) {
-		selected = fts_select_index_by_hash(cs, str, len);
-	} else {
-		selected = fts_select_index_by_range(cs, str, len);
-	}
+  if (fts_is_charset_cjk(cs)) {
+    selected = fts_select_index_by_hash(cs, str, len);
+  } else {
+    selected = fts_select_index_by_range(cs, str, len);
+  }
 
-	return(selected);
+  return (selected);
 }
 
-/******************************************************************//**
-Return the selected FTS aux index suffix. */
+/** Return the selected FTS aux index suffix. */
 UNIV_INLINE
-const char*
-fts_get_suffix(
-/*===========*/
-	ulint		selected)	/*!< in: selected index */
+const char *fts_get_suffix(ulint selected) /*!< in: selected index */
 {
-	return(fts_index_selector[selected].suffix);
+  return (fts_index_selector[selected].suffix);
+}
+
+/** Return the selected FTS aux index suffix in 5.7 compatible format
+@param[in]	selected	selected index
+@return the suffix name */
+UNIV_INLINE
+const char *fts_get_suffix_5_7(ulint selected) {
+  return (fts_index_selector_5_7[selected].suffix);
 }
 
 #endif /* INNOBASE_FTS0TYPES_IC */

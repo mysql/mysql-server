@@ -1,0 +1,457 @@
+## Test various client close/dispose scenarios
+
+#  // client just disconnected on us
+#  Close_peer_disconnected,
+#  // client sent a close command
+#  Close_requested_by_client,
+#  // server is shutting down
+#  Close_server_shutdown,
+#  // client was killed (as in via SQL KILL command by another client)
+#  Close_client_killed,
+#  // unrecoverable network error occurred
+#  Close_net_error,
+#  // a fatal application error occurred
+#  Close_fatal_error,
+#  // like Client_fatal_error, except that error is not reported to the client
+#  Close_aborted
+
+--source include/restart_mysqld.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
+# Plugin 'InnoDB' has ref_count=1 after shutdown
+call mtr.add_suppression("Plugin \'InnoDB\'");
+# wait a little to give time for internal temporary session to die out
+select sleep(1);
+--replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/client_close.tmp
+
+# number of seconds to sleep... increase to a higher value once killing sessions on disconnect works
+-->varlet %SLEEP% 2
+
+-->macro Close_active_and_sync
+Mysqlx.Connection.Close {
+}
+-->recvtype Mysqlx.Ok
+-->peerdisc 1000 5000
+-->endmacro
+
+
+-->sql
+delimiter //;
+create procedure test.get_stuck()
+begin
+    declare i int;
+    declare x int;
+    set i = 1;
+    while i < 1000 do
+        set i = i + 1;
+        set x = sleep(0.5);
+    end while;
+end//;
+delimiter ;
+
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+-->title #Close_peer_disconnected
+-->title -Connect and disconnect while idle
+-->newsession sess	x_root
+-->closesession abort
+
+-->sql
+select sleep(%SLEEP%);
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+##########
+
+-->title -Connect and disconnect while running a query
+-->newsession sess	x_root
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "select sleep(%SLEEP%)"
+}
+
+# read the resultset metadata, which is sent immediately
+-->recv
+
+-->closesession abort
+-->sql
+select sleep(%SLEEP%);
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+##########
+
+-->title -Connect and disconnect while streaming result
+-->newsession sess	x_root
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "show variables"
+}
+
+-->closesession abort
+-->sleep 2
+-->sql
+select sleep(%SLEEP%);
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+###########
+
+-->title -Connect and disconnect while input queue is full
+-->newsession sess	x_root
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "select sleep(%SLEEP%)"
+}
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1"
+}
+
+-->closesession abort
+-->sleep 4
+-->sql
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+-->title -Disconnect while in a pipeline
+
+-->newsession sess	x_root
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 6"
+}
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1"
+}
+-->recv
+-->closesession abort
+
+
+############
+-->title #Close_requested_by_client
+
+-->title -Close when idle
+
+-->newsession sess	x_root
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1"
+}
+-->recvresult
+-->callmacro Close_active_and_sync
+
+-->sql
+select sleep(%SLEEP%);
+show global status like 'mysqlx_connections_%';
+-->endsql
+
+-->title -Close in a pipeline
+
+-->newsession sess	x_root
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 2"
+}
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 3"
+}
+Mysqlx.Session.Close {
+}
+# ALL results up to the Close must be readable by client
+-->recvresult
+-->recvresult
+-->recv
+-->expecterror 2006,2007
+-->sleep 1
+-->sql
+select 4;
+-->endsql
+
+# "abort", since we already sent the close
+-->closesession abort
+
+-->title #Close_client_killed
+
+-->title -Kill a session while idle
+
+-->newsession sess	x_root
+-->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
+-->setsession
+
+Mysqlx.Sql.StmtExecute {
+    namespace: "xplugin"
+    stmt: "kill_client"
+    args {
+        type: SCALAR
+        scalar {
+            type: V_UINT
+            v_unsigned_int: %SESS_CLIENT_ID%
+        }
+    }
+}
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
+
+-->setsession sess
+-->closesession abort
+
+-->title -Kill a session executing query
+
+-->newsession sess	x_root
+-->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
+Mysqlx.Sql.StmtExecute {
+    stmt: "call test.get_stuck()"
+}
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1"
+}
+
+-->setsession
+Mysqlx.Sql.StmtExecute {
+    namespace: "xplugin"
+    stmt: "kill_client"
+    args {
+        type: SCALAR
+        scalar {
+            type: V_UINT
+            v_unsigned_int: %SESS_CLIENT_ID%
+        }
+    }
+}
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
+
+-->setsession sess
+
+-->expecterror 1317,2006,2007,5010
+-->recvresult
+
+-->closesession abort
+
+-->title -Kill a session that hasnt authenticated yet
+
+-->newsession sess	-
+-->varlet %SESS_CLIENT_ID% 11
+
+-->sleep 1
+
+-->setsession
+Mysqlx.Sql.StmtExecute {
+    namespace: "xplugin"
+    stmt: "kill_client"
+    args {
+        type: SCALAR
+        scalar {
+            type: V_UINT
+            v_unsigned_int: %SESS_CLIENT_ID%
+        }
+    }
+}
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
+
+-->setsession sess
+-->expecterror 2006,2007
+-->sql
+select 1;
+-->endsql
+
+-->closesession abort
+
+-->title -Kill a session that hasnt authenticated yet, with data queued
+
+-->newsession sess	-
+-->varlet %SESS_CLIENT_ID% 12
+
+-->sleep 1
+
+Mysqlx.Connection.CapabilitiesGet {
+}
+
+-->setsession
+Mysqlx.Sql.StmtExecute {
+    namespace: "xplugin"
+    stmt: "kill_client"
+    args {
+        type: SCALAR
+        scalar {
+            type: V_UINT
+            v_unsigned_int: %SESS_CLIENT_ID%
+        }
+    }
+}
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
+
+-->setsession sess
+-->recv quiet
+-->expecterror 2006,2007
+-->recvresult
+
+-->closesession abort
+
+
+# Can't test via normal means: Close_net_error
+
+-->title #Close_fatal_error
+
+-->title -Authentication error
+
+-->newsession sess	-
+
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "invalid"
+}
+-->recverror 1251
+
+-->closesession abort
+
+-->title -Authentication error (try to close normally)
+-->newsession sess	-
+
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "invalid"
+}
+
+-->recverror 1251
+
+-->expecterror 2006,2007
+-->closesession
+
+-->title -Disconnect while authenticating
+-->newsession sess	-
+
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "MYSQL41"
+}
+
+-->closesession abort
+
+-->title -Send unexpected message at handshake
+
+-->newsession sess	-
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "select 1"
+}
+
+-->recverror 5000
+
+-->closesession abort
+
+-->title -Disconnect at handshake
+-->newsession sess	-
+
+-->closesession abort
+
+
+-->title -Disconnect at handshake
+-->newsession sess	-
+
+Mysqlx.Connection.CapabilitiesGet {
+}
+
+-->closesession abort
+
+
+-->title #Close_aborted
+
+-->title -Send illegal message at handshake
+-->newsession sess	-
+-->binsend \x00\xff\xff\xff\xffxxxxx
+
+-->peerdisc 500 500
+
+-->title -Send illegal message after handshake
+
+-->newsession sess	x_root
+-->binsend \x00\xff\xff\xff\xffxxxxx
+
+-->peerdisc 500 500
+
+-->title -Connection failure by auth
+
+-->expecterror 1045
+-->newsession sess	x_root	badpass
+
+###########
+
+-->title #Other conditions
+-->title -Connect and disconnect after queue read timeout
+-->newsession sess	x_root
+
+# 1s more than the value in the plugin
+-->varlet %SESSION_MESSAGE_QUEUE_TIMEOUT% 7
+-->sleep %SESSION_MESSAGE_QUEUE_TIMEOUT%
+
+-->closesession abort
+
+-->sleep 1
+
+#Close_server_shutdown
+# covered elsewhere
+######
+
+-->title -Final check of clients still around
+
+Mysqlx.Sql.StmtExecute {
+    stmt: "list_clients"
+    namespace: "xplugin"
+}
+-->recvresult
+
+
+#####
+
+-->title -Bug #21825183 - WHEN CLIENTS LAST SESSION IS CLOSED THEN NOT ALL QUEUED MESSAGES ARE SEND
+
+-->newsession sess
+-->varlet %VALUE% 1234
+-->repeat 200   %VALUE%
+Mysqlx.Sql.StmtExecute {
+stmt:"SELECT %VALUE% as `Column`;"
+namespace: "sql"
+}
+-->endrepeat
+Mysqlx.Session.Close {
+}
+#-->abort
+-->repeat 200 %VALUE%
+-->recvresult
+-->endrepeat
+-->recv
+-->closesession abort
+
+EOF
+
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1
+
+# sleep for a while to ensure clean up finished
+select sleep(10);
+
+show global status like 'mysqlx_sessions';
+show global status like 'mysqlx_connections_%';
+--replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
+drop procedure test.get_stuck;
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/client_close.tmp
+--source include/xplugin_drop_user.inc

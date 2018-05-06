@@ -1,0 +1,49 @@
+show create table performance_schema.events_statements_history_long;
+Table	Create Table
+events_statements_history_long	CREATE TABLE `events_statements_history_long` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SQL_TEXT` longtext,
+  `DIGEST` varchar(64) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
+  `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_TYPE` varchar(64) DEFAULT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
+  `MYSQL_ERRNO` int(11) DEFAULT NULL,
+  `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
+  `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
+  `ERRORS` bigint(20) unsigned NOT NULL,
+  `WARNINGS` bigint(20) unsigned NOT NULL,
+  `ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
+  `NESTING_EVENT_LEVEL` int(11) DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "events_statements_history_long";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE

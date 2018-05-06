@@ -12,9 +12,6 @@ echo $mysql_errname before test;
 
 -- source include/have_log_bin.inc
 
-# This test should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
-
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
@@ -1023,7 +1020,7 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 let $a= `select * from t1`;
 # This should output `select 42`, not evaluate it again to 42
@@ -1238,13 +1235,6 @@ echo $d;
 --error 1
 --exec echo "let \$i=10cc; dec \$i; echo \$i;" | $MYSQL_TEST 2>&1
 
-
-# ----------------------------------------------------------------------------
-# Test system (which is now deprecated)
-# ----------------------------------------------------------------------------
-
---error 1
---exec echo "system something;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test delimiter
@@ -2257,10 +2247,14 @@ remove_file non_existing_file;
 --exec echo "remove_files_wildcard ;" | $MYSQL_TEST 2>&1
 
 --error 1
-remove_files_wildcard non_existing_dir;
+remove_files_wildcard non_existing_dir *;
 
 --error 1
 remove_files_wildcard non_existing_dir non_existing_file;
+
+# Pattern is a mandatory argument
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ ;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # test for write_file
@@ -2713,7 +2707,7 @@ DROP TABLE t1;
 
 # 1. Basic test
 --lowercase_result
-SELECT "500g BLÅBÆRSYLTETØY" AS "WILL BE lower cased";
+SELECT "500g BLÃ…BÃ†RSYLTETÃ˜Y" AS "WILL BE lower cased";
 
 # 2. test that it does not apply to next statement
 SELECT "UPPER" AS "WILL NOT BE lower cased";
@@ -2738,11 +2732,13 @@ SELECT "Xyz" AS Name UNION SELECT "Abc" as Name ORDER BY Name DESC;
 --replace_result old new
 SELECT 1 as "SOME OLD TEXT";
 
-# 7. Test missing lower casing of "unknown" characters
---character_set utf8
---lowercase_result
-SELECT 0 as "WILL NOT lower case ÄËÐ";
+# 7. Test that it still works for latin1
 --character_set latin1
+set names latin1;
+--lowercase_result
+SELECT 0 as "WILL Lower CASE Å";
+--character_set utf8mb4
+set names utf8mb4;
 
 # ----------------------------------------------------------------------------
 # Some coverage tests
@@ -2884,6 +2880,8 @@ drop table t1;
 # Test change_user command
 # ----------------------------------------------------------------------------
 
+--connect(change_user_conn, localhost, root,,,,)
+
 --error ER_BAD_DB_ERROR
 --change_user root,,inexistent
 
@@ -2897,6 +2895,9 @@ drop table t1;
 --change_user root
 --change_user root,,
 --change_user root,,test
+
+--connection default
+--disconnect change_user_conn
 
 # ----------------------------------------------------------------------------
 # Test mkdir and rmdir command
@@ -2940,7 +2941,7 @@ list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt $MYSQLTEST_VARD
 cat_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt;
 remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
-remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir *;
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
@@ -3027,6 +3028,765 @@ select "a" as a;
 select "a" as a;
 
 --echo #
+--echo # Bug#22224687 : MTR TEST UTILITY SCRIPT 'INCLUDE/SEARCH_PATTERN.INC' SHOULD BE EXTENDED
+--echo #
+
+--let $file= $MYSQLTEST_VARDIR/tmp/bug22224687.tmp
+--write_file $file
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb oct
+EOF
+
+# No matches will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = NONE
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    NONE
+--source include/search_pattern.inc
+
+# First match is echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    FIRST
+--source include/search_pattern.inc
+
+# ALL matches are echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--source include/search_pattern.inc
+
+# If a line matches search pattern and if it also matches
+# ignore pattern, then it will be ignored.
+--echo # SEARCH_PATTERN = 'apr may', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'jun'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= apr may
+--let SEARCH_ECHO=    FIRST
+--let IGNORE_PATTERN= jun
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'apr may', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'jun'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= apr may
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= jun
+--source include/search_pattern.inc
+
+# If a line matches search pattern and if it doesn't match the
+# ignore pattern, then it will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'mar'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= mar
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'march'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= march
+--source include/search_pattern.inc
+
+# If SEARCH_ECHO_CTX value is greater than 0, then succeding
+# number of lines and lines above the matching line (up to the
+# number specified by SEARCH_ECHO_CTX) will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 1
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     FIRST
+--let SEARCH_ECHO_CTX= 1
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 2
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     FIRST
+--let SEARCH_ECHO_CTX= 2
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     ALL
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     FIRST
+--let IGNORE_PATTERN=  oct
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     ALL
+--let IGNORE_PATTERN=  oct
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'october', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     ALL
+--let IGNORE_PATTERN=  october
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+# clean up
+--remove_file $file
+
+--echo #
+--echo # Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
+--echo #
+
+if(1) {
+  --perl
+  # True block
+  print "True block\n";
+  EOF
+}
+
+if(0) {
+  --perl
+  # False block
+  print "False block\n";
+  EOF
+}
+
+--let $i = 2
+while($i) {
+  --dec $i
+  if (!$i) {
+    --perl
+    print "Hello\n";
+    EOF
+  }
+}
+
+--echo #
+--echo # Bug#23035906 : MTR: MYSQLTEST PARSES QUOTES IN SQL COMMENTS LITERALLY LEADING TO EOL JUNK ERROR
+--echo #
+
+SELECT 100 + /* Shouldn't fail */ 1 AS result;
+SELECT 100 /* Shouldn't fail */ + 1 AS result;
+
+SELECT 100 +
+/*
+Shouldn't
+fail
+*/
+1 AS result;
+
+SELECT 100
+/*
+Shouldn't
+fail
+*/
++ 1 AS result;
+
+SELECT 100 /* shouldn't / fail */ + 1 AS result;
+SELECT 100 /* shouldn't * fail */ + 1 AS result;
+SELECT 100 /* shouldn't /* fail */ + 1 AS result;
+SELECT 100 /* shouldn't /* fail */ + 1 AS res1, 'ABC' AS res2;
+
+SELECT 100 + /* "shouldnt fail */ 1 AS result;
+SELECT 100 + /* "shouldn't fail" */ 1 AS result;
+SELECT 100 + /* `shouldn't fail */ 1 AS result;
+SELECT 100 + /* `shouldn't fail` */ 1 AS result;
+SELECT 100 + /*  + shouldn't fail */ 1 AS result;
+SELECT 100 + /*  ! shouldn't fail */ 1 AS result;
+SELECT 1 /*!,"\'" */;
+
+SELECT 100 + /***/ 1 AS result;
+SELECT 100 + /**'*/ 1 AS result;
+SELECT 100 + /*/*/ 1 AS result;
+SELECT 100 + /*/'*/ 1 AS result;
+
+--error ER_PARSE_ERROR
+SELECT 100 + /* should */ fail */ 1 AS result;
+--error ER_PARSE_ERROR
+SELECT 100 + /* shoul'd */ fail */ 1 AS result;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 values (1),(5),(10) /* doesn't throw error */;
+SELECT * FROM t1 /* shouldn't throw error */;
+DROP TABLE t1;
+
+# Variant of C style comment(/*! ... */)
+# Server should be able to parse the code inside the comment
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+
+# Should create a temporary table
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
+SHOW CREATE TABLE t1;
+DROP TEMPORARY TABLE t1;
+
+--echo #
+--echo # Bug#21048973 : SUPPORT "--ERROR CR_..." FOR COMMUNICATION RELATED ERRORS
+--echo #
+
+connect (con1, localhost, root,,);
+SELECT 1 AS res;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--error CR_SERVER_GONE_ERROR
+SELECT 1 AS res;
+
+connection default;
+
+--echo #
+--echo # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
+--echo #
+
+--mkdir $MYSQLTEST_VARDIR/copy1/
+--mkdir $MYSQLTEST_VARDIR/copy2/
+
+# Copy multiple files using a pattern
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ word*
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ load*
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt
+--list_files $MYSQLTEST_VARDIR/copy1/
+
+# Copy all the files from the directory by specifying *
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy1/ $MYSQLTEST_VARDIR/copy2/ *
+--list_files $MYSQLTEST_VARDIR/copy2/
+
+# Overwriting of files is allowed
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/ *.txt
+
+# Files in the directory are not matched by the pattern provided
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ abc*
+
+# Source directory does not exist
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/abc/ $MYSQLTEST_VARDIR/copy1/ *
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy2/ *
+# Source directory does not have any files in it
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/ *
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy1/ *
+--rmdir $MYSQLTEST_VARDIR/copy1/
+
+# Destination directory does not exist
+--error 1
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *
+
+# Pattern is a mandatory argument
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy2/ ;" | $MYSQL_TEST 2>&1
+
+--rmdir $MYSQLTEST_VARDIR/copy2/
+
+--echo #
+--echo # Bug#24316799: --RMDIR DOES NOT DELETE DIRECTORY RECURSIVELY
+--echo #
+
+# Delete an empty directory, should succeed
+--mkdir $MYSQLTEST_VARDIR/bug24316799
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+# Delete a directory recursively, should succeed
+--mkdir $MYSQLTEST_VARDIR/bug24316799
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24316799 loaddata*
+
+--mkdir $MYSQLTEST_VARDIR/bug24316799/bug24316799_subdir
+--copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24316799/bug24316799_subdir bug*
+
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+# Directory doesn't exist, should fail
+--error 1
+--force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+--echo #
+--echo # Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
+--echo #
+
+# TCP protocol, should pass
+--connect(tcp_con,localhost,root,,,,,TCP)
+
+# Disabling the query log and result log to make the test run on
+# both non-windows and windows platforms without any result mismatch.
+--disable_query_log
+--disable_result_log
+--let $os_version = `SELECT CONVERT(@@version_compile_os using latin1) NOT IN ("Win32","Win64","Windows")`
+
+# Socket protocol on non-windows platform, should pass
+if ($os_version)
+{
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Socket protocol on windows, should fail
+if (!$os_version)
+{
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Checking windows connection protocols on non-windows platforms
+# Should throw 'Wrong protocol' error
+if ($os_version)
+{
+  --let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1)
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(shm_con,localhost,root,,,,$shm_name,SHM)
+
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(pipe_con,localhost,root,,,,,PIPE)
+}
+
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+--echo #
+
+--error 1
+--exec echo "connect(invalid_con,localhost,root,,,,,SOCKETNEW);" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "connect(tcp_ssl_con,localhost,root,,,,,TCP SSL3 COMPRESS);" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+--echo #
+
+--echo # Destination directory doesn't exist and is created, should pass
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination directory exists, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination contains a subdirectory with the same name as a
+--echo # subdirectory in source, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe/Italy
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory doesn't exist, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/bug24806681 $MYSQLTEST_VARDIR/bug24806681_1
+
+--echo # Destination contains a file with the same name as a
+--echo # subdirectory in source, should fail
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory path and destination directory path are same, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/std_data/
+
+--echo #
+--echo # BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+--echo #
+
+--let $var1= 10
+--let $var2= 20
+--let $var3= -10
+--let $var4= 10.5
+--let $var5= -3.5
+--let $var6= 1e10
+--let $var7= 1e8
+--let $var8= 0
+--let $var9= 2
+--let $var10= 3
+
+--echo #
+--echo # Arithmetic operation
+--echo #
+
+--echo # Addition operation
+--echo expr \$res= $var1 + $var2
+--expr $res= $var1 + $var2
+--echo $res
+
+--echo expr \$res= $var2 + ($var3)
+--expr $res= $var2 + $var3
+--echo $res
+
+--echo expr \$res= $var3 + $var4
+--expr $res= $var3 + $var4
+--echo $res
+
+--echo expr \$res= $var5 + $var4
+--expr $res= $var5 + $var4
+--echo $res
+
+--echo expr \$res= $var6 + $var6
+--expr $res= $var6 + $var6
+--echo $res
+
+--echo expr \$res= $var6 + $var7
+--expr $res= $var6 + $var7
+--echo $res
+
+--echo # Subtraction operation
+--echo expr \$res= $var1 - $var2
+--expr $res= $var1 - $var2
+--echo $res
+
+--echo expr \$res= $var2 - ($var3)
+--expr $res= $var2 - $var3
+--echo $res
+
+--echo expr \$res= $var3 - $var1
+--expr $res= $var3 - $var1
+--echo $res
+
+--echo expr \$res= $var4 - $var1
+--expr $res= $var4 - $var1
+--echo $res
+
+--echo expr \$res= $var6 - $var7
+--expr $res= $var6 - $var7
+--echo $res
+
+--echo expr \$res= $var7 - $var6
+--expr $res= $var7 - $var6
+--echo $res
+
+--echo # Multiplication operation
+--echo expr \$res= $var1 * $var2
+--expr $res= $var1 * $var2
+--echo $res
+
+--echo expr \$res= $var1 * ($var3)
+--expr $res= $var1 * $var3
+--echo $res
+
+--echo expr \$res= $var3 * $var4
+--expr $res= $var3 * $var4
+--echo $res
+
+--echo expr \$res= $var4 * ($var5)
+--expr $res= $var4 * $var5
+--echo $res
+
+--echo expr \$res= $var6 * $var7
+--expr $res= $var6 * $var7
+--echo $res
+
+--echo # Division operation
+--echo expr \$res= $var1 / $var2
+--expr $res= $var1 / $var2
+--echo $res
+
+--echo expr \$res= $var2 / ($var3)
+--expr $res= $var2 / $var3
+--echo $res
+
+--echo expr \$res= $var4 / ($var5)
+--expr $res= $var4 / $var5
+--echo $res
+
+--echo expr \$res= $var6 / $var7
+--expr $res= $var6 / $var7
+--echo $res
+
+--echo # Modulo operation
+--echo expr \$res= $var1 % $var2
+--expr $res= $var1 % $var2
+--echo $res
+
+--echo expr \$res= $var2 % ($var3)
+--expr $res= $var2 % $var3
+--echo $res
+
+--echo expr \$res= $var4 % $var5
+--expr $res= $var4 % $var5
+--echo $res
+
+--echo #
+--echo # Logical operation
+--echo #
+
+--echo # Logical AND operation
+--echo expr \$res= $var1 && $var2
+--expr $res= $var1 && $var2
+--echo $res
+
+--echo expr \$res= $var3 && $var8
+--expr $res= $var3 && $var8
+--echo $res
+
+--echo expr \$res= $var2 && $var3
+--expr $res= $var2 && $var3
+--echo $res
+
+--echo expr \$res= $var4 && $var5
+--expr $res= $var4 && $var5
+--echo $res
+
+--echo expr \$res= $var5 && $var8
+--expr $res= $var5 && $var8
+--echo $res
+
+--echo expr \$res= $var8 && $var8
+--expr $res= $var8 && $var8
+--echo $res
+
+--echo # Logical OR operation
+--echo expr \$res= $var1 || $var2
+--expr $res= $var1 || $var2
+--echo $res
+
+--echo expr \$res= $var3 || $var8
+--expr $res= $var3 || $var8
+--echo $res
+
+--echo expr \$res= $var3 || $var5
+--expr $res= $var3 || $var5
+--echo $res
+
+--echo expr \$res= $var4 || $var8
+--expr $res= $var4 || $var8
+--echo $res
+
+--echo expr \$res= $var8 || $var8
+--expr $res= $var8 || $var8
+--echo $res
+
+--echo #
+--echo # Bitwise operation
+--echo #
+
+--echo # Binary AND operation
+--echo expr \$res= $var1 & $var2
+--expr $res= $var1 & $var2
+--echo $res
+
+--echo expr \$res= $var2 & $var4
+--expr $res= $var2 & $var4
+--echo $res
+
+--echo expr \$res= $var2 & $var8
+--expr $res= $var2 & $var8
+--echo $res
+
+--echo expr \$res= $var1 & $var9
+--expr $res= $var1 & $var9
+--echo $res
+
+--echo # Binary OR operation
+--echo expr \$res= $var1 | $var2
+--expr $res= $var1 | $var2
+--echo $res
+
+--echo expr \$res= $var2 | $var4
+--expr $res= $var2 | $var4
+--echo $res
+
+--echo expr \$res= $var2 | $var8
+--expr $res= $var2 | $var8
+--echo $res
+
+--echo expr \$res= $var8 | $var8
+--expr $res= $var8 | $var8
+--echo $res
+
+--echo # Binary XOR operation
+--echo expr \$res= $var1 ^ $var2
+--expr $res= $var1 ^ $var2
+--echo $res
+
+--echo expr \$res= $var2 ^ $var4
+--expr $res= $var2 ^ $var4
+--echo $res
+
+--echo expr \$res= $var2 ^ $var8
+--expr $res= $var2 ^ $var8
+--echo $res
+
+--echo # Binary right shift operation
+--echo expr \$res= $var1 >> $var9
+--expr $res= $var1 >> $var9
+--echo $res
+
+--echo expr \$res= $var2 >> $var10
+--expr $res= $var2 >> $var10
+--echo $res
+
+--echo expr \$res= $var2 >> $var8
+--expr $res= $var2 >> $var8
+--echo $res
+
+--echo # Binary left shift operation
+--echo expr \$res= $var1 << $var9
+--expr $res= $var1 << $var9
+--echo $res
+
+--echo expr \$res= $var2 << $var10
+--expr $res= $var2 << $var10
+--echo $res
+
+--echo expr \$res= $var2 << $var8
+--expr $res= $var2 << $var8
+--echo $res
+
+--echo # Infinite result
+--let $var= 1e308
+--echo expr \$res= $var + $var
+--expr $res= $var + $var
+--echo $res
+
+--echo # Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+--echo expr \$res= $var1 / $var8
+--expr $res= $var1 / $var8
+--echo $res
+
+--echo # Invalid mathematical expressions
+--echo expr
+--error 1
+--exec echo "expr;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res
+--error 1
+--exec echo "expr $res;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a
+--error 1
+--exec echo "expr \$res= \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$b + \$a
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$b + \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$c
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$c
+--error 1
+--exec echo "let \$a= 1; let \$c= -a; expr \$res= \$a + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$;" | $MYSQL_TEST 2>&1
+
+--echo expr \$re@s= \$a + \$a
+--error 1
+--exec echo "expr \$re@s= \$a + \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$a**
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$a**;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$b + \$c
+--error 1
+--exec echo "let \$a= 1; let \$b= 2; let \$c= 3; expr \$res= \$a + \$b + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + b
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + b; echo \$res;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a ++ \$b
+--error 1
+--exec echo "let \$a= 1; let \$b= 1; expr \$res= \$a ++ \$b; echo \$res;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#25487471 : MYSQLTEST FAILS TO ESCAPE FILENAMES
+--echo #
+
+--echo # Test file name 'a_b.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a_b.test
+SELECT 100 AS res;
+EOF
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a_b.test
+--remove_file $MYSQLTEST_VARDIR/tmp/a_b.test
+
+--echo # Test file name 'a-b.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a-b.test
+SELECT 100 AS res;
+EOF
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a-b.test
+--remove_file $MYSQLTEST_VARDIR/tmp/a-b.test
+
+--echo # Test file name '-ab.test'
+--write_file $MYSQLTEST_VARDIR/tmp/-ab.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/-ab.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/-ab.test
+
+--echo # Test file name '_ab.test'
+--write_file $MYSQLTEST_VARDIR/tmp/_ab.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/_ab.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/_ab.test
+
+--echo # Test file name 'a=bc.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a=bc.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a=bc.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/a=bc.test
+
+--echo # Test file name 'abc@.test'
+--write_file $MYSQLTEST_VARDIR/tmp/abc@.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/abc@.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/abc@.test
+
+--echo # Result file name 'ab#c.result'
+--write_file $MYSQLTEST_VARDIR/tmp/ab#c.result
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -R $MYSQLTEST_VARDIR/tmp/ab#c.result 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/ab#c.result
+
 --echo # Bug#23280117: 5.7 BUG XXXXX TEST REPLACE NUMBER ROUND+GIS PRECISION
 --echo # DIFFERENCES (CONTRIBUTION)
 --echo #
@@ -3063,3 +3823,295 @@ SELECT 19.955934879;
 --echo # The minimum value which can be passed is 0
 --error 1
 --exec echo "replace_numeric_round -1;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#25840940 : MYSQLTEST WRITE_FILE IN NON-EXECUTED IF BLOCK BREAKS PARSING
+--echo #
+
+--echo # if condition evalutes to false
+if (0)
+{
+  --write_file $MYSQL_TMP_DIR/bug25840940.inc
+  Hello
+  EOF
+}
+
+--echo # File shouldn't be created by write_file command inside
+--echo # the if block, cat_file command should fail.
+--error 1
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo # while condition evalutes to false
+while (0)
+{
+  --write_file $MYSQL_TMP_DIR/bug25840940.inc
+  Hello
+  EOF
+}
+
+--echo # File shouldn't be created by write_file command inside
+--echo # the while block, cat_file command should fail
+--error 1
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+# Create a file
+--write_file $MYSQL_TMP_DIR/bug25840940.inc
+Hello
+EOF
+
+--echo # Outer if condition evalutes to false
+if (0)
+{
+  if (1)
+  {
+    --append_file $MYSQL_TMP_DIR/bug25840940.inc
+    Hello
+    EOF
+  }
+}
+
+--echo # "Hello" shouldn't be repeated
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo # Outer while condition evalutes to false
+while (0)
+{
+  if (1)
+  {
+    --append_file $MYSQL_TMP_DIR/bug25840940.inc
+    Hello
+    EOF
+  }
+}
+
+--echo # "Hello" shouldn't be repeated
+--cat_file $MYSQL_TMP_DIR/bug25840940.inc
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/bug25840940.inc
+
+--echo #
+--echo # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug11766444.test
+--let $counter= 2
+while ($counter)
+{
+  --dec $counter
+  if (!$counter)
+  {
+    execute this invalid query;
+  }
+}
+EOF
+
+# Invalid query at line 7
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11766444.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug11766444.test
+
+--echo #
+--echo # BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
+--echo #
+
+# '--error' command should be evaluated only during the first iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 0)
+  {
+    --error ER_BAD_TABLE_ERROR
+  }
+  DROP TABLE t1;
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;
+
+# '--error' command should be evaluated only during the second iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 1)
+  {
+    --error ER_TABLE_EXISTS_ERROR
+  }
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#26090322 : MYSQLTEST CRASHES WITH 'NO-SKIP' OPTION
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+--echo Sample test
+--skip Skipping the test
+EOF
+
+# Run the test
+--exec $MYSQL_TEST --no-skip -x $MYSQLTEST_VARDIR/tmp/bug26090322.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+
+--echo #
+--echo # BUG#25929826 : SKIP COMMAND DOES NOT EXPAND VARIABLES
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
+--let $skip_message= Skipping bug25929826.test
+--skip $skip_message
+EOF
+
+# Run the test, test should get skipped and exit with status 62
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 62
+--exec $MYSQL_TEST --no-skip-exclude-list=bug25929826.test -x $MYSQLTEST_VARDIR/tmp/bug25929826.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
+
+--echo #
+--echo # BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+--echo #               STRINGS IN PATH NAME
+--echo #
+
+# Check whether replace_result replaces a matching long string pattern
+# when used with exec mysqltest command.
+--let $replace_string= `SELECT REPEAT('A', 550)`
+--replace_result $replace_string REPLACE_STRING
+--exec echo $replace_string
+
+# replace_result with long string pattern as argument used with exec
+# command which fails with error 1, pattern should get replaced.
+--replace_result $replace_string REPLACE_STRING tab1 t1
+--error 1
+--exec echo "SELECT $replace_string FROM tab1;" | $MYSQL_TEST  2>&1
+
+--echo #
+--echo # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
+--echo #
+
+--echo # Test the retry argument for copy_file
+
+--write_file $MYSQLTEST_VARDIR/tmp/24671890.txt
+bug fixes in MTR
+EOF
+--copy_file $MYSQLTEST_VARDIR/tmp/24671890.txt $MYSQLTEST_VARDIR/tmp/24671890_2.txt 1
+
+# Test invalid values of retry
+--write_file $MYSQLTEST_VARDIR/tmp/invalid.txt
+Test invalid values of retry parameter
+EOF
+
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 5abc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt -5;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt ?;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt abcd;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 2147483648;" | $MYSQL_TEST 2>&1
+
+
+--echo # Test the retry argument for copy_files_wildcard
+
+--mkdir $MYSQLTEST_VARDIR/tmp/tmp1
+--copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 246* 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* 1oo1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* abcd;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* :;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* -12;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* 2147483648000;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for move_file command
+
+--move_file $MYSQLTEST_VARDIR/tmp/24671890.txt $MYSQLTEST_VARDIR/tmp/tmp1/24671890_3.txt 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 11a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt aabb;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt -1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt ??;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 21474836489;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for file_exists command
+
+--file_exists $MYSQLTEST_VARDIR/tmp/tmp1/24671890_3.txt 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt a10a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt ghghg;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt -5;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt !;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt 21474836487;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for remove_files_wildcard command
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/tmp1/ 246* 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* blah;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* -8;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* oo7;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* ?1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ * 21474836480;" | $MYSQL_TEST 2>&1
+
+--echo # Test invalid values of retry for remove_file command
+
+--error 1
+--exec echo "remove_file  $MYSQLTEST_VARDIR/tmp/invalid.txt xyz;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt -10;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt ll11;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt ?1?;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt 2147483648;" | $MYSQL_TEST 2>&1
+
+# Clean up
+--rmdir $MYSQLTEST_VARDIR/tmp/tmp1/
+--remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/24671890_2.txt
+
+--echo #
+--echo # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+--echo #
+
+# Print the value of environment variable storing number of CPUs
+--replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
+--eval SELECT $NUMBER_OF_CPUS

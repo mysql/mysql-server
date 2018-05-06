@@ -1,0 +1,60 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "threads";
+
+--echo TABLE: $table
+--echo INDEXES: PK (THREAD_ID), KEY (NAME), KEY (PROCESSLIST_ID),
+--echo          KEY (PROCESSLIST_USER, PROCESSLIST_HOST),
+--echo          KEY (PROCESSLIST_HOST), KEY (THREAD_OS_ID)
+
+--source ../include/idx_compare_setup.inc
+
+# Get thread_os_id for user2
+
+--disable_query_log
+eval SELECT thread_os_id
+  INTO @thread_os_id
+  FROM performance_schema.threads
+  WHERE thread_id = $con2_thread_id;
+--enable_query_log
+
+--echo
+--echo ## Test THREAD_ID
+let $key_group = 14;
+let $id_column = THREAD_ID;
+--disable_query_log
+eval SET @target_id = $con2_thread_id;
+--enable_query_log
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test NAME
+let $key_group = 13;
+let $name_column = NAME;
+let $target_name = thread/sql/one_connection;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test PROCESSLIST_USER, PROCESSLIST_HOST
+let $key_group = 2.1.1;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test PROCESSLIST_HOST
+let $key_group = 6.3;
+--source ../include/idx_compare_load.inc
+
+--echo
+--echo ## Test THREAD_OS_ID
+let $key_group = 14;
+let $id_column = THREAD_OS_ID;
+--disable_query_log
+eval SET @target_id = $con2_thread_os_id;
+--enable_query_log
+--source ../include/idx_compare_load.inc
+
+
+--source ../include/idx_compare_cleanup.inc

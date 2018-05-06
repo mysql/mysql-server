@@ -1,6 +1,4 @@
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -37,7 +35,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
@@ -179,8 +177,8 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
 fid	ST_IsEmpty(g)
 101	0
@@ -227,11 +225,10 @@ fid	ST_AsText(ST_Envelope(g))
 119	POLYGON((0 0,3 0,3 3,0 3,0 0))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	21	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `ST_Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `ST_GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `ST_IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `ST_AsText(ST_Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, ST_X(g) FROM gis_point;
 fid	ST_X(g)
@@ -245,11 +242,10 @@ fid	ST_Y(g)
 102	10
 103	20
 104	20
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `ST_X(g)`,st_y(`test`.`gis_point`.`g`) AS `ST_Y(g)` from `test`.`gis_point`
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
 fid	ST_AsText(ST_StartPoint(g))
@@ -281,11 +277,10 @@ fid	ST_IsClosed(g)
 105	0
 106	1
 107	0
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `ST_Length(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `ST_NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `ST_AsText(ST_PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `ST_IsClosed(g)` from `test`.`gis_line`
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
 fid	ST_AsText(ST_Centroid(g))
@@ -312,11 +307,10 @@ fid	ST_AsText(ST_InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `ST_Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `ST_NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `ST_AsText(ST_InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
 fid	ST_IsClosed(g)
@@ -352,11 +346,10 @@ SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
 fid	ST_NumGeometries(g)
 120	2
 121	2
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `ST_NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 fid	ST_AsText(ST_GeometryN(g, 2))
@@ -381,11 +374,10 @@ SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
 fid	ST_AsText(ST_GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `ST_AsText(ST_GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
@@ -397,7 +389,7 @@ first	second	w	c	o	e	d	t	i	r
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	0	1	0
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
@@ -406,7 +398,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -427,7 +418,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT NOT NULL;
 SHOW FIELDS FROM t1;
@@ -438,41 +429,37 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 fid	int(11)	NO		NULL	
 DROP TABLE t1;
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))
 POINT(1 4)
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))`
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
-SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
-ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))
-101
-explain extended SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
+Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_pointfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
+SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
+ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'))
+0
+explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_srid(st_geometryfromtext('LineString(1 1,2 2)',101)) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))`
-explain extended select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
+Note	1003	/* select#1 */ select st_srid(st_geomfromtext('LineString(1 1,2 2)')) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'))`
+explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `ST_issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `ST_issimple(Point(3, 6))`
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -480,7 +467,7 @@ insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
 drop table t1;
-create table t1(a geometry not null, spatial index(a));
+create table t1(a geometry not null SRID 0, spatial index(a));
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -499,7 +486,7 @@ MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 ST_AsText(a)
 POINT(1 1)
 drop table t1;
-CREATE TABLE t1 (Coordinates POINT NOT NULL, SPATIAL INDEX(Coordinates));
+CREATE TABLE t1 (Coordinates POINT NOT NULL SRID 0, SPATIAL INDEX(Coordinates));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)'));
@@ -588,19 +575,15 @@ INSERT INTO t1 VALUES(ST_GeomFromText('POINT(367894677 368542487)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(580848489 219587743)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
-create table t1 select ST_GeomFromWKB(POINT(1,3));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+create table t1 select ST_GeomFromWKB(St_AsWKB(POINT(1,3)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ST_GeomFromWKB(POINT(1,3))` geometry DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `ST_GeomFromWKB(St_AsWKB(POINT(1,3)))` geometry DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '') ENGINE=MyISAM ;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geo' can't have a default value
+geometry NOT NULL) ENGINE=MyISAM ;
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
 36.306845,-114.989432 36.309452,-114.978275 36.312642,-114.977363
@@ -681,7 +664,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (ST_pointfromtext('point(1,1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 drop table t1;
 select (ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))));
 (ST_asWKT(ST_geomfromwkb((0x000000000140240000000000004024000000000000))))
@@ -696,10 +679,10 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					ST_asbinary(g)	252	4294967295	0	Y	128	0	63
+def					ST_asbinary(g)	252	4294967295	0	Y	128	31	63
 ST_asbinary(g)
 drop table t1;
-create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
+create table t1 (a TEXT, b GEOMETRY NOT NULL SRID 0, SPATIAL KEY(b));
 alter table t1 disable keys;
 load data infile '../../std_data/bad_gis_data.dat' into table t1;
 ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' at row 1
@@ -746,14 +729,14 @@ DROP TABLE t1;
 CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT INTO `t1` VALUES ('','0000-00-00');
 select ST_geomfromtext(col9,col89) as a from t1;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
-geomdata polygon NOT NULL,
+geomdata polygon NOT NULL SRID 0,
 SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 CREATE TABLE t2 (
-geomdata polygon NOT NULL,
+geomdata polygon NOT NULL SRID 0,
 SPATIAL KEY index_geom (geomdata)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 CREATE TABLE t3
@@ -773,7 +756,7 @@ drop table t1;
 drop table t2;
 drop table t3;
 create table t1(col1 geometry default null,col15 geometrycollection not
-null,spatial index(col15),index(col1(15)))engine=myisam;
+null SRID 0,spatial index(col15),index(col1(15)))engine=myisam;
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
@@ -794,7 +777,7 @@ show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return ST_GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
+return ST_GeomFromText("point(1 1)")	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select ST_astext(fn3());
 ST_astext(fn3())
 POINT(1 1)
@@ -886,17 +869,17 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 MBRwithin
 big,center
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
@@ -964,7 +947,7 @@ SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -973,7 +956,7 @@ SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -982,7 +965,7 @@ SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
@@ -1003,7 +986,7 @@ drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 drop table t1;
 #
 # Bug #47780: crash when comparing GIS items from subquery
@@ -1014,10 +997,8 @@ INSERT INTO t1 VALUES
 ST_GEOMFROMTEXT(
 'multipolygon(((1 2,3 4,5 6,7 8,9 8, 1 2),(7 6,5 4,3 2,1 2,3 4, 7 6)))'));
 # must not crash
-SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
+SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(b)) FROM t1);
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 DROP TABLE t1;
 #
 # Bug #49250 : spatial btree index corruption and crash
@@ -1053,10 +1034,10 @@ ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=ST_POLYFROMWKB(@a);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22023: Invalid GIS data provided to function st_polyfromwkb.
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=ST_POLYFROMWKB(@a);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22023: Invalid GIS data provided to function st_polyfromwkb.
 create table t1(a polygon NOT NULL)engine=myisam;
 insert into t1 values (ST_geomfromtext("point(0 1)"));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -1139,11 +1120,11 @@ DROP TABLE g1;
 #
 # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
 #
-CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
+CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255))) charset latin1;
 INSERT INTO g1 VALUES ('a'),('a');
 SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = ST_geomfromtext('') OR a) ;
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE g1;
 #
 # Bug#16451878 GEOMETRY QUERY CRASHES SERVER
@@ -1224,72 +1205,72 @@ ST_PolyFromText(
 (52 18,66 23,73 9,48 6,52 18), 
 (59 18,67 18,67 13,59 13,59 18) 
 )', 
-101));
+0));
 # Road Segments
 INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101));
+'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,0));
 INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
 ST_LineFromText( 
-'LINESTRING( 44 31, 56 34, 70 38 )' ,101));
+'LINESTRING( 44 31, 56 34, 70 38 )' ,0));
 INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 72 48 )' ,101));
+'LINESTRING( 70 38, 72 48 )' ,0));
 INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 84 42 )' ,101));
+'LINESTRING( 70 38, 84 42 )' ,0));
 INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
 1, 
 ST_LineFromText( 
-'LINESTRING( 28 26, 28 0 )',101));
+'LINESTRING( 28 26, 28 0 )',0));
 # DividedRoutes 
 INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
 ST_MLineFromText( 
 'MULTILINESTRING((10 48,10 21,10 0), 
-(16 0,16 23,16 48))', 101));
+(16 0,16 23,16 48))', 0));
 # Forests 
 INSERT INTO forests VALUES(109, 'Green Forest', 
 ST_MPolyFromText( 
 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
-101));
+0));
 # Bridges 
 INSERT INTO bridges VALUES(110, 'Cam Bridge', ST_PointFromText( 
-'POINT( 44 31 )', 101));
+'POINT( 44 31 )', 0));
 # Streams 
 INSERT INTO streams VALUES(111, 'Cam Stream', 
 ST_LineFromText( 
-'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101));
+'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 0));
 INSERT INTO streams VALUES(112, NULL, 
 ST_LineFromText( 
-'LINESTRING( 76 0, 78 4, 73 9 )', 101));
+'LINESTRING( 76 0, 78 4, 73 9 )', 0));
 # Buildings 
 INSERT INTO buildings VALUES(113, '123 Main Street', 
 ST_PointFromText( 
-'POINT( 52 30 )', 101), 
+'POINT( 52 30 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101));
+'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 0));
 INSERT INTO buildings VALUES(114, '215 Main Street', 
 ST_PointFromText( 
-'POINT( 64 33 )', 101), 
+'POINT( 64 33 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101));
+'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 0));
 # Ponds 
 INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
 ST_MPolyFromText( 
 'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
-( ( 26 44, 26 40, 28 42, 26 44) ) )', 101));
+( ( 26 44, 26 40, 28 42, 26 44) ) )', 0));
 # Named Places 
 INSERT INTO named_places VALUES(117, 'Ashton', 
 ST_PolyFromText( 
-'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101));
+'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 0));
 INSERT INTO named_places VALUES(118, 'Goose Island', 
 ST_PolyFromText( 
-'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101));
+'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 0));
 # Map Neatlines 
 INSERT INTO map_neatlines VALUES(115, 
 ST_PolyFromText( 
-'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101));
+'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 0));
 #
 # C.3.3.3 Geometry types and functions schema test queries 
 
@@ -1312,17 +1293,17 @@ WHERE name = 'Goose Island';
 ST_AsText(boundary)
 POLYGON((67 13,67 18,59 18,59 13,67 13))
 # Conformance Item T9 
-SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101)) 
+SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),0)) 
 FROM named_places 
 WHERE name = 'Goose Island';
-ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101))
+ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),0))
 POLYGON((67 13,67 18,59 18,59 13,67 13))
 # Conformance Item T10 
 SELECT ST_SRID(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
 ST_SRID(boundary)
-101
+0
 # Conformance Item T11 
 SELECT ST_IsEmpty(centerline) 
 FROM road_segments 
@@ -1446,25 +1427,25 @@ ST_Area(shores)
 8
 # Conformance Item T37 
 SELECT ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',0))
 FROM named_places
 WHERE name = 'Goose Island';
 ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',0))
 1
 SELECT ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',4145))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 101 and 1, which should have been identical.
-# Conformance Item T38 
+ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 0 and 4145, which should have been identical.
+# Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 
 WHERE divided_routes.name = 'Route 75' 
 AND named_places.name = 'Ashton';
 ST_Disjoint(centerlines, boundary)
 1
-# Conformance Item T39 
+# Conformance Item T39
 SELECT ST_Touches(centerline, shore) 
 FROM streams, lakes 
 WHERE streams.name = 'Cam Stream' 
@@ -1478,14 +1459,14 @@ WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75';
 ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 1
-# Conformance Item T43 
+# Conformance Item T43
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
 ST_Intersects(road_segments.centerline, divided_routes.centerlines)
 1
-# Conformance Item T44 
+# Conformance Item T44
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
@@ -1519,7 +1500,7 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton';
 ST_AsText(ST_SymDifference(shore, boundary))
 MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18),(59 18,67 18,67 13,59 13,59 18)),((62 48,56 34,56 30,84 30,84 48,62 48)))
-# Conformance Item T51 
+# Conformance Item T51
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
@@ -1536,7 +1517,7 @@ ERROR 22023: Invalid GIS data provided to function st_union.
 #               BUT IT SHOULDN'T BE.
 #
 USE test;
-CREATE TABLE t1(a POINT NOT NULL, SPATIAL KEY(a)) engine=myisam;
+CREATE TABLE t1(a POINT NOT NULL SRID 0, SPATIAL KEY(a)) engine=myisam;
 # Check that normal INSERT gives error
 INSERT INTO t1 VALUES ("");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
@@ -1611,16 +1592,16 @@ CREATE TABLE t1(g GEOMETRY);
 INSERT INTO t1 VALUES (Point(-1*0e0, -1*0e0)), (Point(0, 0));
 SELECT ST_AsGeoJSON(g) AS GeoJSON, HEX(ST_AsBinary(g)) AS WKB FROM t1;
 GeoJSON	WKB
-{"type": "Point", "coordinates": [-0, -0]}	010100000000000000000000800000000000000080
-{"type": "Point", "coordinates": [0, 0]}	010100000000000000000000000000000000000000
+{"type": "Point", "coordinates": [-0.0, -0.0]}	010100000000000000000000800000000000000080
+{"type": "Point", "coordinates": [0.0, 0.0]}	010100000000000000000000000000000000000000
 SELECT ST_AsGeoJSON(g, 30) AS GeoJSON, HEX(ST_AsBinary(g)) AS WKB FROM t1;
 GeoJSON	WKB
-{"type": "Point", "coordinates": [-0, -0]}	010100000000000000000000800000000000000080
-{"type": "Point", "coordinates": [0, 0]}	010100000000000000000000000000000000000000
+{"type": "Point", "coordinates": [-0.0, -0.0]}	010100000000000000000000800000000000000080
+{"type": "Point", "coordinates": [0.0, 0.0]}	010100000000000000000000000000000000000000
 DROP TABLE t1;
 SELECT HEX(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-0,-0.0]}')) AS g;
 g
-E6100000010100000000000000000000800000000000000080
+E6100000010100000000000000000000000000000000000080
 SELECT HEX(
 ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-0.0,-0.0]}')) AS g;
 g
@@ -1947,7 +1928,7 @@ SELECT ST_AsText(g) FROM t1;
 ST_AsText(g)
 POINT(0 0)
 POLYGON((0 0,1 0,1 1,0 0))
-GEOMETRYCOLLECTION()
+GEOMETRYCOLLECTION EMPTY
 INSERT INTO t1 VALUES (UNHEX(''));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1 VALUES (UNHEX('00000000'));
@@ -2151,9 +2132,9 @@ ERROR 42000: Too many key parts specified; max 1 parts allowed
 SET @poly1 = ST_GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))');
 CREATE TABLE t1 (
 a INT NOT NULL,
-p POINT NOT NULL,
-l LINESTRING NOT NULL,
-g GEOMETRY NOT NULL,
+p POINT NOT NULL SRID 0,
+l LINESTRING NOT NULL SRID 0,
+g GEOMETRY NOT NULL SRID 0,
 PRIMARY KEY(p),
 SPATIAL KEY idx2 (p),
 SPATIAL KEY idx3 (l),
@@ -2171,7 +2152,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)
@@ -2179,15 +2160,15 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_geometryfromtext('POINT(20 20)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_pointfromtext('POINT(20 20)')))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
 ST_AsText(p)
 DROP TABLE t1;
 CREATE TABLE t1 (
 a INT NOT NULL,
-p POINT NOT NULL,
-l LINESTRING NOT NULL,
-g GEOMETRY NOT NULL,
+p POINT NOT NULL SRID 0,
+l LINESTRING NOT NULL SRID 0,
+g GEOMETRY NOT NULL SRID 0,
 PRIMARY KEY(p),
 SPATIAL KEY idx2 (p),
 SPATIAL KEY idx3 (l),
@@ -2205,7 +2186,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)
@@ -2213,7 +2194,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_geometryfromtext('POINT(20 20)')))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_equals(`test`.`t1`.`p`,<cache>(st_pointfromtext('POINT(20 20)')))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
 ST_AsText(p)
 DROP TABLE t1;
@@ -2284,12 +2265,12 @@ CREATE TABLE t1 (g GEOMETRY);
 INSERT INTO t1 (g) VALUES (ST_GeomFromText("MULTIPOLYGON(((0 7,-3 -14,9 -11,0 7)))"));
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Buffer(g, 2)) FROM t1;
 ST_AsText(ST_Buffer(g, 2))	ST_AsText(ST_Buffer(g, 2))
-POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))	POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))
+POLYGON((1.788854382 7.894427191,1.581542679896 8.224223325896,1.314233720023 8.5075774372,0.997068110519 8.733740229384,0.642077816799 8.894132011549,0.262729718025 8.982668175784,-0.126585271189 8.995990022299,-0.511098133187 8.933592174749,-0.876222023373 8.797841752145,-1.208105635399 8.593888570044,-1.49415866306 8.329469777619,-1.723529424984 8.014616341882,-1.887516533025 7.661272513837,-1.979898987322 7.282842712475,-4.979898987322 -13.717157287525,-4.997098708684 -14.107688196991,-4.938004155957 -14.494105142143,-4.804872892066 -14.861646008221,-4.602790871498 -15.196269794922,-4.339478143841 -15.48519301849,-4.024993928167 -15.717378073466,-3.67135232515 -15.883954897421,-3.292063347729 -15.978559830006,-2.901616804081 -15.997578721042,-2.514928749927 -15.940285000291,9.485071250073 -12.940285000291,9.822682701181 -12.822962745965,10.134020545528 -12.647421440409,10.409141741794 -12.419267258671,10.639259881667 -12.145786646962,10.817025796986 -11.835713619063,10.936762266449 -11.498950822484,10.994645326203 -11.146253282554,10.98882639386 -10.788884924546,10.91949130576 -10.438258843317,10.788854382 -10.105572809,1.788854382 7.894427191))	POLYGON((1.788854382 7.894427191,1.581542679896 8.224223325896,1.314233720023 8.5075774372,0.997068110519 8.733740229384,0.642077816799 8.894132011549,0.262729718025 8.982668175784,-0.126585271189 8.995990022299,-0.511098133187 8.933592174749,-0.876222023373 8.797841752145,-1.208105635399 8.593888570044,-1.49415866306 8.329469777619,-1.723529424984 8.014616341882,-1.887516533025 7.661272513837,-1.979898987322 7.282842712475,-4.979898987322 -13.717157287525,-4.997098708684 -14.107688196991,-4.938004155957 -14.494105142143,-4.804872892066 -14.861646008221,-4.602790871498 -15.196269794922,-4.339478143841 -15.48519301849,-4.024993928167 -15.717378073466,-3.67135232515 -15.883954897421,-3.292063347729 -15.978559830006,-2.901616804081 -15.997578721042,-2.514928749927 -15.940285000291,9.485071250073 -12.940285000291,9.822682701181 -12.822962745965,10.134020545528 -12.647421440409,10.409141741794 -12.419267258671,10.639259881667 -12.145786646962,10.817025796986 -11.835713619063,10.936762266449 -11.498950822484,10.994645326203 -11.146253282554,10.98882639386 -10.788884924546,10.91949130576 -10.438258843317,10.788854382 -10.105572809,1.788854382 7.894427191))
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Difference(g, g)) FROM t1;
 ST_AsText(ST_Buffer(g, 2))	ST_AsText(ST_Difference(g, g))
-POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))	GEOMETRYCOLLECTION()
+POLYGON((1.788854382 7.894427191,1.581542679896 8.224223325896,1.314233720023 8.5075774372,0.997068110519 8.733740229384,0.642077816799 8.894132011549,0.262729718025 8.982668175784,-0.126585271189 8.995990022299,-0.511098133187 8.933592174749,-0.876222023373 8.797841752145,-1.208105635399 8.593888570044,-1.49415866306 8.329469777619,-1.723529424984 8.014616341882,-1.887516533025 7.661272513837,-1.979898987322 7.282842712475,-4.979898987322 -13.717157287525,-4.997098708684 -14.107688196991,-4.938004155957 -14.494105142143,-4.804872892066 -14.861646008221,-4.602790871498 -15.196269794922,-4.339478143841 -15.48519301849,-4.024993928167 -15.717378073466,-3.67135232515 -15.883954897421,-3.292063347729 -15.978559830006,-2.901616804081 -15.997578721042,-2.514928749927 -15.940285000291,9.485071250073 -12.940285000291,9.822682701181 -12.822962745965,10.134020545528 -12.647421440409,10.409141741794 -12.419267258671,10.639259881667 -12.145786646962,10.817025796986 -11.835713619063,10.936762266449 -11.498950822484,10.994645326203 -11.146253282554,10.98882639386 -10.788884924546,10.91949130576 -10.438258843317,10.788854382 -10.105572809,1.788854382 7.894427191))	GEOMETRYCOLLECTION EMPTY
 DROP TABLE t1;
-CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL,
+CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(g));
 INSERT INTO t1(g) VALUES
 (ST_GEOMFROMTEXT('MULTIPOLYGON(((0 7,-3 -14,9 -11,0 7)))'));
@@ -2459,7 +2440,7 @@ t1	CREATE TABLE `t1` (
   `g3` geometry NOT NULL,
   `g4` geometry NOT NULL,
   `g5` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Add a GEOMETRY NOT NULL column to a table with rows
 CREATE TABLE t1 (
@@ -2478,7 +2459,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	NULL
@@ -2489,7 +2470,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, ST_ASTEXT(g) FROM t1;
 i	ST_ASTEXT(g)
 0	POINT(0 0)
@@ -2507,7 +2488,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Convert an INT column without rows to GEOMETRY NOT NULL
 CREATE TABLE t1 (
@@ -2521,13 +2502,9 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g2 GEOMETRY NOT NULL;
 ALTER TABLE t1 CHANGE COLUMN g2 h2 GEOMETRY NOT NULL;
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2535,7 +2512,7 @@ t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `h` geometry NOT NULL,
   `h2` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Convert an INT column with NULL values to GEOMETRY, and then
 # to GEOMETRY NOT NULL
@@ -2549,7 +2526,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	NULL
@@ -2564,7 +2541,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	NULL
@@ -2580,7 +2557,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	NULL
@@ -2592,22 +2569,18 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	NULL
@@ -2623,7 +2596,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT '1'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	1
@@ -2636,7 +2609,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT '1'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	1
@@ -2657,7 +2630,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` int(11) DEFAULT '1'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i	g
 0	1
@@ -2673,7 +2646,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	
@@ -2686,7 +2659,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	
@@ -2703,7 +2676,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	
@@ -2716,7 +2689,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   `g` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
 0	
@@ -2735,19 +2708,15 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN b GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` blob
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 b
                        
@@ -2771,7 +2740,7 @@ t1	CREATE TABLE `t1` (
   `q2` polygon DEFAULT NULL,
   `p3` polygon NOT NULL,
   `q4` polygon NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 p1	q2	p3	q4
 DROP TABLE t1;
@@ -2784,7 +2753,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `p` point DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT ST_AsText(p) FROM t1;
 ST_AsText(p)
 POINT(0 0)
@@ -2803,7 +2772,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `p` point DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT ST_AsText(p) FROM t1;
 ST_AsText(p)
 POINT(0 0)
@@ -2818,7 +2787,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `mp` multipoint NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT ST_AsText(mp) FROM t1;
 ST_AsText(mp)
 MULTIPOINT((1 1))
@@ -2830,7 +2799,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `mp` multipoint NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT ST_AsText(mp) FROM t1;
 ST_AsText(mp)
 MULTIPOINT((1 1))
@@ -2842,7 +2811,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (g GEOMETRY) ENGINE=MyISAM;
 ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
@@ -2850,7 +2819,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Convert a GEOMETRY column with geometry data to GEOMETRY NOT
 # NULL
@@ -2882,7 +2851,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `g` geometry DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT g FROM t1;
 g
 NULL
@@ -2890,19 +2859,15 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `g` geometry DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT g FROM t1;
 g
 NULL
@@ -3077,3 +3042,1432 @@ ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND;
 '2010-10-10 10:10:10' + INTERVAL
 ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND
 2010-10-10 10:10:10
+#
+# Bug #22819614 OUT OF RANGE SRIDS ARE SILENTLY CAST TO UINT32
+#
+SET @wkt_pt = 'POINT(0 0)';
+SET @wkt_ls = 'LINESTRING(0 0, 1 1)';
+SET @wkt_py = 'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))';
+SET @wkt_mpt = 'MULTIPOINT((0 0))';
+SET @wkt_mls = 'MULTILINESTRING((0 0, 1 1))';
+SET @wkt_mpy = 'MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))';
+SET @wkt_gc = 'GEOMETRYCOLLECTION(POINT(0 0))';
+SET @wkb_pt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_pt));
+SET @wkb_ls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_ls));
+SET @wkb_py = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_py));
+SET @wkb_mpt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+SET @wkb_mls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mls));
+SET @wkb_mpy = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+SET @wkb_gc = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_gc));
+SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, -1));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
+SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, -1));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtxt'
+SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, -1));
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromtext'
+SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, -1));
+ERROR 22003: SRID value is out of range in 'st_linefromtext'
+SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, -1));
+ERROR 22003: SRID value is out of range in 'st_linestringfromtext'
+SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, -1));
+ERROR 22003: SRID value is out of range in 'st_mlinefromtext'
+SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, -1));
+ERROR 22003: SRID value is out of range in 'st_mpointfromtext'
+SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, -1));
+ERROR 22003: SRID value is out of range in 'st_mpolyfromtext'
+SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, -1));
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromtext'
+SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, -1));
+ERROR 22003: SRID value is out of range in 'st_multipointfromtext'
+SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, -1));
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromtext'
+SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_pointfromtext'
+SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, -1));
+ERROR 22003: SRID value is out of range in 'st_polyfromtext'
+SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, -1));
+ERROR 22003: SRID value is out of range in 'st_polygonfromtext'
+SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, -1));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromwkb'
+SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, -1));
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromwkb'
+SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_geomfromwkb'
+SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, -1));
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
+SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, -1));
+ERROR 22003: SRID value is out of range in 'st_linestringfromwkb'
+SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, -1));
+ERROR 22003: SRID value is out of range in 'st_mlinefromwkb'
+SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, -1));
+ERROR 22003: SRID value is out of range in 'st_mpointfromwkb'
+SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, -1));
+ERROR 22003: SRID value is out of range in 'st_mpolyfromwkb'
+SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, -1));
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromwkb'
+SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, -1));
+ERROR 22003: SRID value is out of range in 'st_multipointfromwkb'
+SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, -1));
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromwkb'
+SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, -1));
+ERROR 22003: SRID value is out of range in 'st_pointfromwkb'
+SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, -1));
+ERROR 22003: SRID value is out of range in 'st_polyfromwkb'
+SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, -1));
+ERROR 22003: SRID value is out of range in 'st_polygonfromwkb'
+SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 0));
+ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 0))
+0
+SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 0));
+ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 0))
+0
+SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 0));
+ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 0))
+0
+SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 0));
+ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 0))
+0
+SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 0));
+ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 0))
+0
+SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 0));
+ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 0))
+0
+SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 0));
+ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 0))
+0
+SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 0));
+ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 0))
+0
+SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 0));
+ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 0))
+0
+SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 0));
+ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 0))
+0
+SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 0));
+ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 0))
+0
+SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 0));
+ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 0))
+0
+SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 0));
+ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 0))
+0
+SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 0));
+ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 0))
+0
+SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, 0));
+ST_SRID(ST_POLYFROMTEXT(@wkt_py, 0))
+0
+SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 0));
+ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 0))
+0
+SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
+SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromtxt'
+SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromtext'
+SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
+SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_linefromtext'
+SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_linestringfromtext'
+SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mlinefromtext'
+SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mpointfromtext'
+SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mpolyfromtext'
+SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromtext'
+SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multipointfromtext'
+SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromtext'
+SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_pointfromtext'
+SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_polyfromtext'
+SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_polygonfromtext'
+SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geomcollfromwkb'
+SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geometrycollectionfromwkb'
+SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
+SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_geomfromwkb'
+SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_linefromwkb'
+SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_linestringfromwkb'
+SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mlinefromwkb'
+SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mpointfromwkb'
+SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_mpolyfromwkb'
+SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multilinestringfromwkb'
+SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multipointfromwkb'
+SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_multipolygonfromwkb'
+SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_pointfromwkb'
+SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_polyfromwkb'
+SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967296));
+ERROR 22003: SRID value is out of range in 'st_polygonfromwkb'
+#
+# Bug #22883056 INCORRECT FUNCTION REFERENCED IN SPATIAL ERROR MESSAGE
+# ERROR 3037 (22023)
+#
+SET @wkt_pt = 'POINT(0 0)';
+SET @wkt_ls = 'LINESTRING(0 0, 1 1)';
+SET @wkt_py = 'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))';
+SET @wkt_mpt = 'MULTIPOINT((0 0))';
+SET @wkt_mls = 'MULTILINESTRING((0 0, 1 1))';
+SET @wkt_mpy = 'MULTIPOLYGON(((0 0, 10 0, 10 10, 0 10, 0 0)))';
+SET @wkt_gc = 'GEOMETRYCOLLECTION(POINT(0 0))';
+SET @wkb_pt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_pt));
+SET @wkb_ls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_ls));
+SET @wkb_py = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_py));
+SET @wkb_mpt = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpt));
+SET @wkb_mls = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mls));
+SET @wkb_mpy = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_mpy));
+SET @wkb_gc = ST_ASWKB(ST_GEOMFROMTEXT(@wkt_gc));
+# WKT functions
+DO ST_GEOMCOLLFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geomcollfromtext.
+DO ST_GEOMCOLLFROMTEXT(@wkt_mpt);
+DO ST_GEOMCOLLFROMTEXT(@wkt_mls);
+DO ST_GEOMCOLLFROMTEXT(@wkt_mpy);
+DO ST_GEOMCOLLFROMTEXT(@wkt_gc);
+DO ST_GEOMCOLLFROMTXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geomcollfromtxt.
+DO ST_GEOMCOLLFROMTXT(@wkt_mpt);
+DO ST_GEOMCOLLFROMTXT(@wkt_mls);
+DO ST_GEOMCOLLFROMTXT(@wkt_mpy);
+DO ST_GEOMCOLLFROMTXT(@wkt_gc);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_geometrycollectionfromtext.
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mpt);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mls);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_mpy);
+DO ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc);
+DO ST_GEOMETRYFROMTEXT(@wkt_pt);
+DO ST_GEOMETRYFROMTEXT(@wkt_ls);
+DO ST_GEOMETRYFROMTEXT(@wkt_py);
+DO ST_GEOMETRYFROMTEXT(@wkt_mpt);
+DO ST_GEOMETRYFROMTEXT(@wkt_mls);
+DO ST_GEOMETRYFROMTEXT(@wkt_mpy);
+DO ST_GEOMETRYFROMTEXT(@wkt_gc);
+DO ST_GEOMFROMTEXT(@wkt_pt);
+DO ST_GEOMFROMTEXT(@wkt_ls);
+DO ST_GEOMFROMTEXT(@wkt_py);
+DO ST_GEOMFROMTEXT(@wkt_mpt);
+DO ST_GEOMFROMTEXT(@wkt_mls);
+DO ST_GEOMFROMTEXT(@wkt_mpy);
+DO ST_GEOMFROMTEXT(@wkt_gc);
+DO ST_LINEFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_ls);
+DO ST_LINEFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_linefromtext.
+DO ST_LINEFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_linefromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_ls);
+DO ST_LINESTRINGFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromtext.
+DO ST_LINESTRINGFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_linestringfromtext.
+DO ST_MLINEFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_mls);
+DO ST_MLINEFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromtext.
+DO ST_MLINEFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_mlinefromtext.
+DO ST_MPOINTFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_mpt);
+DO ST_MPOINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromtext.
+DO ST_MPOINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_mpointfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromtext.
+DO ST_MPOLYFROMTEXT(@wkt_mpy);
+DO ST_MPOLYFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_mpolyfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mls);
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromtext.
+DO ST_MULTILINESTRINGFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_multilinestringfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_mpt);
+DO ST_MULTIPOINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromtext.
+DO ST_MULTIPOINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_multipointfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromtext.
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_mpy);
+DO ST_MULTIPOLYGONFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_multipolygonfromtext.
+DO ST_POINTFROMTEXT(@wkt_pt);
+DO ST_POINTFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_py);
+ERROR 22S01: WKT value is a geometry of unexpected type POLYGON in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_pointfromtext.
+DO ST_POINTFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_pointfromtext.
+DO ST_POLYFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_py);
+DO ST_POLYFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_polyfromtext.
+DO ST_POLYFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_polyfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_pt);
+ERROR 22S01: WKT value is a geometry of unexpected type POINT in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_ls);
+ERROR 22S01: WKT value is a geometry of unexpected type LINESTRING in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_py);
+DO ST_POLYGONFROMTEXT(@wkt_mpt);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOINT in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_mls);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTILINESTRING in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_mpy);
+ERROR 22S01: WKT value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromtext.
+DO ST_POLYGONFROMTEXT(@wkt_gc);
+ERROR 22S01: WKT value is a geometry of unexpected type GEOMCOLLECTION in st_polygonfromtext.
+# WKB functions
+DO ST_GEOMCOLLFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(@wkb_mpt);
+DO ST_GEOMCOLLFROMWKB(@wkb_mls);
+DO ST_GEOMCOLLFROMWKB(@wkb_mpy);
+DO ST_GEOMCOLLFROMWKB(@wkb_gc);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mpt);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mls);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_mpy);
+DO ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc);
+DO ST_GEOMETRYFROMWKB(@wkb_pt);
+DO ST_GEOMETRYFROMWKB(@wkb_ls);
+DO ST_GEOMETRYFROMWKB(@wkb_py);
+DO ST_GEOMETRYFROMWKB(@wkb_mpt);
+DO ST_GEOMETRYFROMWKB(@wkb_mls);
+DO ST_GEOMETRYFROMWKB(@wkb_mpy);
+DO ST_GEOMETRYFROMWKB(@wkb_gc);
+DO ST_GEOMFROMWKB(@wkb_pt);
+DO ST_GEOMFROMWKB(@wkb_ls);
+DO ST_GEOMFROMWKB(@wkb_py);
+DO ST_GEOMFROMWKB(@wkb_mpt);
+DO ST_GEOMFROMWKB(@wkb_mls);
+DO ST_GEOMFROMWKB(@wkb_mpy);
+DO ST_GEOMFROMWKB(@wkb_gc);
+DO ST_LINEFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_ls);
+DO ST_LINEFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_linefromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_ls);
+DO ST_LINESTRINGFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_linestringfromwkb.
+DO ST_MLINEFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_mls);
+DO ST_MLINEFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mlinefromwkb.
+DO ST_MPOINTFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_mpt);
+DO ST_MPOINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mpointfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(@wkb_mpy);
+DO ST_MPOLYFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mpolyfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mls);
+DO ST_MULTILINESTRINGFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multilinestringfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_mpt);
+DO ST_MULTIPOINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multipointfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(@wkb_mpy);
+DO ST_MULTIPOLYGONFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multipolygonfromwkb.
+DO ST_POINTFROMWKB(@wkb_pt);
+DO ST_POINTFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_py);
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_pointfromwkb.
+DO ST_POLYFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_py);
+DO ST_POLYFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polyfromwkb.
+DO ST_POLYFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_polyfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_pt);
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_ls);
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_py);
+DO ST_POLYGONFROMWKB(@wkb_mpt);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_mls);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_mpy);
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(@wkb_gc);
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_polygonfromwkb.
+# WKB functions used on geometry values (MySQL extension)
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geomcollfromwkb.
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_GEOMCOLLFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_geometrycollectionfromwkb.
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_GEOMETRYCOLLECTIONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_GEOMETRYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_GEOMFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linefromwkb.
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linefromwkb.
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linefromwkb.
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linefromwkb.
+DO ST_LINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_linefromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_linestringfromwkb.
+DO ST_LINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_linestringfromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mlinefromwkb.
+DO ST_MLINEFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mlinefromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_mpointfromwkb.
+DO ST_MPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mpointfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_mpolyfromwkb.
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_MPOLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_mpolyfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multilinestringfromwkb.
+DO ST_MULTILINESTRINGFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multilinestringfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_multipointfromwkb.
+DO ST_MULTIPOINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multipointfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_multipolygonfromwkb.
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+DO ST_MULTIPOLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_multipolygonfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+ERROR 22S01: WKB value is a geometry of unexpected type POLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_pointfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_pointfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_pointfromwkb.
+DO ST_POINTFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_pointfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polyfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polyfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polyfromwkb.
+DO ST_POLYFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_polyfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_pt)));
+ERROR 22S01: WKB value is a geometry of unexpected type POINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_ls)));
+ERROR 22S01: WKB value is a geometry of unexpected type LINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_py)));
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpt)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOINT in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mls)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTILINESTRING in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_mpy)));
+ERROR 22S01: WKB value is a geometry of unexpected type MULTIPOLYGON in st_polygonfromwkb.
+DO ST_POLYGONFROMWKB(St_AsWKB(ST_GEOMFROMTEXT(@wkt_gc)));
+ERROR 22S01: WKB value is a geometry of unexpected type GEOMCOLLECTION in st_polygonfromwkb.
+#
+# Bug #23573720 ASSERTION FAILED: GEOMETRY::IS_VALID_GEOTYPE(GT)
+#
+CREATE TABLE t1 (a DECIMAL(54,20));
+INSERT INTO t1 VALUES (0);
+SELECT (SELECT MULTILINESTRING(d.a, d.a, d.a) FROM t1)
+FROM t1 AS d GROUP BY d.a;
+ERROR 22023: Invalid GIS data provided to function multilinestring.
+DROP TABLE t1;
+#
+# Bug #23280574 ASSERTION FAILED: !NO_DATA(NBYTES) IN
+# GEOMETRY::WKB_PARSER::SKIP_UNSAFE()
+#
+DO ST_EXTERIORRING(x'000000000107000000010000000101000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+DO ST_EXTERIORRING(x'000000000107000000010000000102000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+DO ST_EXTERIORRING(x'000000000107000000010000000103000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+DO ST_EXTERIORRING(x'00000000010700000001000000010400000001000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+DO ST_EXTERIORRING(x'00000000010700000001000000010500000001000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+DO ST_EXTERIORRING(x'00000000010700000001000000010600000001000000');
+ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+#
+# Bug #25582178 ASSERTION `LENGTH > 0' FAILED. IN SQL/FIELD.CC:8732
+#
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET sql_mode=@save_sql_mode;
+# Bug #23023817 ST_SIMPLIFY: INVALID READS IN
+# PROTOCOL_CLASSIC::NET_STORE_DATA
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2),(3),(4);
+DO (SELECT DISTINCT SQL_BIG_RESULT ST_SIMPLIFY(POINT(a,1),1) FROM t);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;
+#
+# Bug #26615824 WL10827: SELECT QUERY WITH LIMIT 1 RETURNS ZERO
+# NUMBER OF ROWS
+#
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE SPATIAL INDEX g_idx ON t1(g);
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 ADD SPATIAL INDEX g_idx (g);
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL,
+SPATIAL INDEX g_idx (g)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;
+#
+# Bug #26412713 ASSERTION `THD->IS_ERROR()' FAILED IN SQL/SQL_INSERT.CC
+#
+# Inserting a NULL value in a GEOMETRY NOT NULL column should raise an
+# error, even if using INSERT IGNORE.
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+INSERT IGNORE INTO t1 VALUES (NULL);
+ERROR 23000: Column 'g' cannot be null
+INSERT INTO t1 VALUES (NULL);
+ERROR 23000: Column 'g' cannot be null
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+UPDATE t1 SET g=NULL;
+UPDATE IGNORE t1 SET g=NULL;
+INSERT INTO t1 VALUES (POINT(0, 0));
+UPDATE t1 SET g=NULL;
+ERROR 23000: Column 'g' cannot be null
+UPDATE IGNORE t1 SET g=NULL;
+ERROR 23000: Column 'g' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1(g GEOMETRY NOT NULL);
+INSERT IGNORE INTO t1 VALUES ();
+ERROR HY000: Field 'g' doesn't have a default value
+DROP TABLE t1;
+CREATE TABLE t1(x VARCHAR(10), g GEOMETRY NOT NULL);
+LOAD DATA INFILE 'bug26412713.csv' INTO TABLE t1 (x);
+ERROR HY000: Field 'g' doesn't have a default value
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+CREATE TABLE t1(g GEOMETRY NOT NULL DEFAULT '');
+ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'g' can't have a default value
+SET sql_mode=@save_sql_mode;
+CREATE TABLE t1 (id INT, g GEOMETRY NOT NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT IGNORE INTO v1(id) VALUES(0);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# WL#2388 GeomCollection synonym for GeometryCollection
+#
+# Both GEOMCOLLECTION and GEOMETRYCOLLECTION are allowed as column type.
+CREATE TABLE t1 (g GEOMCOLLECTION);
+INSERT INTO t1 VALUES (GEOMCOLLECTION(POINT(0, 0)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geomcollection DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, COLUMN_NAME, GEOMETRY_TYPE_NAME
+FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+TABLE_NAME	COLUMN_NAME	GEOMETRY_TYPE_NAME
+t1	g	geomcollection
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRYCOLLECTION);
+INSERT INTO t1 VALUES (GEOMETRYCOLLECTION(POINT(0, 0)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geomcollection DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT TABLE_NAME, COLUMN_NAME, GEOMETRY_TYPE_NAME
+FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
+TABLE_NAME	COLUMN_NAME	GEOMETRY_TYPE_NAME
+t1	g	geomcollection
+DROP TABLE t1;
+# Only GEOMETRYCOLLECTION is allowed in WKT.
+DO ST_GEOMFROMTEXT('GEOMCOLLECTION(POINT(0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+DO ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))');
+# The column type is GEOMCOLLECTION.
+SELECT ST_GEOMETRYTYPE(GEOMETRYCOLLECTION(POINT(0, 0)));
+ST_GEOMETRYTYPE(GEOMETRYCOLLECTION(POINT(0, 0)))
+GEOMCOLLECTION
+# The default function name is GEOMCOLLECTION.
+EXPLAIN SELECT GEOMCOLLECTION();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select geomcollection() AS `GEOMCOLLECTION()`
+EXPLAIN SELECT GEOMETRYCOLLECTION();
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select geomcollection() AS `GEOMETRYCOLLECTION()`
+#
+# Bug #27252609 UNABLE TO CREATE INDEX WHEN SPATIAL DATATYPES ARE USED
+# WITH REQUIRED OPTION
+#
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=COPY;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL;
+ERROR 23000: Column 'g2' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "coordinates": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ST_ASTEXT(g1)
+POINT(12.22 11.11)
+SELECT ST_ASTEXT(g2) FROM t1;
+ST_ASTEXT(g2)
+POINT(12.22 11.11)
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR 23000: Column 'g2' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL
+) ENGINE= InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (col1 JSON, col2 VARBINARY(255) GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL);
+INSERT INTO t1 (col1) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+CHANGE COLUMN col2 col2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL NOT NULL;
+DROP TABLE t1;
+SET @saved_sql_mode=@@sql_mode;
+SET SESSION sql_mode='';
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=COPY;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL;
+ERROR 23000: Column 'g2' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "coordinates": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ST_ASTEXT(g1)
+POINT(12.22 11.11)
+SELECT ST_ASTEXT(g2) FROM t1;
+ST_ASTEXT(g2)
+POINT(12.22 11.11)
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR 23000: Column 'g2' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL
+) ENGINE= InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (col1 JSON, col2 VARBINARY(255) GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL);
+INSERT INTO t1 (col1) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+CHANGE COLUMN col2 col2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL NOT NULL;
+DROP TABLE t1;
+SET SESSION sql_mode=@saved_sql_mode;

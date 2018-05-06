@@ -44,6 +44,8 @@ disconnect con1;
 # Begin the functionality Testing of character_set_results  #
 #############################################################
 
+--character_set latin1
+
 --echo 'connection default'
 connection default;
 
@@ -61,12 +63,15 @@ SET NAMES utf8;
 SET @@session.character_set_results = greek;
 SELECT 'ЁЂЃЄ' AS utf_text;
 
+--character_set latin1
 --echo check effect of character_set_results when introducers are used
 SET @@session.character_set_results = latin1;
 SELECT _latin1'M�ller' AS latin1_text;
 SET @@session.character_set_results = ascii;
 SELECT _latin1'M�ller' AS latin1_text;
 
+
+--character_set utf8mb4
 --echo check when we dont want any conversion
 SET @@session.character_set_results = NULL;
 SELECT 'ЁЂЃЄ' AS utf_text;

@@ -1,8 +1,5 @@
 #### suite/funcs_1/storedproc/storedproc_06.inc
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 
@@ -35,8 +32,6 @@ connection default;
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 USE db_storedproc_1;
 --source suite/funcs_1/include/show_connection.inc
@@ -114,7 +109,7 @@ Ensure that root always has the GRANT CREATE ROUTINE privilege.
 let $message= Testcase 3.1.6.3:
               -----------------
 Ensure that a user with the GRANT CREATE ROUTINE privilege can always create
-both a procedure and a function, on any appropriate database.
+both a procedure and a function, on any appropriate database.;
 --source include/show_msg80.inc
 
 

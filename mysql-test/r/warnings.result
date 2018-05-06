@@ -1,3 +1,4 @@
+set @@session.sql_mode='';
 drop table if exists t1, t2;
 SET SQL_WARNINGS=1;
 create table t1 (a int);
@@ -32,18 +33,18 @@ insert into t1 values (1);
 insert ignore into t1 values ("hej");
 Warnings:
 Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
-insert ignore into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej"),("dÃ¥");
 Warnings:
 Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
-Warning	1366	Incorrect integer value: 'då' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'dÃ¥' for column 'a' at row 2
 set SQL_WARNINGS=1;
 insert ignore into t1 values ("hej");
 Warnings:
 Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
-insert ignore into t1 values ("hej"),("då");
+insert ignore into t1 values ("hej"),("dÃ¥");
 Warnings:
 Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
-Warning	1366	Incorrect integer value: 'då' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'dÃ¥' for column 'a' at row 2
 drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
@@ -73,7 +74,7 @@ create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 Warnings:
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
-Warning	1406	Data too long for column 'd' at row 3
+Warning	1265	Data truncated for column 'd' at row 3
 Warning	1265	Data truncated for column 'c' at row 4
 Warning	1261	Row 5 doesn't contain data for all columns
 Warning	1265	Data truncated for column 'b' at row 6
@@ -93,8 +94,6 @@ Warning	1264	Out of range value for column 'a' at row 3
 Warning	1264	Out of range value for column 'b' at row 3
 Warning	1265	Data truncated for column 'c' at row 3
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t1 modify c char(4);
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
@@ -240,8 +239,6 @@ DROP PROCEDURE IF EXISTS sp3;
 Warnings:
 Note	1305	PROCEDURE test.sp3 does not exist
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE sp1()
 BEGIN
 DECLARE x NUMERIC ZEROFILL;
@@ -287,8 +284,6 @@ create table t2 (c_tinyblob tinyblob);
 set @c = repeat(' ', 256);
 set @q = repeat('q', 256);
 set sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(@c, @c, @c);
 Warnings:
 Note	1265	Data truncated for column 'c_varchar' at row 1
@@ -305,8 +300,6 @@ insert into t2 values(@q);
 Warnings:
 Warning	1265	Data truncated for column 'c_tinyblob' at row 1
 set sql_mode = 'traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(@c, @c, @c);
 Warnings:
 Note	1265	Data truncated for column 'c_varchar' at row 1

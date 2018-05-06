@@ -13,12 +13,12 @@ sync_master_info	10000
 show session variables like 'sync_master_info';
 Variable_name	Value
 sync_master_info	10000
-select * from information_schema.global_variables where variable_name='sync_master_info';
+select * from performance_schema.global_variables where variable_name='sync_master_info';
 VARIABLE_NAME	VARIABLE_VALUE
-SYNC_MASTER_INFO	10000
-select * from information_schema.session_variables where variable_name='sync_master_info';
+sync_master_info	10000
+select * from performance_schema.session_variables where variable_name='sync_master_info';
 VARIABLE_NAME	VARIABLE_VALUE
-SYNC_MASTER_INFO	10000
+sync_master_info	10000
 set global sync_master_info=1;
 select @@global.sync_master_info;
 @@global.sync_master_info

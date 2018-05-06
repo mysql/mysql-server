@@ -1,0 +1,52 @@
+########################################################
+# Test distribution of schema operations with a config
+# having different binlog variants in the mysqld's
+
+########################################################
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+
+# Setup connections
+connect(mysqld1,127.0.0.1,root,,test,$MASTER_MYPORT);
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connect(mysqld3,127.0.0.1,root,,test,$MASTER_MYPORT2);
+connect(mysqld4,127.0.0.1,root,,test,$MASTER_MYPORT3);
+
+connection mysqld1;
+show variables like '%log_update%';
+
+connection mysqld2;
+show variables like '%log_update%';
+
+connection mysqld3;
+show variables like '%log_update%';
+
+connection mysqld4;
+show variables like '%log_update%';
+
+connection mysqld1;
+let $i=100;
+while ($i)
+{
+  eval create table t1(a int) engine=ndb;
+  eval drop table t1;
+  dec $i;
+}
+
+# No lingering 't1' tables on any mysqlds:
+
+connection mysqld1;
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+connection mysqld2;
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+connection mysqld3;
+--error ER_BAD_TABLE_ERROR
+drop table t1;
+
+connection mysqld4;
+--error ER_BAD_TABLE_ERROR
+drop table t1;

@@ -17,8 +17,6 @@
 #
 
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 

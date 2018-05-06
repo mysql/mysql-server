@@ -1,8 +1,5 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#20872655 XA ROLLBACK IS NOT CRASH-SAFE

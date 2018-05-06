@@ -1,13 +1,12 @@
 # Author: Horst Hunger
 # Created: 2010-07-13
 
+# windows does not support symlink
 --source include/not_windows.inc
---source include/have_partition.inc
---source include/have_symlink.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= INNODB;
+let $engine_part= INNODB;
+let $engine_subpart= INNODB;
 
 # DATA DIRECTORY
 # Make directory for partition data
@@ -16,12 +15,7 @@ let $data_dir_path= $MYSQLTEST_VARDIR/mysql-test-data-dir;
 let $p_data_directory= DATA DIRECTORY = '$data_dir_path';
 let $data_directory= DATA DIRECTORY = '$data_dir_path';
 
-# INDEX DIRECTORY
-# Make directory for partition index
-let $idx_dir_path= $MYSQLTEST_VARDIR/mysql-test-idx-dir;
---mkdir $idx_dir_path
-let $p_index_directory= INDEX DIRECTORY = '$idx_dir_path';
-let $index_directory= INDEX DIRECTORY = '$idx_dir_path';
+# INDEX DIRECTORY is not supported by InnoDB for partitions.
 
 use test;
 
@@ -31,12 +25,12 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_TABLES_DIFFERENT_METADATA
+--error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
+--rmdir $data_dir_path/test
 --rmdir $data_dir_path
---rmdir $idx_dir_path
 
 # DATA DIRECTORY
 # Make directory for partition data
@@ -44,11 +38,7 @@ let $data_dir_path= $MYSQLTEST_VARDIR/mysql-test-data-dir;
 --mkdir $data_dir_path
 let $p_data_directory= DATA DIRECTORY = '$data_dir_path';
 
-# INDEX DIRECTORY
-# Make directory for partition index
-let $idx_dir_path= $MYSQLTEST_VARDIR/mysql-test-idx-dir;
---mkdir $idx_dir_path
-let $p_index_directory= INDEX DIRECTORY = '$idx_dir_path';
+# INDEX DIRECTORY is not supported by InnoDB for partitions.
 
 use test;
 
@@ -58,12 +48,12 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_TABLES_DIFFERENT_METADATA
+--error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
+--rmdir $data_dir_path/test
 --rmdir $data_dir_path
---rmdir $idx_dir_path
 
 # DATA DIRECTORY
 # Make directory for partition data
@@ -71,11 +61,7 @@ let $data_dir_path= $MYSQLTEST_VARDIR/mysql-test-data-dir;
 --mkdir $data_dir_path
 let $data_directory= DATA DIRECTORY = '$data_dir_path';
 
-# INDEX DIRECTORY
-# Make directory for partition index
-let $idx_dir_path= $MYSQLTEST_VARDIR/mysql-test-idx-dir;
---mkdir $idx_dir_path
-let $index_directory= INDEX DIRECTORY = '$idx_dir_path';
+# INDEX DIRECTORY is not supported by InnoDB for partitions.
 
 use test;
 
@@ -85,10 +71,10 @@ use test;
 --enable_result_log
 --enable_query_log
 
---error ER_TABLES_DIFFERENT_METADATA
+--error ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
+--rmdir $data_dir_path/test
 --rmdir $data_dir_path
---rmdir $idx_dir_path
 

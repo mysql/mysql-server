@@ -18,13 +18,9 @@
 # current system codepage. (The characters < > are used here for visual
 # clarity and cannot be part of a valid path string.)"
 
---source include/have_innodb.inc
 --source include/windows.inc
 # This will test the limit of a filename in MySQL at 512 bytes.
 # We control that by making it a relative path starting with "./".
-# The embedded server uses an absolute path as the datadir
-# which has a non-deterministic length.
---source include/not_embedded.inc
 
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
@@ -62,12 +58,12 @@ LET $long_name      = this_sixty_four_byte_name_is_not_too_long_________________
 --echo ---- list_files MYSQLD_DATADIR/$long_name
 --list_files $MYSQLD_DATADIR/$long_name
 
-SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
-SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tables WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_tablespaces WHERE name LIKE '%long%';
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
-SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+SELECT path FROM information_schema.innodb_datafiles WHERE path LIKE '%long%';
 --vertical_results
---replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
+--replace_regex /innodb_file_per_table.[0-9]*/innodb_file_per_table.##/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
 --horizontal_results

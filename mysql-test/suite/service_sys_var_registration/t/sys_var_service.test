@@ -1,0 +1,95 @@
+# Base test for registration of system variables by components.
+
+--source ../include/have_component_test_sys_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+--echo # Simple load test
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # Testing integer and bool type variable
+SELECT @@test_component.int_sys_var;
+SELECT @@global.test_component.int_sys_var;
+SELECT @@global.test_component.bool_sys_var;
+SELECT @@test_component.int_sys_var, @@test_component.bool_sys_var;
+--error ER_GLOBAL_VARIABLE
+SET test_component.bool_sys_var=1;
+SET GLOBAL test_component.int_sys_var=7;
+# The max value for the test_component.int_sys_var is 1024.  Hence below SET
+# stmt will set the value to 1024.
+SET GLOBAL test_component.int_sys_var=1234567;
+SELECT @@test_component.int_sys_var;
+# The min value for the test_component.int_sys_var is 0.  Hence below SET stmt
+# will set the value to 0.
+SET GLOBAL test_component.int_sys_var=-1;
+SELECT @@test_component.int_sys_var;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL test_component.int_sys_var=1.25;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL test_component.int_sys_var="hello";
+SET GLOBAL test_component.int_sys_var=123, test_component.bool_sys_var=0;
+SELECT @@test_component.int_sys_var, @@test_component.bool_sys_var;
+--error ER_GLOBAL_VARIABLE
+SET SESSION test_component.int_sys_var=123;
+
+--echo # Testing enum type variable
+SELECT @@test_component.enum_sys_var;
+SET GLOBAL test_component.enum_sys_var="LOW";
+SELECT @@test_component.enum_sys_var;
+
+--echo # Testing string type variable
+SELECT @@test_component.str_sys_var;
+SET GLOBAL test_component.str_sys_var="dictionary.txt";
+SELECT @@test_component.str_sys_var;
+SET GLOBAL test_component.str_sys_var=default;
+SELECT @@test_component.str_sys_var;
+
+--echo # Testing unsigned integer type variable
+SELECT @@test_component.uint_sys_var;
+SET GLOBAL test_component.uint_sys_var=12345678;
+SELECT @@test_component.uint_sys_var;
+SET GLOBAL test_component.uint_sys_var=default;
+SELECT @@test_component.uint_sys_var;
+
+--echo # Testing long type variable
+SELECT @@test_component.long_sys_var;
+SET GLOBAL test_component.long_sys_var=1234567890;
+SELECT @@test_component.long_sys_var;
+SET GLOBAL test_component.long_sys_var=default;
+SELECT @@test_component.long_sys_var;
+
+--echo # Testing unsigned long type variable
+SELECT @@test_component.ulong_sys_var;
+SET GLOBAL test_component.ulong_sys_var=1234567890;
+SELECT @@test_component.ulong_sys_var;
+SET GLOBAL test_component.ulong_sys_var=default;
+SELECT @@test_component.ulong_sys_var;
+
+--echo # Testing long long type variable
+SELECT @@test_component.longlong_sys_var;
+SET GLOBAL test_component.longlong_sys_var=1234567890;
+SELECT @@test_component.longlong_sys_var;
+SET GLOBAL test_component.longlong_sys_var=default;
+SELECT @@test_component.longlong_sys_var;
+
+--echo # Testing unsigned long long type variable
+SELECT @@test_component.ulonglong_sys_var;
+SET GLOBAL test_component.ulonglong_sys_var=1234567890;
+SELECT @@test_component.ulonglong_sys_var;
+SET GLOBAL test_component.ulonglong_sys_var=default;
+SELECT @@test_component.ulonglong_sys_var;
+
+--echo # Testing PERSIST for component system variables
+SET PERSIST test_component.int_sys_var=7;
+SELECT @@test_component.int_sys_var;
+SELECT * FROM performance_schema.persisted_variables;
+RESET PERSIST `test_component.int_sys_var`;
+SELECT * FROM performance_schema.persisted_variables;
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+# Write the test results in "test_component_sys_var_service.log" into the
+# result file of this test
+--echo ########## test_component_sys_var_service.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;

@@ -1,0 +1,54 @@
+-- source include/have_multi_ndb.inc
+
+# Determine if ndb_binlog_index is stored in InnoDB, in such case ALTER it
+# to other engine before running mysql_upgrade
+let $using_innodb = `select (engine = 'InnoDB') from information_schema.tables
+                        where table_name = 'ndb_binlog_index'` ;
+
+# Check that mysql.ndb_binlog_index is in InnoDB
+if (!$using_innodb)
+{
+  die The mysql.ndb_binlog_index is not in Innodb;
+}
+
+connection server2;
+disable_query_log;
+disable_result_log;
+if ($using_innodb)
+{
+  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
+}
+enable_query_log;
+enable_result_log;
+call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+--exec $MYSQL_UPGRADE --force --upgrade-system-tables
+
+connection server1;
+disable_query_log;
+disable_result_log;
+if ($using_innodb)
+{
+  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
+}
+enable_query_log;
+enable_result_log;
+call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
+--exec $MYSQL_UPGRADE --force --upgrade-system-tables
+
+--source suite/ndb_binlog/t/ndb_binlog_purge_lock.inc
+
+disable_query_log;
+disable_result_log;
+connection server2;
+if (!$using_innodb)
+{
+  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
+}
+
+connection server1;
+if (!$using_innodb)
+{
+  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
+}
+enable_query_log;
+enable_result_log;

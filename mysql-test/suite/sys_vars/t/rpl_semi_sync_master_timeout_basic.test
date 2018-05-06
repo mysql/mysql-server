@@ -4,7 +4,6 @@
 #
 # 2010-01-21 OBN - Added 
 #
-source include/not_embedded.inc;
 source include/have_semisync_plugin.inc;
 # The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
 --replace_regex /\.dll/.so/
@@ -19,8 +18,8 @@ select @@session.rpl_semi_sync_master_timeout;
 show global variables like 'rpl_semi_sync_master_timeout';
 show session variables like 'rpl_semi_sync_master_timeout';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='rpl_semi_sync_master_timeout';
-select * from information_schema.session_variables where variable_name='rpl_semi_sync_master_timeout';
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_master_timeout';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_master_timeout';
 --enable_warnings
 
 #
@@ -35,8 +34,8 @@ select @@session.rpl_semi_sync_master_timeout;
 show global variables like 'rpl_semi_sync_master_timeout';
 show session variables like 'rpl_semi_sync_master_timeout';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='rpl_semi_sync_master_timeout';
-select * from information_schema.session_variables where variable_name='rpl_semi_sync_master_timeout';
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_master_timeout';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_master_timeout';
 --enable_warnings
 
 #

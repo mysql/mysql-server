@@ -1,7 +1,6 @@
 # Created: Horst Hunger 2014-05-19
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # Save the global value to be used to restore the original value.
@@ -12,7 +11,8 @@ SET @@global.autocommit= OFF;
 --enable_connect_log
 # This count may not be 1, because of the probably existing connections
 # from the previous/parallel test runs
-let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST`;
+let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE USER != 'event_scheduler'`;
 
 # test case 2.1.1 3)
 # Create 3 non-super users

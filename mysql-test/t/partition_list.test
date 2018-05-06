@@ -3,7 +3,6 @@
 # Simple test for the partition storage engine
 # testing list partitioning
 #
--- source include/have_partition.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -141,9 +140,9 @@ insert into t1 values (0,0),(0,1),(1,0),(1,1),(null,0),(null,1);
 insert into t1 values (2,0),(2,1),(3,0),(3,1);
 
 analyze table t1;
-explain partitions select * from t1 where a is null;
+explain select * from t1 where a is null;
 select * from t1 where a is null;
-explain partitions select * from t1 where a = 2;
+explain select * from t1 where a = 2;
 select * from t1 where a = 2;
 select * from t1 where a <= 0;
 select * from t1 where a < 3;
@@ -285,3 +284,51 @@ create table t1 (a char(1))
 partition by list (ascii(ucase(a)))
 (partition p1 values in (2));
 
+--echo # partition list directory
+
+SET innodb_strict_mode=OFF;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/data;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/idx;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/data;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/idx;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/data;
+mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/idx;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+# Throws warnings on Windows platform
+--disable_warnings
+eval CREATE TABLE t1 (id INTEGER NOT NULL, name VARCHAR(30), adate DATE)
+PARTITION BY LIST(YEAR(adate))
+(
+  PARTITION p1999 VALUES IN (1995, 1999, 2003)
+    DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/data'
+    INDEX DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/idx',
+  PARTITION p2000 VALUES IN (1996, 2000, 2004)
+    DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/data'
+    INDEX DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2000/idx',
+  PARTITION p2001 VALUES IN (1997, 2001, 2005)
+    DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/data'
+    INDEX DIRECTORY = '$MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p2001/idx'
+);
+--enable_warnings
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+INSERT INTO t1 VALUES(1,'abc','1994-01-01');
+INSERT INTO t1 VALUES(2,'abc','1995-01-01');
+INSERT INTO t1 VALUES(3,'abc','1996-01-01');
+INSERT INTO t1 VALUES(4,'abc','1997-01-01');
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+INSERT INTO t1 VALUES(5,'abc','1998-01-01');
+INSERT INTO t1 VALUES(6,'abc','1999-01-01');
+INSERT INTO t1 VALUES(7,'abc','2000-01-01');
+INSERT INTO t1 VALUES(8,'abc','2001-01-01');
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+INSERT INTO t1 VALUES(9,'abc','2002-01-01');
+INSERT INTO t1 VALUES(10,'abc','2003-01-01');
+INSERT INTO t1 VALUES(11,'abc','2004-01-01');
+INSERT INTO t1 VALUES(12,'abc','2005-01-01');
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+INSERT INTO t1 VALUES(13,'abc','2006-01-01');
+DROP TABLE t1;

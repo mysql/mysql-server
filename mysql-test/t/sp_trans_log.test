@@ -1,8 +1,5 @@
-# binlog disabled in embedded server
--- source include/not_embedded.inc
 
 # part of sp_trans test that appeared to be sensitive to binlog format
---source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 
 #

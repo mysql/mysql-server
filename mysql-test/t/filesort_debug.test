@@ -1,12 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
---source include/not_embedded.inc
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 
@@ -205,3 +199,35 @@ SELECT (SELECT 1 FROM t2 GROUP BY d, a_t2 HAVING c) FROM t1 GROUP BY (1=2);
 DROP TABLE t1, t2;
 
 SET sql_mode=default;
+
+--echo #
+--echo # Bug #27041420: ASSERTION `LENGTH == 3' FAILED.
+--echo #
+CREATE TABLE t1(a DATE);
+INSERT INTO t1 VALUES('1000-01-01'), ('2017-10-31');
+# Date field uses latin1_swedish_ci as default collation.
+SELECT HEX(WEIGHT_STRING(a)) FROM t1;
+# Force date field use uca collation to get weight string,
+# and get odd number's weight.
+SELECT HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 3, 3, 0xC0)) FROM t1;
+# Force date field use uca collation to get weight string,
+# and get even number's weight.
+SELECT HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 4, 3, 0xC0)) FROM t1;
+DROP TABLE t1;
+--echo #
+--echo # Bug #27041543: ASSERTION `MAX_LENGTH >= LENGTH' FAILED.
+--echo #
+SET NAMES utf8,@@character_set_results=NULL;
+CREATE TEMPORARY TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
+DROP TABLE t1;
+
+CREATE TABLE t1 AS SELECT 1 AS a WHERE false;
+CREATE TABLE t2 AS SELECT @x:=makedate(a,a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT @a:=@b:=@x:=makedate(a,a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+DROP TABLE t1;

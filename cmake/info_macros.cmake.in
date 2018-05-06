@@ -1,17 +1,24 @@
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 
 # Handle/create the "INFO_*" files describing a MySQL (server) binary.
@@ -36,8 +43,21 @@ SET(CMAKE_HOST_SYSTEM "@CMAKE_HOST_SYSTEM@")
 SET(CMAKE_HOST_SYSTEM_PROCESSOR "@CMAKE_HOST_SYSTEM_PROCESSOR@")
 SET(CMAKE_SYSTEM "@CMAKE_SYSTEM@")
 SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
- 
- 
+SET(CWD_DEFINITIONS "@CWD_DEFINITIONS@")
+SET(CMAKE_C_FLAGS "@CMAKE_C_FLAGS@")
+SET(CMAKE_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
+SET(CMAKE_BUILD_TYPE "@CMAKE_BUILD_TYPE@")
+SET(BUILD_IS_SINGLE_CONFIG "@BUILD_IS_SINGLE_CONFIG@")
+SET(CMAKE_C_FLAGS_DEBUG "@CMAKE_C_FLAGS_DEBUG@")
+SET(CMAKE_CXX_FLAGS_DEBUG "@CMAKE_CXX_FLAGS_DEBUG@")
+SET(CMAKE_C_FLAGS_RELWITHDEBINFO "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "@CMAKE_CXX_FLAGS_RELWITHDEBINFO@")
+SET(CMAKE_CXX_COMPILER_ID "@CMAKE_CXX_COMPILER_ID@")
+SET(CMAKE_CXX_COMPILER_VERSION "@CMAKE_CXX_COMPILER_VERSION@")
+
+SET(COMPILER_ID_AND_VERSION
+  "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+
 # Create an "INFO_SRC" file with information about the source (only).
 # We use "git log", if possible, and the "VERSION" contents.
 #
@@ -47,18 +67,7 @@ SET(CMAKE_SYSTEM_PROCESSOR "@CMAKE_SYSTEM_PROCESSOR@")
 MACRO(CREATE_INFO_SRC target_dir)
   SET(INFO_SRC "${target_dir}/INFO_SRC")
 
-  SET(PERLSCRIPT
-    "use warnings; use POSIX qw(strftime); "
-    "print strftime \"%F %T %z\", localtime;")
-  EXECUTE_PROCESS(
-    COMMAND perl -e "${PERLSCRIPT}"
-    RESULT_VARIABLE result
-    OUTPUT_VARIABLE bdate
-    ERROR_VARIABLE error
-  )
-  IF(error)
-    MESSAGE(STATUS "Could not determine build-date: <${error}>")
-  ENDIF()
+  STRING(TIMESTAMP bdate "%Y-%m-%d %H:%M:%S +0000" UTC)
 
   IF(GIT_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
     # Sources are in a GIT repository: Always update.
@@ -136,16 +145,7 @@ MACRO(CREATE_INFO_BIN)
   IF (WIN32)
     FILE(APPEND ${INFO_BIN} "===== Compiler / generator used: =====\n")
     FILE(APPEND ${INFO_BIN} ${CMAKE_GENERATOR} "\n\n")
-  ELSEIF(UNIX)
-    FILE(APPEND ${INFO_BIN} "===== Compiler flags used (from the 'sql/' subdirectory): =====\n")
-    IF(EXISTS sql/CMakeFiles/sql.dir/flags.make)
-      EXECUTE_PROCESS(COMMAND egrep "^# compile|^C_|^CXX_" sql/CMakeFiles/sql.dir/flags.make OUTPUT_VARIABLE COMPILE_FLAGS)
-      FILE(APPEND ${INFO_BIN} ${COMPILE_FLAGS} "\n")
-    ELSE()
-      FILE(APPEND ${INFO_BIN} "File 'sql/CMakeFiles/sql.dir/flags.make' is not yet found.\n\n")
-    ENDIF()
   ENDIF()
-  FILE(APPEND ${INFO_BIN} "Pointer size: ${CMAKE_SIZEOF_VOID_P}\n\n")
 
   FILE(APPEND ${INFO_BIN} "===== Feature flags used: =====\n")
   IF(EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
@@ -156,6 +156,29 @@ MACRO(CREATE_INFO_BIN)
     FILE(APPEND ${INFO_BIN} "File 'CMakeCache.txt' is not yet found.\n\n")
   ENDIF()
 
+  FILE(APPEND ${INFO_BIN} "===== Compiler flags used: =====\n")
+  IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
+    FILE(APPEND ${INFO_BIN} "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}\n")
+  ENDIF()
+  FILE(APPEND ${INFO_BIN} "Compiler: ${COMPILER_ID_AND_VERSION}\n")
+  FILE(APPEND ${INFO_BIN} "COMPILE_DEFINITIONS: ${CWD_DEFINITIONS}\n")
+  FILE(APPEND ${INFO_BIN} "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}\n")
+  FILE(APPEND ${INFO_BIN} "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}\n")
+  IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
+    STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+    FILE(APPEND ${INFO_BIN}
+      "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}\n")
+    FILE(APPEND ${INFO_BIN}
+      "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}\n")
+  ENDIF()
+  IF(NOT BUILD_IS_SINGLE_CONFIG)
+    FILE(APPEND ${INFO_BIN} "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}\n")
+    FILE(APPEND ${INFO_BIN} "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}\n")
+    FILE(APPEND ${INFO_BIN}
+      "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}\n")
+    FILE(APPEND ${INFO_BIN}
+      "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}\n")
+  ENDIF()
   FILE(APPEND ${INFO_BIN} "===== EOF =====\n")
 ENDMACRO(CREATE_INFO_BIN)
 

@@ -16,32 +16,32 @@ innodb_trx_rseg_n_slots_debug	0
 show session variables like 'innodb_trx_rseg_n_slots_debug';
 Variable_name	Value
 innodb_trx_rseg_n_slots_debug	0
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	0
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+innodb_trx_rseg_n_slots_debug	0
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	0
+innodb_trx_rseg_n_slots_debug	0
 set global innodb_trx_rseg_n_slots_debug=1;
 select @@global.innodb_trx_rseg_n_slots_debug;
 @@global.innodb_trx_rseg_n_slots_debug
 1
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	1
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+innodb_trx_rseg_n_slots_debug	1
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	1
+innodb_trx_rseg_n_slots_debug	1
 set @@global.innodb_trx_rseg_n_slots_debug=0;
 select @@global.innodb_trx_rseg_n_slots_debug;
 @@global.innodb_trx_rseg_n_slots_debug
 0
-select * from information_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+select * from performance_schema.global_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	0
-select * from information_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
+innodb_trx_rseg_n_slots_debug	0
+select * from performance_schema.session_variables where variable_name='innodb_trx_rseg_n_slots_debug';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_TRX_RSEG_N_SLOTS_DEBUG	0
+innodb_trx_rseg_n_slots_debug	0
 set session innodb_trx_rseg_n_slots_debug='some';
 ERROR HY000: Variable 'innodb_trx_rseg_n_slots_debug' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_trx_rseg_n_slots_debug='some';

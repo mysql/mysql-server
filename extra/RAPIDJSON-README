@@ -1,37 +1,29 @@
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ----
 
 The rapidjson library included in this directory is based on
-https://github.com/miloyip/rapidjson, upstream commit
-3a4835e080d213c60842f58f207991fbb1c97f74.
+https://github.com/miloyip/rapidjson, version 1.1.0.
 
-There are three changes made to the library:
-
-1) Two lines have been added to reader.h, which fix an assertion in the library
-   when a JSON document contains illegally escaped unicode characters. See
-   upstream commit b7e34100ed167b8134b41fcff0918895dd4e61fb for the changes.
-
-2) Rapidjson-specific changes in commit 91153f3385c4917a215aa4c7818b3f6265608286
-   have been applied, so that negative zero is handled properly (bug#19504183).
-
-3) The fix for a bug in the parsing of floating point numbers has been
-   applied to reader.h (bug#21384048). See details in the upstream bug
-   report at https://github.com/miloyip/rapidjson/issues/313 and the
-   following upstream commits:
-     - 93d13ad2acc6a52d58e09d84e76826cd36ee64f0
-     - 735354efd328709a8efb6a2a43a584bb85f2de6b
-     - 7708215b609733bcfa06074b67463920c03782e8
+The folder lib/jsonchecker is removed so that we don't include any code licensed
+under the JSON License.

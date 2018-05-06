@@ -1,0 +1,31 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/start_server_common.inc
+
+# Expect no enabled error instruments
+select * from performance_schema.setup_instruments
+  where name in ('error') and enabled='YES';
+
+# Run some statement which are supposed to give errors
+--error ER_BAD_DB_ERROR
+use non_existing_db;
+--error ER_NO_SUCH_TABLE
+SELECT * from non_existing_table;
+
+# Expect no error statistics collected
+
+select * from performance_schema.events_errors_summary_global_by_error
+  where SUM_ERROR_RAISED > 0 OR SUM_ERROR_HANDLED > 0;
+
+select * from performance_schema.events_errors_summary_by_thread_by_error
+  where SUM_ERROR_RAISED > 0 OR SUM_ERROR_HANDLED > 0;
+
+select * from performance_schema.events_errors_summary_by_user_by_error
+  where SUM_ERROR_RAISED > 0 OR SUM_ERROR_HANDLED > 0;
+
+select * from performance_schema.events_errors_summary_by_host_by_error
+  where SUM_ERROR_RAISED > 0 OR SUM_ERROR_HANDLED > 0;
+
+select * from performance_schema.events_errors_summary_by_account_by_error
+  where SUM_ERROR_RAISED > 0 OR SUM_ERROR_HANDLED > 0;
+

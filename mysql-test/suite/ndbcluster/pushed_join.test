@@ -96,4 +96,3 @@ let $push_message =
 
 drop table t1;
 
-

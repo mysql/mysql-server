@@ -61,16 +61,16 @@ SELECT @@global.innodb_autoextend_increment;
 1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='innodb_autoextend_increment ';
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_autoextend_increment';
 @@global.innodb_autoextend_increment  = VARIABLE_VALUE
 1
 SELECT @@global.innodb_autoextend_increment ;
 @@global.innodb_autoextend_increment
 1000
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-WHERE VARIABLE_NAME='innodb_autoextend_increment ';
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_autoextend_increment';
 VARIABLE_VALUE
 1000
 '#---------------------FN_DYNVARS_046_06-------------------------#'

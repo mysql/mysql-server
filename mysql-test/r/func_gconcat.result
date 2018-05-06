@@ -14,11 +14,10 @@ grp	group_concat(c)
 1	a
 2	b,c
 3	E,C,D,d,d,D
-explain extended select grp,group_concat(c) from t1 group by grp;
+explain select grp,group_concat(c) from t1 group by grp;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,group_concat(`test`.`t1`.`c` separator ',') AS `group_concat(c)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(a,c) from t1 group by grp;
 grp	group_concat(a,c)
@@ -85,11 +84,10 @@ grp	group_concat(distinct c order by c desc)
 1	a
 2	c,b
 3	E,D,C
-explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+explain select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` DESC separator ',') AS `group_concat(distinct c order by c desc)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 grp	group_concat(c order by c separator ",")
@@ -106,11 +104,10 @@ grp	group_concat(distinct c order by c separator ",")
 1	a
 2	b,c
 3	C,D,E
-explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+explain select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` ASC separator ',') AS `group_concat(distinct c order by c separator ",")` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
 grp	group_concat(distinct c order by c desc separator ",")
@@ -471,7 +468,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(400) CHARACTER SET cp1250 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select collation(group_concat(a,_koi8r'test')) from t1;
 collation(group_concat(a,_koi8r'test'))
 cp1250_general_ci
@@ -482,13 +479,13 @@ ERROR HY000: Illegal mix of collations (cp1250_general_ci,IMPLICIT) and (koi8r_g
 drop table t1;
 drop table t2;
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp850);
-INSERT INTO t1 VALUES ('À');
+INSERT INTO t1 VALUES ('Ã€');
 SELECT a FROM t1;
 a
-À
+Ã€
 SELECT GROUP_CONCAT(a) FROM t1;
 GROUP_CONCAT(a)
-À
+Ã€
 DROP TABLE t1;
 CREATE TABLE t1 (id int);
 SELECT GROUP_CONCAT(id) AS gc FROM t1 HAVING gc IS NULL;
@@ -629,8 +626,8 @@ create table t1 (f1 int unsigned, f2 varchar(255));
 insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
 select f2,group_concat(f1) from t1 group by f2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	f2	f2	253	255	255	Y	0	0	8
-def					group_concat(f1)	253	400	1	Y	0	0	8
+def	test	t1	t1	f2	f2	253	1020	255	Y	0	0	255
+def					group_concat(f1)	253	1600	1	Y	0	0	255
 f2	group_concat(f1)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	1
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	2
@@ -643,17 +640,17 @@ create table t3 (select group_concat(a) as a from t1 where a = 'a') union
 (select group_concat(b) as a from t1 where a = 'b');
 select charset(a) from t2;
 charset(a)
-latin1
+utf8mb4
 select charset(a) from t3;
 charset(a)
-latin1
-latin1
+utf8mb4
+utf8mb4
 drop table t1, t2, t3;
 set names default;
 create table t1 (c1 varchar(10), c2 int);
 select charset(group_concat(c1 order by c2)) from t1;
 charset(group_concat(c1 order by c2))
-latin1
+utf8mb4
 drop table t1;
 CREATE TABLE t1 (a INT(10), b LONGTEXT, PRIMARY KEY (a));
 SET GROUP_CONCAT_MAX_LEN = 20000000;
@@ -678,12 +675,18 @@ GROUP_CONCAT(a)	x
 1	2,3
 DROP TABLE t1;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1
 (
 x text character set utf8 not null,
 y integer not null
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (repeat('a', 1022), 0), (repeat(_utf8 0xc3b7, 4), 0);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set group_concat_max_len= 1022 + 10;
 select @x:=group_concat(x) from t1 group by y;
 select @@group_concat_max_len, length(@x), char_length(@x), right(@x,12), right(HEX(@x),12);
@@ -742,7 +745,7 @@ insert into t1 values (1,repeat('a',255)),(2,repeat('b',255));
 select f2,group_concat(f1) from t1 group by f2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	f2	f2	253	255	255	Y	0	0	8
-def					group_concat(f1)	252	1024	1	Y	0	0	8
+def					group_concat(f1)	251	1024	1	Y	0	0	8
 f2	group_concat(f1)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	1
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	2
@@ -831,12 +834,14 @@ SET group_concat_max_len= DEFAULT;
 DROP TABLE t1, t2, t3;
 set names latin1;
 create table t1 (id int, name varchar(20)) DEFAULT CHARSET=utf8;
-insert into t1 (id, name) values (1, "óra");
-insert into t1 (id, name) values (2, "óra");
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+insert into t1 (id, name) values (1, "Ã³ra");
+insert into t1 (id, name) values (2, "Ã³ra");
 select b.id, group_concat(b.name) from t1 a, t1 b group by b.id;
 id	group_concat(b.name)
-1	óra,óra
-2	óra,óra
+1	Ã³ra,Ã³ra
+2	Ã³ra,Ã³ra
 drop table t1;
 create table t1(a bit not null);
 insert ignore into t1 values (), (), ();
@@ -993,7 +998,7 @@ GROUP BY t1.a
 DROP TABLE t1, t2;
 CREATE TABLE t1 (f1 INT);
 INSERT INTO t1 VALUES (),();
-EXPLAIN EXTENDED SELECT 1 FROM
+EXPLAIN SELECT 1 FROM
 (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -1001,7 +1006,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	td	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select distinct group_concat(`test`.`td`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
 SELECT 1 FROM
 (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
@@ -1011,11 +1015,11 @@ SELECT 1 FROM
 DROP TABLE t1;
 End of 5.0 tests
 #
-# Bug #52397: another crash with explain extended and group_concat
+# Bug #52397: another crash with explain and group_concat
 #
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0);
-EXPLAIN EXTENDED SELECT 1 FROM
+EXPLAIN SELECT 1 FROM
 (SELECT GROUP_CONCAT(t1.a ORDER BY t1.a ASC) FROM 
 t1 t2, t1 GROUP BY t1.a) AS d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1023,7 +1027,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select group_concat(`test`.`t1`.`a` order by `test`.`t1`.`a` ASC separator ',') AS `GROUP_CONCAT(t1.a ORDER BY t1.a ASC)` from `test`.`t1` `t2` join `test`.`t1` group by `test`.`t1`.`a`) `d`
 DROP TABLE t1;
 End of 5.0 tests
@@ -1054,15 +1057,14 @@ SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t G
 ERROR 22007: Illegal non geometric '(select 1 from (select (1 = group_concat(`test`.`t1`.`f1` separator ',')) AS `1 IN (GROUP_CONCAT(t1.f1))` from `test`.`t1` join `test`.`t1` `t` group by `test`.`t`.`f1`) `d`)' value found during parsing
 DROP TABLE t1;
 #
-# Bug#58396 group_concat and explain extended are still crashy
+# Bug#58396 group_concat and explain are still crashy
 #
 CREATE TABLE t1(a INT);
-EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+EXPLAIN SELECT UPDATEXML('1', a, '1')
 FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
 ERROR HY000: Only constant XPATH queries are supported
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Error	1105	Only constant XPATH queries are supported
 DROP TABLE t1;
 End of 5.1 tests
@@ -1129,15 +1131,15 @@ CREATE TABLE t2 SELECT GROUP_CONCAT(f1 order by f2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `GROUP_CONCAT(f1 order by f2)` mediumtext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `GROUP_CONCAT(f1 order by f2)` longtext
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 SELECT GROUP_CONCAT(UPPER(f1) ORDER BY f2) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `GROUP_CONCAT(UPPER(f1) ORDER BY f2)` mediumtext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `GROUP_CONCAT(UPPER(f1) ORDER BY f2)` longtext
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SET group_concat_max_len= DEFAULT;
 SELECT LENGTH(GROUP_CONCAT(f1 ORDER BY f2)) FROM t1;
@@ -1202,3 +1204,42 @@ a	3
 b,c	5
 SET @@tmp_table_size=default;
 DROP TABLE t1;
+#
+# Bug #25050090: LIMITATION @@GROUP_CONCAT_MAX_LEN IS NOT RESPECTED
+#
+SET group_concat_max_len= 50;
+CREATE TABLE t1 (c VARCHAR(40) NULL DEFAULT NULL) CHARACTER SET utf8mb4;
+CREATE TABLE t2 AS SELECT GROUP_CONCAT(t.c) as c FROM t1 t;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 AS SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t;
+c
+abcdefghijk,pqrstuvwxyz,124567890,010011000111,abc
+Warnings:
+Warning	1260	Row 5 was cut by GROUP_CONCAT()
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+c
+abcdefghijk,pqrstuvwxyz,124567890,010011000111,abc
+
+Warnings:
+Warning	1260	Row 5 was cut by GROUP_CONCAT()
+SET group_concat_max_len= DEFAULT;
+DROP TABLE t1, t2, t3;

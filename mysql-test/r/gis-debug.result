@@ -9,12 +9,12 @@ END|
 #
 # Testing ST_BUFFER with positive distance
 #
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 POINT(0 0)
 dist	buffer	buf_area
 1	POLYGON	3.12
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 LineString(0 1, 1 1)
 dist	buffer	buf_area
@@ -59,10 +59,12 @@ dist	buffer	buf_area
 MultiLineString((0 0,0 1),(3 0,3 1))
 dist	buffer	buf_area
 1	MULTIPOLYGON	10.24
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 1	POLYGON	73.16
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
@@ -71,12 +73,12 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 1	POLYGON	3.12
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 1	POLYGON	8.78
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
@@ -100,12 +102,12 @@ dist	buffer	buf_area
 #
 # Testing ST_BUFFER with zero distance
 #
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 POINT(0 0)
 dist	buffer	buf_area
 0	POINT	0.00
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 LineString(0 1, 1 1)
 dist	buffer	buf_area
@@ -146,10 +148,12 @@ dist	buffer	buf_area
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 dist	buffer	buf_area
 0	MULTILINESTRING	0.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
 0	MULTIPOLYGON	66.00
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
@@ -158,12 +162,12 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 0	POINT	0.00
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 0	LINESTRING	0.00
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
@@ -183,7 +187,7 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
-0	GEOMETRYCOLLECTION	36.00
+0	GEOMCOLLECTION	36.00
 #
 # Testing ST_BUFFER with negative distance
 #
@@ -223,22 +227,24 @@ ERROR HY000: Incorrect arguments to st_buffer
 -----
 MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))
 ERROR HY000: Incorrect arguments to st_buffer
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	POLYGON	8.00
+-1	POLYGON	-6.14
+# Invalid geometry in input
 -----
 MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))
 dist	buffer	buf_area
--1	MULTIPOLYGON	0.30
+-1	MULTIPOLYGON	0.74
 -----
 GeometryCollection(Point(0 0))
 ERROR HY000: Incorrect arguments to st_buffer
 -----
 GeometryCollection(LineString(0 0, 2 2))
 ERROR HY000: Incorrect arguments to st_buffer
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 -----
 GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
@@ -282,7 +288,7 @@ POLYGON
 #
 # Bug#13358363 - ASSERTION: N > 0 && N < SINUSES_CALCULATED*2+1 | GET_N_SINCOS/ADD_EDGE_BUFFER
 #
-DO ST_BUFFER(ST_GEOMCOLLFROMTEXT('linestring(1 1,2 2)'),'');
+DO ST_BUFFER(ST_LINEFROMTEXT('linestring(1 1,2 2)'),'');
 SELECT ST_WITHIN(
 ST_LINESTRINGFROMTEXT(' LINESTRING(3 8,9 2,3 8,3 3,7 6,4 7,4 7,8 1) '),
 ST_BUFFER(ST_MULTIPOLYGONFROMTEXT(' MULTIPOLYGON(((3 5,2 5,2 4,3 4,3 5)),((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4)),((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5))) '),

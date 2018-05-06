@@ -2,39 +2,27 @@ SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
-SET GLOBAL old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET SESSION old_passwords= 2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
+GRANT USAGE ON *.* TO `kristofer`@`localhost`
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
@@ -52,6 +40,3 @@ SELECT USER();
 USER()
 u1@localhost
 DROP USER 'u1'@'localhost';
-SET GLOBAL old_passwords= default;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

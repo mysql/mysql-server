@@ -12,7 +12,7 @@ msg_checksum varchar(128),
 KEY msg_i(msg_prefix))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=1;
+KEY_BLOCK_SIZE=16;
 call mtr.add_suppression(".*");
 Checksum master
 stop slave;

@@ -21,8 +21,7 @@
 ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
---source include/have_openssl.inc
+--source include/have_ssl.inc
 --source include/master-slave.inc
 
 ################################################################################
@@ -31,7 +30,7 @@
 SET SQL_LOG_BIN=0;
 
 --sorted_result
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session', 'mysql.infoschema');
 
 CREATE USER 'plug_user_p' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_p';
 CREATE USER 'plug_user_wp' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_wp';
@@ -41,7 +40,7 @@ CREATE USER 'regular_user_p' IDENTIFIED BY 'password';
 CREATE USER 'regular_user_wp' IDENTIFIED BY '';
 
 --sorted_result
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session', 'mysql.infoschema');
 
 GRANT PROXY ON proxy_user_p to plug_user_p;
 GRANT PROXY ON proxy_user_wp to plug_user_wp;
@@ -65,7 +64,7 @@ SET SQL_LOG_BIN=1;
 #
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST', MASTER_SSL = 1;
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --error ER_SQLTHREAD_WITH_SECURE_SLAVE
@@ -271,7 +270,7 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 #
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
+CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p', MASTER_SSL = 1;
 --source include/start_slave.inc
 --source include/check_slave_is_running.inc
 
@@ -289,14 +288,14 @@ CHANGE MASTER TO MASTER_USER= 'plug_user_wp', MASTER_PASSWORD= 'proxy_user_wp';
 #
 
 --connection slave
-CREATE USER 'ssl_user' IDENTIFIED BY '';
-GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
+CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
+GRANT ALL ON *.* TO ssl_user;
 --source include/stop_slave.inc
 --replace_result $SLAVE_MYPORT SLAVE_MYPORT
 connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);
 --connection con_ssl
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
+CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '' , MASTER_SSL = 0;
 --source include/start_slave.inc
 
 --source include/stop_slave.inc
@@ -317,58 +316,79 @@ call mtr.add_suppression(".*Invalid .* username when attempting to connect to th
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE PASSWORD='secret';
---let $slave_io_errno=1593
+--let $slave_io_errno=13117
 --source include/wait_for_slave_io_error.inc
 
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE USER='root' PASSWORD='secret';
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
-# execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>"`
+# execute it to see if the rewrite generated a (syntatically) valid command
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+--let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+--let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE='dummy-log.000001', MASTER_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+--let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
---let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
+--let $rewritten= `SELECT REPLACE(argument,"= <secret>","= '<secret>'") FROM mysql.general_log WHERE argument LIKE "%PASSWORD = <secret>%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= 2061
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
 --enable_warnings
 

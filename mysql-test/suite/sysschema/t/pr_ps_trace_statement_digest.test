@@ -8,7 +8,6 @@
 #                                                                           #
 #############################################################################
 
--- source include/not_embedded.inc
 # The ps_trace_statement_digest does not work with prepared statements
 # So disable this test with --ps-protocol
 -- source include/no_protocol.inc
@@ -63,3 +62,4 @@ SET @threadid      = NULL,
     @digest.insert = NULL,
     @digest.select = NULL,
     @digest.show   = NULL;
+

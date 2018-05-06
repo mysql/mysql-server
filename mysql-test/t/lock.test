@@ -127,31 +127,31 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (i INT);
 
-LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ, t1 READ;
 UNLOCK TABLES;
 
-LOCK TABLES mysql.time_zone READ, mysql.proc READ, t1 WRITE;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ, t1 WRITE;
 UNLOCK TABLES;
 
-LOCK TABLES mysql.time_zone READ, mysql.proc READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ;
 UNLOCK TABLES;
 
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE;
 UNLOCK TABLES;
 
 # If at least one system table is locked for WRITE, then all other
 # tables should be system tables locked also for WRITE.
 --error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-LOCK TABLES mysql.time_zone READ, mysql.proc WRITE, t1 READ;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name WRITE, t1 READ;
 
 --error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 READ;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE, t1 READ;
 
 --error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-LOCK TABLES mysql.time_zone WRITE, mysql.proc WRITE, t1 WRITE;
+LOCK TABLES mysql.time_zone WRITE, mysql.time_zone_name WRITE, t1 WRITE;
 
 --error ER_WRONG_LOCK_OF_SYSTEM_TABLE
-LOCK TABLES mysql.time_zone READ, mysql.proc WRITE;
+LOCK TABLES mysql.time_zone READ, mysql.time_zone_name WRITE;
 
 DROP TABLE t1;
 
@@ -586,3 +586,21 @@ DROP TABLE m1, t1;
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'user' was not locked with LOCK TABLES");
+--echo #
+--echo # WL#4284: Transactional DDL locking
+--echo #
+--echo # FLUSH PRIVILEGES should not implicitly unlock locked tables.
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (c1 INT);
+LOCK TABLES t1 READ;
+--error ER_TABLE_NOT_LOCKED
+FLUSH PRIVILEGES;
+UNLOCK TABLES;
+FLUSH PRIVILEGES;
+DROP TABLE t1;
+

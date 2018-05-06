@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 SET @start_global_value = @@global.slave_checkpoint_group;
 SELECT @start_global_value;
@@ -12,8 +11,8 @@ select @@session.slave_checkpoint_group;
 show global variables like 'slave_checkpoint_group';
 show session variables like 'slave_checkpoint_group';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='slave_checkpoint_group';
-select * from information_schema.session_variables where variable_name='slave_checkpoint_group';
+select * from performance_schema.global_variables where variable_name='slave_checkpoint_group';
+select * from performance_schema.session_variables where variable_name='slave_checkpoint_group';
 --enable_warnings
 
 #

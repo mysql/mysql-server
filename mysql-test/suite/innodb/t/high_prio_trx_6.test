@@ -6,7 +6,6 @@
 #
 # Outcome: T2 should error.
 
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;

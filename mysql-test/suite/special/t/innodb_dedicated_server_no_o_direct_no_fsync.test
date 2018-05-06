@@ -1,0 +1,266 @@
+#########################################################################
+# Test for autoscaling based on innodb_dedicated_server variable.       #
+#                                                                       #
+#                                                                       #
+# This test checks autoscaling of following variables based on value of #
+# innodb_dedicated_server option                                        #
+#       - innodb_buffer_pool_size                                       #
+#       - innodb_log_file_size                                          #
+#       - innodb_flush_method (Not affected on Windows Platform)        #
+#                                                                       #
+# NOTE: For Windows platform, innodb_flush_method is not affected by    #
+#       innodb_dedicated_server value. So we need not to check for that.#
+#       This test is disabled on Linux as there is a seperate test for  #
+#       that.                                                           #
+#########################################################################
+
+# Make sure not to run on Linux
+let $HAVE_LINUX = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Linux")`;
+if ($HAVE_LINUX)
+{
+  --skip Test requires 'not to be run on linux'
+}
+
+# Make sure this test is not run on PB2 machines
+--source include/is_local_machine.inc
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
+
+##############################################################################
+# Autoscaling is done as per below formula:                                  #
+#       innodb_buffer_pool_size                                              #
+#               server_memory  < 1G ? 128M (same as current default)         #
+#               server_memory <= 4G ? server_memory * 0.5                    #
+#               server_memory  > 4G ? server_memory * 0.75                   #
+#                                                                            #
+#       innodb_log_file_size                                                 #
+#               server_memory  < 1G ? 48M (same as current default)          #
+#               server_memory <= 4G ? 128M                                   #
+#               server_memory <= 8G ? 512M                                   #
+#               server_memory <= 16G ? 1024M                                 #
+#               server_memory  > 16G ? 2048M                                 #
+#                                                                            #
+# Following Perl module calculates server memory and evaluates               #
+#       innodb_buffer_pool_size and                                          #
+#       innodb_log_file_size                                                 #
+# based on above formula.                                                    #
+#                                                                            #
+# NOTE : Memory considered here is in Kilo bytes                             #
+##############################################################################
+perl;
+use Sys::MemInfo qw(totalmem freemem totalswap);
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+$total_mem=&totalmem/1024;
+if ($total_mem < 1048576) {
+    $calculated_buffer_pool_size = 131072;
+    $calculated_log_file_size = 49152;
+} elsif ($total_mem <= 4194304) {
+    $calculated_buffer_pool_size = $total_mem * 0.5;
+    $calculated_log_file_size = 131072;
+} elsif ($total_mem <= 8388608) {
+    $calculated_buffer_pool_size = $total_mem * 0.75;
+    $calculated_log_file_size = 524288;
+} elsif ($total_mem <= 16777216) {
+    $calculated_buffer_pool_size = $total_mem * 0.75;
+    $calculated_log_file_size = 1048576;
+} else {
+    $calculated_buffer_pool_size = $total_mem * 0.75;
+    $calculated_log_file_size = 2097152;
+}
+my $filename="$dir/tmpfile.txt";
+open(my $fh, '>', $filename) or die "Could not open file '$filename' $!";
+print $fh "set \@calculated_buffer_pool_size = $calculated_buffer_pool_size\; \n";
+print $fh "set \@calculated_log_file_size = $calculated_log_file_size\; \n";
+close $fh;
+EOF
+# Perl module ends
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite log files.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New log files created");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored ");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\D+.*  No argument was provided to --log-bin, and --log-bin-index was not used");
+--enable_query_log
+
+--echo
+--echo #########################################
+--echo # INITIAL START                         #
+--echo #  innodb_dedicated_server = OFF        #
+--echo #  innodb_buffer_pool_size = default    #
+--echo #  innodb_log_file_size    = default    #
+--echo #########################################
+
+--disable_query_log
+select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+
+select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
+
+select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+
+--echo
+--echo #########################################
+--echo # RESTART 1                             #
+--echo #  innodb_dedicated_server = ON         #
+--echo #  innodb_buffer_pool_size = autoscaled #
+--echo #  innodb_log_file_size    = autoscaled #
+--echo #########################################
+let $restart_parameters = restart: --innodb_dedicated_server=ON;
+let $explicit_time_out_counter=4000;
+--source include/restart_mysqld.inc
+
+###############################################################################
+#            Get expected values of Buffer pool size and Log file size        #
+###############################################################################
+# Note: If calculated value of innodb_buffer_pool_size evaluates to a value   #
+# that is not equal to or a multiple of                                       #
+#         innodb_buffer_pool_chunk_size * innodb_buffer_pool_instances,       #
+# then innodb_buffer_pool_size is automatically adjusted to a value that is   #
+# equal to or a multiple of                                                   #
+#         innodb_buffer_pool_chunk_size * innodb_buffer_pool_instances        #
+# that is not less than the specified buffer pool size.                       #
+###############################################################################
+--disable_query_log
+--source $MYSQLTEST_VARDIR/tmpfile.txt
+set @innodb_chunk_instance_product = @@global.innodb_buffer_pool_chunk_size/1024 * @@global.innodb_buffer_pool_instances;
+let $expected_innodb_buffer_pool_size = `select ceil(@calculated_buffer_pool_size/@innodb_chunk_instance_product) * @innodb_chunk_instance_product`;
+let $expected_innodb_log_file_size = `select @calculated_log_file_size`;
+--enable_query_log
+
+--disable_query_log
+select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+
+let $actual_innodb_buffer_pool_size = `select  @@global.innodb_buffer_pool_size/1024`;
+--disable_result_log
+eval select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size into @final_pool_size_result;
+--enable_result_log
+--echo 1 expected
+select @final_pool_size_result;
+
+let $actual_innodb_log_file_size = `select  @@global.innodb_log_file_size/1024`;
+--disable_result_log
+eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @final_log_file_size_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_file_size_result;
+
+--echo
+--echo #########################################
+--echo # RESTART 2                             #
+--echo #  innodb_dedicated_server = ON         #
+--echo #  innodb_buffer_pool_size = explicit   #
+--echo #  innodb_log_file_size    = autoscaled #
+--echo #########################################
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M;
+--source include/restart_mysqld.inc
+
+--disable_query_log
+select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+
+select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
+
+let $actual_innodb_log_file_size = `select  @@global.innodb_log_file_size/1024`;
+--disable_result_log
+eval select $expected_innodb_log_file_size = $actual_innodb_log_file_size into @final_log_file_size_result;
+--enable_result_log
+--echo 1 expected
+select @final_log_file_size_result;
+
+--echo # Make sure that the warnings are present in server log.
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_FILE= $server_log;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
+ # innodb_buffer_pool_size;
+--source include/search_pattern.inc
+
+--echo
+--echo #########################################
+--echo # RESTART 3                             #
+--echo #  innodb_dedicated_server = ON         #
+--echo #  innodb_buffer_pool_size = autoscaled #
+--echo #  innodb_log_file_size    = explicit   #
+--echo #########################################
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M;
+--source include/restart_mysqld.inc
+
+--disable_query_log
+select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+
+let $actual_innodb_buffer_pool_size = `select  @@global.innodb_buffer_pool_size/1024`;
+--disable_result_log
+eval select $expected_innodb_buffer_pool_size = $actual_innodb_buffer_pool_size into @final_pool_size_result;
+--enable_result_log
+--echo 1 expected
+select @final_pool_size_result;
+
+select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+
+--echo # Make sure that the warnings are present in server log.
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_FILE= $server_log;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
+--source include/search_pattern.inc
+
+--echo
+--echo #########################################
+--echo # RESTART 4                             #
+--echo #  innodb_dedicated_server = ON         #
+--echo #  innodb_buffer_pool_size = explicit   #
+--echo #  innodb_log_file_size    = explicit   #
+--echo #########################################
+let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M;
+--source include/restart_mysqld.inc
+
+--disable_query_log
+select VARIABLE_VALUE as INNODB_DEDICATED_SERVER from performance_schema.global_variables where VARIABLE_NAME='innodb_dedicated_server';
+select VARIABLE_VALUE/(1024*1024) as BUFFER_POOL_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_buffer_pool_size';
+select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema.global_variables where VARIABLE_NAME='innodb_log_file_size';
+
+--echo # Make sure that the warnings are present in server log.
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_FILE= $server_log;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
+--source include/search_pattern.inc
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
+--source include/search_pattern.inc
+
+
+--enable_query_log
+--remove_file $MYSQLTEST_VARDIR/tmpfile.txt
+
+#######################################################################################
+#     Check if innodb_dedicated_server can be accessed with and without @@ sign       #
+#######################################################################################
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET innodb_dedicated_server = 0;
+SELECT @@innodb_dedicated_server;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_dedicated_server;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET global innodb_dedicated_server = 0;
+SELECT @@global.innodb_dedicated_server;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_dedicated_server=1;
+SELECT @@innodb_dedicated_server;
+
+show global variables like 'innodb_dedicated_server';
+show session variables like 'innodb_dedicated_server';
+
+####################################################################################################
+#     Check if the value of innodb_dedicated_server in GLOBAL Table matches value in variable      #
+####################################################################################################
+
+--echo 1 Expected
+SELECT @@global.innodb_dedicated_server;
+select * from performance_schema.global_variables where variable_name='innodb_dedicated_server';
+select * from performance_schema.session_variables where variable_name='innodb_dedicated_server';
+
+###################################################################################################
+#     Check if innodb_dedicated_server a non-persistent variable                                  #
+###################################################################################################
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set persist_only innodb_dedicated_server=off;

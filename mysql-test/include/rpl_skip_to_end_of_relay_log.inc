@@ -9,9 +9,12 @@
 # updated when the applier thread executes events, not when CHANGE
 # MASTER is used to fast-forward the position as this script does.
 #
+# When used in channels with MASTER_AUTO_POSITION = 1, this include
+# uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc.
+#
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= CHANNEL]
+# [--let $rpl_channel_name= 'NAME']
 # --source include/rpl_skip_to_end_of_relay_log.inc
 #
 # Parameters:
@@ -20,6 +23,12 @@
 #     if you want to operate on any other channel.
 
 --let $include_filename= include/rpl_skip_to_end_of_relay_log.inc
+--let $_for_channel_clause= FOR CHANNEL ''
+if ($rpl_channel_name)
+{
+  --let $_for_channel_clause= FOR CHANNEL $rpl_channel_name
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 if (!$rpl_debug)
@@ -33,6 +42,11 @@ if (!$rpl_debug)
 
 if ($_rsteorl_is_auto_position)
 {
+  if (!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name = 'GTID_FROM_GTID_SET' AND routine_schema = 'test'`)
+  {
+    --die include/rpl_skip_to_end_of_relay_log.inc uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc. Please source it or use "$rpl_gtid_utils= 1" before sourcing include/master_slave.inc
+  }
+
   --let $_rsteorl_received_gtid_set= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
   # Find transactions in relay log which are not in gtid_executed.
   --let $_rsteorl_skip_set= `SELECT GTID_SUBTRACT('$_rsteorl_received_gtid_set', @@GLOBAL.GTID_EXECUTED)`
@@ -51,7 +65,7 @@ if (!$_rsteorl_is_auto_position)
 {
   eval CHANGE MASTER TO RELAY_LOG_FILE = '$relay_log_file',
                         RELAY_LOG_POS = $relay_log_size
-                        FOR CHANNEL '$rpl_channel_name';
+                        $_for_channel_clause;
 }
 
 --source include/start_slave_sql.inc

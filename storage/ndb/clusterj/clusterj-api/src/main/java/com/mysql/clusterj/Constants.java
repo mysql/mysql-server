@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,7 +29,10 @@ package com.mysql.clusterj;
  */
 public interface Constants {
 
-    /** The name of the connection service property */
+	/** The name of the environment variable to set the logger factory */
+	static final String ENV_CLUSTERJ_LOGGER_FACTORY_NAME = "CLUSTERJ_LOGGER_FACTORY";
+
+	/** The name of the connection service property */
     static final String PROPERTY_CLUSTER_CONNECTION_SERVICE = "com.mysql.clusterj.connection.service";
 
     /** The name of the connection string property. For details, see
@@ -63,6 +73,20 @@ public interface Constants {
      */
     static final String PROPERTY_CONNECTION_POOL_NODEIDS = "com.mysql.clusterj.connection.pool.nodeids";
 
+    /** The number of seconds to wait for all sessions to be closed when reconnecting a SessionFactory
+     * due to network failures. The default, 0, indicates that the automatic reconnection to the cluster
+     * due to network failures is disabled. Reconnection can be enabled by using the method
+     * SessionFactory.reconnect(int timeout) and specifying a new timeout value.
+     * @since 7.5.7
+     */
+    static final String PROPERTY_CONNECTION_RECONNECT_TIMEOUT = "com.mysql.clusterj.connection.reconnect.timeout";
+
+    /** The default value of the connection reconnect timeout property. The default means that the
+     * automatic reconnection due to network failures is disabled.
+     * @since 7.5.7
+     */
+    static final int DEFAULT_PROPERTY_CONNECTION_RECONNECT_TIMEOUT = 0;
+
     /** The name of the connection delay property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
      */
@@ -71,28 +95,25 @@ public interface Constants {
     /** The default value of the connection delay property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_DELAY = 5;
 
-    /** The name of the connection autoincrement batch size property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+    /** The name of the connection autoincrement batch size property.
      */
     static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE = "com.mysql.clusterj.connect.autoincrement.batchsize";
 
-    /** The default value of the connection delay property */
+    /** The default value of the connection autoincrement batch size property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE = 10;
 
-    /** The name of the connection autoincrement increment property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+    /** The name of the connection autoincrement step property.
      */
     static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP = "com.mysql.clusterj.connect.autoincrement.increment";
 
-    /** The default value of the connection delay property */
+    /** The default value of the connection autoincrement step property */
     static final long DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP = 1;
 
-    /** The name of the connection autoincrement offset property. For details, see
-     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+    /** The name of the connection autoincrement start property.
      */
     static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START = "com.mysql.clusterj.connect.autoincrement.offset";
 
-    /** The default value of the connection autoincrement offset property */
+    /** The default value of the connection autoincrement start property */
     static final long DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START = 1;
 
     /** The name of the connection verbose property. For details, see
@@ -118,6 +139,22 @@ public interface Constants {
 
     /** The default value of the connection timeout after property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER = 20;
+
+    /** The cpu binding of the receive threads for the connections in the
+     * connection pool. The default is no cpu binding for receive threads.
+     * If this property is specified and connection pool size is not the
+     * default (1), the number of cpuids of the list must match the
+     * connection pool size.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS = "com.mysql.clusterj.connection.pool.recv.thread.cpuids";
+
+    /** The receive thread activation threshold for all connections in the
+     * connection pool. The default is no activation threshold.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = "com.mysql.clusterj.connection.pool.recv.thread.activation.threshold";
+
+    /** The default value of the receive thread activation threshold */
+    static final int DEFAULT_PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = 8;
 
     /** The name of the database property. For details, see the catalogName parameter in the Ndb constructor.
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-constructor">Ndb constructor</a>

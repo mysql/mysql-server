@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -362,7 +361,7 @@ while($n) {
   echo # $hex;
 
   --disable_result_log
-  eval EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
+  eval EXPLAIN SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
   --enable_result_log
   SHOW WARNINGS;
 }
@@ -458,4 +457,29 @@ SELECT (184467440737095 BETWEEN 0 AND 18446744073709551500);
 
 SELECT 184467440737095 >= 0;
 SELECT 0 <= 18446744073709551500;
+
+--echo #
+--echo # Bug#22501606 SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1 RETURNS TRUE
+--echo # Bug#79857 select cast(100 as unsigned) between 1 and -1 returns true
+--echo #
+
+SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1;
+SELECT CAST(100 AS UNSIGNED) NOT BETWEEN 1 AND -1;
+
+SELECT CAST(0 AS UNSIGNED) BETWEEN 0 AND -1;
+SELECT CAST(0 AS UNSIGNED) NOT BETWEEN 0 AND -1;
+
 SET sql_mode = default;
+
+--echo #
+--echo # Bug #27008075: UBSAN: MY_STRNTOLL_8BIT - NEGATION OF XYZ CANNOT BE REPRESENTED IN TYPE
+--echo #
+DO TRIM(-9223372036854775808) XOR '.D-';
+DO OCT(-9223372036854775808);
+
+--echo #
+--echo # Bug#27451113 UBSAN: ITEM_FUNC_MOD::INT_OP
+--echo #              NEGATION OF -9223372036854775808 !
+--echo #
+
+select -9223372036854775808 mod 9223372036854775810 as result;

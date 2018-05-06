@@ -7,10 +7,6 @@
 #               new wrapper t/deadlock_innodb.test
 #
 
-# Can't test this with embedded server
--- source include/not_embedded.inc
-
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 
 --source include/deadlock.inc

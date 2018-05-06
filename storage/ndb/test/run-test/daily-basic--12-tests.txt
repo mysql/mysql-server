@@ -1,0 +1,147 @@
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testIndex
+args: -n Bug60851 T1
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitPkRead T1
+max-time: 180
+
+cmd: testBasic
+args: -n CommitTry626 T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordPKAmbiguity T1 T6 T15
+max-time: 180
+
+cmd: test_event
+args: -n BackwardCompatiblePollInconsistency T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneScanPerTrans T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug50118 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug28717 T1
+max-time: 360
+
+cmd: testDict
+args: -n CreateMaxTables T6
+max-time: 180
+
+cmd: testBasic
+args: -n MassiveRollback3 T1 T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n UnlockScan T1
+max-time: 180
+
+cmd: testSpj
+args: -n ScanJoin
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkDeleteAsynch
+max-time: 180
+
+cmd: testBlobs
+args: -bug 48040 -skip p
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug15587 T1
+max-time: 360
+
+cmd: test_event
+args: -n Apiv2-check_event_queue_cleared T1
+max-time: 180
+
+cmd: testSystemRestart
+args: -n Bug46651 T1
+max-time: 360
+
+cmd: testSystemRestart
+args: -n Bug27434 T1
+max-time: 360
+
+cmd: testDict
+args: -n CreateAndDropAtRandom -l 200 T1
+max-time: 360
+
+cmd: testDict
+args: -n CreateAndDropWithData
+max-time: 540
+
+cmd: testBasic
+args: -n Bug16834333 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug25468 T1
+max-time: 720
+
+cmd: testBasic
+args: -n Fill T13
+max-time: 1440
+
+cmd: testScan
+args: -n ScanRead40 -l 100 T6 D1 D2
+max-time: 720
+
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13
+max-time: 1260
+
+cmd: testIndex
+args: -n NFNR2 T6 T13
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
+max-time: 1620
+
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown D1 D2
+max-time: 1800
+
+cmd: testSystemRestart
+args: -n SR_UNDO T1
+max-time: 2880
+
+cmd: testSystemRestart
+args: -n SR_UNDO D1
+max-time: 2880

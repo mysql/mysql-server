@@ -6,14 +6,14 @@ create table t1 (f1 int primary key) engine=InnoDB;
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1),
 constraint c1 foreign key (f1) references t1(f1)) engine=InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 create table t2 (f1 int primary key,
 constraint c1 foreign key (f1) references t1(f1)) engine=innodb;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 set foreign_key_checks = 0;
 alter table t2 add constraint c1 foreign key (f1) references t1(f1);
-ERROR HY000: Duplicate foreign key constraint name 'test/c1'
+ERROR HY000: Duplicate foreign key constraint name 'c1'
 drop table t2, t1;
 #
 # Bug #20031243 CREATE TABLE FAILS TO CHECK IF FOREIGN KEY COLUMN
@@ -39,7 +39,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `idx` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -48,7 +48,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `ind` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (1, 80);
 INSERT INTO t1 VALUES (2, 81);
 INSERT INTO t1 VALUES (3, 82);
@@ -75,56 +75,43 @@ a	b
 55	5
 INSERT INTO t2 VALUES (56, 6);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE)
-ALTER TABLE t1 CHANGE a id INT;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-1	80
-2	81
-3	82
-4	83
-5	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-51	1
-52	2
-53	3
-54	4
-55	5
+NewDD TODO: Runtime Bug#25722221 - RENAME COLUMN DID NOT UPDATE MYSQL.FOREIGN_KEY_COLUMN_USAGE FOR FK CONSTRAINT
 # Operations on child table
-INSERT INTO t2 VALUES (56, 6);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
-UPDATE t2 SET b = 99 WHERE a = 51;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)
-DELETE FROM t2 WHERE a = 53;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-1	80
-2	81
-3	82
-4	83
-5	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-51	1
-52	2
-54	4
-55	5
-# Operations on parent table
-DELETE FROM t1 WHERE id = 1;
-UPDATE t1 SET id = 50 WHERE id = 5;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-2	81
-3	82
-4	83
-50	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-52	2
-54	4
-55	50
+TODO: Waiting for Bug#24666169
 DROP TABLE t2, t1;
 #
+# Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC
+# LINE 6647
+#
+# Verify that index types that cannot be used as foreign keys are
+# ignored when creating foreign keys.
+set @@foreign_key_checks=0;
+CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
+# Creating a foreign key on a GEOMETRY column is not supported
+ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
+ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+# Adds FULLTEXT and SPATAL indices which cannot be used as foreign keys
+ALTER TABLE t1 ADD FULLTEXT INDEX(a), ADD SPATIAL INDEX(b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+# Adds a foreign key on column with FULLTEXT index.
+# The FULLTEXT index cannot be used and the generated key must be kept
+ALTER TABLE t1 ADD CONSTRAINT fi_a FOREIGN KEY(a) REFERENCES ti2(a);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	1	b	1	b	A	0	32	NULL		SPATIAL			YES
+t1	1	fi_a	1	a	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES
+# Attempt to add a foreign key on column with SPATIAL index.
+# The SPATIAL index cannot be used so this becomes an attempt at
+# creating a foreign key on a GEOMETRY column which is not supported
+ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
+ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+DROP TABLE t1;
+set @@foreign_key_checks= 1;
 # bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART
 # base bug#24818604 [GR]
 #
@@ -134,19 +121,134 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 # restart
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 SELECT * FROM t1;
 c1
 1
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 DROP TABLE t2;
 DROP TABLE t1;
+#
+# BUG#25976199 GROUP_REPLICATION.GR_FOREIGN_CHECKS_DISABLED TEST FAILING
+# ON PB2
+#
+SET foreign_key_checks=0;
+CREATE TABLE child_table (c1 INT PRIMARY KEY,
+FOREIGN KEY (c1) REFERENCES parent_table(c1));
+CREATE TABLE parent_table (c1 INT PRIMARY KEY);
+SET foreign_key_checks=1;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN WHERE
+ID='test/child_table_ibfk_1';
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/child_table_ibfk_1	test/child_table	test/parent_table	1	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS WHERE
+ID='test/child_table_ibfk_1';
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/child_table_ibfk_1	c1	c1	1
+DROP TABLE parent_table;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE child_table;
+DROP TABLE parent_table;
+#
+# Bug#26764604 - INNODB: FAILING ASSERTION: COL_NR < TABLE->N_DEF
+#
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+unique1 int(11) DEFAULT NULL,
+unique2 int(11) DEFAULT NULL,
+two int(11) DEFAULT NULL,
+four int(11) DEFAULT NULL,
+ten int(11) DEFAULT NULL,
+twenty int(11) DEFAULT NULL,
+forty int(11) DEFAULT NULL,
+sixty int(11) DEFAULT NULL,
+eighty int(11) DEFAULT NULL,
+tenPercent int(11) DEFAULT NULL,
+twentyPercent int(11) DEFAULT NULL,
+fiftyPercent int(11) DEFAULT NULL,
+unique1gc int(11) GENERATED ALWAYS AS ((unique1 + unique2)) VIRTUAL,
+unique2gc int(11) GENERATED ALWAYS AS ((unique1 * unique2)) VIRTUAL,
+twogc int(11) GENERATED ALWAYS AS (((two * two) + 1)) VIRTUAL,
+fourgc int(11) GENERATED ALWAYS AS (((four + four) - 1)) VIRTUAL,
+tengc int(11) GENERATED ALWAYS AS ((twogc + ten)) VIRTUAL,
+twentygc int(11) GENERATED ALWAYS AS ((((twenty * twogc) * unique1) % 20)) VIRTUAL,
+fortygc int(11) GENERATED ALWAYS AS (forty) VIRTUAL,
+sixtygc int(11) GENERATED ALWAYS AS (sixty) VIRTUAL,
+eightygc int(11) GENERATED ALWAYS AS ((((eighty - twentygc) - ten) - two)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY allkey(unique1,unique2,two,four,ten,twenty,forty,sixty,eighty,tenPercent,twentyPercent,fiftyPercent),
+KEY kugc1 (unique1gc),
+KEY kugc2 (unique2gc),
+KEY kumixgc1 (unique1gc,unique2gc),
+KEY kgc1 (twogc,fourgc),
+KEY kgc2 (fourgc,tengc),
+KEY kgc3 (tengc,twentygc),
+KEY kgc4 (twentygc,fortygc),
+KEY kgc5 (fortygc,sixtygc),
+KEY kgc6 (sixtygc,eightygc),
+KEY allkeygc(unique1gc,unique2gc,twogc,fourgc,tengc,twentygc,fortygc,sixtygc,eightygc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE t2_fk (
+pk int(11) NOT NULL,
+sixty int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1;
+#
+# Bug#27014308 - UPGRADING TO 8.0.3 FAILS IF FOREIGN KEYS OF EXACTLY 64 CHARACTERS ARE PRESENT
+#
+# test with FK identifier of length exactly 64 characters;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+DROP TABLE child;
+DROP TABLE parent;
+# test with FK identifier of length exactly 65 characters,
+# child table creation should fail
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ERROR 42000: Identifier name 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
+DROP TABLE parent;

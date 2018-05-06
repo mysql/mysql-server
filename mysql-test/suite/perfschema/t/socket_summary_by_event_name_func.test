@@ -13,11 +13,6 @@
 # are consistent with those in socket_summary_by_instance.
 #
 #==============================================================================
-# Embedded server does not support the performance_schema.
---source include/not_embedded.inc
-
-# Not much can happen without the performance schema
---source include/have_perfschema.inc
 
 # Wait for any clients from previous tests to disconnect
 --source ../include/wait_for_pfs_thread_count.inc
@@ -26,7 +21,12 @@
 # happens per SQL statement within our MTR tests. And there is a significant
 # difference between standard statement execution and execution via
 # prepared statement.
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+
+--disconnect default
+--source include/wait_until_disconnected.inc
+--connect (default,localhost,root,,,,)
 
 --source include/turn_off_only_full_group_by.inc
 

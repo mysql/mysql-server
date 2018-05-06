@@ -534,16 +534,8 @@ CREATE DATABASE db_bug7787|
 use db_bug7787|
 CREATE PROCEDURE p1()
 SHOW ENGINE INNODB STATUS; |
-SET @orig_sql_mode= @@sql_mode|
-SET sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''))|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER user_bug7787@localhost|
 GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET sql_mode= @orig_sql_mode|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP DATABASE db_bug7787|
 drop user user_bug7787@localhost|
 use test|
@@ -595,11 +587,11 @@ default_storage_engine	MyISAM
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW GLOBAL VARIABLES LIKE 'default_storage_engine'|
 Variable_name	Value
 default_storage_engine	MyISAM

@@ -2,24 +2,34 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"                            // DBUG_ASSERT
-#include "handler.h"                            // MAX_HA
-#include "m_string.h"                           // LEX_CSTRING
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "prealloced_array.h"
 
 class THD;
 struct TABLE;
@@ -28,9 +38,13 @@ struct TABLE;
   Error codes returned from the functions that do updates of the
   cost constants.
 */
-enum cost_constant_error {COST_CONSTANT_OK, UNKNOWN_COST_NAME,
-                          UNKNOWN_ENGINE_NAME, INVALID_COST_VALUE,
-                          INVALID_DEVICE_TYPE};
+enum cost_constant_error {
+  COST_CONSTANT_OK,
+  UNKNOWN_COST_NAME,
+  UNKNOWN_ENGINE_NAME,
+  INVALID_COST_VALUE,
+  INVALID_DEVICE_TYPE
+};
 
 /**
   The cost model should support different types of storage devices each with
@@ -39,28 +53,25 @@ enum cost_constant_error {COST_CONSTANT_OK, UNKNOWN_COST_NAME,
   initial version of the cost model will only have one set of cost constants
   per storage engine.
 */
-const unsigned int MAX_STORAGE_CLASSES= 1;
-
+const unsigned int MAX_STORAGE_CLASSES = 1;
 
 /**
   Cost constants for operations done by the server
 */
 
-class Server_cost_constants
-{
-public:
+class Server_cost_constants {
+ public:
   /**
     Creates a server cost constants object using the default values
     defined in this class.
   */
-  Server_cost_constants() :
-    m_row_evaluate_cost(ROW_EVALUATE_COST),
-    m_key_compare_cost(KEY_COMPARE_COST),
-    m_memory_temptable_create_cost(MEMORY_TEMPTABLE_CREATE_COST),
-    m_memory_temptable_row_cost(MEMORY_TEMPTABLE_ROW_COST),
-    m_disk_temptable_create_cost(DISK_TEMPTABLE_CREATE_COST),
-    m_disk_temptable_row_cost(DISK_TEMPTABLE_ROW_COST)
-  {}
+  Server_cost_constants()
+      : m_row_evaluate_cost(ROW_EVALUATE_COST),
+        m_key_compare_cost(KEY_COMPARE_COST),
+        m_memory_temptable_create_cost(MEMORY_TEMPTABLE_CREATE_COST),
+        m_memory_temptable_row_cost(MEMORY_TEMPTABLE_ROW_COST),
+        m_disk_temptable_create_cost(DISK_TEMPTABLE_CREATE_COST),
+        m_disk_temptable_row_cost(DISK_TEMPTABLE_ROW_COST) {}
 
   /**
     Cost for evaluating the query condition on a row.
@@ -75,8 +86,7 @@ public:
   /**
     Cost for creating an internal temporary table in memory.
   */
-  double memory_temptable_create_cost() const
-  {
+  double memory_temptable_create_cost() const {
     return m_memory_temptable_create_cost;
   }
 
@@ -84,8 +94,7 @@ public:
     Cost for retrieving or storing a row in an internal temporary table
     stored in memory.
   */
-  double memory_temptable_row_cost() const
-  {
+  double memory_temptable_row_cost() const {
     return m_memory_temptable_row_cost;
   }
 
@@ -93,8 +102,7 @@ public:
     Cost for creating an internal temporary table in a disk resident
     storage engine.
   */
-  double disk_temptable_create_cost() const
-  {
+  double disk_temptable_create_cost() const {
     return m_disk_temptable_create_cost;
   }
 
@@ -102,10 +110,7 @@ public:
     Cost for retrieving or storing a row in an internal disk resident
     temporary table.
   */
-  double disk_temptable_row_cost() const
-  {
-    return m_disk_temptable_row_cost;
-  }
+  double disk_temptable_row_cost() const { return m_disk_temptable_row_cost; }
 
   /**
     Set the value of one of the cost constants.
@@ -118,8 +123,7 @@ public:
 
   cost_constant_error set(const LEX_CSTRING &name, const double value);
 
-private:
-
+ private:
   /*
     This section declares constants for the default values. The actual
     default values are found in the .cc file.
@@ -181,7 +185,6 @@ private:
   double m_disk_temptable_row_cost;
 };
 
-
 /**
   Cost constants for a storage engine.
 
@@ -189,14 +192,13 @@ private:
   a subclass of this class.
 */
 
-class SE_cost_constants
-{
-public:
-  SE_cost_constants() : m_memory_block_read_cost(MEMORY_BLOCK_READ_COST),
-    m_io_block_read_cost(IO_BLOCK_READ_COST),
-    m_memory_block_read_cost_default(true),
-    m_io_block_read_cost_default(true)
-  {}
+class SE_cost_constants {
+ public:
+  SE_cost_constants()
+      : m_memory_block_read_cost(MEMORY_BLOCK_READ_COST),
+        m_io_block_read_cost(IO_BLOCK_READ_COST),
+        m_memory_block_read_cost_default(true),
+        m_io_block_read_cost_default(true) {}
 
   virtual ~SE_cost_constants() {}
 
@@ -212,7 +214,7 @@ public:
 
   double io_block_read_cost() const { return m_io_block_read_cost; }
 
-protected:
+ protected:
   /**
     Set the value of one of the cost constants.
 
@@ -224,7 +226,7 @@ protected:
 
     @param name    name of cost constant
     @param value   new value
-    @param default specify whether the new value is a default value or
+    @param default_value specify whether the new value is a default value or
                    an engine specific value
 
     @return Status for updating the cost constant
@@ -233,7 +235,7 @@ protected:
   virtual cost_constant_error set(const LEX_CSTRING &name, const double value,
                                   bool default_value);
 
-protected:
+ protected:
   friend class Cost_model_constants;
 
   /**
@@ -276,14 +278,14 @@ protected:
     @param[in,out] cost_constant_is_default whether the current value has the
                                             default value or not
     @param new_value                        the new value for the cost constant
-    @param default_value_is_default         whether this is a new default value
+    @param new_value_is_default             whether this is a new default value
                                             or not
   */
 
   void update_cost_value(double *cost_constant, bool *cost_constant_is_default,
                          double new_value, bool new_value_is_default);
 
-private:
+ private:
   /*
     This section specifies default values for cost constants.
   */
@@ -308,14 +310,13 @@ private:
     This section has boolean variables that is used for knowing whether
     the above cost variables is using the default value or not.
   */
-  
+
   /// Whether the memory_block_read_cost is a default value or not
   bool m_memory_block_read_cost_default;
 
   /// Whether the io_block_read_cost is a default value or not
   bool m_io_block_read_cost_default;
 };
-
 
 /**
   Class that keeps all cost constants for a storage engine. Since
@@ -326,9 +327,8 @@ private:
   set of cost constants per storage engine.
 */
 
-class Cost_model_se_info
-{
-public:
+class Cost_model_se_info {
+ public:
   /**
     Constructor that just initializes the class.
   */
@@ -339,15 +339,15 @@ public:
   */
   ~Cost_model_se_info();
 
-private:
+ private:
   /*
     Since this object owns the cost constant objects, we must prevent that we
     create copies of this object that share the cost constant objects.
   */
-  Cost_model_se_info(const Cost_model_se_info&);
-  Cost_model_se_info& operator=(const Cost_model_se_info& rhs);
+  Cost_model_se_info(const Cost_model_se_info &);
+  Cost_model_se_info &operator=(const Cost_model_se_info &rhs);
 
-protected:
+ protected:
   friend class Cost_model_constants;
 
   /**
@@ -360,15 +360,13 @@ protected:
   */
 
   void set_cost_constants(SE_cost_constants *cost_constants,
-                          unsigned int storage_class)
-  {
+                          unsigned int storage_class) {
     DBUG_ASSERT(cost_constants != NULL);
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
     DBUG_ASSERT(m_se_cost_constants[storage_class] == NULL);
 
-    m_se_cost_constants[storage_class]= cost_constants;
+    m_se_cost_constants[storage_class] = cost_constants;
   }
-
 
   /**
     Retrieve the cost constants to be used for this storage engine for
@@ -378,8 +376,8 @@ protected:
                          used for
   */
 
-  const SE_cost_constants *get_cost_constants(unsigned int storage_class) const
-  {
+  const SE_cost_constants *get_cost_constants(
+      unsigned int storage_class) const {
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
     DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
 
@@ -394,15 +392,14 @@ protected:
                          used for
   */
 
-  SE_cost_constants *get_cost_constants(unsigned int storage_class)
-  {
+  SE_cost_constants *get_cost_constants(unsigned int storage_class) {
     DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
     DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
 
     return m_se_cost_constants[storage_class];
   }
 
-private:
+ private:
   /**
     Array of cost constant sets for this storage engine. There will
     be one set of cost constants for each device type defined for the
@@ -411,14 +408,12 @@ private:
   SE_cost_constants *m_se_cost_constants[MAX_STORAGE_CLASSES];
 };
 
-
 /**
   Set of all cost constants used by the server and all storage engines.
 */
 
-class Cost_model_constants
-{
-public:
+class Cost_model_constants {
+ public:
   /**
     Creates a set with cost constants using the default values defined in
     the source code.
@@ -441,8 +436,7 @@ public:
     @return the cost constants for the server
   */
 
-  const Server_cost_constants *get_server_cost_constants() const
-  {
+  const Server_cost_constants *get_server_cost_constants() const {
     return &m_server_constants;
   }
 
@@ -486,17 +480,14 @@ public:
                                                   const LEX_CSTRING &name,
                                                   double value);
 
-protected:
+ protected:
   friend class Cost_constant_cache;
 
   /**
     Increment the reference counter for this cost constant set
   */
 
-  void inc_ref_count()
-  {
-    m_ref_counter++;
-  }
+  void inc_ref_count() { m_ref_counter++; }
 
   /**
     Decrement the reference counter for this cost constant set
@@ -507,15 +498,14 @@ protected:
     @return the updated reference count
   */
 
-  unsigned int dec_ref_count()
-  {
+  unsigned int dec_ref_count() {
     DBUG_ASSERT(m_ref_counter > 0);
 
     m_ref_counter--;
     return m_ref_counter;
   }
 
-private:
+ private:
   /**
     Utility function for finding the slot number for a storage engine
     based on the storage engine name.
@@ -550,16 +540,14 @@ private:
   /// Cost constants for server operations
   Server_cost_constants m_server_constants;
 
-  /// Cost constants for storage engines
-  Cost_model_se_info m_engines[MAX_HA];
+  /**
+    Cost constants for storage engines
+    15 should be enough for most use cases, see PREALLOC_NUM_HA.
+  */
+  Prealloced_array<Cost_model_se_info, 15> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
-
-#if !defined(DBUG_OFF)
-  /// Version number for this cost constant set. Not used. Will likely remove
-  unsigned int version_no;
-#endif
 };
 
 #endif /* OPT_COSTCONSTANTS_INCLUDEDED */

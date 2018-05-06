@@ -1,5 +1,4 @@
 --source include/have_openssl_binary.inc
---source include/not_embedded.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -58,9 +57,9 @@ let SEARCH_FILE= $wl7706_log;
 --echo # Case 2 : Files are present : Generation should be skipped
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --verbose > $wl7706_log
 let SEARCH_PATTERN= Certificate files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -86,11 +85,11 @@ let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.
 --file_exists $DATADIR_LOCATION/client-key.pem
 
 let SEARCH_PATTERN= Executing : openssl x509;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= Executing : openssl req;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -108,9 +107,9 @@ let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.
 --file_exists $DATADIR_LOCATION/public_key.pem
 
 let SEARCH_PATTERN= Certificate files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= Executing : openssl genrsa;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -125,7 +124,7 @@ let SEARCH_PATTERN= Executing : openssl genrsa;
 
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --verbose > $wl7706_log
 let SEARCH_PATTERN= Certificate files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -140,9 +139,9 @@ let SEARCH_PATTERN= Certificate files are present in given dir. Skipping generat
 
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --verbose > $wl7706_log
 let SEARCH_PATTERN= Certificate files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -155,7 +154,7 @@ let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$MYSQLTEST_VARDIR/doesnotexist --verbose 2> $wl7706_log
 let SEARCH_PATTERN= Failed to access directory pointed by;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -172,7 +171,7 @@ let SEARCH_PATTERN= Failed to access directory pointed by;
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --suffix=string_greater_than_17_characters 2> $wl7706_log
 let SEARCH_PATTERN= Maximum number of characters allowed as the value for --suffix are 17;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -183,11 +182,11 @@ let SEARCH_PATTERN= Maximum number of characters allowed as the value for --suff
 --echo # Case 9 : Custom suffix of valid length
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --suffix=wl7706_test --verbose > $wl7706_log
 let SEARCH_PATTERN= MySQL_Server_wl7706_test_Auto_Generated_CA_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= MySQL_Server_wl7706_test_Auto_Generated_Server_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= MySQL_Server_wl7706_test_Auto_Generated_Server_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -205,7 +204,7 @@ let SEARCH_PATTERN= MySQL_Server_wl7706_test_Auto_Generated_Server_Certificate;
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --suffix=ab@c!de-gh 2> $wl7706_log
 let SEARCH_PATTERN=Invalid string;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -217,25 +216,25 @@ let SEARCH_PATTERN=Invalid string;
 
 --exec $MYSQL_SSL_RSA_SETUP --help > $wl7706_log
 let SEARCH_PATTERN=MySQL SSL Certificate and RSA Key Generation Utility;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
 --exec $MYSQL_SSL_RSA_SETUP -? > $wl7706_log
 let SEARCH_PATTERN=MySQL SSL Certificate and RSA Key Generation Utility;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
 --exec $MYSQL_SSL_RSA_SETUP --version > $wl7706_log
-let SEARCH_PATTERN=Version :;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=Ver ;
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
 --exec $MYSQL_SSL_RSA_SETUP -V > $wl7706_log
-let SEARCH_PATTERN=Version :;
---source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=Ver ;
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -250,7 +249,7 @@ let $LONG_PATH=`SELECT REPEAT('/asdfg', 100)`;
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$LONG_PATH 2> $wl7706_log
 let SEARCH_PATTERN=Dir path is too long;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $wl7706_log
 
@@ -271,15 +270,15 @@ let SEARCH_PATTERN=Dir path is too long;
 
 --echo # CN of CA certificate should be MySQL_Server_.*_Auto_Generated_CA_Certificate
 let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_CA_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # CN of Server certificate should be MySQL_Server_.*_Auto_Generated_Server_Certificate
 let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_Server_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # CN of Client certificate should be MySQL_Server_.*_Auto_Generated_Client_Certificate
 let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_Client_Certificate;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 
 #------------------------------------------------------------------------------
@@ -322,12 +321,12 @@ let CADIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs;
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --remove_file $server_log
 
---exec echo "restart: --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

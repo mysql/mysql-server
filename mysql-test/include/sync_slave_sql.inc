@@ -16,7 +16,6 @@
 # [--let $use_gtids= 1]
 # [--let $wait_for_executed_gtid_set= 1]
 # [--let $ignore_gtids_on_sync= 1]
-# [--let $force_empty_channel_name= 1]
 # --source include/sync_slave.inc
 #
 # Parameters:
@@ -33,11 +32,6 @@
 #
 #   $wait_for_executed_gtid_set
 #     See include/sync_slave_sql_with_master.inc
-#
-#   $force_empty_channel_name
-#     If set, even when saved_channel_name is empty, it adds empty channel name
-#     argument to the necessary wait function.
-#
 
 --let $include_filename= sync_slave_sql.inc
 --source include/begin_include_file.inc
@@ -48,17 +42,14 @@ if (!$_sss_slave_timeout)
   --let $_sss_slave_timeout= 300
 }
 
---let $_sss_channel_param=
-if ($_saved_channel_name != '')
-{
-  --let $_sss_channel_param= , '$_saved_channel_name'
+if ($VALGRIND_TEST) {
+  let $_sss_slave_timeout= `select $_sss_slave_timeout * 6`;
 }
-if ($_saved_channel_name == '')
+
+--let $_sss_channel_param=
+if ($_saved_channel_name)
 {
-  if ($force_empty_channel_name)
-  {
-    --let $_sss_channel_param= , '$_saved_channel_name'
-  }
+  --let $_sss_channel_param= , $_saved_channel_name
 }
 
 if ($rpl_debug)
@@ -156,6 +147,7 @@ if ($_sss_result < 0)
   --echo ERROR: _saved_gtids='$_saved_gtids'
   --echo ERROR: _saved_file='$_saved_file'
   --echo ERROR: _saved_pos='$_saved_pos'
+  --echo ERROR: _saved_channel_name=$_saved_channel_name
   --echo ERROR: timeout='$_sss_slave_timeout'
   --echo ERROR: result='$_sss_result'
   --echo ERROR: error type: $error_type

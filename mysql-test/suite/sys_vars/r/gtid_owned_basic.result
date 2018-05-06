@@ -14,12 +14,12 @@ gtid_owned
 show session variables like 'gtid_owned';
 Variable_name	Value
 gtid_owned	
-select * from information_schema.global_variables where variable_name='gtid_owned';
+select * from performance_schema.global_variables where variable_name='gtid_owned';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_OWNED	
-select * from information_schema.session_variables where variable_name='gtid_owned';
+gtid_owned	
+select * from performance_schema.session_variables where variable_name='gtid_owned';
 VARIABLE_NAME	VARIABLE_VALUE
-GTID_OWNED	
+gtid_owned	
 set @@global.gtid_owned = 1;
 ERROR HY000: Variable 'gtid_owned' is a read only variable
 set @@session.gtid_owned = 1;

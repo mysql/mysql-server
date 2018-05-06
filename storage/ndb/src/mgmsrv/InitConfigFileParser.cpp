@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,7 +30,8 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
-#include <m_string.h>
+#include "m_string.h"
+#include "my_alloc.h"
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
@@ -299,6 +307,10 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
+  if( status == ConfigInfo::CI_INTERNAL) {
+    ctx.reportError("[%s] Parameter %s not configurable by user", ctx.fname, fname);
+    return false;
+  }
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
   switch(type){
@@ -371,6 +383,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
         break;
       case -2:
         desc.assfmt("Too large id used in bitmask, max is %llu", max);
+        break;
+      case -3:
+        desc.assfmt("Empty bitmask not allowed");
         break;
       default:
         break;
@@ -548,10 +563,12 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   int no = sscanf(line, "[%120[A-Z_a-z] %120[A-Z_a-z]]", token1, token2);
 
   // Not correct no of tokens 
-  if (no != 2) return NULL;
+  if (no != 2)
+    return NULL;
 
   // Not correct keyword at end
-  if (!native_strcasecmp(token2, "DEFAULT") == 0) return NULL;
+  if (native_strcasecmp(token2, "DEFAULT") != 0)
+    return NULL;
 
   const char *token1_alias= m_info->getAlias(token1);
   if (token1_alias == 0)
@@ -643,15 +660,13 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
                          m_lineno, buf);
 }
 
-#include <my_sys.h>
-#include <my_getopt.h>
-#ifdef HAVE_MY_DEFAULT_H
-#include <my_default.h>
-#endif
+#include "my_sys.h"
+#include "my_getopt.h"
+#include "my_default.h"
 
 static int order = 1;
 static 
-my_bool 
+bool 
 parse_mycnf_opt(int, const struct my_option * opt, char * value)
 {
   long *app_type= (long*) &opt->app_type;
@@ -740,10 +755,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString group_suffix;
 
   const char *save_file = my_defaults_file;
-#if MYSQL_VERSION_ID >= 50508
-  const
-#endif
-  char *save_extra_file = my_defaults_extra_file;
+  const char *save_extra_file = my_defaults_extra_file;
   const char *save_group_suffix = my_defaults_group_suffix;
 
   if (my_defaults_file)
@@ -766,7 +778,8 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   }
 
   char ** tmp = (char**)argv;
-  int ret = load_defaults("my", groups, &argc, &tmp);
+  MEM_ROOT *alloc= new MEM_ROOT;  // Yes, this leaks.
+  int ret = load_defaults("my", groups, &argc, &tmp, alloc);
 
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;

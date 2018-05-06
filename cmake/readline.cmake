@@ -1,17 +1,24 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 # cmake -DWITH_EDITLINE=system|bundled
 # bundled is the default
@@ -69,22 +76,6 @@ MACRO (FIND_CURSES)
  ELSEIF(CURSES_HAVE_NCURSES_H)
    SET(HAVE_NCURSES_H 1 CACHE INTERNAL "")
  ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "HP")
-   # CMake uses full path to library /lib/libcurses.sl 
-   # On Itanium, it results into architecture mismatch+
-   # the library is for  PA-RISC
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
- ENDIF()
- IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-   # CMake generates /lib/64/libcurses.so -R/lib/64
-   # The result is we cannot find
-   # /opt/studio12u2/lib/stlport4/v9/libstlport.so.1
-   # at runtime
-   SET(CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   SET(CURSES_CURSES_LIBRARY "curses" CACHE INTERNAL "" FORCE)
-   MESSAGE(STATUS "CURSES_LIBRARY ${CURSES_LIBRARY}")
- ENDIF()
 
  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
    # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 
@@ -100,12 +91,14 @@ MACRO (FIND_CURSES)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_EDITLINE)
+  SET(WITH_EDITLINE "bundled" CACHE STRING "By default use bundled editline")
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
-  SET(EDITLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit/editline)
+  SET(EDITLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/libedit/editline)
+  INCLUDE_DIRECTORIES(SYSTEM ${EDITLINE_INCLUDE_DIR})
   SET(EDITLINE_LIBRARY edit)
   FIND_CURSES()
-  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit)
+  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/libedit)
 ENDMACRO()
 
 MACRO (FIND_SYSTEM_EDITLINE)
@@ -136,6 +129,7 @@ MACRO (FIND_SYSTEM_EDITLINE)
   INCLUDE(CheckCXXSourceCompiles)
   IF(EDITLINE_LIBRARY AND EDITLINE_INCLUDE_DIR)
     SET(CMAKE_REQUIRED_INCLUDES ${EDITLINE_INCLUDE_DIR})
+    INCLUDE_DIRECTORIES(SYSTEM ${EDITLINE_INCLUDE_DIR})
     SET(CMAKE_REQUIRED_LIBRARIES ${EDITLINE_LIBRARY})
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>

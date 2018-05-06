@@ -1,6 +1,0 @@
-# This file lists tests that cannot run in MTR v1 for some reason.
-# They will be skipped.
-# Any text following white space after full test name is ignored
-# Only exact test names can be used, no regexp.
-
-main.fulltext_plugin   # Refers to $SIMPLE_PARSER_OPT which is not set

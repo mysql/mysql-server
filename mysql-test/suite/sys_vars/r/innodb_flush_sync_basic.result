@@ -17,52 +17,52 @@ innodb_flush_sync	ON
 show session variables like 'innodb_flush_sync';
 Variable_name	Value
 innodb_flush_sync	ON
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	ON
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
+innodb_flush_sync	ON
 set global innodb_flush_sync='OFF';
 select @@global.innodb_flush_sync;
 @@global.innodb_flush_sync
 0
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	OFF
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	OFF
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	OFF
+innodb_flush_sync	OFF
 set @@global.innodb_flush_sync=1;
 select @@global.innodb_flush_sync;
 @@global.innodb_flush_sync
 1
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	ON
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
+innodb_flush_sync	ON
 set global innodb_flush_sync=0;
 select @@global.innodb_flush_sync;
 @@global.innodb_flush_sync
 0
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	OFF
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	OFF
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	OFF
+innodb_flush_sync	OFF
 set @@global.innodb_flush_sync='ON';
 select @@global.innodb_flush_sync;
 @@global.innodb_flush_sync
 1
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	ON
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
+innodb_flush_sync	ON
 set session innodb_flush_sync='OFF';
 ERROR HY000: Variable 'innodb_flush_sync' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_flush_sync='ON';
@@ -78,12 +78,12 @@ set global innodb_flush_sync=-3;
 select @@global.innodb_flush_sync;
 @@global.innodb_flush_sync
 1
-select * from information_schema.global_variables where variable_name='innodb_flush_sync';
+select * from performance_schema.global_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
-select * from information_schema.session_variables where variable_name='innodb_flush_sync';
+innodb_flush_sync	ON
+select * from performance_schema.session_variables where variable_name='innodb_flush_sync';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FLUSH_SYNC	ON
+innodb_flush_sync	ON
 set global innodb_flush_sync='AUTO';
 ERROR 42000: Variable 'innodb_flush_sync' can't be set to the value of 'AUTO'
 SET @@global.innodb_flush_sync = @start_global_value;

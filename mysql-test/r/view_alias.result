@@ -5,7 +5,7 @@
 # 65 characters exceed the maximum length of a column identifier. The system cannot derive the name from statement.
 #    Constant with length = 65 . Expect to get the identifier 'Name_exp_1'.
 CREATE VIEW v1 AS SELECT '<--- 65 char including the arrows                            --->';
-SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1' ORDER BY COLUMN_NAME;
 COLUMN_NAME
 Name_exp_1
 DROP VIEW v1;
@@ -16,7 +16,7 @@ DROP VIEW v1;
 #    Subquery with length = 65 . Expect to get the identifier 'Name_exp_1'.
 #    Attention: Identifier for the column within the subquery will be not generated.
 CREATE VIEW v1 AS SELECT (SELECT '<--- 54 char including the arrows (+ 11 outside)   -->');
-SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1' ORDER BY COLUMN_NAME;
 COLUMN_NAME
 Name_exp_1
 DROP VIEW v1;
@@ -27,7 +27,7 @@ DROP VIEW v1;
 # -----------------------------------------------------------------------------------------------------------------
 # 64 characters are the maximum length of a column identifier. The system can derive the name from the statement.
 CREATE VIEW v1 AS SELECT '<--- 64 char including the arrows                           --->';
-SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1' ORDER BY COLUMN_NAME;
 COLUMN_NAME
 <--- 64 char including the arrows                           --->
 DROP VIEW v1;
@@ -36,7 +36,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS select '<--- 64 char including the arrows                           --->' AS `<--- 64 char including the arrows                           --->`;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT (SELECT '<--- 53 char including the arrows (+ 11 outside) --->');
-SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1' ORDER BY COLUMN_NAME;
 COLUMN_NAME
 (SELECT '<--- 53 char including the arrows (+ 11 outside) --->')
 DROP VIEW v1;
@@ -49,11 +49,11 @@ DROP VIEW v1;
 # Generated identifiers have at their end the position within the select column list.
 # 'c2 ' -> 'Name_exp_1' , ' c4 ' -> 'Name_exp_2'
 CREATE VIEW v1 AS SELECT 'c1', 'c2 ', ' c3', ' c4 ';
-SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1' ORDER BY COLUMN_NAME;
 COLUMN_NAME
 c1
-Name_exp_2
 c3
+Name_exp_2
 Name_exp_4
 DROP VIEW v1;
 CREATE VIEW v1 AS select 'c1' AS `c1`,'c2 ' AS `Name_exp_2`,' c3' AS `c3`,' c4 ' AS `Name_exp_4`;
@@ -96,7 +96,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 WHERE EXISTS (SELECT a AS alias FROM t1 GROUP BY alias);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where exists(select `t1`.`a` AS `alias` from `t1` group by `alias`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where exists(select `t1`.`a` AS `alias` from `t1` group by `alias`)	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 CREATE VIEW v1 AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where exists(select `test`.`t1`.`a` AS `alias` from `test`.`t1` group by `alias`);
 DROP VIEW v1;
@@ -104,7 +104,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 WHERE EXISTS (SELECT '  a   ' AS alias FROM t1 GROUP BY alias);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where exists(select '  a   ' AS `alias` from `t1` group by `alias`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where exists(select '  a   ' AS `alias` from `t1` group by `alias`)	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 CREATE VIEW v1 AS select `test`.`t1`.`a` AS `a` from `test`.`t1` where exists(select '  a   ' AS `alias` from `test`.`t1` group by `alias`);
 DROP VIEW v1;

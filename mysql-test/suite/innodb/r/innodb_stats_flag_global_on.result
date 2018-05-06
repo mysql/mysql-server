@@ -6,7 +6,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -24,7 +24,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -45,7 +45,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -66,7 +66,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -90,7 +90,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -107,7 +107,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -124,7 +124,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -148,7 +148,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -165,7 +165,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
@@ -182,7 +182,7 @@ SHOW CREATE TABLE test_ps_flag;
 Table	Create Table
 test_ps_flag	CREATE TABLE `test_ps_flag` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_flag';
 DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';
 SELECT COUNT(*) AS cnt_before FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_flag';

@@ -7,7 +7,8 @@ ENGINE=NDB;
 CREATE TABLESPACE table_space1
 ADD DATAFILE './table_space1/datafile.dat'
 USE LOGFILE GROUP log_group1
-INITIAL_SIZE 24M
+INITIAL_SIZE 28M
+EXTENT_SIZE 256K
 ENGINE NDB;
 CREATE TABLE test.t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
@@ -216,7 +217,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`pk2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -224,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
 ENGINE=NDB;
 SHOW CREATE TABLE test.t2;
@@ -234,7 +235,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`pk2`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
@@ -243,7 +244,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
@@ -342,7 +343,7 @@ t1	CREATE TABLE `t1` (
   KEY `a2` (`a2`),
   KEY `a3` (`a3`),
   KEY `a8` (`a8`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -360,7 +361,7 @@ t2	CREATE TABLE `t2` (
   KEY `b2` (`b2`),
   KEY `b3` (`b3`),
   KEY `b8` (`b8`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1 order by a1;
 a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
 1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
@@ -548,10 +549,176 @@ test2@testdomain.com	Z001
 test2@testdomain.com	R002
 test3@testdomain.com	Z001
 DROP TABLE test.t1,test.t2;
+#
+# Bug#22195588 : SETTING NULL TO A DYNAMIC IN-MEMORY COLUMN CORRUPTS DISK COLUMN VALUES
+#
+# Setting up tables
+create table t1(
+a int unsigned auto_increment primary key,
+b int,
+c int default null column_format dynamic storage memory,
+d varchar(100) default null column_format dynamic storage memory
+)tablespace table_space1 storage disk engine=ndbcluster;
+# Populate t1
+# Setting all the dynamic columns to NULL and varying disk parts
+insert into t1 () values();
+insert into t1 (b) values (10);
+# Populating values to single dynamic column and varying disk parts
+insert into t1 (c) values (20);
+insert into t1 (b, c) values (10, 20);
+insert into t1 (d) values (repeat('0123456789', 3));
+insert into t1 (d) values (repeat('0123456789', 10));
+insert into t1 (b, d) values (10, repeat('0123456789',3));
+insert into t1 (b, d) values (10, repeat('0123456789',10));
+# Both dynamic columns have non NULL values and disk columns varied
+insert into t1 (c, d) values (20, repeat('0123456789',3));
+insert into t1 (c, d) values (20, repeat('0123456789',10));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',3));
+insert into t1 (b, c, d) values (10, 20, repeat('0123456789',10));
+# Verify that they are properly stored and retrieved
+select * from t1 order by a;
+a	b	c	d
+1	NULL	NULL	NULL
+2	10	NULL	NULL
+3	NULL	20	NULL
+4	10	20	NULL
+5	NULL	NULL	012345678901234567890123456789
+6	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+7	10	NULL	012345678901234567890123456789
+8	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+9	NULL	20	012345678901234567890123456789
+10	NULL	20	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+11	10	20	012345678901234567890123456789
+12	10	20	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+# Update some rows to verify that the varpart is reallocating properly
+# Updating NULL dynamic columns and assigning NON-NULL values
+update t1 set c = 10 where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	10	NULL
+2	10	10	NULL
+# Updating and setting NULL to NON-NULL dynamic columns
+update t1 set c = null where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	NULL	NULL
+2	10	NULL	NULL
+# Updating NULL dynamic var columns and assigning NON-NULL values
+update t1 set d = repeat('0123456789', 5) where a in (1,2);
+select * from t1 where a in (1,2) order by a;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+2	10	NULL	01234567890123456789012345678901234567890123456789
+# Updating NULL to NON-NULL and vice versa in dynamic columns
+update t1 set c = null, d = repeat('0123456789', 10) where a in (3,4);
+select * from t1 where a in (3,4) order by a;
+a	b	c	d
+3	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+4	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+# Updating and setting NULL to NON-NULL dynamic var columns
+update t1 set c = 20, d = null where a in (5,6,7,8);
+select * from t1 where a in (5,6,7,8) order by a;
+a	b	c	d
+5	NULL	20	NULL
+6	NULL	20	NULL
+7	10	20	NULL
+8	10	20	NULL
+# Update all dynamic columns to NULL
+update t1 set c = null, d = null where a > 8;
+select * from t1 where a > 8 order by a;
+a	b	c	d
+9	NULL	NULL	NULL
+10	NULL	NULL	NULL
+11	10	NULL	NULL
+12	10	NULL	NULL
+# Update all dynamic columns to NON-NULL values
+update t1 set c = 20, d = '0123456789' where a > 8;
+select * from t1 where a > 8 order by a;
+a	b	c	d
+9	NULL	20	0123456789
+10	NULL	20	0123456789
+11	10	20	0123456789
+12	10	20	0123456789
+select * from t1 order by a;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+2	10	NULL	01234567890123456789012345678901234567890123456789
+3	NULL	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+4	10	NULL	0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+5	NULL	20	NULL
+6	NULL	20	NULL
+7	10	20	NULL
+8	10	20	NULL
+9	NULL	20	0123456789
+10	NULL	20	0123456789
+11	10	20	0123456789
+12	10	20	0123456789
+# Now do some transactions with multiple operations
+# Add more data to dynamic varchar and then set to NULL
+# Meanwhile insert value into int column
+# This should reduce the var memory usage
+select * from t1 where a = 1;
+a	b	c	d
+1	NULL	NULL	01234567890123456789012345678901234567890123456789
+begin;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 20 where a = 1;
+update t1 set d = NULL where a = 1;
+update t1 set c = 30 where a = 1;
+commit;
+select * from t1 where a = 1;
+a	b	c	d
+1	20	30	NULL
+# Check if the var mem has decreased
+Has var part memory usage decreased?
+Yes
+# Setting up next transaction - make dynamic columns NULL
+update t1 set c = NULL where a = 1;
+# Checking var memory and number of var parts before transaction
+# Insert and later set null to dynamic columns in the same transaction
+# This should not change memory usage
+select * from t1 where a = 1;
+a	b	c	d
+1	20	NULL	NULL
+begin;
+update t1 set c = 30 where a = 1;
+update t1 set b = 30 where a = 1;
+update t1 set d = repeat('0123456789', 10) where a = 1;
+update t1 set b = 45 where a = 1;
+update t1 set d = repeat('0123456789', 5) where a = 1;
+update t1 set c = NULL where a = 1;
+update t1 set d = NULL where a = 1;
+commit;
+select * from t1 where a = 1;
+a	b	c	d
+1	45	NULL	NULL
+# Checking if the var mem is the same
+Is var part memory usage unchanged?
+Yes
+# Grow the dynamic varchar and then shrink it but still having more data than when it was at start.
+# Insert alternatively the other dynamic column with NULL but back to a NON-NULL value at end
+# This should be reflected correctly in the memory
+select * from t1 where a = 12;
+a	b	c	d
+12	10	20	0123456789
+begin;
+update t1 set c = 42 where a = 12;
+update t1 set d = repeat('0123456789', 5) where a = 12;
+update t1 set c = NULL where a = 12;
+update t1 set d = repeat('0123456789', 10) where a = 12;
+update t1 set c = 30 where a = 12;
+update t1 set d = repeat('0123456789', 2) where a = 12;
+commit;
+select * from t1 where a = 12;
+a	b	c	d
+12	10	30	01234567890123456789
+# Check if the var mem has increased
+Has var part memory usage increased?
+Yes
+# Cleanup
+drop table t1;
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
+DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;

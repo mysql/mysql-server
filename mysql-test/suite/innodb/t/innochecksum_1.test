@@ -1,0 +1,241 @@
+#************************************************************
+# WL6045:Improve Innochecksum
+#************************************************************
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+
+# Avoid CrashReporter popup on Mac.
+--source include/not_crashrep.inc
+
+--echo # Set the environmental variables
+let MYSQLD_BASEDIR= `SELECT @@basedir`;
+let MYSQLD_DATADIR= `SELECT @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Database page corruption on disk or a failed");
+# ib::fatal() calls ut_error
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Assertion failure: ut0ut\.cc:");
+SET GLOBAL innodb_file_per_table=on;
+
+--echo [1]: Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
+
+# Disable compression for this table, otherwise our pattern matching below
+# will not work
+--echo # Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none",
+ROW_FORMAT=COMPACT ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+--disable_query_log
+--let $i = 10
+while ($i)
+{
+  INSERT INTO t1 (b) VALUES (REPEAT('abcdefghijklmnopqrstuvwxyz', 100));
+  dec $i;
+}
+--enable_query_log
+INSERT INTO t1 (b) VALUES ('corrupt me');
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Corrupt the t1 table
+
+perl;
+use strict;
+use warnings;
+use Fcntl qw(:DEFAULT :seek);
+my $ibd_file = $ENV{'t1_IBD'};
+my $chunk;
+my $len;
+
+sysopen IBD_FILE, $ibd_file, O_RDWR || die "Unable to open $ibd_file";
+
+while ($len = sysread IBD_FILE, $chunk, 1024)
+{
+  if ($chunk =~ s/corrupt me/korrupt me/)
+  {
+    print "Munged a string.\n";
+    sysseek IBD_FILE, -$len, SEEK_CUR;
+    syswrite IBD_FILE, $chunk, $len;
+  }
+}
+
+close IBD_FILE;
+EOF
+
+--echo # Backup the corrupted t1.ibd for reuse for further testing.
+--copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup1
+
+--echo # Write file to make mysql-test-run.pl start up the server again
+--source include/start_mysqld.inc
+
+--echo # Write file to make mysql-test-run.pl expect the "crash", but don't
+--echo # start it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # The below SELECT query will crash the server because some pages
+--echo # on the disk are corrupted
+--error 2013
+SELECT * FROM t1;
+--source include/wait_until_disconnected.inc
+--echo [1(a)]: Repair the ibd file with innochecksum with --write=innodb
+--exec $INNOCHECKSUM --no-check --write=innodb  $MYSQLD_DATADIR/test/t1.ibd
+# Verify the t1.ibd for --strict-check=innodb
+--exec $INNOCHECKSUM --strict-check=innodb  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--source include/start_mysqld.inc
+
+--disable_result_log
+select count(*) from t1;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Move the corrupted ibd file to t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [1(b)]: Repair the ibd file with innochecksum with --write=crc32
+--exec $INNOCHECKSUM --no-check --write=crc32  $MYSQLD_DATADIR/test/t1.ibd
+#Verify the t1.ibd for --strict-check=crc32
+--exec $INNOCHECKSUM --strict-check=crc32  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--source include/start_mysqld.inc
+
+--disable_result_log
+select count(*) from t1;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Move the corrupted ib file to t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
+
+--echo [1(c)]: Repair the ibd file with innochecksum with --write=none
+--exec $INNOCHECKSUM --no-check --write=none  $MYSQLD_DATADIR/test/t1.ibd
+# Verify the t1.ibd for --strict-check=none
+--exec $INNOCHECKSUM --strict-check=none  $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Start the server
+--source include/start_mysqld.inc
+
+--disable_result_log
+select * from t1;
+
+DROP TABLE t1;
+--echo [19]: Test Completed
+
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) COMPRESSION="none", ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+
+--echo # shutdown the server
+--source include/shutdown_mysqld.inc
+
+--remove_file $MYSQLD_DATADIR/test/t1.ibd.backup1
+--echo [2]: Test for verbose short option, output from innochecksum
+--exec $INNOCHECKSUM -v $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'ver_output';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+   unless ($_=~ /^debug.*$/) {
+     print OUT_FILE $_;
+   }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the original file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the verbose output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo [3]: test for --verbose option with --strict-check=innodb for innochecksum
+--echo : With verbose long option.
+--exec $INNOCHECKSUM --verbose  --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+opendir(DIR, $dir) or die $!;
+my $file= 'ver_output';
+# open file in write mode
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+while(<IN_FILE>)
+{
+ unless ($_=~ /^debug.*$/) {
+   print OUT_FILE $_;
+ }
+}
+close(IN_FILE);
+close(OUT_FILE);
+# move the new content from tmp file to the orginal file.
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+closedir(DIR);
+EOF
+
+--echo # Print the verbose output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
+
+--echo [4]: Test for --allow-mismatches =99
+
+--echo # Expect the fails for checksum mismatches. Print the error message.
+--exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+# Remove extra line which will cause result-content mismatch on 4k page
+# size.
+perl;
+use strict;
+use warnings;
+my $file = $ENV{'SEARCH_FILE'};
+open IN_FILE,"<", $file or die $!;
+while(<IN_FILE>)
+{
+  if (!m/page number=7/)
+  {
+    s/space=\d+, page number=\d+/space=X, page number=Y/;
+    print;
+  }
+}
+close(IN_FILE);
+EOF
+
+
+--echo [5]: Test checksum check for page: 2 to page:5
+--exec $INNOCHECKSUM  -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [6]: Test for checksum check for only pageno.= 2
+--exec $INNOCHECKSUM -p 2 $MYSQLD_DATADIR/test/tab1.ibd
+
+--echo [7]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
+
+# Cleanup
+--echo # Restart the server
+--source include/start_mysqld.inc
+
+DROP TABLE tab1;
+SET GLOBAL innodb_file_per_table=default;

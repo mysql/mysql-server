@@ -1,0 +1,152 @@
+################################################################################
+# The aim of this testcase is to test persisted behavior of replication
+# variables with SET PERSIST_ONLY and RESET PERSIST clauses.
+#
+# Test:
+# 0. Check that there are no persisted variable settings due to improper
+#    cleanup by other testcases.
+# 1. Test SET PERSIST_ONLY. Verify persisted variables.
+# 2. Restart server, it must preserve the persisted variable settings.
+#    Verify persisted configuration.
+# 3. Test RESET PERSIST. Verify persisted variable settings are removed.
+# 4. Clean up.
+################################################################################
+--source include/have_log_bin.inc
+--source include/have_semisync_plugin.inc
+
+
+--echo ############################################################
+--echo # 0. Check that there are no persisted variable settings.
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Initialization. Test SET PERSIST_ONLY. Verify persisted
+--echo #    variables.
+--let $MYSQLD_DATADIR= `select @@datadir;`
+CALL mtr.add_suppression("Unsafe statement written to the binary log");
+
+--echo # Install semi-sync related plugins
+--disable_query_log
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+--enable_query_log
+
+CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
+# Disable warning to avoid printing of ER_BINLOG_UNSAFE_STATEMENT
+--disable_warnings
+INSERT INTO rplvars (varname, varvalue)
+ SELECT * FROM performance_schema.global_variables
+ WHERE (VARIABLE_NAME LIKE '%binlog%' OR
+        VARIABLE_NAME LIKE '%gtid%' OR
+        VARIABLE_NAME LIKE '%log_bin%' OR
+        VARIABLE_NAME LIKE '%master%' OR
+        VARIABLE_NAME LIKE '%relay%' OR
+        VARIABLE_NAME LIKE '%rpl%' OR
+        VARIABLE_NAME LIKE '%semi_sync%' OR
+        VARIABLE_NAME LIKE '%slave%') AND
+       (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
+        'innodb_master_thread_disabled_debug'))
+       ORDER BY VARIABLE_NAME;
+--enable_warnings
+--let $countvars= `SELECT COUNT(*) FROM rplvars;`
+
+# If this count differs, it means a variable has been added or removed.
+# In that case, this testcase needs to be updated accordingly.
+--echo
+--let $assert_text= 'Expect 80 variables in the table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = 80
+--source include/assert.inc
+
+--echo
+--echo # Test SET PERSIST_ONLY
+--let $varid=1
+while ( $varid <= $countvars )
+{
+  --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
+
+  # Following variables are non persistent read only variables.
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir')`)
+  {
+    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+  }
+  --eval SET PERSIST_ONLY $varnames = @@GLOBAL.$varnames
+
+  #  TODO: Remove/update this once Bug#27322592 is FIXED.
+  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_bin_use_v1_row_events', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery')`)
+  {
+    --disable_query_log
+      --eval SELECT varvalue INTO @varvalues FROM rplvars WHERE id=$varid
+      --eval SET PERSIST_ONLY $varnames = @varvalues
+    --enable_query_log
+  }
+
+  --inc $varid
+}
+
+--echo
+--let $assert_text= 'Expect 70 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 70
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Restart server, it must preserve the persisted variable
+--echo #    settings. Verify persisted configuration.
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--echo
+--let $assert_text= 'Expect 70 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 70
+--source include/assert.inc
+
+--let $assert_text= 'Expect 70 persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 70
+--source include/assert.inc
+
+--let $assert_text= 'Expect 70 persisted variables with matching peristed and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 70
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Test RESET PERSIST. Verify persisted variable settings
+--echo #    are removed.
+--let $varid=1
+while ( $varid <= $countvars )
+{
+  --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
+
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir')`)
+  {
+    --error ER_VAR_DOES_NOT_EXIST
+  }
+  --eval RESET PERSIST $varnames
+
+  --inc $varid
+}
+
+--echo
+--let $assert_text= 'Expect 0 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $countvars=
+--let $varid=
+--let $varnames=
+--let $varvalues=
+SET @varvalues= NULL;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+DROP TABLE rplvars;

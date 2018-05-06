@@ -39,9 +39,9 @@ ERROR 42S02: Table 'test.expect_unchanged' doesn't exist
 SELECT SCHEMA_NAME, DIGEST_TEXT, COUNT_STAR
 FROM performance_schema.events_statements_summary_by_digest;
 SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
-test	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
-test	SELECT ? FROM `expect_unary` 	5
-test	SELECT ? + ? FROM `expect_binary` 	2
-test	SELECT ? - ? FROM `expect_binary` 	2
-test	INSERT INTO `expect_full_reduce` VALUES (...) 	27
-test	SELECT `a` - `b` , `a` + `b` , - `a` , - `b` , + `a` , + `b` FROM `expect_unchanged` 	1
+test	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+test	SELECT ? FROM `expect_unary`	5
+test	SELECT ? + ? FROM `expect_binary`	2
+test	SELECT ? - ? FROM `expect_binary`	2
+test	INSERT INTO `expect_full_reduce` VALUES (...)	27
+test	SELECT `a` - `b` , `a` + `b` , - `a` , - `b` , + `a` , + `b` FROM `expect_unchanged`	1

@@ -8,13 +8,16 @@
 #                                                                                #
 ##################################################################################
 
--- source include/not_embedded.inc
 # Performance schema tracks prepared statements separately, and does not
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 -- source include/no_protocol.inc
 # Bug #23290879 - For reasons unknown to man this test fails randomly only on Windows
 -- source include/not_windows.inc
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
 
 use test;
 --disable_warnings
@@ -199,8 +202,8 @@ CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
 # Which sql_modes are deprecated depends on the release, so disable warnings while setting the sql_mode
 
 
-# Use non-strict sql_mode - keep NO_AUTO_CREATE_USER as this sql_mode will be mandatory in the future:
-SET SESSION sql_mode = 'NO_AUTO_CREATE_USER';
+# Use non-strict sql_mode
+SET SESSION sql_mode = '';
 # Ask for a non-supported action - since strict more is not used, this will give the error: ERROR 1644 (45000): Unknown action: ''
 # Note: the action passed to the procedure is actually lost because it's truncated.
 --error ER_SIGNAL_EXCEPTION
@@ -209,7 +212,7 @@ CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
 
 # Use 5.7.9+ default:
 --disable_warnings
-SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 --enable_warnings
 # Ask for a non-supported action - since strict mode is used, this will give the error: ERROR 1265 (01000): Data truncated for column 'in_action' at row 1
 --error 1265

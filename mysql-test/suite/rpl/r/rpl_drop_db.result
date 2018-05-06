@@ -3,34 +3,40 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-drop database if exists mysqltest1;
-create database mysqltest1;
-create table mysqltest1.t1 (n int);
-insert into mysqltest1.t1 values (1);
-select * from mysqltest1.t1 into outfile 'mysqltest1/f1.txt';
-create table mysqltest1.t2 (n int);
-create table mysqltest1.t3 (n int);
-drop database mysqltest1;
-ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: 17)
-use mysqltest1;
-show tables;
-Tables_in_mysqltest1
-drop database mysqltest1;
-ERROR HY000: Error dropping database (can't rmdir './mysqltest1/', errno: 17)
-use mysqltest1;
-show tables;
-Tables_in_mysqltest1
-use test;
-create table t1 (n int);
-insert into t1 values (1234);
-use mysqltest1;
-show tables;
-Tables_in_mysqltest1
-use test;
-select * from t1;
-n
-1234
-use test;
-drop table t1;
-drop database mysqltest1;
+DROP DATABASE IF EXISTS test1;
+DROP DATABASE IF EXISTS test2;
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+CREATE TABLE test1.t1 (n INT);
+INSERT INTO test1.t1 VALUES(1);
+SELECT * FROM test1.t1 INTO OUTFILE 'test1/f1.txt';
+CREATE TABLE test1.t2 (n INT);
+CREATE TABLE test1.t3 (n INT);
+DROP DATABASE test1;
+ERROR HY000: Error dropping database (can't rmdir './test1/', errno: 17 - File exists)
+include/assert.inc [Tables in test1 database are not dropped]
+CREATE TABLE test1.t4 (pk INT PRIMARY KEY);
+Wait until test1.t4 is created on slave
+include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
+DROP DATABASE test1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+USE test1;
+include/assert.inc [Tables in test1 database are not dropped]
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
+DROP DATABASE test1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+include/assert.inc [MyISAM table t5 is dropped]
+include/assert.inc [InnoDB tables in test1 database are not dropped]
+USE test2;
+CREATE TABLE t1 (n INT);
+INSERT INTO t1 VALUES (1234);
+DROP TABLE t1;
+DROP TABLE t2;
+Wait until test2.t2 is deleted on slave
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP DATABASE test1;
+DROP DATABASE test2;
 include/rpl_end.inc

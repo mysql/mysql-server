@@ -3,14 +3,10 @@
 #
 --source include/have_debug_sync.inc
 # We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
---source include/have_innodb.inc
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements
 # so weaker locks are acquired for it.
 --source include/have_binlog_format_mixed_or_statement.inc
-# Until bug#41971 'Thread state on embedded server is always "Writing to net"'
-# is fixed this test can't be run on embedded version of server.
---source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -234,7 +230,7 @@ let $table= t1;
 --echo # Switch to connection 'con1'.
 connection con1;
 --echo # Cache all functions used in the tests below so statements
---echo # calling them won't need to open and lock mysql.proc table
+--echo # calling them won't need to open and lock data dictionary table
 --echo # and we can assume that each statement locks its tables
 --echo # once during its execution.
 --disable_result_log
@@ -347,6 +343,8 @@ let $statement= call p1((select i + 5 from t1 where i = 1));
 let $restore_table= t2;
 --source include/check_concurrent_insert.inc
 
+# Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
+--disable_parsing
 --echo #
 --echo # 2.2 CREATE TABLE with a subquery.
 --echo #
@@ -361,6 +359,7 @@ let $statement= create table t0 select j from t2 where j in (select i from t1);
 let $restore_table= ;
 --source include/check_no_concurrent_insert.inc
 drop table t0;
+--enable_parsing
 
 --echo #
 --echo # 2.3 DELETE with a subquery.
@@ -944,7 +943,7 @@ SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
 connection default;
 SET DEBUG_SYNC="now WAIT_FOR drop";
 #--disable_warnings # Don't mask sql_log_bin warning
-SELECT name FROM mysql.event, INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT event_name FROM information_schema.events, performance_schema.global_variables
   WHERE definer = VARIABLE_VALUE;
 #--enable_warnings
 SET DEBUG_SYNC="now SIGNAL query";
@@ -1032,6 +1031,12 @@ drop table if exists t2;
 set debug_sync='RESET';
 create table t1 (a int, b int, unique key t1$a (a));
 create table t2 (j int, k int);
+--echo # Warm-up data-dictionary and table definition caches
+--disable_query_log
+--disable_result_log
+select * from t1, t2;
+--enable_result_log
+--enable_query_log
 set debug_sync='after_lock_tables_takes_lock SIGNAL parked WAIT_FOR go';
 --echo # Sending: 
 --send insert into t2 select * from t1;
@@ -1120,6 +1125,8 @@ DROP TABLES t1, t2;
 --disable_connect_log
 
 
+# Disabled test due to WL6378_DEBUG_SYNC - see sql/dd/mtr_readme.txt
+--disable_parsing
 --echo #
 --echo #Bug#18110156: RECREATE+ANALYZE OPTIMIZE TABLE T AND ONLINE 
 --echo #              ALTER TABLE T MAY DEADLOCK
@@ -1169,6 +1176,7 @@ DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
 --disconnect con2
 --disconnect con1
+--enable_parsing
 
 
 # Check that all connections opened by test cases in this file are really

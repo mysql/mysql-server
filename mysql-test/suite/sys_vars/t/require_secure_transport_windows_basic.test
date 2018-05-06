@@ -1,5 +1,3 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 --source include/windows.inc
 
 SET @start_value = @@global.require_secure_transport;

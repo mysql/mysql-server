@@ -24,7 +24,6 @@
 
 source include/have_ndb.inc;
 source suite/ndb_rpl/ndb_master-slave.inc;
-source include/have_innodb.inc;
 
 CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
 CREATE TABLE tinnodb (a int) ENGINE = INNODB;
@@ -32,7 +31,9 @@ CREATE TABLE tndb (a int) ENGINE = NDB;
 
 SHOW CREATE TABLE tmyisam;
 SHOW CREATE TABLE tinnodb;
+--disable_warnings
 SHOW CREATE TABLE tndb;
+--enable_warnings
 
 
 --echo [on master]

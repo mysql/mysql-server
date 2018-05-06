@@ -1,17 +1,24 @@
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Rewriter plugin
 ===============
@@ -93,18 +100,14 @@ table and schema have roughly the following definitions (subject to change):
     DECLARE message_text VARCHAR(100);
     COMMIT;
     SELECT load_rewrite_rules() INTO message_text;
-    RESET QUERY CACHE;
     IF NOT message_text IS NULL THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = message_text;
     END IF;
   END //
 
-This procedure commits the current transaction before loading the rules, and
-clears the query cache afterwards. The transaction must be committed,
-otherwise there can be no guarantee that the plugin is able to see the new
-rules. The query cache must be cleared so that queries that match a
-rule do not bypass parsing and hence rewriting. The install script also
-clears the query cache upon installing the plugin.
+This procedure commits the current transaction before loading the rules:
+The transaction must be committed, otherwise there can be no guarantee that the
+plugin is able to see the new rules.
 
 The procedure uses the UDF load_rewrite_rules() from the plugin's shared
 library to load the rules into plugin memory, and handles errors. It is not

@@ -1,0 +1,161 @@
+# ==== Purpose ====
+#
+# This test case verify if a server will throw the proper error when
+# trying to configure it as a slave and start slave's threads when it's
+# server-id is 0.
+#
+# The "Part One" of the test case will have a slave started with
+# server_id > 0 but will be tested also after setting @@GLOBAL.server_id
+# to 0.
+#
+# The "Part Two" of the test case will have a slave started with
+# server_id = 0 but will be tested also after setting @@GLOBAL.server_id
+# to a value greater than 0.
+#
+# Both parts are testing the default replication channel and a new
+# replication channel in order to evaluate also the multi source slave.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#20753463 HANDLE_FATAL_SIGNAL (SIG=11) IN __STRLEN_SSE2_PMINUB ON
+#              CHANGE MASTER
+#
+# This test case is binlog format agnostic
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+# This test case does not depend on GTID
+--source include/master-slave.inc
+
+# Assert that the slave was started with server_id > 0
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression('Server id not set, will not start slave');
+CALL mtr.add_suppression('Slave is not configured or failed to initialize properly');
+--let $assert_text= slave's server_id was greater than 0 at startup
+--let $assert_cond= [ SELECT @@GLOBAL.server_id > 0 ]
+--source include/assert.inc
+--let $original_slave_server_id= `SELECT @@GLOBAL.server_id`
+
+# Replication runs fine
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+##
+## Part One: Server initialized slave at startup (server_id > 0)
+##
+
+# Change slave @@GLOBAL.server_id to 0
+--source include/stop_slave.inc
+SET @@GLOBAL.server_id= 0;
+
+# Start slave should fail
+--error ER_BAD_SLAVE
+START SLAVE;
+
+# Assert that the reason of the failure was the server_id=0
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text= Slave didn't started because of server_id=0
+--let $assert_select= \[ERROR\] \[[^]]*\] \[[^]]*\] Server id not set, will not start slave for channel \'\'
+--let $assert_count= 1
+--let $assert_only_after= rpl_slave_server_id_equal_to_zero
+--source include/assert_grep.inc
+
+# Change master still works
+CHANGE MASTER TO MASTER_LOG_POS=4;
+
+# Start slave for channel should fail
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+START SLAVE FOR CHANNEL 'any_channel';
+
+# Change master still works and will create the channel
+CHANGE MASTER TO MASTER_LOG_POS=4, MASTER_HOST='127.0.0.1' FOR CHANNEL 'any_channel';
+
+# Start slave for channel should fail
+--error ER_BAD_SLAVE
+START SLAVE FOR CHANNEL 'any_channel';
+
+# Assert that the reason of the failure was the server_id=0
+--let $assert_text= Slave for channel didn't started because of server_id=0
+--let $assert_select= \[ERROR\] \[[^]]*\] \[[^]]*\] Server id not set, will not start slave for channel \'any_channel\'
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Remove the created channel
+RESET SLAVE ALL FOR CHANNEL 'any_channel';
+
+# Remove the t1 table on slave to allow it to be replicated again
+DROP TABLE t1;
+
+# Restore slave's server_id and start slave again
+--eval SET @@GLOBAL.server_id= $original_slave_server_id
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+##
+## Part Two: Server didn't initialized slave at startup (server_id = 0)
+##
+
+# Restart the slave with server_id=0
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=0
+--source include/rpl_restart_server.inc
+
+# Assert that the slave was started with server_id=0
+--source include/rpl_connection_slave.inc
+--let $assert_text= slave's server_id was 0 at startup
+--let $assert_cond= [ SELECT @@GLOBAL.server_id = 0 ]
+--source include/assert.inc
+
+# Start slave should fail as not configured
+--error ER_SLAVE_CONFIGURATION
+START SLAVE;
+
+# Change master should fail as slave not configured
+--error ER_SLAVE_CONFIGURATION
+CHANGE MASTER TO MASTER_LOG_POS=4;
+
+# Start slave for channel should fail as not configured
+--error ER_SLAVE_CONFIGURATION
+START SLAVE FOR CHANNEL 'any_channel';
+
+# Change master for channel should fail as slave not configured
+--error ER_SLAVE_CONFIGURATION
+CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+
+# Set original slave's server_id into @@GLOBAL.server_id
+--eval SET @@GLOBAL.server_id= $original_slave_server_id
+
+# Start slave should still fail as not configured
+--error ER_SLAVE_CONFIGURATION
+START SLAVE;
+
+# Change master should still fail as slave not configured
+--error ER_SLAVE_CONFIGURATION
+CHANGE MASTER TO MASTER_LOG_POS=4;
+
+# Start slave for channel should still fail as not configured
+--error ER_SLAVE_CONFIGURATION
+START SLAVE FOR CHANNEL 'any_channel';
+
+# Change master for channel should still fail as slave not configured
+--error ER_SLAVE_CONFIGURATION
+CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL 'any_channel';
+##
+## Cleanup
+##
+
+# Restart the slave with server_id=2
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=2
+--source include/rpl_restart_server.inc
+
+# Restart the slave to allow the test case to sync when finishing
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+# Master cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

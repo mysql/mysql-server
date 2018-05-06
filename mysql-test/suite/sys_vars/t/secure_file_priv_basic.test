@@ -13,9 +13,9 @@ show global variables like 'secure_file_priv';
 show session variables like 'secure_file_priv';
 --disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-select * from information_schema.global_variables where variable_name='secure_file_priv';
+select * from performance_schema.global_variables where variable_name='secure_file_priv';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-select * from information_schema.session_variables where variable_name='secure_file_priv';
+select * from performance_schema.session_variables where variable_name='secure_file_priv';
 --enable_warnings
 
 #

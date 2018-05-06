@@ -1,15 +1,14 @@
+create table mysql.db_copy as select * from mysql.db;
+delete from mysql.db where host='%';
+flush privileges;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 use test;
-grant usage on *.* to user1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user user1@localhost;
+create user ''@'%';
+create user user1;
+delete from mysql.db;
+insert into mysql.db select * from mysql.db_copy;
 flush privileges;
 drop table if exists t1;
 drop database if exists db1_secret;
@@ -23,7 +22,7 @@ create procedure stamp(i int)
 insert into db1_secret.t1 values (user(), i);
 show procedure status like 'stamp';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 create function db() returns varchar(64)
 begin
 declare v varchar(64);
@@ -32,7 +31,7 @@ return v;
 end|
 show function status like 'db';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call stamp(1);
 select * from t1;
 u	i
@@ -42,12 +41,8 @@ select db();
 db()
 test
 grant execute on procedure db1_secret.stamp to user1@'%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to user1@'%';
 grant execute on procedure db1_secret.stamp to ''@'%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
@@ -86,11 +81,11 @@ anon@localhost	3
 alter procedure stamp sql security invoker;
 show procedure status like 'stamp';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 alter function db sql security invoker;
 show function status like 'db';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	latin1_swedish_ci
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call stamp(4);
 select * from t1;
 u	i
@@ -115,11 +110,10 @@ create database db2;
 use db2;
 create table t2 (s1 int);
 insert into t2 values (0);
+create user user2@localhost;
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select,insert,update,delete,create routine on db2.* to user2@localhost;
 grant create routine on db2.* to user1@localhost;
 flush privileges;
@@ -158,29 +152,26 @@ use db2;
 alter procedure q modifies sql data;
 drop procedure q;
 use test;
-select type,db,name from mysql.proc where db like 'db%';
-type	db	name
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%'
+order by routine_type, routine_name;
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 FUNCTION	db1_secret	db
 PROCEDURE	db1_secret	stamp
 drop database db1_secret;
 drop database db2;
-select type,db,name from mysql.proc where db like 'db%';
-type	db	name
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%';
+ROUTINE_TYPE	ROUTINE_SCHEMA	ROUTINE_NAME
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
 delete from mysql.procs_priv where user='user1' or user='user2';
 delete from mysql.procs_priv where user='' and host='%';
-delete from mysql.db where user='user2';
+delete from mysql.db where user='user1' or user='user2';
 flush privileges;
-grant usage on *.* to usera@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant usage on *.* to userb@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant usage on *.* to userc@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user usera@localhost;
+create user userb@localhost;
+create user userc@localhost;
 create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
@@ -188,14 +179,14 @@ grant insert on t1 to usera@localhost;
 grant execute on procedure sptest.p1 to usera@localhost;
 show grants for usera@localhost;
 Grants for usera@localhost
-GRANT USAGE ON *.* TO 'usera'@'localhost'
-GRANT INSERT ON `test`.`t1` TO 'usera'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'usera'@'localhost'
+GRANT USAGE ON *.* TO `usera`@`localhost`
+GRANT INSERT ON `test`.`t1` TO `usera`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `usera`@`localhost`
 grant execute on procedure sptest.p1 to userc@localhost with grant option;
 show grants for userc@localhost;
 Grants for userc@localhost
-GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `userc`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `userc`@`localhost` WITH GRANT OPTION
 call sptest.p1(1);
 grant execute on procedure sptest.p1 to userb@localhost;
 ERROR 42000: grant command denied to user 'usera'@'localhost' for routine 'sptest.p1'
@@ -224,16 +215,16 @@ userb@localhost	4
 grant all privileges on procedure sptest.p1 to userc@localhost;
 show grants for userc@localhost;
 Grants for userc@localhost
-GRANT USAGE ON *.* TO 'userc'@'localhost'
-GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `userc`@`localhost`
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `sptest`.`p1` TO `userc`@`localhost` WITH GRANT OPTION
 show grants for userb@localhost;
 Grants for userb@localhost
-GRANT USAGE ON *.* TO 'userb'@'localhost'
-GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO 'userb'@'localhost'
+GRANT USAGE ON *.* TO `userb`@`localhost`
+GRANT EXECUTE ON PROCEDURE `sptest`.`p1` TO `userb`@`localhost`
 revoke all privileges on procedure sptest.p1 from userb@localhost;
 show grants for userb@localhost;
 Grants for userb@localhost
-GRANT USAGE ON *.* TO 'userb'@'localhost'
+GRANT USAGE ON *.* TO `userb`@`localhost`
 use test;
 drop database sptest;
 delete from mysql.user where user='usera' or user='userb' or user='userc';
@@ -241,13 +232,12 @@ delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
 delete from mysql.tables_priv where user='usera';
 flush privileges;
 drop table t1;
+create user user1@localhost;
 drop function if exists bug_9503;
 create database mysqltest//
 use mysqltest//
 create table t1 (s1 int)//
 grant select on t1 to user1@localhost//
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create function bug_9503 () returns int sql security invoker begin declare v int;
 select min(s1) into v from t1; return v; end//
 use mysqltest;
@@ -290,9 +280,7 @@ create procedure mysqltest_1.p1()
 begin
 select 1 from dual;
 end//
-grant usage on *.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost;
 call mysqltest_1.p1();
 ERROR 42000: execute command denied to user 'mysqltest_1'@'localhost' for routine 'mysqltest_1.p1'
 call mysqltest_1.p1();
@@ -365,6 +353,8 @@ CREATE USER mysqltest_1@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
 CREATE USER mysqltest_2@localhost;
 GRANT SUPER ON *.* TO mysqltest_2@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_2_con
@@ -375,9 +365,9 @@ CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 ---> connection: mysqltest_1_con
 USE mysqltest;
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 
 ---> connection: mysqltest_2_con
 use mysqltest;
@@ -393,19 +383,19 @@ USE mysqltest;
 SHOW CREATE PROCEDURE wl2897_p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
-SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE wl2897_p3;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` PROCEDURE `wl2897_p3`()
-SELECT 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
-RETURN 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
-RETURN 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
@@ -453,14 +443,12 @@ ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does no
 ---> connection: root
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
-GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER user19857@localhost IDENTIFIED BY 'meow';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
 user19857@localhost;
-SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
-Host	User	authentication_string
-localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
+SELECT Host,User FROM mysql.user WHERE User='user19857';
+Host	User
+localhost	user19857
 
 ---> connection: mysqltest_2_con
 USE test;
@@ -478,13 +466,13 @@ BEGIN
 DECLARE a INT;
 SET a=1;
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS test.sp19857;
 
 ---> connection: root
-SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
-Host	User	authentication_string
-localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
+SELECT Host,User FROM mysql.user WHERE User='user19857';
+Host	User
+localhost	user19857
 DROP USER user19857@localhost;
 use test;
 DROP TABLE IF EXISTS t1;
@@ -621,31 +609,6 @@ ERROR 42000: alter routine command denied to user 'bug57061_user'@'localhost' fo
 drop user bug57061_user@localhost;
 drop database mysqltest_db;
 #
-# Bug#11882603 SELECT_ACL ON ANY COLUMN IN MYSQL.PROC ALLOWS TO SEE
-#              DEFINITION OF ANY ROUTINE. 
-#
-DROP DATABASE IF EXISTS db1;
-CREATE DATABASE db1;
-CREATE PROCEDURE db1.p1() SELECT 1;
-CREATE USER user2@localhost IDENTIFIED BY '';
-GRANT SELECT(db) ON mysql.proc TO user2@localhost;
-# Connection con2 as user2
-# The statement below before disclosed info from body_utf8 column.
-SHOW CREATE PROCEDURE db1.p1;
-ERROR 42000: PROCEDURE p1 does not exist
-# Check that SHOW works with SELECT grant on whole table
-# Connection default
-GRANT SELECT ON mysql.proc TO user2@localhost;
-# Connection con2
-# This should work
-SHOW CREATE PROCEDURE db1.p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-SELECT 1	latin1	latin1_swedish_ci	latin1_swedish_ci
-# Connection default
-DROP USER user2@localhost;
-DROP DATABASE db1;
-#
 # Test for bug#12602983 - User without privilege on routine can discover
 # its existence by executing "select non_existing_func();" or by 
 # "call non_existing_proc()";
@@ -675,9 +638,104 @@ ERROR 42000: execute command denied to user 'bug12602983_user'@'localhost' for r
 # Connection 'default'.
 drop user bug12602983_user@localhost;
 drop database mysqltest_db;
-set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# WL#7897 Use DD API for Stored Routines.
+#    Test case to verify I_S.ROUTINES and I_S.PARAMETERS result set when
+#    user has NO/ROUTINE LEVEL/GLOBAL SELECT Privilege(s).
+#
+CREATE DATABASE mysqltest_db;
+CREATE PROCEDURE mysqltest_db.p1(IN f1 INT) SELECT 1;
+# Create user with no privileges on mysqltest_db database.
+CREATE USER user@localhost;
+# Connect as user 'user@localhost'.
+connect  conn1, localhost, user,,;
+# I_S.Routine and I_S.parameters shows empty result set for
+# user@localhost as user does not have any privileges.
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
+# Grant procedure execute privilege to user@localhost.
+connection default;
+GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
+# I_S.Routine and I_S.parameters shows result set
+# for user@localhost as user has routine level privilege.
+connection conn1;
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+mysqltest_db	p1	PROCEDURE
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
+mysqltest_db	p1	f1
+# Revoke procedure execute privilege from user@localhost.
+connection default;
+REVOKE EXECUTE ON PROCEDURE mysqltest_db.p1 FROM user@localhost;
+# I_S.Routine and I_S.parameters shows empty result set for
+# user@localhost as user does not have any privileges.
+connection conn1;
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
+# Grant GLOBAL SELECT privilege to user@localhost.
+connection default;
+GRANT SELECT ON *.* TO user@localhost;
+# I_S.Routine and I_S.parameters shows result set for
+# user@localhost as user has global select privilege.
+connect  conn2, localhost, user,,;
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE
+mysqltest_db	p1	PROCEDURE
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
+mysqltest_db	p1	f1
+#
+# Wl8131 DYNAMIC PRIVILEGS
+# SET_USER_ID is a replacement for SUPER which enable a user to 
+# create a definer routine executing as some other user.
+# This privielge can be used for privilege escalation.
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+connect  con1,localhost,u1,foo,;
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
+CALL p1();
+current_user()
+root@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+connection default;
+disconnect con1;
+DROP PROCEDURE p1;
+DROP USER u1@localhost;
+connection default;
+disconnect conn1;
+disconnect conn2;
+DROP USER user@localhost;
+DROP DATABASE mysqltest_db;
+#
+# PASSWORD EXPIRATION CHECKED FOR LOCKED ACCOUNTS USED AS SP DEFINERS
+#
+CREATE ROLE r1;
+GRANT EXECUTE, SELECT ON *.* TO r1;
+CREATE DEFINER=r1 PROCEDURE p1() SELECT current_user();
+CALL p1();
+current_user()
+r1@%
+DROP PROCEDURE p1;
+DROP ROLE r1;
+delete from mysql.db;
+insert into mysql.db select * from mysql.db_copy;
+flush privileges;
+drop table mysql.db_copy;
+SET GLOBAL sql_mode= @orig_sql_mode_global;
+SET SESSION sql_mode= @orig_sql_mode_session;

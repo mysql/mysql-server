@@ -219,13 +219,10 @@ select * from t1;
 id	data	fk
 1	one	NULL
 2	two	NULL
-4	four	1
 select * from t2;
 event
 INSERT INTO t1 id=1 data='one'
 INSERT INTO t1 id=2 data='two'
-INSERT INTO t1 id=4 data='four' fk=1
-INSERT INTO t1 FAILED id=5 data='five' fk=2
 drop table t1, t2, t3;
 create table t1 (id int primary key, data varchar(10));
 create table t2 (seq int);
@@ -318,7 +315,7 @@ create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
 insert into t1 values ('y');
 drop trigger tx1;
 drop table t1;
-create table t1 (i int) engine=myisam;
+create table t1 (i int);
 insert into t1 values (1), (2);
 create trigger trg1 before delete on t1 for each row set @del_before:= @del_before + old.i;
 create trigger trg2 after delete on t1 for each row set @del_after:= @del_after + old.i;
@@ -498,7 +495,7 @@ ERROR 42S22: Unknown column 'at' in 'OLD'
 select * from t1;
 i	k
 drop table t1, t2;
-create table t1 (i int, bt int, k int, key(k)) engine=myisam;
+create table t1 (i int, bt int, k int, key(k));
 create table t2 (i int);
 insert into t1 values (1, 1, 1), (2, 2, 2);
 insert into t2 values (1), (2), (3);
@@ -586,8 +583,6 @@ ERROR 42000: FUNCTION test.bug5893 does not exist
 drop trigger t1_bu;
 drop table t1;
 set sql_mode='ansi';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 ("t1 column" int);
 create trigger t1_bi before insert on t1 for each row set new."t1 column" = 5;
 set sql_mode="";
@@ -603,22 +598,16 @@ select @a;
 10
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop table t1;
 set sql_mode="traditional";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a date);
 insert into t1 values ('2004-01-00');
 ERROR 22007: Incorrect date value: '2004-01-00' for column 'a' at row 1
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create trigger t1_bi before insert on t1 for each row set new.a = '2004-01-00';
 set sql_mode="traditional";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values ('2004-01-01');
 select * from t1;
 a
@@ -628,14 +617,12 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (id int);
-create trigger t1_ai after insert on t1 for each row reset query cache;
-ERROR 0A000: RESET is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row reset master;
 ERROR 0A000: RESET is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row reset slave;
@@ -648,8 +635,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush status;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush des_key_file;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush user_resources;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -661,12 +646,6 @@ create trigger t1_ai after insert on t1 for each row call p1();
 create procedure p1() flush tables;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() reset query cache;
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-insert into t1 values (0);
-ERROR 0A000: RESET is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() reset master;
 insert into t1 values (0);
@@ -697,10 +676,6 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush status;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush des_key_file;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
@@ -743,7 +718,7 @@ select "hello again";
 end|
 create trigger tr1 before insert on t1 for each row 
 begin 
-call bug11587();
+call bug11587(new.c2);
 set new.c2= '2004-04-02';
 end|
 insert into t1 (c1) values (4),(5),(6);
@@ -768,14 +743,13 @@ ERROR HY000: Can't update table 't1' in stored function/trigger because it is al
 set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 f1
-1
 select * from t2;
 f2
-2
 drop trigger t1_ai;
 drop trigger t2_ai;
 create trigger t1_bu before update on t1
 for each row insert into t1 values (2);
+insert into t1 values (1);
 update t1 set f1= 10;
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 select * from t1;
@@ -851,7 +825,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	set @a:=new.id
 test	t1_ai	test	t1	set @b:=new.id
 rename table t1 to t2;
@@ -862,7 +836,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t2	set @a:=new.id
 test	t1_ai	test	t2	set @b:=new.id
 alter table t2 rename to t3;
@@ -873,7 +847,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t3	set @a:=new.id
 test	t1_ai	test	t3	set @b:=new.id
 alter table t3 rename to t4, add column val int default 0;
@@ -884,7 +858,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t4	set @a:=new.id
 test	t1_ai	test	t4	set @b:=new.id
 drop trigger t1_bi;
@@ -901,7 +875,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 rename table t1 to test.t2;
 ERROR HY000: Trigger in wrong schema
@@ -912,7 +886,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
@@ -925,7 +899,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
@@ -938,47 +912,19 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
 drop table t1;
 drop database mysqltest;
 use test;
-create table t1 (id int);
-create trigger t1_bi before insert on t1 for each row set @a:=new.id;
-create trigger t1_ai after insert on t1 for each row set @b:=new.id;
-insert into t1 values (101);
-select @a, @b;
-@a	@b
-101	101
-select trigger_schema, trigger_name, event_object_schema,
-event_object_table, action_statement from information_schema.triggers
-where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	set @a:=new.id
-test	t1_ai	test	t1	set @b:=new.id
-rename table t1 to t2;
-ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13 - Permission denied)
-insert into t1 values (102);
-select @a, @b;
-@a	@b
-102	102
-select trigger_schema, trigger_name, event_object_schema,
-event_object_table, action_statement from information_schema.triggers
-where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
-test	t1_bi	test	t1	set @a:=new.id
-test	t1_ai	test	t1	set @b:=new.id
-drop trigger t1_bi;
-drop trigger t1_ai;
-drop table t1;
 create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row return 0;
 ERROR 42000: RETURN is only allowed in a FUNCTION
@@ -1057,13 +1003,9 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i1 INT);
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
 SET @x = 5/0;
 SET SQL_MODE='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
 SET @x = 5/0;
 SET @x=1;
@@ -1077,8 +1019,6 @@ SELECT @x;
 @x
 NULL
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @x=3;
 INSERT INTO t1 VALUES (@x);
 SELECT @x;
@@ -1090,8 +1030,6 @@ SELECT @x;
 @x
 NULL
 SET @@sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TRIGGER t1_ai;
 DROP TRIGGER t1_au;
 DROP TABLE t1;
@@ -1148,8 +1086,8 @@ i1
 35
 13
 23
-43
-51
+37
+47
 DROP TABLE t1;
 create trigger wont_work after update on mysql.user for each row
 begin
@@ -1245,7 +1183,7 @@ FLUSH STATUS;
 TRUNCATE t1;
 SHOW STATUS LIKE 'handler_delete';
 Variable_name	Value
-Handler_delete	0
+Handler_delete	3
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
@@ -1299,8 +1237,6 @@ a	b
 3	c
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id int NOT NULL DEFAULT '0',
 a  varchar(10) NOT NULL,
@@ -1445,8 +1381,8 @@ isave
 1
 2
 drop table t1, t2, t3;
-CREATE TABLE t1 (id INTEGER);
-CREATE TABLE t2 (id INTEGER);
+CREATE TABLE t1 (id INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (id INTEGER) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1),(2);
 CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
 INSERT INTO t2 VALUES (new.id);
@@ -1983,7 +1919,6 @@ insert into table_25411_a values (1);
 ERROR 42S02: Unknown table 'new'
 select * from table_25411_a;
 a
-1
 drop table table_25411_a;
 drop table table_25411_b;
 DROP TRIGGER IF EXISTS trg;
@@ -2097,8 +2032,8 @@ SET @bug51650 = 1;
 INSERT IGNORE INTO t2 SET a = '777';
 DROP TRIGGER trg1;
 DROP TABLE t1, t2;
-CREATE TABLE t1 (id INT NOT NULL);
-CREATE TABLE t2 (id INT NOT NULL);
+CREATE TABLE t1 (id INT NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t2 (id INT NOT NULL) ENGINE=MyISAM;
 INSERT t1 VALUES (1),(2),(3);
 UPDATE IGNORE t1 SET id=NULL;
 Warnings:
@@ -2117,6 +2052,12 @@ DROP TABLE t1,t2;
 #
 # Bug#50755: Crash if stored routine def contains version comments
 #
+# With WL#9494, the SHOW TRIGGERS no more parses
+# the underlaying trigger, and hence it would not
+# report parse error. This means that the code
+# causing this issue is removed now with WL#9494.
+# This test case is kept for reference.
+#
 DROP DATABASE IF EXISTS db1;
 DROP TRIGGER IF EXISTS trg1;
 DROP TABLE IF EXISTS t1, t2;
@@ -2125,14 +2066,13 @@ USE db1;
 CREATE TABLE t1 (b INT);
 CREATE TABLE t2 (a INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
-# Used to crash
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES (1);
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
 b
-# Work around Bug#45235
 DROP DATABASE db1;
 USE test;
 End of 5.1 tests.
@@ -2164,8 +2104,6 @@ DELETE FROM t1;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TRIGGER IF EXISTS trg1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
@@ -2219,7 +2157,7 @@ create temporary table t1 (j int);
 drop trigger t1_bi;
 select trigger_name from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_name
+TRIGGER_NAME
 # Clean-up.
 drop temporary table t1;
 drop table t1;
@@ -2639,7 +2577,7 @@ CREATE TABLE test.silly_one (ID INT);
 CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char TRIGGER test.silly_trigger BEFORE INSERT ON test.silly_one FOR EACH ROW SET @x=1;
 SHOW TRIGGERS FROM test LIKE 'silly_one';
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	latin1_swedish_ci
+silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigger';
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
@@ -2647,23 +2585,636 @@ DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_a
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
 #
+# Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+RENAME TABLE t1 TO t1Renamed;
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
+End of 5.7 tests.
+#
+# Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
+#
+SHOW CREATE TRIGGER non_existence_db.some_trigger;
+ERROR 42000: Unknown database 'non_existence_db'
+CREATE TRIGGER non_existent_db.trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+ERROR 42000: Unknown database 'non_existent_db'
+DROP TRIGGER non_existent_db.trg1;
+ERROR 42000: Unknown database 'non_existent_db'
+#
+# Bug#24449174 - DROPPING A PARTITION DROPS THE TRIGGER ON 8.0.0
+#
+CREATE TABLE t1 (val INT NOT NULL) ENGINE=InnoDB
+PARTITION BY LIST(val) (
+PARTITION p1 VALUES IN (1,2,3),
+PARTITION p2 VALUES IN (4,5)
+);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+ALTER TABLE t1 DROP PARTITION p1;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+DROP TABLE t1;
+#
+# Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1a BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1e BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a2 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c2 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d2 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f2 AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a0 BEFORE INSERT ON t1 FOR EACH ROW PRECEDES trg1a BEGIN END;
+CREATE TRIGGER trg1a3 BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS trg1a2 BEGIN END;
+CREATE TRIGGER trg1b0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES trg1b BEGIN END;
+CREATE TRIGGER trg1b3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS trg1b2 BEGIN END;
+CREATE TRIGGER trg1c0 BEFORE UPDATE ON t1 FOR EACH ROW PRECEDES trg1c BEGIN END;
+CREATE TRIGGER trg1c3 BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS trg1c2 BEGIN END;
+SELECT TRIGGER_NAME FROM information_schema.triggers WHERE TRIGGER_NAME LIKE 'trg1%' ORDER BY TRIGGER_NAME;
+TRIGGER_NAME
+trg1a
+trg1a0
+trg1a2
+trg1a3
+trg1b
+trg1b0
+trg1b2
+trg1b3
+trg1c
+trg1c0
+trg1c2
+trg1c3
+trg1d
+trg1d2
+trg1e
+trg1f
+trg1f2
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# Bug#25581925: 'MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)' AT
+#               DD::CACHE::DICTIONARY_CLIENT:
+#
+CREATE TABLE t1(a INT);
+CREATE SCHEMA s1;
+CREATE VIEW s1.v1 AS SELECT * FROM t1;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+LOCK TABLE s1.v1 WRITE;
+DROP TRIGGER trg1;
+UNLOCK TABLES;
+DROP VIEW s1.v1;
+DROP TABLE t1;
+DROP SCHEMA s1;
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+GRANT CREATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE TABLE t1(num_value INT);
+CREATE TABLE t2(user_str TEXT);
+
+---> connection: default
+GRANT INSERT, DROP ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+
+---> connection: default
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+
+---> connection: wl2818_definer_con
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: default
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+
+---> connection: default
+REVOKE TRIGGER ON mysqltest_db1.t1 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+DROP TRIGGER trg1;
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: wl2818_definer_con
+INSERT INTO t1 VALUES(0);
+ERROR 42000: TRIGGER command denied to user 'mysqltest_dfn'@'localhost' for table 't1'
+
+---> connection: default
+GRANT TRIGGER ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+
+---> connection: wl2818_definer_con
+INSERT INTO t1 VALUES(0);
+DROP TRIGGER trg1;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+---> connection: default
+REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+
+---> connection: wl2818_definer_con
+CREATE TRIGGER trg1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(CURRENT_USER());
+
+---> connection: default
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
+GRANT ALL PRIVILEGES ON mysqltest_db1.t1
+TO 'mysqltest_inv'@localhost;
+GRANT SELECT ON mysqltest_db1.t2
+TO 'mysqltest_inv'@localhost;
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1;
+num_value
+1
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+
+---> connection: wl2818_invoker_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(2);
+SELECT * FROM t1;
+num_value
+1
+2
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+mysqltest_dfn@localhost
+
+---> connection: default
+use mysqltest_db1;
+REVOKE INSERT ON mysqltest_db1.t2 FROM mysqltest_dfn@localhost;
+
+---> connection: wl2818_invoker_con
+use mysqltest_db1;
+INSERT INTO t1 VALUES(3);
+ERROR 42000: INSERT command denied to user 'mysqltest_dfn'@'localhost' for table 't2'
+SELECT * FROM t1;
+num_value
+1
+2
+SELECT * FROM t2;
+user_str
+mysqltest_dfn@localhost
+mysqltest_dfn@localhost
+
+---> connection: wl2818_definer_con
+use mysqltest_db1;
+DROP TRIGGER trg1;
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
+
+---> connection: default
+use mysqltest_db1;
+GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+
+---> connection: wl2818_definer_con
+CREATE DEFINER='mysqltest_inv'@'localhost'
+  TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
+CREATE DEFINER='mysqltest_nonexs'@'localhost'
+  TRIGGER trg2 AFTER INSERT ON t1
+FOR EACH ROW
+SET @new_sum = 0;
+Warnings:
+Note	1449	The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
+INSERT INTO t1 VALUES(6);
+ERROR HY000: The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t1	SET @new_sum = 0	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	mysqltest_inv@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg2	INSERT	t1	SET @new_sum = 0	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	mysqltest_nonexs@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP TRIGGER trg1;
+DROP TRIGGER trg2;
+
+---> connection: default
+DROP USER mysqltest_dfn@localhost;
+DROP USER mysqltest_inv@localhost;
+DROP DATABASE mysqltest_db1;
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+use mysqltest_db1;
+CREATE TABLE t1(col CHAR(20));
+CREATE TABLE t2(col CHAR(20));
+CREATE TABLE t3(col CHAR(20));
+CREATE TABLE t4(col CHAR(20));
+CREATE USER mysqltest_u1@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+GRANT TRIGGER ON mysqltest_db1.* TO mysqltest_u1@localhost;
+SET @mysqltest_var = NULL;
+
+---> connection: default
+use mysqltest_db1;
+GRANT DELETE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+SHOW GRANTS FOR mysqltest_u1@localhost;
+Grants for mysqltest_u1@localhost
+GRANT USAGE ON *.* TO `mysqltest_u1`@`localhost`
+GRANT DELETE, TRIGGER ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
+
+---> connection: bug15166_u1_con
+use mysqltest_db1;
+CREATE TRIGGER t1_trg_after_delete AFTER DELETE ON t1
+FOR EACH ROW
+SET @mysqltest_var = 'Hello, world!';
+
+---> connection: default
+use mysqltest_db1;
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+---> connection: bug15166_u1_con
+use mysqltest_db1;
+CREATE TRIGGER t1_trg_err_1 BEFORE INSERT ON t1
+FOR EACH ROW
+SET @mysqltest_var = NEW.col;
+DROP TRIGGER t1_trg_err_1;
+CREATE TRIGGER t1_trg_err_2 BEFORE DELETE ON t1
+FOR EACH ROW
+SET @mysqltest_var = OLD.col;
+DROP TRIGGER t1_trg_err_2;
+CREATE TRIGGER t2_trg_before_insert BEFORE INSERT ON t2
+FOR EACH ROW
+SET NEW.col = 't2_trg_before_insert';
+CREATE TRIGGER t3_trg_err_1 BEFORE INSERT ON t3
+FOR EACH ROW
+SET @mysqltest_var = NEW.col;
+DROP TRIGGER t3_trg_err_1;
+CREATE TRIGGER t3_trg_err_2 BEFORE DELETE ON t3
+FOR EACH ROW
+SET @mysqltest_var = OLD.col;
+DROP TRIGGER t3_trg_err_2;
+CREATE TRIGGER t4_trg_before_insert BEFORE INSERT ON t4
+FOR EACH ROW
+SET NEW.col = 't4_trg_before_insert';
+
+---> connection: default
+use mysqltest_db1;
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) on mysqltest_db1.t4 TO mysqltest_u1@localhost;
+
+---> connection: bug15166_u1_con
+use mysqltest_db1;
+CREATE TRIGGER t1_trg_after_insert AFTER INSERT ON t1
+FOR EACH ROW
+SET @mysqltest_var = NEW.col;
+CREATE TRIGGER t1_trg_after_update AFTER UPDATE ON t1
+FOR EACH ROW
+SET @mysqltest_var = OLD.col;
+CREATE TRIGGER t2_trg_err_1 BEFORE UPDATE ON t2
+FOR EACH ROW
+SET NEW.col = 't2_trg_err_1';
+DROP TRIGGER t2_trg_err_1;
+CREATE TRIGGER t2_trg_err_2 BEFORE UPDATE ON t2
+FOR EACH ROW
+SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t2_trg_err_2;
+CREATE TRIGGER t3_trg_after_insert AFTER INSERT ON t3
+FOR EACH ROW
+SET @mysqltest_var = NEW.col;
+CREATE TRIGGER t3_trg_after_update AFTER UPDATE ON t3
+FOR EACH ROW
+SET @mysqltest_var = OLD.col;
+CREATE TRIGGER t4_trg_err_1 BEFORE UPDATE ON t4
+FOR EACH ROW
+SET NEW.col = 't4_trg_err_1';
+DROP TRIGGER t4_trg_err_1;
+CREATE TRIGGER t4_trg_err_2 BEFORE UPDATE ON t4
+FOR EACH ROW
+SET NEW.col = CONCAT(OLD.col, '(updated)');
+DROP TRIGGER t4_trg_err_2;
+
+---> connection: default
+use mysqltest_db1;
+REVOKE SELECT ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE SELECT ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT UPDATE ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+REVOKE SELECT(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE SELECT(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT UPDATE(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+INSERT INTO t1 VALUES('line1');
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't1'
+SELECT * FROM t1;
+col
+SELECT @mysqltest_var;
+@mysqltest_var
+NULL
+INSERT INTO t2 VALUES('line2');
+SELECT * FROM t2;
+col
+t2_trg_before_insert
+INSERT INTO t3 VALUES('t3_line1');
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't3'
+SELECT * FROM t3;
+col
+SELECT @mysqltest_var;
+@mysqltest_var
+NULL
+INSERT INTO t4 VALUES('t4_line2');
+SELECT * FROM t4;
+col
+t4_trg_before_insert
+
+---> connection: default
+use mysqltest_db1;
+REVOKE UPDATE ON mysqltest_db1.t1 FROM mysqltest_u1@localhost;
+REVOKE UPDATE ON mysqltest_db1.t2 FROM mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t1 TO mysqltest_u1@localhost;
+GRANT SELECT ON mysqltest_db1.t2 TO mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t3 FROM mysqltest_u1@localhost;
+REVOKE UPDATE(col) ON mysqltest_db1.t4 FROM mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t3 TO mysqltest_u1@localhost;
+GRANT SELECT(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
+INSERT INTO t1 VALUES('line3');
+SELECT * FROM t1;
+col
+line3
+SELECT @mysqltest_var;
+@mysqltest_var
+line3
+INSERT INTO t2 VALUES('line4');
+ERROR 42000: UPDATE command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't2'
+SELECT * FROM t2;
+col
+t2_trg_before_insert
+INSERT INTO t3 VALUES('t3_line2');
+SELECT * FROM t3;
+col
+t3_line2
+SELECT @mysqltest_var;
+@mysqltest_var
+t3_line2
+INSERT INTO t4 VALUES('t4_line2');
+ERROR 42000: UPDATE command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't4'
+SELECT * FROM t4;
+col
+t4_trg_before_insert
+DELETE FROM t1;
+SELECT @mysqltest_var;
+@mysqltest_var
+Hello, world!
+DROP USER mysqltest_u1@localhost;
+DROP DATABASE mysqltest_db1;
+DELETE FROM mysql.user WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.db WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
+DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
+FLUSH PRIVILEGES;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+CREATE TABLE t1 (i1 INT);
+CREATE TABLE t2 (i1 INT);
+CREATE USER mysqltest_dfn@localhost;
+CREATE USER mysqltest_inv@localhost;
+GRANT EXECUTE, CREATE ROUTINE, TRIGGER ON *.* TO mysqltest_dfn@localhost;
+GRANT INSERT ON mysqltest_db1.* TO mysqltest_inv@localhost;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 3;
+CREATE PROCEDURE p2(INOUT i INT) DETERMINISTIC NO SQL SET i = i * 5;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (7);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+INSERT INTO t2 VALUES (11);
+ERROR 42000: SELECT, UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT SELECT ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (13);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+INSERT INTO t2 VALUES (17);
+ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+REVOKE SELECT ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (19);
+INSERT INTO t2 VALUES (23);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+GRANT SELECT, UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+CREATE TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW
+CALL p2(NEW.i1);
+INSERT INTO t1 VALUES (29);
+INSERT INTO t2 VALUES (31);
+REVOKE SELECT, UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t2_bi;
+DROP TRIGGER t1_bi;
+DROP PROCEDURE p2;
+DROP PROCEDURE p1;
+GRANT UPDATE ON mysqltest_db1.* TO mysqltest_dfn@localhost;
+CREATE PROCEDURE p1(OUT i INT) DETERMINISTIC NO SQL SET i = 37;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+CALL p1(NEW.i1);
+INSERT INTO t1 VALUES (41);
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(IN i INT) DETERMINISTIC NO SQL SET @v1 = i + 43;
+INSERT INTO t1 VALUES (47);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1(INOUT i INT) DETERMINISTIC NO SQL SET i = i + 51;
+INSERT INTO t1 VALUES (53);
+ERROR 42000: SELECT command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
+DROP PROCEDURE p1;
+REVOKE UPDATE ON mysqltest_db1.* FROM mysqltest_dfn@localhost;
+DROP TRIGGER t1_bi;
+DROP USER mysqltest_inv@localhost;
+DROP USER mysqltest_dfn@localhost;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP DATABASE mysqltest_db1;
+USE test;
+End of 5.0 tests.
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+create trigger t1_bi before insert on t1 for each row begin end;
+unlock tables;
+connection: flush
+unlock tables;
+select * from t1;
+i
+drop table t1;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a char(30)) ENGINE=MEMORY;
+CREATE TRIGGER db1.trg AFTER INSERT ON db1.t1 FOR EACH ROW
+INSERT INTO db1.t1 VALUES('Some very sensitive data goes here');
+CREATE USER 'no_rights'@'localhost';
+REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
+FLUSH PRIVILEGES;
+SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE trigger_schema = 'db1';
+TRIGGER_NAME
+SHOW CREATE TRIGGER db1.trg;
+ERROR 42000: Access denied; you need (at least one of) the TRIGGER privilege(s) for this operation
+DROP USER 'no_rights'@'localhost';
+DROP DATABASE db1;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+CREATE USER mysqltest_u1@localhost;
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+CREATE TABLE t1 (
+a1 int,
+a2 int
+);
+INSERT INTO t1 VALUES (1, 20);
+CREATE TRIGGER mysqltest_db1.upd_t1
+BEFORE UPDATE ON t1 FOR EACH ROW SET new.a2 = 200;
+CREATE TABLE t2 (
+a1 int
+);
+INSERT INTO t2 VALUES (2);
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+UPDATE IGNORE t1, t2 SET t1.a1 = 2, t2.a1 = 3 WHERE t1.a1 = 1 AND t2.a1 = 2;
+ERROR 42000: TRIGGER command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+DROP DATABASE mysqltest_db1;
+DROP USER mysqltest_u1@localhost;
+USE test;
+End of 5.1 tests.
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+use test;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+# Check that user_name_len_22_01234 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_22_01234'@'localhost' for table 't1'
+# Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_32_012345678901234'@'localhost' for table 't1'
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+TRIGGER test1.t1_ai AFTER INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+GRANT INSERT ON test1.t1 TO user_name_len_22_01234@localhost;
+# Now user_name_len_22_01234 should be able to "SELECT" COUNT(*) FROM
+# test1.t1 by using the trigger
+set @a:=0;
+INSERT INTO test1.t1 VALUES (1,'haha');
+SELECT @a;
+@a
+1
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+TRIGGER test1.t1_bi BEFORE INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+DROP DATABASE test1;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+#
 # Bug#25209512:  CURRENT_TIMESTAMP PRODUCES ZEROS IN TRIGGER
 #
 
 # Case 1: With BEFORE INSERT triggers
 # Scenario 1.1: Normal INSERT
-SET TIMESTAMP= UNIX_TIMESTAMP("2017-05-15 07:07:07");
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-03-30 07:07:07");
 CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
 CREATE TRIGGER trigger_for_normal_insert BEFORE INSERT ON t1 FOR EACH ROW
 SET @x:= NEW.a;
 INSERT INTO t1() VALUES();
 SELECT * FROM t1;
 a
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 # Without the patch, x contained zero timestamp.
 SELECT @x;
 @x
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 DROP TABLE t1;
 
 # Scenario 1.2: INSERT INTO... SELECT
@@ -2673,11 +3224,11 @@ SET @x:= NEW.a;
 INSERT INTO t1(b) SELECT 1;
 SELECT * FROM t1;
 a	b
-2017-05-15 07:07:07	1
+2017-03-30 07:07:07	1
 # Without the patch, x contained zero timestamp.
 SELECT @x;
 @x
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 DROP TABLE t1;
 
 # Scenario 1.3: Normal REPLACE
@@ -2687,11 +3238,11 @@ SET @x:= NEW.a;
 REPLACE INTO t1() VALUES();
 SELECT * FROM t1;
 a
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 # Without the patch, x contained zero timestamp.
 SELECT @x;
 @x
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 DROP TABLE t1;
 
 # Scenario 1.4: REPLACE INTO... SELECT
@@ -2701,11 +3252,11 @@ SET @x:= NEW.a;
 REPLACE INTO t1(b) SELECT 1;
 SELECT * FROM t1;
 a	b
-2017-05-15 07:07:07	1
+2017-03-30 07:07:07	1
 # Without the patch, x contained zero timestamp.
 SELECT @x;
 @x
-2017-05-15 07:07:07
+2017-03-30 07:07:07
 DROP TABLE t1;
 
 # Case 2: With BEFORE UPDATE triggers
@@ -2818,6 +3369,7 @@ fld1	fld2
 SELECT * FROM t2;
 fld1	fld2
 1100	40
+# Without patch, the after update trigger is not invoked.
 INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
 fld2= 50;
 SELECT * FROM t1;
@@ -2835,6 +3387,15 @@ fld1	fld2
 SELECT * FROM t2;
 fld1	fld2
 1100	50
+# Test added for coverage.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+SELECT * FROM t1;
+fld1	fld2
+1100	3
+SELECT * FROM t2;
+fld1	fld2
+1100	60
 # Tests covering before update trigger.
 # Setup.
 TRUNCATE TABLE t1;
@@ -2851,7 +3412,7 @@ fld1	fld2
 1100	0
 SELECT * FROM t2;
 fld1	fld2
-1100	50
+1100	60
 INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
 fld2= 50;
 SELECT * FROM t1;
@@ -2868,7 +3429,14 @@ fld1	fld2
 SELECT * FROM t2;
 fld1	fld2
 1100	50
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+SELECT * FROM t1;
+fld1	fld2
+1100	3
+SELECT * FROM t2;
+fld1	fld2
+1100	60
 # Cleanup
 DROP TRIGGER update_before_update;
 DROP TABLE t1, t2;
-End of 5.7 tests.

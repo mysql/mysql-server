@@ -2,10 +2,18 @@
 # 1. Try to restart the server with some other legal innodb page size value.
 #    It must fail because we had a different value before.
 # 1.1 The value assigned is a number.
+Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
+Pattern "Data file '.*ibdata1' uses page size START_PAGE_SIZE, but the innodb_page_size start-up parameter is OTHER_PAGE_SIZE" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 # 1.2 The value assigned is a number followed by 'k'.
+Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
+Pattern "Data file '.*ibdata1' uses page size START_PAGE_SIZE, but the innodb_page_size start-up parameter is OTHER_PAGE_SIZE" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 # 2. Try to restart the server with some innodb page size.which is either
 #    bigger than the maximum or smaller than the minimum supported one.
 #    It must fail because we had a different value before.
+Pattern "\[Warning\] \[[^]]*\] \[[^]]*\] option 'innodb-page-size': unsigned value OUT_RANGE_PAGE_SIZE adjusted to ADJUST_PAGE_SIZE" found
+Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to ADJUST_PAGE_SIZE" found
 # 3. Try to restart the server with the plain wrong innodb page size value "garbage".
 #    The restart attempt has to
 #    - fail in case start of test page size <> the minimal legal page size.
@@ -14,8 +22,10 @@
 # 4. Try to restart the server with some illegal innodb page size value
 #    being between minimum and maximum legal page size value.
 #    The restart attempt has to fail.
+Pattern "\[ERROR\] .*MY-\d+.* Invalid page size=ILLEGAL_PAGESIZE" found
 # 5. Try to restart the server with wrong innodb page size <number>karamel.
 #    <number>k is a legal page size.
+Pattern "innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
 # 6. Try to restart the server with the plain wrong innodb page size <number>caramel
 #    <number>k is a legal page size.
 #    The restart attempt has to

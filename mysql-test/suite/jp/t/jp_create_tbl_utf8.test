@@ -1,5 +1,3 @@
---source include/have_utf8.inc
---source include/have_innodb.inc
 --disable_warnings
 DROP TABLE IF EXISTS `ｱｱｱ`;
 DROP TABLE IF EXISTS `ｲｲｲ`;

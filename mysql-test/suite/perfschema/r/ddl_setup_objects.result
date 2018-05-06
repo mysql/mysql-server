@@ -14,3 +14,6 @@ ALTER TABLE performance_schema.setup_objects ADD INDEX test_index(OBJECT_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.setup_objects(OBJECT_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+DROP INDEX `OBJECT`
+  ON performance_schema.setup_objects;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

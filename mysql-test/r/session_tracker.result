@@ -24,7 +24,7 @@ time_zone,autocommit,character_set_client,character_set_results,character_set_co
 # SET NAMES ..
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-latin1	latin1	latin1
+utf8mb4	utf8mb4	utf8mb4
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
@@ -34,6 +34,8 @@ SET NAMES 'utf8';
 -- character_set_results
 -- utf8
 
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8	utf8	utf8
@@ -173,7 +175,7 @@ SYSTEM
 # Testing sql_mode
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 SET @@session.session_track_system_variables='sql_mode';
 SELECT @@session.session_track_system_variables;
@@ -183,16 +185,16 @@ SET @sql_mode_saved= @@session.sql_mode;
 SET @@session.sql_mode='traditional';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 
 SET @@session.sql_mode='traditional';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 
 SELECT @@session.sql_mode;
 @@session.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode='invalid';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'invalid'
 # Test the wildcard value for tracking.
@@ -205,45 +207,15 @@ SET @@session.session_track_system_variables='*';
 SET @@session.sql_mode= @sql_mode_saved;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
-# Expect change info.
-SET @@old_passwords=0;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- old_passwords
--- 0
-
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-# Expect change info.
-SET @@session.sql_mode= @sql_mode_saved;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- sql_mode
--- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-
-# Test the wildcard value for tracking.
-SET @@session.session_track_system_variables='*,old_passwords';
-Warnings:
-Warning	1231	* is not a valid system variable and will be ignored.
-# Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
-# Expect change info.
-SET @@old_passwords=0;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- old_passwords
--- 0
-
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-# Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
 # Switch off the session system variables tracker (using empty string).
 SET @@session.session_track_system_variables='';
 # Expect no change info.
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 # Switch off the session system variables tracker (using empty NULL).
 SET @@session.session_track_system_variables=NULL;
@@ -251,7 +223,7 @@ SET @@session.session_track_system_variables=NULL;
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 # Check to see that string NULL acts no different from other invalid strings.
 SET @@session.session_track_system_variables='var1,NULL';
@@ -262,43 +234,41 @@ Warning	1231	NULL is not a valid system variable and will be ignored.
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 
 # Testing with stored procedure.
 
-SET @@session.session_track_system_variables='autocommit,time_zone,tx_isolation';
+SET @@session.session_track_system_variables='autocommit,time_zone,
+                                              transaction_isolation';
 SELECT @@session.session_track_system_variables;
 @@session.session_track_system_variables
-autocommit,time_zone,tx_isolation
+autocommit,time_zone,
+                                              transaction_isolation
 
 CREATE PROCEDURE my_proc() BEGIN
 SET @@session.autocommit=OFF;
 SET @@session.time_zone='-6:00';
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 END;|
 CALL my_proc;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
--- READ-COMMITTED
 -- autocommit
 -- OFF
 -- time_zone
 -- -06:00
+-- transaction_isolation
+-- READ-COMMITTED
 
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 CALL my_proc;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
--- READ-COMMITTED
 -- autocommit
 -- OFF
 -- time_zone
 -- -06:00
+-- transaction_isolation
+-- READ-COMMITTED
 
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 DROP PROCEDURE my_proc;
 # Testing with unknown/invalid system variables.
 SHOW VARIABLES LIKE 'var1';
@@ -319,8 +289,6 @@ SET @@session.sql_mode='ANSI';
 -- sql_mode
 -- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Tracking by self-assigning the value of a system variable.
 
 SELECT @@session.sql_mode;
@@ -439,6 +407,8 @@ Warnings:
 Warning	1231	validate_password_policy is not a valid system variable and will be ignored.
 # Now lets install the validate password plugin.
 INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # plugin installed!
 
 SELECT @@session.session_track_system_variables;
@@ -449,6 +419,8 @@ SET @@session.session_track_system_variables='validate_password_policy,autocommi
 
 # Cleanup.
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 #
 # WL#6885  Track session state change
 #
@@ -523,6 +495,8 @@ SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.session_track_state_change=OFF;
 # Change system variable
 SET NAMES 'utf8';
@@ -534,6 +508,8 @@ SET NAMES 'utf8';
 -- character_set_results
 -- utf8
 
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # reset the session.
 SET @@session.session_track_state_change=ON;
 # Change database
@@ -763,7 +739,7 @@ ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 
 # Test in combination with other trackers
 
 # CASE1: with session_track_system_variables
-SET @@session.session_track_system_variables='time_zone,tx_isolation';
+SET @@session.session_track_system_variables='time_zone,transaction_isolation';
 SET @@session.time_zone='-6:00';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
@@ -771,16 +747,14 @@ SET @@session.time_zone='-6:00';
 
 SET @@session.session_track_state_change=1;
 # expect 1 as well in OK packet
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
+-- transaction_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # expect 1 as well in OK packet
 SET @var2= 20;
 -- Tracker : SESSION_TRACK_STATE_CHANGE
@@ -831,7 +805,7 @@ USE test;
 # CASE4: check for trackers itself
 SET @@session.session_track_state_change=1;
 # expect 1
-SET @@session.session_track_system_variables='tx_isolation';
+SET @@session.session_track_system_variables='transaction_isolation';
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -22,16 +21,10 @@ let SEARCH_FILE= $server_log;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 25
 
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
@@ -39,7 +32,7 @@ EOF
 --copy_file std_data/server-cert.pem $DATADIR_LOCATION/server-cert.pem
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $restart_file
+--exec echo "restart: --log-error-verbosity=3" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -47,14 +40,14 @@ EOF
 
 --echo # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
 let SEARCH_PATTERN= Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search for : CA certificate is self signed.;
 let SEARCH_PATTERN= CA certificate .* is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Try to establish SSL connection : This must succeed.
 connect (ssl_root_1,localhost,root,,,,,SSL);
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 SHOW VARIABLES LIKE 'have_ssl';
 
@@ -68,7 +61,7 @@ connection default;
 disconnect ssl_root_1;
 
 --echo # Connect using mysql client : This must succeed.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
@@ -80,16 +73,10 @@ disconnect ssl_root_1;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 25
 
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem
@@ -121,12 +108,12 @@ disconnect root_2;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA" > $restart_file
+--exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -134,13 +121,13 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --echo # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
 let SEARCH_PATTERN= Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search for : CA certificate is self signed.;
 let SEARCH_PATTERN= CA certificate .* is self signed.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Try creating SSL connection
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 

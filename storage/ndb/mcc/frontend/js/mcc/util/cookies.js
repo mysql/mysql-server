@@ -1,18 +1,25 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 /******************************************************************************
@@ -236,6 +243,74 @@ function getCookie(key) {
 
 // Store a cookie with the given name, value and default expiration
 function setCookie(name, value) {
+    //Stores that keep sensitive information should NOT be kept in cookies!
+    if (name == "clusterStore") {
+        return; //Do NOT set cookies for cluster!
+    }
+    if (name == "hostStore") {
+        return; //Do NOT set cookies for hosts!
+        // Skip over Empty/AnyHost
+        if (value.length > 200) {
+            mcc.util.dbg("Removing passwords from Host cookie store.");
+            // Remove password.
+            var startIndex = value.indexOf("\"usrpwd\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"usrpwd\": \"\"");
+                }
+                startIndex = value.indexOf("\"usrpwd\": \"", endIndex);
+                endIndex = 0;
+            }
+            // Remove passphrase.
+            var startIndex = value.indexOf("\"key_passp\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"key_passp\": \"\"");
+                }
+                startIndex = value.indexOf("\"key_passp\": \"", endIndex);
+                endIndex = 0;
+            }        
+            // Remove private key.
+            var startIndex = value.indexOf("\"key\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"key\": \"\"");
+                }
+                startIndex = value.indexOf("\"key\": \"", endIndex);
+                endIndex = 0;
+            }        
+        }
+    }
     var expiration = +predefinedCookies["expiration"].defaultValue;
     // If there isn't a default, use 5 days
     if (!expiration) {

@@ -1,0 +1,101 @@
+## Preamle
+--source include/xplugin_preamble.inc
+
+## Test case
+
+
+# Please update the test case when the variable count changes
+# add/remove variable
+let $wait_condition=
+  SELECT COUNT(*)=21 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
+--source include/wait_condition_or_abort.inc
+
+# Values for variables that were overwritten by MTR
+--let $mtr_overwrited_port=  $MASTER_X_MYPORT
+--let $mtr_overwrited_socket= $MASTER_X_MYSOCK
+
+
+## Verify default value of system variables
+--let $assert_text= Mysqlx_port must match value set by MTR
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_port", Value, 1] = $mtr_overwrited_port
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_socket must match value set by MTR
+--let $assert_cond= [select VARIABLE_VALUE="$mtr_overwrited_socket" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_socket", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_max_connections must be 1 connection, default values
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_max_connections", Value, 1] = 100
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_min_worker_threads must be 2 workers, default values
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_min_worker_threads", Value, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_idle_worker_thread_timeout must be 60 seconds, default values
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_idle_worker_thread_timeout", Value, 1] = 60
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_max_allowed_packet must be 64M, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_max_allowed_packet", Value, 1] = 67108864
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_connect_timeout must be 30 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_connect_timeout", Value, 1] = 30
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_wait_timeout must be 28800 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_wait_timeout", Value, 1] = 28800
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_interactive_timeout must be 28800 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_interactive_timeout", Value, 1] = 28800
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_read_timeout must be 30 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_read_timeout", Value, 1] = 30
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_write_timeout must be 60 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_write_timeout", Value, 1] = 60
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_key must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_key", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_ca must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_ca", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_capath must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_capath", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_cert must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_cert", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_cipher must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_cipher", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_crl must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_crl", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_ssl_crlpath must be empty, the default value
+--let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_crlpath", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_bind_address must be "*", the default value
+--let $assert_cond= [select VARIABLE_VALUE like "*" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_bind_address", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_port_open_timeout must be 0 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_port_open_timeout", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_document_id_unique_prefix must be 0, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_document_id_unique_prefix", Value, 1] = 0
+--source include/assert.inc

@@ -2,7 +2,7 @@ DESC sys.sys_config;
 Field	Type	Null	Key	Default	Extra
 variable	varchar(128)	NO	PRI	NULL	
 value	varchar(128)	YES		NULL	
-set_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+set_time	timestamp	YES		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 set_by	varchar(128)	YES		NULL	
 SELECT variable, value, set_by FROM sys.sys_config;
 variable	value	set_by

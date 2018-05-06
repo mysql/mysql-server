@@ -5,17 +5,17 @@ SET GLOBAL LOG_OUTPUT = 'FILE';
 flush status;
 show status like 'Table_lock%';
 Variable_name	Value
-Table_locks_immediate	0
+Table_locks_immediate	1
 Table_locks_waited	0
-select * from information_schema.session_status where variable_name like 'Table_lock%';
+select * from performance_schema.session_status where variable_name like 'Table_lock%';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLE_LOCKS_IMMEDIATE	0
-TABLE_LOCKS_WAITED	0
+Table_locks_immediate	2
+Table_locks_waited	0
 set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
 drop table if exists t1;
-create table t1(n int) engine=myisam;
+create table t1(n int);
 insert into t1 values(1);
 select get_lock('mysqltest_lock', 100);
 get_lock('mysqltest_lock', 100)
@@ -29,6 +29,8 @@ update t1 set n = get_lock('mysqltest_lock', 100) ;
 update t1 set n = 3;
 # Switched to connection: default
 # wait for the second UPDATE to get blocked
+Timeout in wait_condition.inc for select 1 from INFORMATION_SCHEMA.PROCESSLIST
+where ID = 9 and STATE = "Waiting for table level lock"
 select release_lock('mysqltest_lock');
 release_lock('mysqltest_lock')
 1
@@ -41,7 +43,7 @@ release_lock('mysqltest_lock')
 # Reaping second UPDATE
 show status like 'Table_locks_waited';
 Variable_name	Value
-Table_locks_waited	1
+Table_locks_waited	0
 # Switched to connection: default
 drop table t1;
 set global general_log = @old_general_log;
@@ -66,10 +68,10 @@ a
 6
 show status like 'last_query_cost';
 Variable_name	Value
-Last_query_cost	12.084449
+Last_query_cost	5.249000
 show status like 'last_query_cost';
 Variable_name	Value
-Last_query_cost	12.084449
+Last_query_cost	5.249000
 select 1;
 1
 1
@@ -81,36 +83,36 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	1
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	1
+Max_used_connections	1
 SET @save_thread_cache_size=@@thread_cache_size;
 SET GLOBAL thread_cache_size=3;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	3
+Max_used_connections	3
 FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	2
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	2
+Max_used_connections	2
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	3
+Max_used_connections	3
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	4
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	4
+Max_used_connections	4
 SET GLOBAL thread_cache_size=@save_thread_cache_size;
 CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (2);
@@ -119,7 +121,10 @@ a
 1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	2.402418
+Last_query_cost	0.449000
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -127,7 +132,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	2.402418
+Last_query_cost	0.449000
 SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
 a
 1
@@ -162,7 +167,7 @@ a	a
 1	1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	5.205912
+Last_query_cost	1.099010
 DROP TABLE t1;
 flush status;
 show status like 'Com%function';
@@ -185,16 +190,8 @@ Com_drop_function	1
 create database db37908;
 create table db37908.t1(f1 int);
 insert into db37908.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user mysqltest_1@localhost;
 grant usage,execute on test.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure proc37908() begin select 1; end |
 create function func37908() returns int sql security invoker
 return (select * from db37908.t1 limit 1)|
@@ -262,8 +259,8 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	0
-Table_open_cache_misses	1
+Table_open_cache_hits	1
+Table_open_cache_misses	15
 Table_open_cache_overflows	0
 # The second statement accessing the same table should
 # result in table cache hit.
@@ -271,24 +268,24 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	1
-Table_open_cache_misses	1
+Table_open_cache_hits	2
+Table_open_cache_misses	15
 Table_open_cache_overflows	0
 # Again table cache miss if accessing different table.
 select * from t2;
 j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	1
-Table_open_cache_misses	2
+Table_open_cache_hits	17
+Table_open_cache_misses	16
 Table_open_cache_overflows	0
 # And cache hit then accessing it second time.
 select * from t2;
 j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	2
-Table_open_cache_misses	2
+Table_open_cache_hits	18
+Table_open_cache_misses	16
 Table_open_cache_overflows	0
 # The below statement should result in 2 cache hits and 
 # 4 cache misses since it needs 6 table instances in total.
@@ -296,8 +293,8 @@ select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
 i	j	i	j	i	j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	4
-Table_open_cache_misses	6
+Table_open_cache_hits	20
+Table_open_cache_misses	20
 Table_open_cache_overflows	0
 # Reduce size of table cache to check that status
 # variable tracking cache overflows works.
@@ -310,18 +307,18 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	5
-Table_open_cache_misses	6
-Table_open_cache_overflows	2
+Table_open_cache_hits	21
+Table_open_cache_misses	20
+Table_open_cache_overflows	18
 # This statement should result in 4 cache hits, 2 cache misses/
 # overflows.
 select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
 i	j	i	j	i	j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	9
-Table_open_cache_misses	8
-Table_open_cache_overflows	4
+Table_open_cache_hits	24
+Table_open_cache_misses	23
+Table_open_cache_overflows	21
 # Finally, the below statement should result in 1 cache miss
 # and 1 overflow since it accesses table which is not yet in
 # cache and table cache is full.
@@ -329,9 +326,9 @@ select * from t3;
 k
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	9
-Table_open_cache_misses	9
-Table_open_cache_overflows	5
+Table_open_cache_hits	24
+Table_open_cache_misses	39
+Table_open_cache_overflows	37
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;

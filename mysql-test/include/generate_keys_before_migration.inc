@@ -21,13 +21,13 @@ eval CREATE FUNCTION keyring_key_remove RETURNS INTEGER SONAME '$KEYRING_UDF';
 
 --let $key_name1=`select concat("key_", current_timestamp(6))`
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key1_timestamp/
---eval SELECT keyring_key_generate('$key_name1','AES',16)
+--eval SELECT keyring_key_generate('$key_name1','AES',16);
 --let $key_name2=`select concat("key_", current_timestamp(6))`
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key2_timestamp/
---eval SELECT keyring_key_generate('$key_name2','AES',24)
+--eval SELECT keyring_key_generate('$key_name2','AES',24);
 --let $key_name3=`select concat("key_", current_timestamp(6))`
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key3_timestamp/
---eval SELECT keyring_key_generate('$key_name3','AES',32)
+--eval SELECT keyring_key_generate('$key_name3','AES',32);
 
 let $wl9769_source_key1 = `SELECT hex(keyring_key_fetch('$key_name1'))`;
 let $wl9769_source_key2 = `SELECT hex(keyring_key_fetch('$key_name2'))`;

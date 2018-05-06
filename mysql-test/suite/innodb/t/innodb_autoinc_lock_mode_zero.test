@@ -1,7 +1,6 @@
 # This test runs with old-style locking, as:
 # --innodb-autoinc-lock-mode=0
 
--- source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;

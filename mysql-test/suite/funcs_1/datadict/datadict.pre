@@ -24,7 +24,7 @@
 SELECT character_maximum_length INTO @CML
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-  AND table_name   = 'columns'
+  AND table_name   = 'COLUMNS'
   AND column_name  = 'table_catalog';
 
 let $bug_12777_0512= `SELECT @CML =  512`;

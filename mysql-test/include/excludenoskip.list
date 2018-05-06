@@ -1,0 +1,220 @@
+###############################################################################
+#                                                                             #
+# WL#9073 - Excluded list for MTR no-skip option                              #
+#         - Below listed inc files will continue to skip with --no-skip option#
+#                                                                             #
+# Creation Date: 2016-July-26                                                 #
+# Author : Mohit Joshi							      #
+#									      #
+#									      #
+###############################################################################
+
+# 1.0 OS dependent files
+# Below files are OS specific and tests will run only on selective platform
+# where conditions are met and skip on others.
+have_32bit.inc
+have_64bit.inc
+have_little_endian.inc
+have_case_insensitive_file_system.inc
+have_case_sensitive_file_system.inc
+have_lowercase0.inc
+have_lowercase1.inc
+have_lowercase2.inc
+linux.inc
+windows.inc
+not_windows.inc
+have_open_file_limit_more_than_5000.inc
+have_partition_open_file_limit.inc
+table_compress_2.test
+table_compress_3.test
+have_posix_locale.inc
+# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe
+# is obsolete on platforms that use systemd to monitor mysqld.
+have_mysqld_safe.inc
+# Test need to run only on Linux and OSX and skip all other platforms.
+costmodel_planchange.test
+# Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
+have_met_timezone.inc
+# Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
+have_moscow_leap_timezone.inc
+
+# 2.0 Binlog formats
+# Below files are included because rpl suite runs each test with 3 different
+# binlog format combinations. The test may not be meant to run on all binlog
+# formats and will skip
+have_binlog_format_mixed_or_row.inc
+have_binlog_format_mixed_or_statement.inc
+have_binlog_format_mixed.inc
+have_binlog_format_row_or_statement.inc
+have_binlog_format_row.inc
+have_binlog_format_statement.inc
+
+# 3.0 Compile options
+# Below files are included because few tests are meant to be tested with
+# specific compile options which is not available in all builds.
+have_debug_sync.inc
+have_debug.inc
+have_nodebug.inc
+mysql_have_debug.inc
+have_ibd2sdi_debug.inc
+
+# 3.37 Compile options
+# Test checking existence of features in the build causing the test to be skipped
+have_ndb_error_insert.inc
+have_ndbapi_examples.inc
+have_ndb_debug.inc
+have_ndb_rqg.inc
+# Generated in var/tmp/ by run_ndbapitest.inc and then sourced
+run_ndbapitest_result.inc
+
+# 4.0 Miscellaneous
+
+# 4.1 Reason for inclusion: If not included, this will cause the same tests
+# to run again when --log-bin option will be used to run the suites. This
+# will cause duplicate test runs leading to increased test execution time.
+not_log_bin.inc
+
+# 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
+# Additional references for more details:
+# https://dev.mysql.com/doc/internals/en/cmake-build-types.html
+mysqlbinlog_have_debug.inc
+have_innochecksum_debug.inc
+have_udf.inc
+have_mecab.inc
+fix_priv_tables.test
+
+# 4.4
+# Test with wolfssl is supported only on community build.
+# Test will openssl is supported only on commercial build.
+have_yassl.inc
+have_openssl.inc
+have_openssl_binary.inc
+have_ssl.inc
+have_ssl_crypto_functs.inc
+not_openssl.inc
+
+# 4.5 Reason for inclusion: Tests should run only with supported innodb page
+# sizes and skip on others. However, this can be handled using a custom
+# bootstrap fle and below files can be removed from the excluded list once
+# the same is implemented.
+have_innodb_16k.inc
+have_innodb_32k.inc
+have_innodb_4k.inc
+have_innodb_64k.inc
+have_innodb_8k.inc
+have_innodb_max_16k.inc
+have_innodb_min_8k.inc
+not_have_innodb_4k.inc
+
+# 4.6 IP versions
+have_ipv4_mapped.inc
+have_lo0_local_scope.inc
+
+# 4.7 System variable which checks whether server has statement_timeout feature or
+# not.The value can be NO if the background thread used by this feature could
+# not be initialized during server start
+# More details can be found at:
+# http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.
+# html#sysvar_have_statement_timeout
+have_statement_timeout.inc
+
+# 5.0 Different protocols
+# Reason for inclusion: Tests should run only with supported protocols and
+# skip on others.
+have_ps_protocol.inc
+have_no_protocol.inc
+no_view_protocol.inc
+no_ps_protocol.inc
+no_sp_protocol.inc
+no_opt_trace_protocol.inc
+no_explain_protocol.inc
+no_cursor_protocol.inc
+
+# 6.0 Different builds
+have_valgrind.inc
+not_valgrind.inc
+not_ubsan.inc
+not_asan.inc
+
+# 7.0 Few skipped test-cases
+mysql_tzinfo_to_sql_sys.test
+wrapper.test
+
+# 8.0 Skip tests that need storage engines compiled as plugins.
+have_federated_plugin.inc
+have_archive_plugin.inc
+have_blackhole_plugin.inc
+
+# 9.0 To be retained until Bug#24382105 - PARTS.PARTITION_VALUE_INNODB NEVER RUNS
+# is fixed.
+partition_value_innodb.test
+
+# 10.0 GNU grep not supported on Solaris and Windows
+have_grep.inc
+
+# 11.0
+# In mysql source, all the plugins might not be in the same location. Some MTR
+# tests would require multiple plugins, so it is desirable that there is a
+# check to see that, if all the plugins are in a directory, then the test
+# should run, else it needs to be skipped.
+# for ex. Developer builds refers to include/plugin.defs for plugin locations
+# and do not have all the plugins kept at one location.
+check_plugin_dir.inc
+
+# 12.0 Tests that do/don't need group replication plugin.
+have_group_replication_plugin.inc
+have_group_replication_plugin_base.inc
+not_group_replication_plugin.inc
+
+# 13.0 Memcached plugin is not available on all PB2 builds. Only supported by
+# Linux, Solaris and OS X platforms.
+have_memcached_plugin.inc
+
+# 14.0 MTR tests that runs only with specific rpl modes:
+
+# 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
+have_slave_parallel_type_logical_clock.inc
+have_slave_parallel_type_database.inc
+only_mts_slave_parallel_workers.inc
+only_mts_slave_parallel_type_logical_clock.inc
+only_mts_slave_parallel_type_database.inc
+not_mts_slave_parallel_workers.inc
+# 14.2 rpl misc files
+have_slave_repository_type_table.inc
+not_relay_log_info_file.inc
+not_master_info_file.inc
+have_transaction_write_set_extraction.inc
+
+# 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
+not_sparc_debug.inc
+# This also fails with non-debug
+statement_digest_long_query.test
+# few test cannot run on Solaris discover
+not_discover.inc
+
+# 17.0 Reason for inclusion: the extra JSON cause on builds with other
+# storage engines than InnoDB is hard to
+# separate. see innodb.sdi test
+have_only_innodb.inc
+
+# 18.0 Test to be run on local machine
+# This file is used by test scenarios that depend on time and it isn't possible
+# to test it in other way. Time based tests are unstable on PB2.
+# Waiting for some kind of in test time simulation functionality.
+is_local_machine.inc
+
+# 19.0 Resource group test exclusion.
+have_thread_prio.inc
+have_not_thread_prio.inc
+resource_group_init.inc
+have_mac_os.inc
+
+# 20.0 Library dependent tests
+# This file skips test for certain features in versions of the library where
+# the feature is missing.
+require_icu_version.inc
+
+#21.0 fips realted test will be run only on system where opensssl fips module is installed
+# currently we are checking via this env $OPENSSL_FIPS_INSTALLED
+not_have_fips.inc
+have_fips.inc

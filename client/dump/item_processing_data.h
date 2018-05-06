@@ -1,14 +1,21 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -18,44 +25,44 @@
 #ifndef ITEM_PROCESSING_DATA_INCLUDED
 #define ITEM_PROCESSING_DATA_INCLUDED
 
-#include "chain_data.h"
-#include "i_dump_task.h"
-#include "i_chain_element.h"
-#include "i_callable.h"
-#include "base/atomic.h"
+#include <atomic>
+#include <functional>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+#include "client/dump/chain_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_dump_task.h"
+
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Data structure for objects that are processed in any chain.
  */
-class Item_processing_data
-{
-public:
-  Item_processing_data(Chain_data* chain_data,
-    I_dump_task* process_task_object,
-    I_chain_element* chain_element,
-    const Mysql::I_callable<void, Item_processing_data*>* completion_callback,
-    Item_processing_data* parent_item_data);
+class Item_processing_data {
+ public:
+  Item_processing_data(
+      Chain_data *chain_data, I_dump_task *process_task_object,
+      I_chain_element *chain_element,
+      const std::function<void(Item_processing_data *)> *completion_callback,
+      Item_processing_data *parent_item_data);
 
   ~Item_processing_data();
 
   /**
     Returns chain data in which this item is being processed.
    */
-  Chain_data* get_chain() const;
+  Chain_data *get_chain() const;
 
-  Item_processing_data* get_parent_item_data() const;
+  Item_processing_data *get_parent_item_data() const;
 
   void start_processing();
 
   bool end_processing();
 
-  I_dump_task* get_process_task_object() const;
+  I_dump_task *get_process_task_object() const;
 
-  I_chain_element* get_processing_chain_element() const;
+  I_chain_element *get_processing_chain_element() const;
 
   bool have_completion_callback();
 
@@ -63,44 +70,44 @@ public:
 
   void set_had_chain_created();
 
-  void set_chain(Chain_data*);
+  void set_chain(Chain_data *);
 
   bool call_completion_callback_at_end();
-  
-private:
+
+ private:
   /**
     Chain in which current processing item is processed.
    */
-  Chain_data* m_chain_data;
+  Chain_data *m_chain_data;
   /**
     Instance of task object that is being processing.
    */
-  I_dump_task* m_process_task_object;
+  I_dump_task *m_process_task_object;
   /**
     Instance of chain element that is processing specified element.
    */
-  I_chain_element* m_chain_element;
+  I_chain_element *m_chain_element;
   /**
     Callback to call after element is fully processed to the output. Can be
     NULL.
    */
-  const Mysql::I_callable<void, Item_processing_data*>* m_completion_callback;
+  const std::function<void(Item_processing_data *)> *m_completion_callback;
   /**
     Link to item process information of parent module execution, if exists.
    */
-  Item_processing_data* m_parent_item_data;
+  Item_processing_data *m_parent_item_data;
   /**
     Number of modules that have pending or are executing this task.
    */
-  my_boost::atomic_uint32_t m_active_executions;
+  std::atomic<uint32_t> m_active_executions;
   /**
     Indicates if this item led to creation of at least one new chain.
   */
   bool m_had_chain_created;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

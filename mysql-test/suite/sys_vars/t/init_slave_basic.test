@@ -140,7 +140,7 @@ SELECT @@global.init_slave;
 
 --disable_warnings
 SELECT @@global.init_slave = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='init_slave') AS res;
 --enable_warnings
 

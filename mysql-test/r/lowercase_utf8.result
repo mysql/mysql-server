@@ -1,4 +1,12 @@
+# Preparation: Shut server down.
+# 1 First start the server with --initialize and --lower-case-table-names=1.
+#   We need to make sure l-c-t-n is set during database initialization.
+#   Otherwise the mysql.tables.name do not pick right collation.
+#   This test also requires to be run with --character-set-server=utf8
+# 2 Restart the server against DDIR
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table `Ö` (id int);
 show tables from test like 'Ö';
 Tables_in_test (Ö)
@@ -7,3 +15,6 @@ show tables from test like 'ö';
 Tables_in_test (ö)
 ö
 drop table `Ö`;
+# Shut server down.
+#
+# Cleanup: Restarting the server against default datadir.

@@ -16,8 +16,15 @@ CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+# Establish session con2 (user=root)
+# After WL#6049 CREATE TABLE t2 must be blocked while trying
+# to acquire exclusive metadata lock on t1.
 SET DEBUG_SYNC = 'now SIGNAL fk';
+# Switching to connection con1.
+# So no chance for CREATE TABLE t2 to sneak before DROP INDEX
+# is committed in and succeed.
+/* reap */ CREATE TABLE t2 ...
+ERROR HY000: Cannot add foreign key constraint
 # Session default
 /* reap */ DROP INDEX c2 ON t1;
 CREATE TABLE t2 (

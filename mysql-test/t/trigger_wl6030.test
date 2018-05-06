@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --echo #
 --echo # WL#6030: Triggers are not processed for NOT NULL columns.
 --echo #
@@ -40,6 +35,7 @@ REPLACE INTO t1(b, c) VALUES (200, 300);
 REPLACE INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -52,6 +48,7 @@ INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -64,6 +61,7 @@ REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -76,6 +74,7 @@ INSERT INTO t1(b, c) SELECT b, c FROM t2;
 INSERT INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -88,6 +87,7 @@ REPLACE INTO t1(b, c) SELECT b, c FROM t2;
 REPLACE INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -219,6 +219,7 @@ UPDATE t1 SET a = NULL WHERE a = 1;
 UPDATE t1 SET a = NULL, c = NULL WHERE a = 100;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 
@@ -233,6 +234,7 @@ INSERT INTO t3 VALUES (10, -10);
 UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 SELECT * FROM t3;
@@ -249,6 +251,7 @@ INSERT INTO t3 VALUES (10, -10);
 
 UPDATE t1, t3 SET t1.a = -20, t3.a = NULL WHERE t1.a = t3.a AND t3.a = 10;
 
+--sorted_result
 SELECT * FROM t1;
 SELECT * FROM t3;
 DROP TRIGGER t3_bu;
@@ -269,6 +272,7 @@ UPDATE t1 SET a = 99 WHERE a = 1;
 UPDATE t1 SET a = 99, b = 99 WHERE a = 1;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 
 --echo
@@ -280,6 +284,7 @@ INSERT INTO t3 VALUES (10, -10);
 UPDATE t1, t3 SET t1.a = 99, t3.a = -10 WHERE t1.a = t3.a AND t3.a = 10;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 SELECT * FROM t3;
@@ -315,6 +320,7 @@ INSERT INTO t1(b, c) VALUES (200, 300);
 INSERT INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -327,6 +333,7 @@ REPLACE INTO t1(b, c) VALUES (200, 300);
 REPLACE INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -339,6 +346,7 @@ INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -351,6 +359,7 @@ REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -363,6 +372,7 @@ INSERT INTO t1(b, c) SELECT b, c FROM t2;
 INSERT INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -375,6 +385,7 @@ REPLACE INTO t1(b, c) SELECT b, c FROM t2;
 REPLACE INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -402,6 +413,7 @@ INSERT INTO t1(b, c) VALUES (200, 300);
 INSERT INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -414,6 +426,7 @@ REPLACE INTO t1(b, c) VALUES (200, 300);
 REPLACE INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -426,6 +439,7 @@ INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -438,6 +452,7 @@ REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -450,6 +465,7 @@ INSERT INTO t1(b, c) SELECT b, c FROM t2;
 INSERT INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -462,6 +478,7 @@ REPLACE INTO t1(b, c) SELECT b, c FROM t2;
 REPLACE INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -496,11 +513,13 @@ delimiter ;|
 --echo # Checking BEFORE INSERT trigger.
 INSERT INTO t1 VALUES (1, 2, 3);
 INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+--sorted_result
 SELECT * FROM t1;
 
 --echo
 --echo # Checking BEFORE UPDATE trigger.
 UPDATE t1 SET b = 999 WHERE c = 300;
+--sorted_result
 SELECT * FROM t1;
 
 --echo
@@ -546,6 +565,7 @@ REPLACE INTO t1(b, c) VALUES (200, 300);
 REPLACE INTO t1(a) VALUES (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -559,6 +579,7 @@ INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -572,6 +593,7 @@ REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
 REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -584,6 +606,7 @@ INSERT INTO t1(b, c) SELECT b, c FROM t2;
 INSERT INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -596,6 +619,7 @@ REPLACE INTO t1(b, c) SELECT b, c FROM t2;
 REPLACE INTO t1(a) SELECT a FROM t2;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 DELETE FROM t1;
@@ -647,6 +671,7 @@ INSERT INTO t3 VALUES (10, -10);
 UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 --echo
 SELECT * FROM t3;
@@ -733,6 +758,7 @@ INSERT INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
 REPLACE INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -952,6 +978,7 @@ REPLACE INTO v1(a) VALUES (5);
 REPLACE INTO v1(a) VALUES (6), (7), (8);
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -972,6 +999,7 @@ REPLACE INTO v2(a) VALUES (5);
 REPLACE INTO v2(a) VALUES (6), (7), (8);
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -989,6 +1017,7 @@ INSERT INTO t1 SELECT * FROM t1_data;
 INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -997,6 +1026,7 @@ REPLACE INTO t1 SELECT * FROM t1_data;
 REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1009,6 +1039,7 @@ INSERT INTO t2 SELECT * FROM t2_data;
 INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1017,6 +1048,7 @@ REPLACE INTO t2 SELECT * FROM t2_data;
 REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1029,14 +1061,17 @@ INSERT INTO t1(a, b) SELECT * FROM t1_data;
 INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
 --echo
+--sorted_result
 REPLACE INTO t1(a, b) SELECT * FROM t1_data;
 REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1045,6 +1080,7 @@ INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
 INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1053,6 +1089,7 @@ REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
 REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1065,6 +1102,7 @@ INSERT INTO t1(a) SELECT a FROM t1_data;
 INSERT INTO v1(a) SELECT a * 100 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1073,6 +1111,7 @@ REPLACE INTO t1(a) SELECT a FROM t1_data;
 REPLACE INTO v1(a) SELECT a * 100 FROM t1_data;
 
 --echo
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1081,6 +1120,7 @@ INSERT INTO t2(a) SELECT a FROM t2_data;
 INSERT INTO v2(a) SELECT a * 100 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1089,6 +1129,7 @@ REPLACE INTO t2(a) SELECT a FROM t2_data;
 REPLACE INTO v2(a) SELECT a * 100 FROM t2_data;
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1102,6 +1143,7 @@ LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
 TERMINATED BY ',' ENCLOSED BY '"';
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 
 --echo
@@ -1111,6 +1153,7 @@ LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
 TERMINATED BY ',' ENCLOSED BY '"';
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 
 --echo
@@ -1266,6 +1309,14 @@ REPLACE INTO v2(a) VALUES (6), (7), (8);
 SELECT * FROM t2;
 DELETE FROM t2;
 
+# Clean up
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
+
 --echo
 --echo #------------------------------------------------------------------
 --echo # Checking INSERT INTO ... SELECT ...
@@ -1273,6 +1324,34 @@ DELETE FROM t2;
 
 --echo
 --echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+
+# Following scenario is to test the functionality of MyISAM
+
+# A table with one NOT NULL column.
+CREATE TABLE t1(a INT, b INT NOT NULL) ENGINE=MyISAM;
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# A table with a few NOT NULL columns.
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL) ENGINE=MyISAM;
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+# Aux table with data for t1.
+CREATE TABLE t1_data(a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1_data VALUES
+  (11, 12),
+  (NULL, 22),
+  (31, NULL),
+  (NULL, NULL);
+
+# Aux table with data for t2.
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT) ENGINE=MyISAM;
+INSERT INTO t2_data VALUES
+  (11, 12, 13, 14),
+  (NULL, 22, 23, 24),
+  (31, NULL, 33, 34),
+  (41, 42, NULL, 44),
+  (51, 52, 53, NULL),
+  (NULL, NULL, NULL, NULL);
 
 --echo
 --error ER_BAD_NULL_ERROR
@@ -1283,6 +1362,7 @@ INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1295,6 +1375,7 @@ REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1308,6 +1389,7 @@ INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1321,6 +1403,7 @@ REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1336,6 +1419,7 @@ INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1348,6 +1432,7 @@ REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t1;
 DELETE FROM t1;
 
@@ -1360,6 +1445,7 @@ INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
 
@@ -1372,8 +1458,43 @@ REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
 --echo
 --echo # The following SELECT output should have 4 rows.
 --echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+--sorted_result
 SELECT * FROM t2;
 DELETE FROM t2;
+
+# Clean up
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
+
+# A table with one NOT NULL column.
+CREATE TABLE t1(a INT, b INT NOT NULL) ;
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# A table with a few NOT NULL columns.
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL) ;
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+# Aux table with data for t1.
+CREATE TABLE t1_data(a INT, b INT) ;
+INSERT INTO t1_data VALUES
+  (11, 12),
+  (NULL, 22),
+  (31, NULL),
+  (NULL, NULL);
+
+# Aux table with data for t2.
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT) ;
+INSERT INTO t2_data VALUES
+  (11, 12, 13, 14),
+  (NULL, 22, 23, 24),
+  (31, NULL, 33, 34),
+  (41, 42, NULL, 44),
+  (51, 52, 53, NULL),
+  (NULL, NULL, NULL, NULL);
 
 --echo
 --echo #   - Single nullable column, no values for NOT NULL columns.
@@ -1432,6 +1553,7 @@ LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
 TERMINATED BY ',' ENCLOSED BY '"';
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 
 --echo
@@ -1442,10 +1564,129 @@ LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
 TERMINATED BY ',' ENCLOSED BY '"';
 
 --echo
+--sorted_result
 SELECT * FROM t2;
 
 --echo
 SET sql_mode = @sql_mode_saved;
+
+--echo
+--sorted_result
+SELECT * FROM t2;
+
+--echo
+SET sql_mode = @sql_mode_saved;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking INSERT INTO ... SELECT ...
+--echo #------------------------------------------------------------------
+
+# Following scenario is to test the functionality of InnoDB
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2 SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - All columns + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t1's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+--echo # t2's engine is InnoDB, so the whole transaction is rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
 
 DROP TABLE t1;
 DROP TABLE t2;

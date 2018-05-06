@@ -7,8 +7,8 @@ select @@session.myisam_recover_options;
 show global variables like 'myisam_recover_options';
 show session variables like 'myisam_recover_options';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='myisam_recover_options';
-select * from information_schema.session_variables where variable_name='myisam_recover_options';
+select * from performance_schema.global_variables where variable_name='myisam_recover_options';
+select * from performance_schema.session_variables where variable_name='myisam_recover_options';
 --enable_warnings
 
 #

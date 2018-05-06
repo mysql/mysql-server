@@ -1,14 +1,21 @@
 /* 
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,8 +23,8 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_thread.h>
+#include "my_sys.h"
+#include "my_thread.h"
 
 #ifdef HAVE_XFS_XFS_H
 #include <xfs/xfs.h>
@@ -26,6 +33,7 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 #include "PosixAsyncFile.hpp"
+#include "my_thread_local.h"
 
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
@@ -190,12 +198,15 @@ void PosixAsyncFile::openReq(Request *request)
   m_auto_sync_freq = 0;
   m_write_wo_sync = 0;
   m_open_flags = request->par.open.flags;
+  m_use_o_direct_sync_flag = false;
+  bool failed_to_set_o_direct = false;
+  (void)failed_to_set_o_direct; //Silence compiler warning
 
   // for open.flags, see signal FSOPENREQ
   Uint32 flags = request->par.open.flags;
   int new_flags = 0;
 
-  // Convert file open flags from Solaris to Liux
+  // Convert file open flags from Solaris to Linux
   if (flags & FsOpenReq::OM_CREATE)
   {
     new_flags |= O_CREAT;
@@ -205,16 +216,15 @@ void PosixAsyncFile::openReq(Request *request)
       new_flags |= O_TRUNC;
   }
 
-  if (flags & FsOpenReq::OM_AUTOSYNC)
-  {
-    m_auto_sync_freq = request->par.open.auto_sync_size;
-  }
-
   if (flags & FsOpenReq::OM_APPEND){
     new_flags |= O_APPEND;
   }
 
 #ifdef O_DIRECT
+  if (flags & FsOpenReq::OM_DIRECT_SYNC)
+  {
+    require(flags & FsOpenReq::OM_DIRECT);
+  }
   if (flags & FsOpenReq::OM_DIRECT)
   {
     new_flags |= O_DIRECT;
@@ -273,6 +283,7 @@ void PosixAsyncFile::openReq(Request *request)
     if ((theFd = ::open(theFileName.c_str(), tmp_flags, mode)) != -1)
     {
       close(theFd);
+      theFd = -1;
       request->error = FsRef::fsErrFileExists;
       return;
     }
@@ -297,6 +308,7 @@ no_odirect:
 	if (new_flags & O_DIRECT)
 	{
 	  new_flags &= ~O_DIRECT;
+          failed_to_set_o_direct = true;
 	  goto no_odirect;
 	}
 #endif
@@ -309,6 +321,7 @@ no_odirect:
     else if (new_flags & O_DIRECT)
     {
       new_flags &= ~O_DIRECT;
+      failed_to_set_o_direct = true;
       goto no_odirect;
     }
 #endif
@@ -331,7 +344,10 @@ no_odirect:
       request->error = FsRef::fsErrInvalidFileSize;
     }
     if (request->error)
+    {
+      close(theFd);
       return;
+    }
   }
 
   if (flags & FsOpenReq::OM_INIT)
@@ -383,9 +399,9 @@ no_odirect:
         req->varIndex = index++;
         req->data.pageData[0] = m_page_ptr.i + cnt;
 
-        m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-                            FsReadWriteReq::FixedLength + 1,
-                            instance);
+        m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
+                               FsReadWriteReq::FixedLength + 1,
+                               instance);
         
         cnt++;
         size += request->par.open.page_size;
@@ -425,6 +441,7 @@ no_odirect:
 	{
 	  ndbout_c("error on first write(%d), disable O_DIRECT", err);
 	  new_flags &= ~O_DIRECT;
+          failed_to_set_o_direct = true;
 	  close(theFd);
 	  theFd = ::open(theFileName.c_str(), new_flags, mode);
 	  if (theFd != -1)
@@ -432,6 +449,7 @@ no_odirect:
 	}
 #endif
 	close(theFd);
+	theFd = -1;
 	unlink(theFileName.c_str());
 	request->error = err;
 	return;
@@ -453,7 +471,10 @@ no_odirect:
 #endif
 
     if(lseek(theFd, 0, SEEK_SET) != 0)
+    {
       request->error = errno;
+      close(theFd);
+    }
   }
   else if (flags & FsOpenReq::OM_DIRECT)
   {
@@ -468,7 +489,10 @@ no_odirect:
     }
 
     if (request->error)
+    {
+      close(theFd);
       return;
+    }
 #endif
   }
 
@@ -510,6 +534,7 @@ no_odirect:
   {
     if (directio(theFd, DIRECTIO_ON) == -1)
     {
+      failed_to_set_o_direct = true;
       ndbout_c("%s Failed to set DIRECTIO_ON errno: %u",
                theFileName.c_str(), errno);
     }
@@ -534,6 +559,72 @@ no_odirect:
   }
 
   set_or_check_filetype(true);
+
+  if (flags & FsOpenReq::OM_READ_SIZE)
+  {
+    struct stat buf;
+    if ((fstat(theFd, &buf) == -1))
+    {
+      request->error = errno;
+      close(theFd);
+    }
+    Uint64 size = (Uint64)buf.st_size;
+    request->m_file_size_hi = Uint32(size >> 32);
+    request->m_file_size_lo = Uint32(size & 0xFFFFFFFF);
+  }
+  else
+  {
+    request->m_file_size_hi = Uint32(~0);
+    request->m_file_size_lo = Uint32(~0);
+  }
+
+  if (flags & FsOpenReq::OM_AUTOSYNC)
+  {
+#ifdef O_DIRECT
+    if (!failed_to_set_o_direct ||
+        !(flags & FsOpenReq::OM_DIRECT_SYNC))
+    {
+      m_auto_sync_freq = request->par.open.auto_sync_size;
+    }
+#else
+    m_auto_sync_freq = request->par.open.auto_sync_size;
+#endif
+  }
+
+#ifdef O_DIRECT
+  if (!failed_to_set_o_direct &&
+      flags & FsOpenReq::OM_DIRECT_SYNC)
+  {
+    /**
+     * The user have set ODirectSyncFlag in the configuration.
+     * We allow this to be used for files that are fixed in
+     * size after receiving FSOPENCONF. This is true for
+     * REDO log files, it is also true for tablespaces and
+     * UNDO log files. There is however a flag for REDO log
+     * files to set it to InitFragmentLogFiles=sparse, in this
+     * case the file isn't fully allocated and thus file system
+     * metadata have to be written as part of normal writes.
+     *
+     * At least XFS does not write metadata even when O_DIRECT
+     * is set. Since XFS is our recommended file system we do
+     * not support setting ODirectSyncFlag AND
+     * InitFragmentLogFiles=sparse. If so we will ignore the
+     * ODirectSyncFlag with a warning written to the node log.
+     *
+     * See e.g. BUG#45892 for a discussion about the same
+     * flag in InnoDB (O_DIRECT_NO_FSYNC).
+     *
+     * We will only ever set this flag if O_DIRECT is
+     * succesfully applied on the file. This flag will not
+     * change anything on block code. The blocks are still
+     * expected to issue sync flags at the same places as
+     * before, but if this flag is supported, the fsync
+     * call will be skipped.
+     */
+    m_use_o_direct_sync_flag = true;
+  }
+#endif
+
   request->m_fileinfo = get_fileinfo();
 }
 
@@ -565,7 +656,7 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
   }
 
-  int error;
+  int error = 0;
 
   while (size > 0) {
     size_t bytes_read = 0;
@@ -758,9 +849,20 @@ bool PosixAsyncFile::isOpen(){
 
 void PosixAsyncFile::syncReq(Request *request)
 {
-  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
-      m_always_sync)
+  if (m_write_wo_sync == 0 ||
+      m_use_o_direct_sync_flag)
   {
+    /**
+     * Nothing has been written since last time we sync:ed, so
+     * thus no need of calling fsync.
+     *
+     * If we use ODirect with sync flag, we trust the OS and the
+     * filesystem to have performed the sync every time we return
+     * from a write. So no need to call fsync in this case.
+     * We only use this feature on files that have been completely
+     * written at open of the file AND files that do not change in
+     * size after that.
+     */
     return;
   }
   if (-1 == ::fsync(theFd)){
@@ -778,6 +880,8 @@ void PosixAsyncFile::appendReq(Request *request)
 
   m_write_wo_sync += size;
 
+  /* ODirectSyncFlag cannot be used with append on files */
+  require(!m_use_o_direct_sync_flag);
   while(size > 0){
     int n;
     if(use_gz)

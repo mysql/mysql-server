@@ -7,7 +7,6 @@
 #                                                                   #
 #####################################################################
 
--- source include/not_embedded.inc
 # Create a couple of tables and a view
 CREATE TABLE t1 (t1_id int PRIMARY KEY, t1_val varchar(10));
 CREATE TABLE t2 (t2_id int PRIMARY KEY, t1_id int, t2_val int, INDEX (t1_id));

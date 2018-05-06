@@ -6,12 +6,16 @@ SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
 mecab_charset	utf8
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
 page_title varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT '',
 PRIMARY KEY (page_id),
 FULLTEXT KEY page_title (page_title) WITH PARSER mecab
 ) ENGINE=InnoDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO page VALUES
 (1,'ﾚﾓﾅ'),
 (2,'SDレモナ'),
@@ -51,10 +55,10 @@ SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	ﾚﾓﾅ
@@ -98,6 +102,8 @@ page_id	page_title
 7	100
 11	鉄道
 ALTER TABLE page add column c1 varchar(100) CHARACTER SET utf8 DEFAULT 'ﾚﾓﾅ';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE page ADD FULLTEXT INDEX idx1 (page_title,c1) WITH PARSER mecab;
 SELECT * FROM page WHERE MATCH(page_title,c1) AGAINST('ﾚﾓﾅ');
 page_id	page_title	c1
@@ -148,20 +154,20 @@ SET GLOBAL innodb_ft_aux_table="test/page";
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 100	4	4	1	4	10
+ﾚﾓﾅ	2	2	1	2	4
 鉄道	3	4	2	3	0
 鉄道	3	4	2	4	0
 電車	4	4	1	4	13
-ﾚﾓﾅ	2	2	1	2	4
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	😃ﾚﾓﾅ

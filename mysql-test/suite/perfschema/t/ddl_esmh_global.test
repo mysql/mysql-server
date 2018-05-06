@@ -1,0 +1,18 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.events_statements_histogram_global
+  add column foo integer;
+
+truncate table performance_schema.events_statements_histogram_global;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.events_statements_histogram_global ADD INDEX test_index(DIGEST);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.events_statements_histogram_global(DIGEST);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `SCHEMA_NAME`
+  ON performance_schema.events_statements_histogram_global;

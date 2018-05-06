@@ -3,7 +3,6 @@
 #  2013-05-09 - Added
 #
 
---source include/have_innodb.inc
 
 #
 # show the global and session values;
@@ -14,8 +13,8 @@ select @@session.innodb_ft_result_cache_limit;
 show global variables like 'innodb_ft_result_cache_limit';
 show session variables like 'innodb_ft_result_cache_limit';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
-select * from information_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
+select * from performance_schema.global_variables where variable_name='innodb_ft_result_cache_limit';
+select * from performance_schema.session_variables where variable_name='innodb_ft_result_cache_limit';
 --enable_warnings
 
 #

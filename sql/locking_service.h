@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,11 +23,11 @@
 #ifndef LOCKING_SERVICE_INCLUDED
 #define LOCKING_SERVICE_INCLUDED
 
-#include "my_global.h"
-#include "mysql/service_locking.h" // enum_locking_service_lock_type
+#include <stddef.h>
+
+#include "mysql/service_locking.h"  // enum_locking_service_lock_type
 
 class THD;
-
 
 /**
   Acquire locking service locks.
@@ -38,8 +45,9 @@ class THD;
   @note both lock_namespace and lock_names are limited to 64 characters max.
   Names are compared using binary comparison.
 */
-int acquire_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespace,
-                                  const char**lock_names, size_t lock_num,
+int acquire_locking_service_locks(MYSQL_THD opaque_thd,
+                                  const char *lock_namespace,
+                                  const char **lock_names, size_t lock_num,
                                   enum enum_locking_service_lock_type lock_type,
                                   unsigned long lock_timeout);
 
@@ -53,7 +61,8 @@ int acquire_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespa
   @retval 1              Release failed, error has been reported.
   @retval 0              Release successful, all locks acquired.
 */
-int release_locking_service_locks(MYSQL_THD opaque_thd, const char* lock_namespace);
+int release_locking_service_locks(MYSQL_THD opaque_thd,
+                                  const char *lock_namespace);
 
 /**
   Release all locking service locks taken by the given connection

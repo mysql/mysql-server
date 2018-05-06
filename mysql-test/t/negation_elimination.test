@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test negation elimination
 #
@@ -15,6 +10,7 @@ create table t1 (a int, key (a));
 insert into t1 values (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
 (10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
 
+analyze table t1;
 explain select * from t1 where not(not(a));
 select * from t1 where not(not(a));
 explain select * from t1 where not(not(not(a > 10)));
@@ -92,16 +88,17 @@ SELECT * FROM t1 WHERE (NULL XOR (a > 7));
 SELECT * FROM t1 WHERE NOT (NULL XOR (a > 7));
 
 --echo # Should be simplified to "...WHERE (a XOR a)
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE NOT ((NOT a) XOR (a));
+EXPLAIN SELECT * FROM t1 WHERE NOT ((NOT a) XOR (a));
 
 --echo # Should be simplified to "...WHERE (a XOR a)
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
+EXPLAIN SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
 
 --echo # End XOR
 
 delete from t1 where a > 3;
 select a, not(not(a)) from t1;
-explain extended select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
+analyze table t1;
+explain select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
 
 drop table t1;
 

@@ -1,15 +1,12 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --source ../include/start_server_common.inc
 
 select * from information_schema.engines
   where engine = "PERFORMANCE_SCHEMA";
 
 # Expecting all off / zero
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 
 # Expect all consumers disabled
 
@@ -21,7 +18,6 @@ select * from performance_schema.setup_instruments;
 
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
 
 # Expect INSERT to fail with an error
 
@@ -49,20 +45,14 @@ truncate performance_schema.setup_objects;
 truncate performance_schema.setup_actors;
 
 #
-# Verify SHOW STATUS and SHOW VARIABLES with show_compatibility_56=OFF
+# Verify SHOW STATUS and SHOW VARIABLES
 #
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set global show_compatibility_56 = OFF;
 
---disable_warnings
 # Expect that status variables are still accessible
-show global status like "performance_schema%";
-show session status like "performance_schema%";
+show global status like "performance_schema%_lost";
+show session status like "performance_schema%_lost";
 
 # Expect that system variables are still accessible
-show global variables like "show_compatibility_56";
-show session variables like "show_compatibility_56";
---enable_warnings
+show global variables like "performance_schema";
+show session variables like "performance_schema";
 
-# Cleanup
-set @@global.show_compatibility_56 = @show_compatibility_56_save;

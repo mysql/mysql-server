@@ -1,5 +1,5 @@
-CREATE TEMPORARY TABLE tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
-CREATE TEMPORARY TABLE tmp_backup_user AS SELECT * FROM mysql.user;
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
 DROP DATABASE sys;
 SHOW DATABASES;
 Database
@@ -9,11 +9,13 @@ mysql
 performance_schema
 test
 mysql.columns_priv                                 OK
+mysql.component                                    OK
 mysql.db                                           OK
+mysql.default_roles                                OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -21,11 +23,11 @@ mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
-mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -38,6 +40,8 @@ mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -51,9 +55,9 @@ performance_schema
 sys
 test
 TRUNCATE TABLE mysql.tables_priv;
-INSERT INTO mysql.tables_priv (SELECT * FROM tmp_backup_tables_priv);
-DROP TEMPORARY TABLE tmp_backup_tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
 TRUNCATE TABLE mysql.user;
-INSERT INTO mysql.user (SELECT * FROM tmp_backup_user);
-DROP TEMPORARY TABLE tmp_backup_user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
 FLUSH PRIVILEGES;

@@ -1,11 +1,14 @@
---source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #19077964 ASSERT PAGE_SIZE.EQUALS_TO SPACE_PAGE_SIZE
 --echo # BTR_COPY_BLOB_PREFIX
 --echo #
 
+#
+# TODO: The column 'f3' should have the SRID attribute when bug#27021029 has been
+#       fixed.
+#
 create table t1 (f1 int primary key, f3 linestring not null,
   spatial key(f3)) engine=innodb row_format=compressed key_block_size=1;
 show create table t1;

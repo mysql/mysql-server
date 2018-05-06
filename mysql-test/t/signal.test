@@ -1007,10 +1007,10 @@ begin
   DECLARE foo CONDITION FOR SQLSTATE '77777';
   SIGNAL foo SET
     MESSAGE_TEXT = "",
-    MYSQL_ERRNO=5678;
+    MYSQL_ERRNO=45678;
 end $$
 
---error 5678
+--error 45678
 call test_signal() $$
 drop procedure test_signal $$
 
@@ -1249,8 +1249,8 @@ call test_signal("Parameter string", NULL) $$
 --error ER_WRONG_VALUE_FOR_VAR
 call test_signal(NULL, 1234) $$
 
---error 5678
-call test_signal("Parameter string", 5678) $$
+--error 45678
+call test_signal("Parameter string", 45678) $$
 drop procedure test_signal $$
 
 create procedure test_signal()
@@ -1835,7 +1835,7 @@ begin
     select "handler called";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of a warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   SIGNAL warn SET
@@ -1854,7 +1854,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of a not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -1863,7 +1863,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 drop procedure test_resignal $$
 
@@ -1875,7 +1875,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of an error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -1884,7 +1884,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 drop procedure test_resignal $$
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -1895,7 +1895,7 @@ begin
     select "handler called";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of a warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   insert into t_warn set a= 9999999999999999;
@@ -1913,7 +1913,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -1922,7 +1922,7 @@ begin
   close c;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 drop procedure test_resignal $$
 
@@ -1933,14 +1933,14 @@ begin
     select "before RESIGNAL";
     RESIGNAL SET
       MESSAGE_TEXT = "RESIGNAL of an error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
   drop table no_such_table;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 drop procedure test_resignal $$
 
@@ -1958,7 +1958,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   SIGNAL warn SET
@@ -1977,7 +1977,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02222" SET
       MESSAGE_TEXT = "RESIGNAL to not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -1986,7 +1986,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -1999,7 +1999,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "33333" SET
       MESSAGE_TEXT = "RESIGNAL to error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2008,7 +2008,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2025,7 +2025,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   SIGNAL not_found SET
@@ -2044,7 +2044,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02222" SET
       MESSAGE_TEXT = "RESIGNAL to not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2053,7 +2053,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2066,7 +2066,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "33333" SET
       MESSAGE_TEXT = "RESIGNAL to error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2075,7 +2075,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2092,7 +2092,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01222" SET
       MESSAGE_TEXT = "RESIGNAL to warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   SIGNAL error SET
@@ -2111,7 +2111,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02222" SET
       MESSAGE_TEXT = "RESIGNAL to not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2120,7 +2120,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2133,7 +2133,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "33333" SET
       MESSAGE_TEXT = "RESIGNAL to error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2142,7 +2142,7 @@ begin
     MYSQL_ERRNO = 1012;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2158,7 +2158,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   insert into t_warn set a= 9999999999999999;
@@ -2174,14 +2174,14 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02444" SET
       MESSAGE_TEXT = "RESIGNAL to a not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
   insert into t_warn set a= 9999999999999999;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2193,14 +2193,14 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "44444" SET
       MESSAGE_TEXT = "RESIGNAL to an error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
   insert into t_warn set a= 9999999999999999;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2218,7 +2218,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   open c;
@@ -2240,7 +2240,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02444" SET
       MESSAGE_TEXT = "RESIGNAL to a not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2249,7 +2249,7 @@ begin
   close c;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2263,7 +2263,7 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "44444" SET
       MESSAGE_TEXT = "RESIGNAL to an error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
@@ -2272,7 +2272,7 @@ begin
   close c;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2288,7 +2288,7 @@ begin
     select "handler called";
     RESIGNAL SQLSTATE "01111" SET
       MESSAGE_TEXT = "RESIGNAL to a warning",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
   end;
 
   drop table no_such_table;
@@ -2304,14 +2304,14 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "02444" SET
       MESSAGE_TEXT = "RESIGNAL to a not found",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
   drop table no_such_table;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
@@ -2323,14 +2323,14 @@ begin
     select "before RESIGNAL";
     RESIGNAL SQLSTATE "44444" SET
       MESSAGE_TEXT = "RESIGNAL to an error",
-      MYSQL_ERRNO = 5555 ;
+      MYSQL_ERRNO = 55555 ;
     select "after RESIGNAL";
   end;
 
   drop table no_such_table;
 end $$
 
---error 5555
+--error 55555
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$

@@ -23,7 +23,7 @@ DROP TABLE t1;
 
 #Running the entire test suite for range queries to increase the test
 #coverage
-SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 50;
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 10;
 --source include/range.inc
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 

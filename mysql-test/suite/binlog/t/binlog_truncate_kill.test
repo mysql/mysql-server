@@ -18,10 +18,14 @@
 ###############################################################################
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
+--source include/have_myisam.inc
 RESET MASTER;
 --enable_connect_log
 --connection default
-CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=INNODB;
+--echo # MERGE is the only remaning non-specialized SE (like NDB or P_S)
+--echo # which implements TRUNCATE TABLE through handler::truncate().
+CREATE TABLE t0(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=MyISAM;
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=MERGE UNION=(t0) INSERT_METHOD=LAST;
 INSERT INTO t1(a, b) VALUES(1,2),(2,4),(3,6),(4,8),(5,10);
 SET DEBUG_SYNC = "open_and_process_table signal truncate_before_lock wait_for forever";
 --send TRUNCATE t1
@@ -51,6 +55,6 @@ connection default;
 
 SELECT * FROM t1;
 
-DROP TABLE t1;
+DROP TABLE t1, t0;
 SET DEBUG_SYNC= 'RESET';
 --disable_connect_log

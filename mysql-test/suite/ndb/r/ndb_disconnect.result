@@ -1,0 +1,23 @@
+#
+# Testing bug#21837074
+#
+create table test.t1(i int primary key) engine=ndb;
+# Restarting all the nodes with 'no start'
+Restarting all nodes "no start"
+Waiting for not started
+show create table test.t1;
+Got one of the listed errors
+# Show create table failed as expected. Now starting the nodes again
+# Start NDB nodes back up again.
+Starting all nodes
+Waiting for started
+# Wait until mysqld has connected properly to cluster
+# mysqld connected to cluster. Now running show create table again.
+show create table test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;
+# End of bug#21837074

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/count_sessions.inc
 
 --echo #

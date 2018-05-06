@@ -1,0 +1,128 @@
+create table `rows`(a int primary key) engine=ndb;
+select count(a) from `rows`;
+count(a)
+1000
+create table p1 (name varchar(255),
+id int(11) auto_increment,
+parent_id int,
+parent_c1 int,
+parent_c2 int,
+primary key(id),
+unique(name),
+key k2(parent_id),
+unique(parent_c1, parent_c2)
+)engine = ndb;
+create table c1(c1 varchar(100),
+id int(11),
+primary key(c1),
+unique key abc (id),
+key (c1),
+constraint fk1 foreign key (id) references p1 (id)
+) engine=ndb;
+create table c2(c2 varchar(100),
+id int(11),
+parent_temp int,
+parent_rc1 int,
+parent_rc2 int,
+parent_rc3 int,
+primary key(c2),
+unique key abc(c2),
+unique key abd(parent_temp),
+constraint c2_fk1 foreign key (id) references p1 (id),
+constraint c2_fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
+constraint c2_fk3 foreign key (parent_rc3) references c1(id)
+) engine=ndb;
+insert into p1(parent_id) select a from `rows`;
+select count(1) from test.p1;
+count(1)
+1000
+-- Show Fks working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+-- Normal NR
+--- Wait for node to stop
+--- Show FKs working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+--- Startup node again
+--- Wait for node to recover
+--- Show FKs working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+-- Initial NR
+--- Wait for node to stop
+--- Show FKs working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+--- Startup node again
+--- Wait for node to recover
+--- Show FKs working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+-- System restart
+--- Wait for node to stop
+--- Startup nodes again
+--- Wait for nodes to recover
+--- Wait to establish connection
+--- Show FKs working
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+insert into p1(parent_id) select a from `rows`;
+set @n=0;
+insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+delete from test.c1;
+delete from test.p1;
+drop table test.c2;
+drop table test.c1;
+drop table test.p1;
+drop table test.`rows`;

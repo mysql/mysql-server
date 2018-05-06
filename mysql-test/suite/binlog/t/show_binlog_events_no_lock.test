@@ -17,9 +17,9 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
 
-# To make test to start with master-bin.000001
+# To make test to start with binlog.000001
 RESET MASTER;
-# Run some sample tests to put it in master-bin.000001
+# Run some sample tests to put it in binlog.000001
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
 

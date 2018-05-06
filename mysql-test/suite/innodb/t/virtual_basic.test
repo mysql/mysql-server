@@ -1,9 +1,10 @@
---source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+
 --source include/count_sessions.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Compute virtual");
 --enable_query_log
 
 CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c CHAR(10), d CHAR(20), e CHAR(10) GENERATED ALWAYS AS (c), g INT);
@@ -183,12 +184,12 @@ CREATE TABLE t1(a INT);
 ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) virtual);
 ALTER TABLE t1 add COLUMN (d INT generated always as (a+1) virtual, e INT as(5) virtual);
 
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 
 #--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT as(5) virtual), DROP COLUMN e;
 
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 
 DROP TABLE t1;
 
@@ -215,7 +216,7 @@ CREATE INDEX idx ON t1(a);
 CREATE TABLE t3(a INT, b INT , INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
 #--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 --error ER_CANNOT_ADD_FOREIGN
-CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b), CONSTRAINT x FOREIGN KEY(b) REFERENCES t1(a));
+CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b), CONSTRAINT y FOREIGN KEY(b) REFERENCES t1(a));
 CREATE TABLE t2(a INT, b INT generated always as (a+1) virtual, INDEX(b));
 DROP TABLE t3;
 DROP TABLE t2;
@@ -227,7 +228,7 @@ ALTER TABLE t1 add COLUMN (b INT generated always as (a+1) virtual, c INT as(5) 
 
 ALTER TABLE t1 change b x INT generated always as (a+1) virtual;
 
-SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
+SELECT pos, base_pos FROM informatiON_schema.innodb_virtual order by pos;
 
 DROP TABLE t1;
 
@@ -464,7 +465,7 @@ CREATE TABLE `t` (
   KEY `m3` (`m3`),
   KEY `c` (`c`(100)),
   KEY `e` (`e`,`d`(20))
-) ENGINE=InnoDB;
+) ENGINE=InnoDB charset latin1;
 
 INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
 
@@ -898,7 +899,7 @@ CREATE TABLE `t` (
   `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
-  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;
@@ -907,7 +908,7 @@ CREATE TABLE `t` (
   `b` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
-  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0,
    SPATIAL INDEX (`e`)
 ) ENGINE=INNODB;
 DROP TABLE t;
@@ -917,7 +918,7 @@ CREATE TABLE `t` (
   `c` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
-  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;
@@ -928,7 +929,7 @@ CREATE TABLE `t` (
   `d` INT GENERATED ALWAYS AS (1) VIRTUAL,
   `e2` POINT GENERATED ALWAYS AS (1) STORED NOT NULL,
   `d2` INT GENERATED ALWAYS AS (1) VIRTUAL,
-  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL
+  `e` POINT GENERATED ALWAYS AS (1) STORED NOT NULL SRID 0
 ) ENGINE=INNODB;
 ALTER TABLE t ADD SPATIAL INDEX (`e`);
 DROP TABLE t;

@@ -25,6 +25,11 @@ ndb-wait-connected=20
 ndb-wait-setup=60
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
+# Set error log verbosity to max, otherwise info messages
+# are filtered away
+log-error-verbosity=3
+# Enable load data local functionality
+local-infile=true
 
 [cluster_config.ndbd.3.1]
 Nodegroup=65536

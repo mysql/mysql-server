@@ -19,7 +19,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_innodb.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

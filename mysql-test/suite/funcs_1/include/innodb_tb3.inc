@@ -62,9 +62,9 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = innodb;
+) charset latin1 engine = innodb;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/innodb_tb3.txt'
-into table tb3;
+into table tb3 CHARACTER SET latin1;

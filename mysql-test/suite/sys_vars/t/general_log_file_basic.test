@@ -67,7 +67,7 @@ SET @@global.general_log_file = 12;
 
 --disable_warnings
 SELECT @@global.general_log_file = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='general_log_file';
 --enable_warnings
 

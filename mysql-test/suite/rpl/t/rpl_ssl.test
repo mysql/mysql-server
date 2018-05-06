@@ -1,5 +1,5 @@
 --source include/not_group_replication_plugin.inc
-source include/have_ssl_communication.inc;
+source include/have_ssl.inc;
 source include/master-slave.inc;
 
 # Default replication setup at master-slave.inc does not set MASTER_SSL
@@ -19,10 +19,8 @@ source include/master-slave.inc;
 
 # create a user for replication that requires ssl encryption
 connection master;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-grant replication slave on *.* to replssl@localhost require ssl;
-set sql_mode= @orig_sql_mode;
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 create table t1 (t int auto_increment, KEY(t));
 
 --source include/sync_slave_sql_with_master.inc
@@ -120,7 +118,7 @@ drop table t1;
 # ==== BUG#18165937: HITTING CRASH WHEN SETTING SSL OPTIONS THROUGH CHANGE MASTER COMMAND ====
 #
 # The server would crash when setting SSL_CRL options using CHANGE
-# MASTER with YASSL enabled.
+# MASTER with WOLFSSL enabled.
 
 --source include/stop_slave.inc
 --replace_column 2 ####

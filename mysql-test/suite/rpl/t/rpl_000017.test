@@ -9,7 +9,6 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/not_windows.inc
---source include/not_master_info_table.inc
 
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
@@ -30,8 +29,10 @@ $MASTER_MYPORT
 EOF
 
 connection master;
-grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
-grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
+create user replicate@localhost identified by 'aaaaaaaaaaaaaaab',
+            replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
+grant replication slave on *.* to replicate@localhost;
+grant replication slave on *.* to replicate@127.0.0.1;
 connection slave;
 --source include/start_slave.inc
 

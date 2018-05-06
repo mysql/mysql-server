@@ -1,5 +1,5 @@
 drop table if exists t1;
-create table t1 (id int not null, str char(10), unique(str));
+create table t1 (id int not null, str char(10), unique(str)) charset utf8mb4;
 explain select * from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -15,7 +15,7 @@ id	str
 3	foo
 explain select * from t1 where str is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	str	str	11	const	1	100.00	Using index condition
+1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
 explain format=json select * from t1 where str is null;
@@ -24,7 +24,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.20"
+      "query_cost": "0.35"
     },
     "table": {
       "table_name": "t1",
@@ -36,7 +36,7 @@ EXPLAIN
       "used_key_parts": [
         "str"
       ],
-      "key_length": "11",
+      "key_length": "41",
       "ref": [
         "const"
       ],
@@ -45,10 +45,10 @@ EXPLAIN
       "filtered": "100.00",
       "index_condition": "isnull(`test`.`t1`.`str`)",
       "cost_info": {
-        "read_cost": "1.00",
-        "eval_cost": "0.20",
-        "prefix_cost": "1.20",
-        "data_read_per_join": "16"
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
+        "data_read_per_join": "48"
       },
       "used_columns": [
         "id",
@@ -61,7 +61,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
 explain select * from t1 where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	str	str	11	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` where 1
 explain select * from t1 ignore key (str) where str="foo";
@@ -71,7 +71,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` IGNORE INDEX (`str`) where (`test`.`t1`.`str` = 'foo')
 explain select * from t1 use key (str,str) where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	str	str	11	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` USE INDEX (`str`) USE INDEX (`str`) where 1
 explain select * from t1 use key (str,str,foo) where str="foo";
@@ -123,35 +123,30 @@ Note	1003	/* select#1 */ select 3 AS `3`
 create table t1(f1 int, f2 int);
 insert into t1 values (1,1);
 create view v1 as select * from t1 where f1=1;
-explain extended select * from v1 where f2=1;
+explain select * from v1 where f2=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
-explain extended select * from t1 where 0;
+explain select * from t1 where 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where 0
-explain extended select * from t1 where 1;
+explain select * from t1 where 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
-explain extended select * from t1 having 0;
+explain select * from t1 having 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` having 0
-explain extended select * from t1 having 1;
+explain select * from t1 having 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual having 1
 drop view v1;
 drop table t1;
@@ -221,29 +216,25 @@ CREATE TABLE t1(a INT);
 CREATE TABLE t2(a INT);
 INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT 1
+EXPLAIN SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
-EXPLAIN EXTENDED SELECT 1
+EXPLAIN SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 prepare s1 from 
-'EXPLAIN EXTENDED SELECT 1  
+'EXPLAIN SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 execute s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -260,7 +251,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.00"
+      "query_cost": "2.95"
     },
     "table": {
       "table_name": "s1",
@@ -269,9 +260,9 @@ EXPLAIN
       "rows_produced_per_join": 4,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "10.20",
-        "eval_cost": "0.80",
-        "prefix_cost": "11.00",
+        "read_cost": "2.55",
+        "eval_cost": "0.40",
+        "prefix_cost": "2.95",
         "data_read_per_join": "64"
       },
       "used_columns": [
@@ -284,7 +275,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "9.21"
+            "query_cost": "5.60"
           },
           "grouping_operation": {
             "using_temporary_table": true,
@@ -301,9 +292,9 @@ EXPLAIN
                   "rows_produced_per_join": 2,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "2.00",
-                    "eval_cost": "0.40",
-                    "prefix_cost": "2.40",
+                    "read_cost": "0.50",
+                    "eval_cost": "0.20",
+                    "prefix_cost": "0.70",
                     "data_read_per_join": "16"
                   },
                   "used_columns": [
@@ -320,9 +311,9 @@ EXPLAIN
                   "filtered": "100.00",
                   "using_join_buffer": "Block Nested Loop",
                   "cost_info": {
-                    "read_cost": "2.00",
-                    "eval_cost": "0.80",
-                    "prefix_cost": "5.21",
+                    "read_cost": "0.50",
+                    "eval_cost": "0.40",
+                    "prefix_cost": "1.60",
                     "data_read_per_join": "32"
                   }
                 }
@@ -337,10 +328,8 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 prepare s1 from 
-'EXPLAIN EXTENDED SELECT 1  
+'EXPLAIN SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 execute s1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -357,7 +346,7 @@ Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT PRIMARY KEY);
-EXPLAIN EXTENDED SELECT COUNT(a) FROM t1 USE KEY(a);
+EXPLAIN SELECT COUNT(a) FROM t1 USE KEY(a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 DROP TABLE t1;
 CREATE TABLE t1(a LONGTEXT);
@@ -374,24 +363,19 @@ ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
 DROP TABLE t1;
 #
 # Bug#48295:
-# explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
+# explain crash with subquery and ONLY_FULL_GROUP_BY sql_mode
 #
 CREATE TABLE t1 (f1 INT);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-EXPLAIN EXTENDED SELECT 1 FROM t1
+EXPLAIN SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <not>((NULL <= <max>(/* select#2 */ select NULL from `test`.`t1` join `test`.`t1` `t`)))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <not>((NULL <= <max>(/* select#2 */ select `test`.`t`.`f1` from `test`.`t1` join `test`.`t1` `t`)))
 SET SESSION sql_mode=@old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 End of 5.0 tests.
 #
@@ -433,41 +417,38 @@ Note	1292	Incorrect time value: '2005-11-13 7:41:31' for column 't' at row 1
 drop tables t1, t2;
 set optimizer_switch= @opt_sw_save;
 #
-# Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
+# Bug#47669: Query showed by EXPLAIN gives different result from original query
 #
 CREATE TABLE t1 (c int);
 INSERT INTO t1 VALUES (NULL);
 CREATE TABLE t2 (d int);
 INSERT INTO t2 VALUES (NULL), (0);
-EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
+EXPLAIN SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = NULL)) AS `(SELECT 1 FROM t2 WHERE d = c)` from dual
 DROP TABLE t1, t2;
 #
 # Bug#30302: Tables that were optimized away are printed in the
-#            EXPLAIN EXTENDED warning.
+#            EXPLAIN warning.
 #
 create table t1(f1 int);
 create table t2(f2 int);
 insert into t1 values(1);
 insert into t2 values(1),(2);
-explain extended select * from t1 where f1=1;
+explain select * from t1 where f1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1` from dual where 1
-explain extended select * from t1 join t2 on f1=f2 where f1=1;
+explain select * from t1 join t2 on f1=f2 where f1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` where (`test`.`t2`.`f2` = 1)
 drop table t1,t2;
 #
@@ -480,10 +461,9 @@ FLUSH TABLES;
 EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and NULL)), NULL)
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and `test`.`t`.`a`)), NULL)
 DROP TABLE t1, t2;
 #
 # Bug #48573: difference of index selection between rpm binary and
@@ -559,11 +539,11 @@ DROP TABLE t1;
 End of 5.1 tests.
 #
 # Bug#46860: 
-# Crash/segfault using EXPLAIN EXTENDED on query using UNION in subquery.
+# Crash/segfault using EXPLAIN on query using UNION in subquery.
 #
 drop table if exists t1;
 create table `t1` (`a` int);
-explain extended select 1 from `t1`, `t1` as `t2`
+explain select 1 from `t1`, `t1` as `t2`
 where `t1`.`a`  > all ( (select `a` from `t1` ) union (select `a`) );
 ERROR 23000: Column 'a' in field list is ambiguous
 drop table t1;
@@ -613,15 +593,14 @@ Note	1003	/* select#1 */ select 1 AS `1` union all /* select#2 */ select 1 AS `1
 # BUG#53562: EXPLAIN statement should hint when 
 #            index is not used due to type conversion
 #
-CREATE TABLE t1 (url char(1) PRIMARY KEY);
+CREATE TABLE t1 (url char(1) PRIMARY KEY) charset latin1;
 INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');
 
 # Normally, lookup access on primary key is done
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1';
+EXPLAIN SELECT * FROM t1 WHERE url='1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `url` from `test`.`t1` where 1
 
 # Test that index can't be used for lookup due to type conversion
@@ -629,11 +608,10 @@ Note	1003	/* select#1 */ select '1' AS `url` from `test`.`t1` where 1
 SELECT * FROM t1 WHERE url=1;
 url
 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
+EXPLAIN SELECT * FROM t1 WHERE url=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	1	NULL	5	20.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = 1)
@@ -642,21 +620,19 @@ Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` wher
 SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 url
 1
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+EXPLAIN SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	1	NULL	5	20.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = <cache>(('1' collate latin1_german2_ci)))
 
 # Normally, range access on primary key is done
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3';
+EXPLAIN SELECT * FROM t1 WHERE url>'3';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	1	NULL	3	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > '3')
 
 # Test that range access on index can't be done due to type conversion
@@ -665,11 +641,10 @@ SELECT * FROM t1 WHERE url>3;
 url
 4
 5
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
+EXPLAIN SELECT * FROM t1 WHERE url>3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	1	NULL	5	33.33	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > 3)
 
@@ -678,36 +653,33 @@ SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
 url
 4
 5
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+EXPLAIN SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	1	NULL	5	33.33	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > <cache>(('3' collate latin1_german2_ci)))
 
 DROP TABLE t1;
 # End BUG#53562
 #
-# Bug#11829785 EXPLAIN EXTENDED CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
+# Bug#11829785 EXPLAIN CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
 #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0), (0);
 PREPARE s FROM 
-'EXPLAIN EXTENDED
+'EXPLAIN
 SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
 FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # After WL#4443 we don't evaluate subqueries during prepare, so no error.
 EXECUTE s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+3	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	a1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(0) where 1)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select (@`a`) from `test`.`t1` where 1 having 0)))
+Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(0) where 1)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select (@`a`) from `test`.`t1` where 1 having <is_not_null_test>(<cache>((@`a`))))))
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
 #
@@ -768,3 +740,23 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where 1
 DROP TABLE t1;
 # End of test for Bug#18899860
+# 
+# Bug #23209903: ASSERTION: SELECT_LEX->LEAF_TABLE_COUNT == 0 ||
+# THD->LEX->IS_QUERY_TABLES_LOCKED
+#
+CREATE TABLE t1 (a INT, b INT) ENGINE=INNODB PARTITION BY KEY (b) PARTITIONS 2;
+CREATE TABLE t2 (c INT) ENGINE=INNODB;
+
+# Test single-table update with subquery and empty outer query block
+UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+
+# Test delete from single-table with subquery and empty outer query block
+DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+DROP TABLE t1, t2;
+# End of test for Bug#23209903

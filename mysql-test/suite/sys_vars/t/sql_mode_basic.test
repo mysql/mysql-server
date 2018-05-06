@@ -7,7 +7,7 @@
 # Default Value: YES                                                          #
 # Valid Values : ANSI, STRICT_TRANS_TABLES, TRADITIONAL,                      #
 #                ERROR_FOR_DIVISION_BY_ZERO, ANSI_QUOTES, HIGH_NOT_PRECEDENCE,#
-#                IGNORE_SPACE, NO_AUTO_CREATE_USER, ONLY_FULL_GROUP_BY,       #
+#                IGNORE_SPACE, ONLY_FULL_GROUP_BY,       #
 #                NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,                  #
 #                NO_UNSIGNED_SUBTRACTION, OFF                                 #
 #                                                                             #
@@ -107,8 +107,6 @@ SET @@global.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = IGNORE_SPACE;
 SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_AUTO_CREATE_USER;
-SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_AUTO_VALUE_ON_ZERO;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_BACKSLASH_ESCAPES;
@@ -116,12 +114,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_DIR_IN_CREATE;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_ENGINE_SUBSTITUTION;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_FIELD_OPTIONS;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_KEY_OPTIONS;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_TABLE_OPTIONS;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION;
 SELECT @@global.sql_mode;
@@ -138,20 +130,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = STRICT_ALL_TABLES;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = DB2;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MAXDB;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MSSQL;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MYSQL323;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MYSQL40;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = ORACLE;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = POSTGRESQL;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = TRADITIONAL;
 SELECT @@global.sql_mode;
@@ -176,8 +154,6 @@ SET @@session.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = IGNORE_SPACE;
 SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_AUTO_CREATE_USER;
-SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_AUTO_VALUE_ON_ZERO;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_BACKSLASH_ESCAPES;
@@ -185,12 +161,6 @@ SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_DIR_IN_CREATE;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_ENGINE_SUBSTITUTION;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_FIELD_OPTIONS;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_KEY_OPTIONS;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_TABLE_OPTIONS;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_UNSIGNED_SUBTRACTION;
 SELECT @@session.sql_mode;
@@ -207,20 +177,6 @@ SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_ALL_TABLES;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = DB2;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MAXDB;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MSSQL;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MYSQL323;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MYSQL40;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = ORACLE;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = POSTGRESQL;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = TRADITIONAL;
 SELECT @@session.sql_mode;
@@ -271,7 +227,7 @@ SET @@session.sql_mode = DISABLE;
 
 --disable_warnings
 SELECT @@session.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_mode';
 --enable_warnings
 
@@ -282,7 +238,7 @@ WHERE VARIABLE_NAME='sql_mode';
 
 --disable_warnings
 SELECT @@global.sql_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='sql_mode';
 --enable_warnings
 
@@ -305,17 +261,8 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = 3;
 SELECT @@global.sql_mode;
 
-SET @@global.sql_mode = 50000;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 500000;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 4294967295;
-SELECT @@global.sql_mode;
-
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@global.sql_mode = 4294967296;
+SET @@global.sql_mode = 8589934592;
 
 # use of decimal values
 
@@ -359,7 +306,7 @@ SELECT @@global.sql_mode;
 SET @@session.sql_mode = 'TRADITIONAL,ALLOW_INVALID_DATES,ANSI_QUOTES';
 SELECT @@session.sql_mode;
 
-SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT,ORACLE,POSTGRESQL';
+SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT';
 SELECT @@global.sql_mode;
 
 #try combining invalid mode with correct mode
@@ -374,6 +321,198 @@ SELECT @@sql_mode;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@sql_mode=',,,,FOOBAR,,,,,';
 SELECT @@sql_mode;
+
+--echo '#---------------------FN_DYNVARS_152_11----------------------#'
+#######################################################################
+#    Check if sql_mode can be set using pow(2,x)                      #
+#######################################################################
+
+SET @@session.sql_mode= cast(pow(2,0) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,0) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,1) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,1) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,2) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,2) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,3) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,3) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,4) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,4) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,5) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,5) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,6) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,6) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,7) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,7) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,8) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,8) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,9) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,9) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,10) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,10) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,11) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,11) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,12) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,12) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,13) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,13) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,14) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,14) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,15) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,15) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,16) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,16) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,17) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,17) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,18) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,18) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,19) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,19) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,20) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,20) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,21) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,21) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,22) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,22) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,23) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,23) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,24) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,24) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,25) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,25) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,26) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,26) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,27) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,27) as unsigned integer);
+SELECT @@global.sql_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@session.sql_mode= cast(pow(2,28) as unsigned integer);
+SELECT @@session.sql_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.sql_mode= cast(pow(2,28) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,29) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,29) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,30) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,30) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,31) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,31) as unsigned integer);
+SELECT @@global.sql_mode;
+
+SET @@session.sql_mode= cast(pow(2,32) as unsigned integer);
+SELECT @@session.sql_mode;
+SET @@global.sql_mode= cast(pow(2,32) as unsigned integer);
+SELECT @@global.sql_mode;
 
 ##############################
 #   Restore initial value    #

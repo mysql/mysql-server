@@ -94,6 +94,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿	Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
 ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ	ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ
 ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß	ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
  Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯	 Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯
@@ -117,6 +119,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£²`;
 ¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³	¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£²`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -144,6 +148,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£³`;
 °Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï	°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£³`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦
@@ -169,6 +175,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿	Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
 ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ	ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ
 ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß	ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£´`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
  Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯	 Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯
@@ -192,6 +200,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£µ`;
 ¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³	¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£µ`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -219,6 +229,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¶`;
 °Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï	°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¶`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦
@@ -244,6 +256,8 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿	Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿
 ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ	ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ
 ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß	ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£·`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
@@ -267,6 +281,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¸`;
 ¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³	¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³
 ¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³	¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¸`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
@@ -294,6 +310,8 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¹`;
 ¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³	¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¹`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦

@@ -1,4 +1,3 @@
-
 #
 # Test of truncate
 #
@@ -164,3 +163,18 @@ DROP TABLE t1;
 
 --echo # End of 6.0 tests
 
+--echo #
+--echo # Bug#25571453: ASSERTION `MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)'
+--echo #               FAILED
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE SCHEMA s1;
+CREATE VIEW s1.v1 AS SELECT * FROM t1;
+LOCK TABLE s1.v1 WRITE;
+# This used to cause an assert to be triggered.
+TRUNCATE TABLE t1;
+UNLOCK TABLES;
+DROP VIEW s1.v1;
+DROP TABLE t1;
+DROP SCHEMA s1;

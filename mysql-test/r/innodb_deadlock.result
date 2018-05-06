@@ -3,8 +3,6 @@
 #              BUT THE READ VIEW IS NOT AS
 #
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a int)engine=innodb;
 create table t2(b int)engine=innodb;
 create procedure p1()

@@ -1,0 +1,639 @@
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_3';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_drop_log_1';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_drop_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+ALTER TABLE t1 ADD INDEX (b), ADD INDEX(c), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_4';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_4';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(b), KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+ALTER TABLE t1 DROP INDEX b, DROP INDEX c, ADD INDEX( c, b), ALGORITHM=INPLACE;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL);
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+ALTER TABLE t1 ADD COLUMN d INT NOT NULL, ADD INDEX(b), ALGORITHM=COPY;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;

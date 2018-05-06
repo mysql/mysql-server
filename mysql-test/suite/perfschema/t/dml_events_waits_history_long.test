@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log
 select * from performance_schema.events_waits_history_long
   where event_name like 'Wait/Synch/%' limit 1;

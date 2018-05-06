@@ -2,8 +2,7 @@
 #in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
 #insensitive filsystem is not allowed.
 -- source include/have_case_sensitive_file_system.inc
---source include/have_ujis.inc
---source include/have_innodb.inc
+--character_set ujis
 
 --disable_warnings
 drop table if exists `£Ô£±`;

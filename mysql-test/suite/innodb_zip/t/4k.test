@@ -1,8 +1,14 @@
 # Tests for setting innodb-page-size=4k
 
---source include/have_innodb.inc
---source include/have_innodb_4k.inc
 SET default_storage_engine=InnoDB;
+
+--source include/mysql_upgrade_preparation.inc
+--echo # Test 0) Verify that we can run 'mysql_upgrade' once.
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose 2>&1
+--source include/mysql_upgrade_cleanup.inc
 
 --disable_query_log
 let $MYSQLD_DATADIR = `select @@datadir`;
@@ -13,14 +19,14 @@ call mtr.add_suppression("Cannot add field .* in table .* because after adding i
 
 --echo # Test 1) Show the page size from Information Schema
 --disable_warnings
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
 --enable_warnings
 
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
 --disable_warnings
 --replace_result 6144 {checked_valid}
-SELECT variable_value FROM information_schema.global_status
+SELECT variable_value FROM performance_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 --enable_warnings
 
@@ -38,10 +44,11 @@ SELECT variable_value FROM information_schema.global_status
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
-	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
@@ -56,8 +63,8 @@ CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
-	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
-		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;
@@ -83,7 +90,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(128)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 
 # Compact table; 1955 bytes with 10 CHAR fields
 CREATE TABLE t1 (
@@ -96,7 +103,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 
 # Compressed table; 1878 bytes with 10 CHAR fields
 # Bug#13391353 Limit is 1876 on 32-Linux only
@@ -110,7 +117,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(79)
-) ROW_FORMAT=compressed;
+) charset latin1 ROW_FORMAT=compressed;
 
 # Dynamic table; 1955 bytes with 10 CHAR fields
 CREATE TABLE t1 (
@@ -123,7 +130,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
-) ROW_FORMAT=dynamic;
+) charset latin1 ROW_FORMAT=dynamic;
 
 #
 # Test the maximum key length
@@ -137,6 +144,7 @@ CREATE TABLE t1 (a varchar(64) character set utf8,
                  c varchar(64) character set utf8,
                  d varchar(64) character set utf8,
                  PRIMARY KEY (a,b,c,d))
+		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
@@ -145,6 +153,7 @@ CREATE TABLE t1 (a varchar(64) character set utf8,
                  c varchar(64) character set utf8,
                  d varchar(65) character set utf8,
                  PRIMARY KEY (a,b,c,d))
+		 charset latin1
 		 ENGINE=innodb;
 CREATE TABLE t1 (a varchar(64) character set utf8,
                  b varchar(64) character set utf8,
@@ -152,6 +161,7 @@ CREATE TABLE t1 (a varchar(64) character set utf8,
                  d varchar(64) character set utf8,
                  e varchar(64) character set utf8,
                  PRIMARY KEY (a), KEY (b,c,d,e))
+		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
@@ -161,6 +171,7 @@ CREATE TABLE t1 (a varchar(64) character set utf8,
                  d varchar(64) character set utf8,
                  e varchar(65) character set utf8,
                  PRIMARY KEY (a), KEY (b,c,d,e))
+		 charset latin1
 		 ENGINE=innodb;
 
 --echo # Test 5) Make sure that KEY_BLOCK_SIZE=4, 2 & 1 are all
@@ -247,15 +258,12 @@ SHOW WARNINGS;
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
 --error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
 --error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
-SET GLOBAL innodb_file_format = `Barracuda`;
-
 
 --echo # Test 7) Not included here; 16k only
 
@@ -350,6 +358,7 @@ CREATE TABLE t1(
                   pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
    KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
           sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+   charset latin1
    ROW_FORMAT=Redundant ENGINE=InnoDB;
 SET @r = repeat('a', 48);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
@@ -387,6 +396,7 @@ CREATE TABLE t1(
                   pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
    KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
           sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+   charset latin1
    ROW_FORMAT=Compressed KEY_BLOCK_SIZE=4 ENGINE=InnoDB;
 SET @r = repeat('a', 48);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,

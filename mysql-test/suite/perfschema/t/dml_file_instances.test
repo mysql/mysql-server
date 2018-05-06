@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log
 select * from performance_schema.file_instances limit 1;
 
@@ -45,22 +42,22 @@ SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t
 
 CREATE TABLE t_db_26152751 (a INT) ENGINE=MYISAM;
 
---replace_regex /.*\/t_db_26152751/t_db_26152751/
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 
 RENAME TABLE t_db_26152751 to t_db_26152751_new;
 
---replace_regex /.*\/t_db_26152751/t_db_26152751/
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751_new.sdi/ /.*\/t_db_26152751/t_db_26152751/
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 
 RENAME TABLE t_db_26152751_new to t_db_26152751;
 
---replace_regex /.*\/t_db_26152751/t_db_26152751/
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 
 ALTER TABLE t_db_26152751 ADD COLUMN b INT;
 
---replace_regex /.*\/t_db_26152751/t_db_26152751/
+--replace_regex /.*\/t_db_26152751_.*sdi/t_db_26152751.sdi/ /.*\/t_db_26152751/t_db_26152751/
 SELECT FILE_NAME FROM performance_schema.file_instances WHERE FILE_NAME LIKE "%t_db_26152751%";
 
 DROP TABLE t_db_26152751;

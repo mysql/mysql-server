@@ -60,9 +60,7 @@
 #     handled correctly, both with and without source
 #     tables in general tablespaces.
 # 15. Verify that explicit invalid tablespace names make
-#     table related DDL be rejected. Verify that implicit
-#     invalid tablespace names (e.g., present in an .FRM
-#     file from a previous MySQL version) are ignored.
+#     table related DDL be rejected.
 # 16. Verify correct P_S information.
 ###########################################################
 #
@@ -100,7 +98,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
@@ -144,7 +142,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con2';
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
@@ -233,7 +231,7 @@ connection con2;
 connection con3;
 connection con4;
 connection con5;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLE t1;
 DROP TABLE t3;
@@ -405,11 +403,11 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con3';
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection con3;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
@@ -480,7 +478,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
@@ -530,7 +528,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 #
 # Dropping ts1 should fail.
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+ERROR HY000: Tablespace `ts1` is not empty.
 #
 # Initiate a drop of table t1 and park it after
 # acquiring IX lock on ts1.
@@ -560,7 +558,7 @@ connection con1;
 connection con2;
 connection default;
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+ERROR HY000: Tablespace ts1 doesn't exist.
 SET DEBUG_SYNC= 'RESET';
 ###########################################################
 # TC12. Verify that the tablespace name length is checked
@@ -596,7 +594,7 @@ DROP TABLESPACE `€€€€€€€€€€€€€€€€€€€€€
 #
 # A tablespace name of 65 3-byte characters should be rejected.
 CREATE TABLESPACE `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€` ADD DATAFILE 'x.ibd';
-ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€' is too long
+ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€?' is too long
 #
 # A tablespace name containing supplementary UTF characters should be rejected.
 CREATE TABLESPACE `a𐍈` ADD DATAFILE 'x.ibd';
@@ -653,7 +651,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # In connection 1, run table DDL and park it
 # after getting MDL IX lock on the tablespace name.
 connection con1;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
   SIGNAL got_lock_con1
   WAIT_FOR cont_con1';
@@ -695,7 +693,7 @@ Table	Create Table
 t1_new	CREATE TABLE `t1_new` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1_new;
 CREATE TABLE t2_new LIKE t2_src;
 SHOW CREATE TABLE t2_new;
@@ -703,7 +701,7 @@ Table	Create Table
 t2_new	CREATE TABLE `t2_new` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2_new;
 #
 # Reset DEBUG_SYNC and drop objects.
@@ -714,9 +712,7 @@ DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 ###########################################################
 # TC15. Verify that explicit invalid tablespace names make
-#       table related DDL be rejected. Verify that implicit
-#       invalid tablespace names (e.g., present in an .FRM
-#       file from a previous MySQL version) are ignored.
+#       table related DDL be rejected.
 #
 # First, create a tablespace ts1 with one table.
 connection default;
@@ -741,51 +737,10 @@ ERROR 42000: Incorrect tablespace name ``
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
 ERROR 42000: Identifier name 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
 #
-# Copy files for a table with an invalid name.
-#
-# A SHOW CREATE TABLE will omit the tablespace name in
-# the output.
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-Table	Create Table
-table_with_invalid_tablespace_name	CREATE TABLE `table_with_invalid_tablespace_name` (
-  `pk` int(11) NOT NULL,
-  PRIMARY KEY (`pk`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-FLUSH TABLES;
-#
-# A normal SELECT will behave as usual.
-SELECT * FROM table_with_invalid_tablespace_name;
-pk
-FLUSH TABLES;
-#
-# CREATE TABLE LIKE will omit the invalid tablespace name
-# when creating the new table.
-CREATE TABLE table_like LIKE table_with_invalid_tablespace_name;
-FLUSH TABLES;
-SHOW CREATE TABLE table_like;
-Table	Create Table
-table_like	CREATE TABLE `table_like` (
-  `pk` int(11) NOT NULL,
-  PRIMARY KEY (`pk`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-#
-# ALTER TABLE will ignore the invalid tablespace name.
-ALTER TABLE table_with_invalid_tablespace_name ENGINE=InnoDB;
-FLUSH TABLES;
-SHOW CREATE TABLE table_with_invalid_tablespace_name;
-Table	Create Table
-table_with_invalid_tablespace_name	CREATE TABLE `table_with_invalid_tablespace_name` (
-  `pk` int(11) NOT NULL,
-  PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-#
-# Reset DEBUG_SYNC and drop objects.
+# Drop objects.
 connection default;
 DROP TABLE t1;
-DROP TABLE table_with_invalid_tablespace_name;
-DROP TABLE table_like;
 DROP TABLESPACE ts1;
-SET DEBUG_SYNC= 'RESET';
 ###########################################################
 # TC16. Verify correct P_S information.
 #
@@ -821,13 +776,24 @@ FROM performance_schema.events_waits_current
 WHERE object_type LIKE 'TABLESPACE';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
+CALL sys.ps_setup_disable_instrument('wait');
+summary
+Disabled X instruments
+CALL sys.ps_setup_enable_instrument('wait/lock/metadata/sql/mdl');
+summary
+Enabled 1 instrument
+TRUNCATE TABLE performance_schema.events_waits_history_long;
 SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 #
 # Now, the tablespace MDL information will eventually be
 # gone from both I_S and P_S, except it will remain in the
 # P_S event wait history.
 SELECT event_name, object_name, object_type, operation
-FROM performance_schema.events_waits_history
+FROM performance_schema.events_waits_current
+WHERE object_type LIKE 'TABLESPACE';
+event_name	object_name	object_type	operation
+SELECT event_name, object_name, object_type, operation
+FROM performance_schema.events_waits_history_long
 WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
@@ -835,10 +801,13 @@ wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
 connection con2;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
+CALL sys.ps_setup_enable_instrument('wait');
+summary
+Enabled X instruments
 ###########################################################
 #
 # Test teardown: Disconnect
@@ -889,6 +858,17 @@ RENAME TABLE t1 to t2;;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'RENAME TABLE t1 to t2'
+#############################################
+# Case3: Checking ALTER TABLE
+# Sending 'ALTER TABLE t1 ADD COLUMN f int;'
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+ALTER TABLE t2 ADD COLUMN f int;;
+# Verify that the tablespace name is locked.
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+# Reaping 'ALTER TABLE t2 ADD COLUMN f int;'
 #############################################
 # Case4: Checking CREATE TABLE
 SET DEBUG_SYNC= 'RESET';
@@ -947,11 +927,11 @@ PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE
 `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
-ERROR 42000: Identifier name '€€€€€€€€€€€€€€�' is too long
+ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€?' is too long
 ALTER TABLE t2 ADD PARTITION (
 partition p2 values less than (4) tablespace
 `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
-ERROR 42000: Identifier name '€€€€€€€€€€€€€€�' is too long
+ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€?' is too long
 # Cleanup
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t2;
@@ -959,3 +939,231 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+#
+# Tescases for wl#8972. Rename a general tablespace.
+#
+# Verify atomicity of rename
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ALTER TABLESPACE ts2 RENAME TO ts1;
+SET SESSION debug="+d,tspr_post_se";
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR HY000: Unknown error
+SET SESSION debug="-d,tspr_post_se";
+ALTER TABLESPACE ts1 RENAME TO ts2;
+SET SESSION debug="+d,tspr_post_update";
+ALTER TABLESPACE ts2 RENAME TO ts3;
+ERROR HY000: Unknown error
+SET SESSION debug="-d,tspr_post_update";
+ALTER TABLESPACE ts2 RENAME TO ts3;
+SET SESSION debug="+d,tspr_post_intcmt";
+ALTER TABLESPACE ts3 RENAME TO ts4;
+ERROR HY000: Unknown error
+SET SESSION debug="-d,tspr_post_intcmt";
+ALTER TABLESPACE ts3 RENAME TO ts4;
+DROP TABLESPACE ts4;
+#
+# Verify that rename is rejected under FLUSH TABLES WITH READ LOCK
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+FLUSH TABLES WITH READ LOCK;
+SET @@session.lock_wait_timeout= 1;
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+#
+# Verify that rename is rejected under LOCK TABLES on a table in
+# the tablepsace
+#
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+LOCK TABLES t1 READ;
+SET @@session.lock_wait_timeout= 1;
+ALTER TABLESPACE ts1 RENAME TO ts2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+#
+# Verify proper MDL locking on tablespace
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+ALTER TABLESPACE ts1 RENAME TO ts2;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+DROP TABLESPACE ts1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+DROP TABLESPACE ts2;
+#
+# Verify that MDL on tables in a tablespace blocks rename
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
+CREATE TABLE t1(i INT) TABLESPACE ts1;
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+ALTER TABLE t1 RENAME TO t2;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @@session.lock_wait_timeout= 1;
+ALTER TABLESPACE ts1 RENAME TO t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+DROP TABLE t2;
+DROP TABLESPACE ts1;
+SET @@session.lock_wait_timeout= DEFAULT;
+#############################################
+#
+# Bug#22486020 TARGET TABLESPACE META DATA LOCK
+#              NOT ACQUIRED DURING ALTER UNDER
+#              LOCK TABLE
+#
+# Make sure that target tablespaces are locked
+# when issuing ALTER TABLE under LOCK TABLE.
+#
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY)
+PARTITION BY RANGE (pk) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2));
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 TABLESPACE s1;
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
+UNLOCK TABLE;
+DROP TABLE t1;
+DROP TABLESPACE s1;
+DROP TABLESPACE s2;
+#
+# Bug#27472087: ALTER TABLE HANGS IN "WAITING FOR TABLESPACE METADATA
+# LOCK" STATE
+#
+# Verify that MDLs taken for implicit table and partition tablespaces
+# handled correctly in lock tables mode.
+#
+CREATE TABLE test1(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+CREATE TABLE test2(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+LOCK TABLES test1 WRITE;
+### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLESPACE	test/test1	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLE	test1	SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+###
+ALTER TABLE test1 RENAME test1_tmp;
+### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLESPACE	test/test1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+TABLE	test1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+###
+ALTER TABLE test2 RENAME test1;
+### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLESPACE	test/test1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+TABLE	test1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+###
+UNLOCK TABLES;
+### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+###
+DROP TABLE test1_tmp;
+DROP TABLE test1;
+# Testing partitioned tables
+CREATE TABLE part1(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+CREATE TABLE part2(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+LOCK TABLES part1 WRITE;
+### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	REPLACE(OBJECT_NAME, '#p#', '#P#')	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	part1	SHARED_NO_READ_WRITE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p0	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p1	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p2	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p3	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p4	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p5	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p6	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p7	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p8	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1#P#p9	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+###
+ALTER TABLE part1 RENAME TO part1_tmp;
+### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	REPLACE(OBJECT_NAME, '#p#', '#P#')	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	part1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p0	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p1	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p2	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p3	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p4	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p5	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p6	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p7	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p8	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p9	EXCLUSIVE	TRANSACTION	GRANTED
+###
+ALTER TABLE part2 RENAME TO part1;
+### Locks held ###
+SELECT OBJECT_TYPE, REPLACE(OBJECT_NAME, '#p#', '#P#'), LOCK_TYPE,
+LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	REPLACE(OBJECT_NAME, '#p#', '#P#')	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+TABLE	part1_tmp	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p0	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p1	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p2	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p3	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p4	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p5	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p6	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p7	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p8	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	test/part1_tmp#P#p9	EXCLUSIVE	TRANSACTION	GRANTED
+###
+UNLOCK TABLES;
+### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+OBJECT_TYPE	OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+###
+DROP TABLE part1_tmp;
+DROP TABLE part1;

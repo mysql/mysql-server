@@ -8,8 +8,6 @@
 # Data Type: filename                                                         #
 ###############################################################################
 
---source include/not_embedded.inc
-
 --echo '#---------------------BS_STVARS_001_01----------------------#'
 ####################################################################
 #   Displaying default value                                       #
@@ -40,7 +38,7 @@ SELECT COUNT(@@GLOBAL.bind_address);
 
 --disable_warnings
 SELECT VARIABLE_VALUE = ''
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='bind_address';
 --enable_warnings
 --echo 0 Expected
@@ -50,7 +48,7 @@ SELECT COUNT(@@GLOBAL.bind_address);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='bind_address';
 --enable_warnings
 --echo 1 Expected

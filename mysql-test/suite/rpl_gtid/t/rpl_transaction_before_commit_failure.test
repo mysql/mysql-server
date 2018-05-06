@@ -1,0 +1,55 @@
+# The purpose of test is to validate that when executing a empty transaction
+# with a set GTID, the transaction can fail if
+# 1) the before commit hook fails
+# 2) the transaction is ordered to rollback.
+
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/not_group_replication_plugin.inc
+
+--source include/install_replication_observers_example.inc
+
+--echo #
+--echo # Phase 1: The before commit hook fails.
+--echo # Set a GTID in an empty transaction and watch it fail
+--echo #
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin");
+SET SESSION sql_log_bin= 1;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,force_error_on_before_commit_listener';
+
+SET gtid_next='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+ROLLBACK;
+SET gtid_next='automatic';
+
+--echo #
+--echo # Phase 2: The before commit hook makes the transaction rollback
+--echo # Set a GTID in an empty transaction and watch it fail
+--echo #
+
+SET @@GLOBAL.DEBUG= '+d,force_negative_certification_outcome';
+
+SET gtid_next='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+COMMIT;
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+ROLLBACK;
+SET gtid_next='automatic';
+
+--echo #
+--echo # Clean up
+--echo #
+
+--source include/uninstall_replication_observers_example.inc

@@ -117,7 +117,7 @@ ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 # Note: we do not use default_row_format_show.inc because
 # ALTER ROW_FORMAT=COMPRESSED shows different compressed page sizes
 # with different innodb_page_sizes
-SELECT NAME,FILE_FORMAT,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME='test/tab';
 
 CHECK TABLE tab;

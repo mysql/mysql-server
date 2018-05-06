@@ -1,0 +1,24 @@
+select @@innodb_flush_method;
+@@innodb_flush_method
+unbuffered
+select @@innodb_use_native_aio;
+@@innodb_use_native_aio
+1
+# restart: --innodb-flush-method=1
+select @@innodb_flush_method;
+@@innodb_flush_method
+normal
+select @@innodb_use_native_aio;
+@@innodb_use_native_aio
+1
+create table t(a serial) engine=innodb;
+# restart: --innodb-flush-method=1 --innodb-use-native-aio=0
+select @@innodb_flush_method;
+@@innodb_flush_method
+normal
+select @@innodb_use_native_aio;
+@@innodb_use_native_aio
+0
+insert into t values(0);
+# restart
+drop table t;

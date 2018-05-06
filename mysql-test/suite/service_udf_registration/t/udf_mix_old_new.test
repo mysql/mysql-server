@@ -1,0 +1,89 @@
+# This test checks if old UDF statements can be used in parallel to the new UDF registration.
+# They must know about each other and aviod conflicts.
+# Check if the "old" so is available under same directory as the test components.
+# If not then copy them to that directory.
+perl;
+use File::Copy;
+if (! -e "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}")
+{
+  copy("$ENV{UDF_EXAMPLE_LIB_DIR}/$ENV{UDF_EXAMPLE_LIB}",
+       "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}");
+}
+EOF
+
+# If UDF so still not vailable, stop execution of test.
+perl;
+if (! -e "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}")
+{
+  print "UDF requires udf_example_lib.so, which cannot be find.\n";
+  exit;
+}
+EOF
+
+# Register the UDS. The component is only registering UDFs.
+# To unregister call another component.
+INSTALL COMPONENT "file://component_udf_reg_only_3_func";
+
+# Usage of registered UDFs.
+--error ER_CANT_INITIALIZE_UDF
+select myfunc_double();
+select myfunc_double(1);
+select myfunc_double(78654);
+
+# Registered  UDFs must not be touched by old UDF statements.
+--error ER_UDF_DROP_DYNAMICALLY_REGISTERED
+DROP FUNCTION myfunc_double;
+
+# A registered UDF cannot be created by old SQL statement.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--error ER_UDF_EXISTS
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+select myfunc_int();
+select myfunc_int(5);
+select myfunc_int('MySQL V8.0');
+
+# Registered  UDFs must not be touched by old UDF statements.
+--error ER_UDF_DROP_DYNAMICALLY_REGISTERED
+DROP FUNCTION myfunc_int;
+
+# A registered UDF cannot be created by old SQL statement.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--error ER_UDF_EXISTS
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+SELECT myfunc_int(a AS attr_name) FROM t1;
+drop table t1;
+
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+drop table t1;
+# Registered  UDFs must not be touched by old UDF statements.
+--error ER_UDF_DROP_DYNAMICALLY_REGISTERED
+DROP FUNCTION avgcost;
+
+# Unregister UDFs and unload component.
+--echo # remove the plugin
+INSTALL COMPONENT "file://component_udf_unreg_3_func";
+
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_double(1);
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_int(5);
+
+# A old style UDF can be uses in parallel to register/unregister.
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+select myfunc_double(1);
+DROP FUNCTION myfunc_double;
+
+# Register UDFs again.
+UNINSTALL COMPONENT "file://component_udf_reg_only_3_func";
+# Unregister UDFs.
+UNINSTALL COMPONENT "file://component_udf_unreg_3_func";

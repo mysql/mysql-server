@@ -1,3 +1,5 @@
+# Test needs myisam for Test for bug #55273
+--source include/have_myisam.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -168,16 +170,6 @@ unlock tables;
 drop table t1, t2;
 
 set session low_priority_updates=default;
-
-#
-# Bug #33334 mysqltest_embedded crashes when disconnecting before reap
-#
-
-connect (con1,localhost,root,,);
-send select benchmark(200, (select sin(1))) > 1000;
-disconnect con1;
---source include/wait_until_disconnected.inc
-connection default;
 
 --echo End of 5.0 tests
 

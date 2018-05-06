@@ -1,3 +1,7 @@
+<!--
+  All the character sets and collations in this file are for testing purpose.
+  User should not use them in real enviroment.
+-->
 <charsets>
 
   <charset name="utf8">
@@ -21,7 +25,7 @@
     <collation name="utf8_5624_1" id="354">
       <rules>
         <!-- long contractions and expansions -->
-        <reset>12345</reset><q>012345</q><q>12345</q>
+        <reset>12345</reset><q>012345</q>
         <reset>1234</reset><q>001234</q><q>01234</q>
         <reset>123</reset><q>000123</q><q>00123</q><q>0123</q>
         <reset>12</reset><q>000012</q><q>00012</q><q>0012</q><q>012</q>
@@ -239,7 +243,7 @@
     <collation name="ucs2_5624_1" id="360">
       <rules>
         <!-- long contractions and expansions -->
-        <reset>12345</reset><q>012345</q><q>12345</q>
+        <reset>12345</reset><q>012345</q>
         <reset>1234</reset><q>001234</q><q>01234</q>
         <reset>123</reset><q>000123</q><q>00123</q><q>0123</q>
         <reset>12</reset><q>000012</q><q>00012</q><q>0012</q><q>012</q>

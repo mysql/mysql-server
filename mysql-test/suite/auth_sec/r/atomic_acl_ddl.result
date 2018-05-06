@@ -1,0 +1,20 @@
+# -----------------------------------------------------------------------
+# Begin : Tests for Atomic behavior of ACL DDLs
+#
+# Bug#26475282: ALTER FROM SUBSEQUENT TRANSACTION HITS
+#               ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES
+#
+START TRANSACTION;
+SELECT COUNT(*) FROM mysql.user;
+COUNT(*)
+4
+START TRANSACTION;
+SELECT COUNT(*) FROM mysql.user;
+COUNT(*)
+4
+ALTER USER non_existing IDENTIFIED BY 'haha';
+ALTER USER non_existing IDENTIFIED BY 'haha';
+ERROR HY000: Operation ALTER USER failed for 'non_existing'@'%'
+ERROR HY000: Operation ALTER USER failed for 'non_existing'@'%'
+# End : Tests for Atomic behavior of ACL DDLs
+# -----------------------------------------------------------------------

@@ -1,14 +1,15 @@
 #
 # Test for set corrupt bit for corrupted index in read only mode
 #
--- source include/have_innodb.inc
---source include/not_embedded.inc
 
 # This test needs debug server
 --source include/have_debug.inc
 
 --disable_query_log
 call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
+call mtr.add_suppression("Skip re-populating collations and*");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 set names utf8;

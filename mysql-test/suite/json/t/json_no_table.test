@@ -492,56 +492,66 @@ SELECT JSON_REMOVE
   '$.b[ 1 ].e'
 );
 
+SELECT JSON_REMOVE('123', '$.a');
+
 --echo # ----------------------------------------------------------------------
---echo # Test of JSON_MERGE function.
+--echo # Test of JSON_MERGE_PRESERVE function.
 --echo # ----------------------------------------------------------------------
 
 --echo
 --echo # not enough args
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select json_merge();
+SELECT JSON_MERGE_PRESERVE();
 --echo
 --echo # not enough args
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select json_merge( '[ 1, 2, 3 ]' );
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]');
 
 # null args result in NULL value
-select json_merge( null, null );
-select json_merge( null, '[ 1, 2, 3 ]' );
-select json_merge( '[ 1, 2, 3 ]', null );
-select json_merge( null, '[ 1, 2, 3 ]', '[ 4, 5, 6 ]' );
-select json_merge( '[ 1, 2, 3 ]', null, '[ 4, 5, 6 ]' );
-select json_merge( '[ 1, 2, 3 ]', '[ 4, 5, 6 ]', null );
+SELECT JSON_MERGE_PRESERVE(NULL, NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]', '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL, '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', '[ 4, 5, 6 ]', NULL);
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
-select json_merge( '[1, 2]', '[3, 4' );
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
-select json_merge( '[1, 2', '[3, 4]' );
+SELECT JSON_MERGE_PRESERVE('[1, 2', '[3, 4]');
 
-# good json_merge() expressions
-select json_merge( '1', '2' );
-select json_merge( '1', '[2, 3]' );
-select json_merge( '[1, 2]', '3' );
-select json_merge( '1', '{ "a": 2 }' );
-select json_merge( '{ "a": 2 }', '1' );
-select json_merge( '[1, 2]', '[3, 4]' );
-select json_merge( '{ "a": 2 }', '{ "b": 3}' );
-select json_merge( '[1, 2]', '{ "a": 2 }' );
-select json_merge( '{ "a": 2 }', '[1, 2]' );
+# good json_merge_preserve() expressions
+SELECT JSON_MERGE_PRESERVE('1', '2');
+SELECT JSON_MERGE_PRESERVE('1', '[2, 3]');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '3');
+SELECT JSON_MERGE_PRESERVE('1', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '1');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4]');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '{ "b": 3}');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '[1, 2]');
 
-select json_merge( '{"a": 1, "b": 2 }', '{"b": 3, "d": 4 }' );
-select json_merge( '{"a": 1, "b": 2 }', '{"b": [3, 4], "d": 4 }' );
-select json_merge( '{"a": 1, "b": [2, 3] }', '{"b": 4, "d": 4 }' );
-select json_merge( '{"a": 1, "b": 2 }', '{"b": {"e": 7, "f": 8}, "d": 4 }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{"a": 1, "b": 2 }' );
-select json_merge( '{"a": 1, "b": [2, 9] }', '{"b": [10, 11], "d": 4 }' );
-select json_merge( '{"a": 1, "b": [2, 9] }', '{"b": {"e": 7, "f": 8}, "d": 4 }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{"a": 1, "b": [2, 9] }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{ "a": 1, "b": {"e": 20, "g": 21 } }' );
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": 3, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": [3, 4], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 3] }', '{"b": 4, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": 2 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": [10, 11], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": [2, 9] }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{ "a": 1, "b": {"e": 20, "g": 21 } }');
 
-select json_merge( '1', '2', '3' );
-select json_merge( '[1, 2 ]', '3', '[4, 5]' );
-select json_merge
+SELECT JSON_MERGE_PRESERVE('1', '2', '3');
+SELECT JSON_MERGE_PRESERVE('[1, 2 ]', '3', '[4, 5]');
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a": true, "b": { "c": 3, "d": 4 }, "e": [ 1, 2 ] }',
   '{ "d": false, "b": { "g": 3, "d": 5 }, "f": [ 1, 2 ] }',
@@ -550,28 +560,28 @@ select json_merge
 
 # examples from the wl7909 spec
 # returns [{"a": "foo", "b": [true, {"c": 123}]}, 5, 6]
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '[ 5, 6]'
 );
 
 # returns {"a": "foo", "b": [true, {"c": 123}, false, 34]}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '{ "b": [ false, 34 ] }'
 );
 
 # returns {"a": "foo", "b": [true, {"c": 123}, "bar"]}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '{ "b": "bar" }'
 );
 
 # returns {"a": {"b": 1, "c": 1}}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : { "b" : 1 } }',
   '{ "a" : { "c" : 1 } }'
@@ -862,7 +872,7 @@ SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : {"not array": 4} } ] }
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
                    '$.b[ 1 ].c[ 1 ]');
 
---echo # returns a JSON value containing the number 123 (due to normalization)
+--echo # returns a JSON value containing the number 456 (due to normalization)
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
                    '$.b[ 1 ].c');
 
@@ -874,34 +884,46 @@ SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
                    '$.d', '$.b[0]');
 
-# some examples verifying ellipsis behavior
+--echo # Some examples verifying ellipsis behavior.
 
-# should have same result
+--echo # Should have the same result, apart from wrapping.
 select json_extract( '[1]', '$[0][0]' );
 select json_extract( '[1]', '$**[0]' );
+select json_extract( '[1]', '$[last][last]' );
+select json_extract( '[1]', '$**[last]' );
 
-# should have same result
-select json_extract( '{ "a": 1 }', '$.a[0]' );
+--echo # Should have the same result.
 select json_extract( '{ "a": 1 }', '$**[0]' );
+select json_extract( '{ "a": 1 }', '$[0]', '$.a[0]' );
+select json_extract( '{ "a": 1 }', '$[0]', '$[0].a[0]' );
+select json_extract( '{ "a": 1 }', '$**[last]' );
+select json_extract( '{ "a": 1 }', '$[last]', '$.a[last]' );
 
-# should have same result
-select json_extract( '{ "a": 1 }', '$[0].a' );
+--echo # Should have the same result, apart from wrapping.
 select json_extract( '{ "a": 1 }', '$**.a' );
-
-# should have same result
-select json_extract( '{ "a": 1 }', '$[0].a[0]' );
-select json_extract( '{ "a": 1 }', '$**[0]' );
-
-# should have the same result
 select json_extract( '{ "a": 1 }', '$[0].a' );
+select json_extract( '{ "a": 1 }', '$[last].a' );
+
+--echo # Should have the same result, apart from wrapping.
 select json_extract( '{ "a": 1 }', '$**.a' );
+select json_extract( '{ "a": 1 }', '$[0].a' );
 select json_extract( '{ "a": 1 }', '$[0][0].a' );
 select json_extract( '{ "a": 1 }', '$[0][0][0].a' );
+select json_extract( '{ "a": 1 }', '$[last].a' );
+select json_extract( '{ "a": 1 }', '$[last][last].a' );
+select json_extract( '{ "a": 1 }', '$[last][last][last].a' );
 
-# should have the same result
+--echo # Should have the same result.
 SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]', '$**.a.*');
 SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
                     '$[1][0][0].x[0].a.*');
+
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[0]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[1]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[2]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[3]');
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[*]');
+SELECT JSON_EXTRACT('[1,2,[3,4,[5,6,{"a":7}]]]', '$**[*]**[0]');
 
 # examples from the wl7909 spec
 # returns a JSON value containing just the string "123"
@@ -946,7 +968,7 @@ SELECT JSON_EXTRACT
   '$.b[ 1 ].c[ 1 ]'
 );
 
-# returns a JSON value containing the number 123 (due to normalization)
+# returns a JSON value containing the number 456 (due to normalization)
 SELECT JSON_EXTRACT
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
@@ -1011,9 +1033,12 @@ select json_array_append(NULL, NULL, NULL, NULL);
 # auto-wrap
 SELECT JSON_ARRAY_APPEND(cast('1' as json), '$', 3);
 SELECT JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3);
+SELECT JSON_ARRAY_APPEND('1', '$[0]', 3);
 
 --error ER_INVALID_JSON_PATH_WILDCARD
 select json_array_append(cast('{"a": {"b": [3]}}' as json), '$**[0]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_ARRAY_APPEND('1', '$[0 to 1]', 3);
 
 # Examples from the specification
 
@@ -1084,9 +1109,21 @@ select json_insert(NULL, NULL, NULL, NULL);
 
 # positive test cases
 
+select json_insert('[1,2,3]', '$[0]', 4);
+select json_insert('[1,2,3]', '$[1]', 4);
 select json_insert('[1,2,3]', '$[2]', 4);
 select json_insert('[1,2,3]', '$[3]', 4);
 select json_insert('[1,2,3]', '$[10]', 4);
+select json_insert('[1,2,3]', '$[last]', 4);
+select json_insert('[1,2,3]', '$[last-1]', 4);
+select json_insert('[1,2,3]', '$[last-2]', 4);
+select json_insert('[1,2,3]', '$[last-3]', 4);
+select json_insert('[1,2,3]', '$[last-10]', 4);
+
+select json_insert('[]', '$[0]', 1);
+select json_insert('[]', '$[1]', 1);
+select json_insert('[]', '$[last]', 1);
+select json_insert('[]', '$[last-1]', 1);
 
 select json_insert('{"c":4}', '$.c', 4);
 select json_insert('{"c":4}', '$.a', 4);
@@ -1095,12 +1132,21 @@ select json_insert('1', '$', 4);
 select json_insert('1', '$[0]', 4);
 select json_insert('1', '$[1]', 4);
 select json_insert('1', '$[10]', '4', '$[11]', 5);
+select json_insert('1', '$[last]', 4);
+select json_insert('1', '$[last-1]', 4);
+select json_insert('1', '$[last-10]', '4', '$[last-11]', 5);
 
 select json_insert('[1,2,3]', '$[2][0]', 4);
+select json_insert('[1,2,3]', '$[2][1]', 4);
 select json_insert('[1,2,3]', '$[2][2]', 4);
+select json_insert('[1,2,3]', '$[2][last]', 4);
+select json_insert('[1,2,3]', '$[2][last-1]', 4);
+select json_insert('[1,2,3]', '$[2][last-2]', 4);
 
 select json_insert('{"a": 3}', '$.a[0]', 4);
 select json_insert('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
+select json_insert('{"a": 3}', '$.a[last]', 4);
+select json_insert('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
 
 # wild card & auto-wrap (scalars)
 --error ER_INVALID_JSON_PATH_WILDCARD
@@ -1130,6 +1176,9 @@ select json_insert(cast('[1, [2], 3]' as json), '$**[1]', 6);
 select json_insert(cast('[[1]]' as json), '$[*][1]', 6);
 --error ER_INVALID_JSON_PATH_WILDCARD
 select json_insert(cast('[[1]]' as json), '$**[1]', 6);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert(cast('[1, [2], 3]' as json), '$[1 to 2]', 6);
 
 # auto-wrap object
 select json_insert(cast('{"a": 3}' as json), '$[1]', 6);
@@ -1227,6 +1276,8 @@ select json_array_insert( '{ "a": true }', '$.a[1]', false );
 # positive tests
 select json_array_insert( '[]', '$[0]', false );
 select json_array_insert( '[]', '$[1]', false );
+select json_array_insert( '[]', '$[last]', false );
+select json_array_insert( '[]', '$[last-1]', false );
 select json_array_insert( '[true]', '$[0]', false );
 select json_array_insert( '[true]', '$[1]', false );
 select json_array_insert( '[true]', '$[2]', false );
@@ -1235,6 +1286,8 @@ select json_array_insert( '{ "a": [] }', '$.a[1]', false );
 select json_array_insert( '{ "a": [true] }', '$.a[0]', false );
 select json_array_insert( '{ "a": [true] }', '$.a[1]', false );
 select json_array_insert( '{ "a": [true] }', '$.a[2]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[last]', false );
+select json_array_insert( '{ "a": [true] }', '$.a[last-1]', false );
 
 # insert into the middle of an array
 select json_array_insert( '[1, 2, 3, 4]', '$[0]', false );
@@ -1243,6 +1296,11 @@ select json_array_insert( '[1, 2, 3, 4]', '$[2]', false );
 select json_array_insert( '[1, 2, 3, 4]', '$[3]', false );
 select json_array_insert( '[1, 2, 3, 4]', '$[4]', false );
 select json_array_insert( '[1, 2, 3, 4]', '$[5]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-1]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-2]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-3]', false );
+select json_array_insert( '[1, 2, 3, 4]', '$[last-4]', false );
 
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[0]', false );
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[1]', false );
@@ -1250,6 +1308,9 @@ select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[2]', false );
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[3]', false );
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[4]', false );
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[5]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-1]', false );
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-4]', false );
 
 # nop
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.b[0]', false );
@@ -1266,6 +1327,8 @@ select json_insert('[]', '$.a.*[1]', 6);
 select json_insert('[]', '$**[1]', 6);
 --error ER_INVALID_JSON_PATH_WILDCARD
 select json_insert('[]', '$[*][1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+select json_insert('[]', '$[1 to 2]', 6);
 
 # multiple paths,
 select json_array_insert( '[ 1, 2, 3 ]', '$[1]', true, '$[1]', false );
@@ -1296,6 +1359,8 @@ select json_set(NULL);
 select json_set(NULL, NULL);
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select json_set(NULL, NULL, NULL, NULL);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SET('[', '$[0]', 0);
 
 # Detect errors in nested function calls.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
@@ -1307,6 +1372,11 @@ select json_set('[1,2,3]', '$[2]', 4);
 select json_set('[1,2,3]', '$[3]', 4);
 select json_set('[1,2,3]', '$[10]', 4);
 
+select json_set('[]', '$[0]', 1);
+select json_set('[]', '$[1]', 1);
+select json_set('[]', '$[last]', 1);
+select json_set('[]', '$[last-1]', 1);
+
 select json_set('{"c":4}', '$.c', 5);
 select json_set('{"c":4}', '$.a', 5);
 
@@ -1314,16 +1384,27 @@ select json_set('1', '$', 4);
 select json_set('1', '$[0]', 4);
 select json_set('1', '$[1]', 4);
 select json_set('1', '$[10]', '4', '$[11]', 5);
+select json_set('1', '$[last]', 4);
+select json_set('1', '$[last-1]', 4);
+select json_set('1', '$[last-10]', '4', '$[last-11]', 5);
 
 select json_set('[1,2,3]', '$[2][0]', 4);
 select json_set('[1,2,3]', '$[2][2]', 4);
+select json_set('[1,2,3]', '$[2][last]', 4);
+select json_set('[1,2,3]', '$[2][last-2]', 4);
 
 select json_set('{"a": 3}', '$.a[0]', 4);
 select json_set('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
+select json_set('{"a": 3}', '$.a[last]', 4);
+select json_set('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
 
 # auto-wrap plus ellipsis with nested hits should give: {"a": [{"b": [3, 6]}, 6]}
 --error ER_INVALID_JSON_PATH_WILDCARD
 select json_set(cast('{"a": {"b": [3]}}' as json), '$**[1]', 6);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[*]', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[1 to 2]', 4);
 
 # Examples from the specification: Include when missing functions are
 # available.
@@ -1430,6 +1511,9 @@ select json_replace(NULL, NULL, NULL, NULL);
 select json_replace('[1,2,3]', '$[2]', 4);
 select json_replace('[1,2,3]', '$[3]', 4);
 select json_replace('[1,2,3]', '$[10]', 4);
+select json_replace('[1,2,3]', '$[last]', 4);
+select json_replace('[1,2,3]', '$[last-1]', 4);
+select json_replace('[1,2,3]', '$[last-10]', 4);
 
 select json_replace('{"c":4}', '$.c', 5);
 select json_replace('{"c":4}', '$.a', 5);
@@ -1445,6 +1529,13 @@ select json_replace('[1,2,3]', '$[2][2]', 4);
 select json_replace('{"a": 3}', '$.a[0]', 4);
 select json_replace('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
 
+# wildcards not allowed
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$**.a', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$[*]', 4);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_REPLACE('[1,2,3]', '$[1 to 2]', 4);
 
 # Examples from the specification
 
@@ -1516,6 +1607,9 @@ select json_object( cast(json_array() as char), json_array());
 
 select json_object( 1, json_array());
 select json_object( cast(1 as char), json_array());
+
+# duplicate keys
+SELECT JSON_OBJECT('a', 1, 'b', 2, 'a', 3);
 
 # returns the empty object: {}
 SELECT JSON_OBJECT();
@@ -2287,3 +2381,213 @@ SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
                   GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
 FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
 
+--echo #
+--echo # Bug#22961128: WRONG RESULT WHEN MANIPULATING RESULT OF JSON_MERGE
+--echo #
+SELECT JSON_SET(JSON_ARRAY(JSON_MERGE_PRESERVE('{"a":1}', '{"a":2}')),
+                '$[0].a', 123);
+
+--echo #
+--echo # Bug#22887227: ASSERTION FAILED: THIS_TYPE != JSON_DOM::J_ERROR
+--echo #
+SELECT NULLIF(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END, 1);
+SELECT JSON_TYPE(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END);
+SELECT MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END);
+
+--echo #
+--echo # Bug #24930829 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT
+--echo # Test case does not fail anymore after Bug#24930038 fix was pushed
+--echo # since a check for null return value was added.
+--echo #
+--error ER_INVALID_TYPE_FOR_JSON
+DO BIT_COUNT(COMPRESS(1) << JSON_DEPTH(1));
+
+--echo #
+--echo # Bug#25516881: JSON_UNQUOTE RETURNS WRONG RESULT WHEN INPUT IS UTF-16
+--echo #
+# Used to return the quoted string unchanged.
+SELECT JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16));
+# Used to accept binary strings.
+--error ER_INVALID_JSON_CHARSET
+SELECT JSON_UNQUOTE(CAST('ABCD' AS BINARY));
+# JSON_UNQUOTE should return utf8mb4 encoded results, but used to return utf16.
+SELECT HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))),
+       HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)));
+
+--echo #
+--echo # Bug#25516960: JSON_SEARCH AND JSON_CONTAINS_PATH REJECT ONE-OR-ALL
+--echo #               ARGUMENT IF IT IS UTF-16
+--echo #
+SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
+       JSON_SEARCH('["a", "a"]', CAST('all' AS CHAR CHARSET utf16), 'a') AS c2,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('one' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c3,
+       JSON_CONTAINS_PATH('{"a":"x"}', CAST('all' AS CHAR CHARSET utf16),
+                          '$.a', '$.b') AS c4;
+
+--echo #
+--echo # Bug#25530204: THE RESULT OF SUM ON JSON_EXTRACT LOST THE DECIMAL PART
+--echo #
+SELECT SUM(CAST('5.45' AS JSON));
+
+--echo #
+--echo # Bug#25518504: SOME BIG NUMBERS IN JSON DOCUMENTS BECOME ZERO
+--echo #
+# These statements returned zero instead of raising an error.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e308' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e308' AS JSON);
+# These statements correctly returned an error even before the fix.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('2e309' AS JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT CAST('-2e309' AS JSON);
+
+--echo #
+--echo # Bug#25818544: Assert failure when using result from NULLIF as JSON
+--echo #
+SELECT JSON_EXTRACT(NULLIF(JSON_OBJECT('a', 123), JSON_ARRAY()), '$.a');
+SELECT JSON_EXTRACT(NULLIF('a', 'a'), '$');
+SELECT JSON_EXTRACT(NULLIF('1', '2'), '$');
+
+--echo #
+--echo # WL#9831: Ranges in JSON path expressions
+--echo #
+
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 0]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[99 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[100 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-3 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to 5]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-99]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2 to last-2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 4]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[99 to 100]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-3 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to 5]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 3]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-100 to last-99]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to last-1]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[2 to last-2]');
+
+SELECT JSON_EXTRACT('[]', '$[0 to 1]');
+SELECT JSON_EXTRACT('[]', '$[last-1 to last]');
+
+SELECT JSON_CONTAINS_PATH('[1,2]', 'one', '$[0 to 2]') AS o,
+       JSON_CONTAINS_PATH('[1,2]', 'all', '$[0 to 2]') AS a,
+       JSON_CONTAINS_PATH('[1,2]', 'one', '$**[0 to 2]') AS o_e,
+       JSON_CONTAINS_PATH('[1,2]', 'all', '$**[0 to 2]') AS a_e;
+
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to 10]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last-2]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][1 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to 0]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]');
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]');
+
+SELECT JSON_REMOVE('[1,2,3]', '$[last]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-1]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-2]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-3]');
+
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('true', '$[2 to 1]');
+--error ER_INVALID_JSON_PATH
+SELECT JSON_EXTRACT('true', '$[last to last-1]');
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_SET('[1,2,3]', '$[0 to 1]', 123);
+--error ER_INVALID_JSON_PATH_WILDCARD
+SELECT JSON_LENGTH('[1,2,3]', '$[0 to 1]');
+
+SELECT j->'$[last]', j->'$[last-1]', j->'$[last-2]',
+       j->'$**[last]', j->'$**[last-1]', j->'$**[last-2]'
+FROM (SELECT JSON_ARRAY(1,2) j) t;
+
+--echo #
+--echo # WL#9692: Deprecate the JSON_MERGE function
+--echo #
+--echo # Expect a deprecation warning.
+SELECT JSON_MERGE('{}', '{}');
+--echo # Expect a deprecation warning when creating the view.
+CREATE VIEW v AS SELECT JSON_MERGE('{}', '{}') AS col;
+--echo # The view uses the non-deprecated variant of the function.
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;
+
+--echo #
+--echo # Bug#26238736: ASSERTION `__NULL != DYNAMIC_CAST<TARGET>(ARG)' FAILURE
+--echo #
+SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
+
+--echo #
+--echo # Bug#26022576: JSON_INSERT DOES NOT HANDLE AUTO-WRAPPING
+--echo #
+SELECT JSON_INSERT('{"a":1}', '$.a[1]', 123) AS c1,
+       JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
+       JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
+
+--echo #
+--echo # Bug#26649978: JSON_INSERT: ASSERTION FAILED: PARENT
+--echo #
+--echo # c1, c2 and c3 should have the same result due to auto-wrapping,
+--echo # but the expressions in c2, c3 and c4 used to hit an assert.
+SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
+       JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
+       JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
+       JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+
+
+--echo #
+--echo # Bug#27028889: MYSQL NORMALIZES DECIMAL NUMBERS WITH
+--echo #               ZERO FRACTIONAL PART TO INTEGERS
+--echo #
+
+SET @floating_points = '[0.0, -0.0, 1.0, -1.0, 3.14,
+                         999999999999999.0, -999999999999999.0,
+                         1000000000000000.0, -1000000000000000.0,
+                         1e200, -1e200]';
+
+SELECT CAST(CAST(@floating_points AS JSON) AS CHAR) AS x;
+SELECT JSON_PRETTY(@floating_points);
+SELECT j, JSON_TYPE(j) FROM
+JSON_TABLE(CAST(CAST(CAST(@floating_points AS JSON) AS CHAR) AS JSON),
+           '$[*]' COLUMNS (o FOR ORDINALITY, j JSON PATH '$')) AS jt
+ORDER BY o;
+
+--echo #
+--echo # Bug#27312444: ASAN: MEMCPY-PARAM-OVERLAP WITH JSON_QUOTE FUNCTION
+--echo #
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'b', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'\n', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'b', 64), 50));
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'\n', 64), 50));

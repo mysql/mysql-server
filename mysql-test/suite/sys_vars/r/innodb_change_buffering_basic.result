@@ -17,32 +17,32 @@ innodb_change_buffering	all
 show session variables like 'innodb_change_buffering';
 Variable_name	Value
 innodb_change_buffering	all
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	all
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+innodb_change_buffering	all
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	all
+innodb_change_buffering	all
 set global innodb_change_buffering='none';
 select @@global.innodb_change_buffering;
 @@global.innodb_change_buffering
 none
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	none
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+innodb_change_buffering	none
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	none
+innodb_change_buffering	none
 set @@global.innodb_change_buffering='inserts';
 select @@global.innodb_change_buffering;
 @@global.innodb_change_buffering
 inserts
-select * from information_schema.global_variables where variable_name='innodb_change_buffering';
+select * from performance_schema.global_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	inserts
-select * from information_schema.session_variables where variable_name='innodb_change_buffering';
+innodb_change_buffering	inserts
+select * from performance_schema.session_variables where variable_name='innodb_change_buffering';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CHANGE_BUFFERING	inserts
+innodb_change_buffering	inserts
 set session innodb_change_buffering='some';
 ERROR HY000: Variable 'innodb_change_buffering' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_change_buffering='some';
@@ -50,9 +50,11 @@ ERROR HY000: Variable 'innodb_change_buffering' is a GLOBAL variable and should 
 set global innodb_change_buffering=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
 set global innodb_change_buffering=1;
-ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
+SELECT @@global.innodb_change_buffering;
+@@global.innodb_change_buffering
+inserts
 set global innodb_change_buffering=-2;
-ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
+ERROR 42000: Variable 'innodb_change_buffering' can't be set to the value of '-2'
 set global innodb_change_buffering=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
 set global innodb_change_buffering='some';

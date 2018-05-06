@@ -30,6 +30,9 @@ let $date_to_restore_priv=`SELECT timestamp from mysql.tables_priv where user='m
 DELETE FROM mysql.user WHERE user='mysql.session';
 
 --echo Run mysql_upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --let $assert_text= The session user should exist after upgrade

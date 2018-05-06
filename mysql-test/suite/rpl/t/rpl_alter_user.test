@@ -15,9 +15,6 @@
 #               WITH SHA256_PASSWORD PLUGIN
 #
 
---source include/have_ssl_communication.inc
---source include/have_openssl.inc
---source include/have_ssl.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
 
@@ -32,7 +29,7 @@ SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES
 
 --connection master
 SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
-CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password AS 'auth_string1';
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password BY 'auth_string1';
 # Save master position
 --let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
 SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
@@ -42,6 +39,8 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
+# slave's GTID log events are 7 bytes larger than the same events on master
+--let $binlog_start= `SELECT $saved_master_pos + 7`
 --source include/show_binlog_events.inc
 # Reset the flag
 --connection master
@@ -76,6 +75,8 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
+# slave's GTID log events are 7 bytes larger than the same events on master
+--let $binlog_start= `SELECT $saved_master_pos + 21`
 --source include/show_binlog_events.inc
 # Reset the flag
 --connection master

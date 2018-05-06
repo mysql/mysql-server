@@ -565,11 +565,11 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Bug #17523 natural join and information_schema
 #
-# Omit columns.PRIVILIGES as it may vary with embedded server.
 # Omit columns.ORDINAL_POSITION and statistics.CARDINALITY as it may vary with hostname='localhost'.
+ANALYZE TABLE mysql.user;
 select 
  statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
- columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.COLUMN_COMMENT
+ columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
  from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 
 drop table t1;
@@ -693,7 +693,7 @@ insert into t2
 insert into t3 select * from t2 where a < 800;
 
 # The order of tables must be t2,t3:
-explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 
 drop table t1, t2, t3;
 
@@ -713,7 +713,7 @@ select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
 explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
 show status like '%cost%';
-select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 
 
 
@@ -810,7 +810,7 @@ DROP TABLE t1,t2,t3,t4,t5,t6;
 CREATE TABLE t1(f1 INT);
 INSERT INTO t1 VALUES (1),(2);
 CREATE VIEW v1 AS SELECT 1 FROM t1 LEFT JOIN t1 AS t2 on 1=1;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
 DROP VIEW v1;
 DROP TABLE t1;
@@ -1101,3 +1101,73 @@ EXECUTE st1;
 DEALLOCATE PREPARE st1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo # Bug#25424289: Assert '!table->has_null_row()' failed in join_read_key
+
+CREATE TABLE t1
+(pk INT,
+ col_int_key INT DEFAULT NULL,
+ col_varchar_10_latin1_key VARCHAR(10) DEFAULT NULL,
+ col_varchar_255_utf8 VARCHAR(255) CHARACTER SET utf8 DEFAULT NULL,
+ col_int INT DEFAULT NULL,
+ col_datetime_key datetime DEFAULT NULL,
+ col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ col_date_key date DEFAULT NULL,
+ col_datetime datetime DEFAULT NULL,
+ PRIMARY KEY (pk),
+ KEY col_date_key (col_date_key)
+) charset latin1 ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+(8,9,'h','FDUMQ',-1356726272,'2007-09-02 05:48:23','she','2002-04-02','2002-12-20 17:54:07');
+
+CREATE TABLE t2
+(pk INT,
+ col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+
+CREATE TABLE t3
+(col_int INT DEFAULT NULL,
+ col_int_key INT DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk),
+ KEY test_idx (col_int_key,pk,col_int)
+) charset latin1 ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES
+ (NULL,9, 41), (NULL,-1596719104, 48), (-1068105728,9, 49);
+
+CREATE TABLE t4
+(col_varchar_255_latin1_key VARCHAR(255) DEFAULT NULL,
+ pk INT,
+ PRIMARY KEY (pk)
+) charset latin1 ENGINE=MyISAM;
+
+INSERT INTO t4 VALUES ('RUXDY',8);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query=
+SELECT alias1.pk AS field5
+FROM t3 AS alias1
+     LEFT JOIN t4 AS alias2
+       LEFT JOIN t4 AS alias3
+         LEFT JOIN t1 AS alias4
+           LEFT JOIN t2 AS alias5
+           ON alias4.pk = alias5.col_int_key
+         ON alias3.pk = alias5.col_int
+       ON alias2.col_varchar_255_latin1_key = alias4.col_varchar_10_latin1_key
+       RIGHT JOIN t1 AS alias6
+       ON alias4.pk = alias6.pk
+       RIGHT JOIN t4 AS alias7
+       ON alias6.pk = alias7.pk
+     ON alias1.col_int_key = alias6.col_int_key
+WHERE alias1.col_int > 5 OR
+      alias5.col_int > 5; 
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;

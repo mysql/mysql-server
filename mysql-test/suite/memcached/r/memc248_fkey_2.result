@@ -1,6 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -81,7 +79,7 @@ Cc	Lausitz	S	Cottbus	West
 Dd	Hessen	M	Darmstadt	City
 Hh	Schleswig-Holstein	S	Hamburg	Norderstedt
 INSERT INTO t2 VALUES ('E','Ff', 'Essen','Ost', 0, 0, 0);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c11`) REFERENCES `t1` (`c1`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `ft2` FOREIGN KEY (`c11`) REFERENCES `t1` (`c1`))
 Here the memcached results after add Frankfurt|Airport:
 Mecklenburg-Vorpommern|A
 INSERT INTO t2 VALUES ('E','Ff', 'Essen','Ost', 0, 0, 0);
@@ -96,6 +94,4 @@ DROP TABLE test.t2;
 DROP TABLE test.t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET @@global.tx_isolation= @tx_isolation;
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET @@global.transaction_isolation= @transaction_isolation;

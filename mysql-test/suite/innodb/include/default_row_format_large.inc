@@ -25,7 +25,7 @@ for (my $i=1; $i <= $max_keys; $i++) {
         }
 }
 
-print DATA ")ENGINE=INNODB ROW_FORMAT=DYNAMIC;";
+print DATA ")ENGINE=INNODB ROW_FORMAT=DYNAMIC charset latin1;";
 print DATA "\n";
 
 print DATA "INSERT INTO t1 VALUES (";

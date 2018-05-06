@@ -4,17 +4,18 @@ call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
-call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("An error occurred during sync stage of the commit");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Can't open file:*");
+call mtr.add_suppression("Can't generate a unique log-filename*");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
+ERROR HY000: Binary logging not possible. Message: Can't open file: 'binlog.index' (errno: 1 - Operation not permitted), while rotating the binlog. Aborting the server
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
@@ -33,7 +34,7 @@ ERROR HY000: Binary logging not possible. Message: Either disk is full or file s
 Test case5
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
-ERROR HY000: File 'master-bin.index' not found (Errcode: 13 - Permission denied)
+ERROR HY000: File 'binlog.index' not found (OS errno 13 - Permission denied)
 CREATE TABLE t1 ( f int );
 SHOW TABLES;
 Tables_in_test
@@ -44,7 +45,7 @@ Test case6
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
-ERROR HY000: Can't open file: 'master-bin.000007' (errno: 1 - Operation not permitted)
+ERROR HY000: Can't open file: 'binlog.000007' (errno: 1 - Operation not permitted)
 CREATE TABLE t2 (f int );
 SHOW TABLES;
 Tables_in_test
@@ -56,14 +57,14 @@ Test case7
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
 flush logs;
-ERROR HY000: Error writing file 'master-bin.index_crash_safe' (Errcode: 28 - No space left on device)
+ERROR HY000: Error writing file 'binlog.index_crash_safe' (OS errno 28 - No space left on device)
 SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
 # restart
 Test case8
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,fault_injection_init_name";
 flush logs;
-ERROR HY000: Can't open file: 'master-bin.000009' (errno: 1 - Operation not permitted)
+ERROR HY000: Can't open file: 'binlog.000009' (errno: 1 - Operation not permitted)
 CREATE TABLE t2 (f int );
 SHOW TABLES;
 Tables_in_test
@@ -76,7 +77,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 SET SESSION debug='+d,error_unique_log_filename';
 FLUSH LOGS;
-ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
+ERROR HY000: Can't generate a unique log-filename binlog.(1-999)
 
 DROP TABLE t1;
 SET SESSION debug="";
@@ -88,7 +89,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 SET GLOBAL binlog_error_action=ABORT_SERVER;
 SET SESSION debug='+d,error_unique_log_filename';
 FLUSH LOGS;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
+ERROR HY000: Binary logging not possible. Message: Can't generate a unique log-filename binlog.(1-999), while rotating the binlog. Aborting the server
 DROP TABLE t1;
 Test case11
 # restart
@@ -98,6 +99,7 @@ SET SESSION debug = "+d,simulate_error_during_flush_cache_to_file";
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 INSERT INTO t1 VALUES (1);
 ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'." found
 include/assert.inc [Count of elements in t1 should be 0.]
 include/assert.inc [Query is not binlogged as expected.]
 RESET MASTER;
@@ -107,6 +109,7 @@ INSERT INTO t1 VALUES (2);
 include/assert.inc [Count of elements in t1 should be 1.]
 # restart
 include/assert.inc [Query is not binlogged as expected.]
+Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'." found
 DROP TABLE t1;
 RESET MASTER;
 Test case12
@@ -181,7 +184,7 @@ SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL another_group_encount
 SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
 INSERT INTO t2 values (2);;
 Matching lines are:
---TIME-- [ERROR] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
+--TIME-- [ERROR] [MY-010861] [Server] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
 Occurrences of 'An error occurred during' in the input file: 1
 DROP table t1, t2;
 # restart

@@ -1,0 +1,559 @@
+SET @@session.default_storage_engine = 'ndbcluster';
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+set sql_warnings = 1;
+#
+# *** INSERT ***
+#
+# INSERT INTO tbl_name VALUES... DEFAULT is specified against gcols
+insert into t1 values (1,default,default);
+select * from t1;
+a	b	c
+1	-1	-1
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name VALUES... NULL is specified against gcols
+insert into t1 values (1,null,null);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name VALUES... a non-NULL value is specified against gcols
+insert into t1 values (1,2,3);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<non_gcol_list>) VALUES...
+insert into t1 (a) values (1), (2);
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+gcols>) VALUES... DEFAULT is specified 
+# against gcols
+insert into t1 (a,b) values (1,default), (2,default);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+gcols>) VALUES... NULL is specified against gcols
+insert into t1 (a,b) values (1,null), (2,null);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+delete from t1;
+select * from t1;
+a	b	c
+# INSERT INTO tbl_name (<normal+gcols>) VALUES... a non-NULL value is specified 
+# against gcols
+insert into t1 (a,b) values (1,3), (2,4);
+ERROR HY000: The value specified for generated column 'b' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+delete from t1;
+select * from t1;
+a	b	c
+drop table t1;
+# Table with UNIQUE non-gcol field. INSERT INTO tbl_name VALUES... ON DUPLICATE 
+# KEY UPDATE <non_gcol>=expr, <gcol>=expr
+create table t1 (a int unique, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 values (1,default,default);
+insert into t1 values (1,default,default) 
+on duplicate key update a=2, b=default;
+select a,b,c from t1;
+a	b	c
+2	-2	-2
+delete from t1 where b in (1,2);
+select * from t1;
+a	b	c
+2	-2	-2
+drop table t1;
+# Table with UNIQUE gcol field. INSERT INTO tbl_name VALUES... ON DUPLICATE 
+# KEY UPDATE <non_gcol>=expr, <gcol>=expr
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored unique);
+insert into t1 values (1,default,default);
+insert into t1 values (1,default,default) 
+on duplicate key update a=2, b=default;
+select a,b,c from t1;
+a	b	c
+2	-2	-2
+# CREATE new_table ... LIKE old_table
+# INSERT INTO new_table SELECT * from old_table
+create table t2 like t1;
+insert into t2 select * from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2(a) select a from t1;
+select * from t2;
+a	b	c
+2	-2	-2
+drop table t2;
+# CREATE new_table ... LIKE old_table INSERT INTO new_table (<non-gcols>, <gcols>) 
+# SELECT <non-gcols>, <gcols> from old_table
+insert into t1 values (1,default,default);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+create table t2 like t1;
+insert into t2 (a,b) select a,b from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2 (a) select a from t1;
+select * from t2 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+drop table t2;
+drop table t1;
+#
+# *** UPDATE ***
+#
+# UPDATE tbl_name SET non-gcol=expr WHERE non-gcol=expr
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored);
+insert into t1 (a) values (1), (2);
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where a=2;
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET gcol=expr WHERE non-gcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set c=3 where a=2;
+ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET non-gcol=expr WHERE gcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where b=-2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# UPDATE tbl_name SET gcol=expr WHERE gcol=expr
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set c=3 where b=-2;
+ERROR HY000: The value specified for generated column 'c' in table 't1' is not allowed.
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+delete from t1;
+select * from t1;
+a	b	c
+drop table t1;
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr WHERE gcol=const
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored unique);
+insert into t1 (a) values (1), (2);
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where c=-2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where c between -3 and -2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# No INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr WHERE gcol=between const1 and const2
+insert into t1 (a) values (1), (2);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+update t1 set a=3 where b between -3 and -2;
+select * from t1;
+a	b	c
+1	-1	-1
+3	-3	-3
+delete from t1;
+select * from t1;
+a	b	c
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr 
+# WHERE gcol=between const1 and const2 ORDER BY gcol
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where c between -1 and 0
+order by c;
+select * from t1;
+a	b	c
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+6	-6	-6
+delete from t1 where c between -6 and 0;
+select * from t1;
+a	b	c
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr 
+# WHERE gcol=between const1 and const2 ORDER BY gcol LIMIT 2
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where c between -1 and 0
+order by c limit 2;
+select * from t1;
+a	b	c
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+6	-6	-6
+delete from t1 where c between -2 and 0 order by c;
+select * from t1 order by a;
+a	b	c
+3	-3	-3
+4	-4	-4
+5	-5	-5
+6	-6	-6
+delete from t1;
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr
+# WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where (c between -2 and 0) and (b=-1);
+select * from t1;
+a	b	c
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+6	-6	-6
+delete from t1;
+# INDEX created on gcol 
+# UPDATE tbl_name SET non-gcol=expr
+# WHERE indexed gcol=between const1 and const2 and non-indexed gcol=const3
+# ORDER BY indexed gcol
+insert into t1 (a) values (1), (2), (3), (4), (5);
+select * from t1;
+a	b	c
+1	-1	-1
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
+select * from t1;
+a	b	c
+2	-2	-2
+3	-3	-3
+4	-4	-4
+5	-5	-5
+6	-6	-6
+delete from t1;
+drop table t1;
+#
+# *** REPLACE ***
+#
+# UNIQUE INDEX on gcol
+# REPLACE tbl_name (non-gcols) VALUES (non-gcols);
+create table t1 (a int, 
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored unique,
+d varchar(16));
+insert into t1 (a,d) values (1,'a'), (2,'b');
+select * from t1 order by a;
+a	b	c	d
+1	-1	-1	a
+2	-2	-2	b
+replace t1 (a,d) values (1,'c');
+select * from t1 order by a;
+a	b	c	d
+1	-1	-1	c
+2	-2	-2	b
+delete from t1;
+select * from t1;
+a	b	c	d
+set sql_warnings = 0;
+drop table t1;
+Bug#20170778: WL411:FAILING ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+BITMAP_IS_SET(TABLE->WR
+#
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 INT, col5
+INT GENERATED ALWAYS AS (col3 * col2) VIRTUAL, col6 INT GENERATED ALWAYS AS
+(col4 * col1) STORED, col7 INT GENERATED ALWAYS AS (col6 + col6) VIRTUAL,
+col8 INT GENERATED ALWAYS AS (col6 / col5) STORED, col9 TEXT);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+SET @fill_amount = (@@innodb_page_size / 2 ) + 1;
+INSERT INTO t1 (col1,col2,col3,col4,col5,col6,col7,col8,col9) VALUES /* 3 */
+(3, 3 / 3, 3 + 3, 3 / 3, DEFAULT, DEFAULT, DEFAULT, DEFAULT ,REPEAT(CAST(3 AS
+CHAR(1)),@fill_amount)) , (3, 3 * 3, 3 + 3, 3 / 3, DEFAULT, DEFAULT, DEFAULT,
+DEFAULT ,REPEAT(CAST(3 AS CHAR(1)),@fill_amount));
+UPDATE t1 SET col1 = 2;
+UPDATE t1 SET col7 = DEFAULT;
+UPDATE t1 SET col8 = DEFAULT;
+DROP TABLE t1;
+# Bug#21081742: ASSERTION !TABLE || (!TABLE->WRITE_SET || 
+# BITMAP_IS_SET(TABLE->WRITE_SET
+#
+CREATE TABLE b ( 
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT INTO b (col_varchar_nokey) VALUES ('v'),('v');
+CREATE TABLE d (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+) ;
+INSERT INTO d (col_varchar_nokey) VALUES ('q'),('g'),('e'),('l'),(NULL),('v'),('c'),('u'),('x');
+CREATE TABLE bb (
+pk INTEGER AUTO_INCREMENT,
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)),
+PRIMARY KEY (pk)
+);
+INSERT INTO bb (col_varchar_nokey) VALUES ('j'),('h');
+EXPLAIN UPDATE
+d AS OUTR1, b AS OUTR2
+SET OUTR1.col_varchar_nokey = NULL
+WHERE
+( 't', 'b' )  IN
+(
+SELECT
+INNR1.col_varchar_nokey AS x,
+INNR1.col_varchar_key AS y
+FROM bb AS INNR1
+WHERE OUTR1.pk = 1
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	INNR1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(OUTR1)
+1	SIMPLE	OUTR2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.OUTR1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Table 'OUTR1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Can't push table 'OUTR2' as child, 'type' must be a 'ref' access
+DROP TABLE IF EXISTS b,bb,d;
+#
+# Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+#
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+x	y	gc
+2	1	3
+DROP TABLE t;
+# stored
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	UPDATE	OUTR2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	Table 'OUTR1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 'OUTR2' is not pushable: lock modes other than 'read committed' not implemented
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# stored, indexed
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	UPDATE	OUTR2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	Table 'OUTR1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 'OUTR2' is not pushable: lock modes other than 'read committed' not implemented
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+# virtual
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+EXPLAIN UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	OUTR1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	UPDATE	OUTR2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	Table 'OUTR1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 'OUTR2' is not pushable: lock modes other than 'read committed' not implemented
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+SELECT * from C;
+col_varchar_nokey	col_varchar_key
+a	aa
+DROP TABLE C;
+#Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
+CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+c2 INT GENERATED ALWAYS AS(2) STORED NOT NULL);
+INSERT INTO t VALUES(DEFAULT, DEFAULT);
+SELECT * FROM t;
+c1	c2
+1	2
+CREATE TABLE t1(c1 INT, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED);
+INSERT INTO t1(c2) VALUES(DEFAULT);
+SELECT * FROM t1;
+c1	c2
+NULL	NULL
+CREATE TABLE t2(c1 INT DEFAULT 1, c2 INT GENERATED ALWAYS AS(c1 + 1) STORED NOT NULL);
+INSERT INTO t2(c2) VALUES(DEFAULT);
+SELECT * FROM t2;
+c1	c2
+1	2
+DROP TABLE t, t1, t2;
+# Bug#22179637: INSERT INTO TABLE FROM SELECT ACCEPTS TO INSERT INTO
+#              GENERATED COLUMNS
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1)
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+i1	i2
+5	10
+5	10
+CREATE TABLE t2 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1) STORED
+);
+INSERT INTO t2 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1, i2) SELECT * FROM t1;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5;
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t2;
+i1	i2
+5	10
+5	10
+DROP TABLE t1,t2;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

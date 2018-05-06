@@ -1,8 +1,5 @@
 --source include/have_ndb.inc
 
-# Test requires several mysqld(s) started which is not
-# suported with embedded, skip this test
---source include/not_embedded.inc
 
 # No need to include the setup commands in .result file
 --disable_query_log
@@ -28,22 +25,28 @@ CREATE DATABASE ndb_ddl_test2;
 # Always use the ndb_ddl_test database
 USE ndb_ddl_test;
 
+eval
 CREATE TABLE t1(
   a INT,
   b INT,
   PRIMARY KEY(a,b),
   KEY(b)
-) ENGINE=ndb;
+)
+$t1_table_options
+ENGINE=ndb;
 
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 
+eval
 CREATE TABLE t2(
   a INT PRIMARY KEY,
   b VARCHAR(255),
   c DATETIME,
   KEY(b),
   KEY(b,c)
-) ENGINE=ndb;
+)
+$t2_table_options
+ENGINE=ndb;
 
 INSERT INTO t2 VALUES
   (1,'1','2015-03-01 00:00:01'),
@@ -52,13 +55,16 @@ INSERT INTO t2 VALUES
   (4,'1','2015-03-04 00:00:04'),
   (5,'1','2015-03-05 00:00:05');
 
+eval
 CREATE TABLE t3(
   a INT PRIMARY KEY,
   b VARCHAR(255),
   c DATETIME,
   KEY(b),
   INDEX(a,b,c)
-) ENGINE=ndb;
+)
+$t3_table_options
+ENGINE=ndb;
 
 INSERT INTO t3 VALUES
   (1,'1','2015-03-01 00:00:01'),
@@ -67,16 +73,20 @@ INSERT INTO t3 VALUES
   (4,'1','2015-03-04 00:00:04'),
   (5,'1','2015-03-05 00:00:05');
 
+eval
 CREATE TABLE t4 (
   a INT UNSIGNED NOT NULL PRIMARY KEY,
   b INT UNSIGNED,
   c INT UNSIGNED,
   UNIQUE bc_unieuq_index(b,c),
   UNIQUE b_unique(c)
-) ENGINE=ndb;
+)
+$t4_table_options
+ENGINE=ndb;
 
 INSERT INTO t4 VALUES (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
 
+eval
 CREATE TABLE t5 (
   a int NOT NULL,
   b int NOT NULL,
@@ -86,14 +96,19 @@ CREATE TABLE t5 (
   PRIMARY KEY (c, b, a, d),
   INDEX(d),
   INDEX(c)
-) ENGINE=ndb;
+)
+$t5_table_options
+ENGINE=ndb;
 
 INSERT INTO t5 VALUES
   (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4), (5,5,5,5,5);
 
+eval
 CREATE TABLE t6 (
   a varchar(37)
-) ENGINE=ndb;
+)
+$t6_table_options
+ENGINE=ndb;
 
 INSERT INTO t6 VALUES
   ('value1'),
@@ -103,13 +118,16 @@ INSERT INTO t6 VALUES
   ('value5');
 
 # blob table
+eval
 CREATE TABLE t7 (
   a INT NOT NULL PRIMARY KEY,
   b TEXT NOT NULL,
   c INT NOT NULL,
   d LONGBLOB,
   KEY index_c(c)
-) engine=ndbcluster;
+)
+$t7_table_options
+engine=ndbcluster;
 
 INSERT INTO t7 VALUES
   (1,REPEAT('1b', 371),1,REPEAT('1d', 65531)),
@@ -118,8 +136,55 @@ INSERT INTO t7 VALUES
   (4,REPEAT('4b', 374),4,REPEAT('4d', 65534)),
   (5,REPEAT('5b', 375),5,REPEAT('5d', 65535));
 
---enable_query_log
+# hidden pk table
+eval
+CREATE TABLE t8 (
+  a INT,
+  b VARCHAR(255),
+  c DATETIME NOT NULL,
+  d INT UNSIGNED,
+  e INT NOT NULL
+)
+$t8_table_options
+engine=ndbcluster;
 
+INSERT INTO t8 VALUES
+  (1, "1-t8", '2017-10-20 09:13:01', NULL, 1),
+  (2, "2-t8", '2017-10-20 09:13:02', NULL, 2),
+  (3, "3-t8", '2017-10-20 09:13:03', NULL, 3),
+  (4, "4-t8", '2017-10-20 09:13:04', NULL, 4),
+  (5, "5-t8", '2017-10-20 09:13:05', NULL, 5);
+
+# hidden pk and blobs
+
+# ignore the warning about binlogging not supported on this table
+--disable_warnings ONCE
+eval
+CREATE TABLE t9 (
+  a INT,
+  b VARCHAR(255),
+  c TEXT,
+  d MEDIUMBLOB,
+  e INT NOT NULL
+)
+$t9_table_options
+engine=ndbcluster;
+
+INSERT INTO t9 VALUES
+  (1, "1-t9", REPEAT('1f', 41), REPEAT('1g', 31), 1),
+  (2, "2-t9", REPEAT('1f', 42), REPEAT('1g', 32), 2),
+  (3, "3-t9", REPEAT('1f', 43), REPEAT('1g', 33), 3),
+  (4, "4-t9", REPEAT('1f', 44), REPEAT('1g', 34), 4),
+  (5, "5-t9", REPEAT('1f', 45), REPEAT('1g', 35), 5);
+
+# Create a view on top of  ndbinfo.ndb$dict_obj_info (as otherwise
+# the dollar sign is evaluated as a dollar-variable and there seem
+# to be no way to escape it)
+CREATE VIEW test.ndbinfo_dict_obj_info as
+  SELECT id, type, version, state, parent_obj_type, parent_obj_id, fq_name
+    FROM ndbinfo.ndb$dict_obj_info;
+
+--enable_query_log
 
 #
 # List all objects for the created tables and store them

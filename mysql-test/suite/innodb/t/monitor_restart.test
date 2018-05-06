@@ -1,15 +1,28 @@
-source include/have_innodb.inc;
-source include/not_embedded.inc;
+# Bug#22284224 - "REWRITE REPOPULATION OF CHARACTER SETS AND
+# COLLATIONS DURING STARTUP" causes purge activity on every
+# startup. So we need a debug way to stop purge
+# The test can be made non-debug after fixing this bug
+source include/have_debug.inc;
 
 --echo #
 --echo # BUG#20080942 - ADAPTIVE_HASH_SEARCHES_BTREE NOT UPDATED
 --echo #
 
+CREATE TABLE t1(a INT PRIMARY KEY, b BLOB) STATS_PERSISTENT=0;
+
 # To make sure that the change buffer is empty
 SET GLOBAL innodb_fast_shutdown=0;
 --source include/restart_mysqld.inc
 
-CREATE TABLE t1(a INT PRIMARY KEY, b BLOB) STATS_PERSISTENT=0;
+# temporary workaround for Bug#22284224
+SET GLOBAL innodb_purge_stop_now = ON;
+
+# To load mysql.* tables into cache
+SELECT COUNT(*) FROM t1;
+
+--disable_query_log
+SET GLOBAL DEBUG='+d, non_ahi_search';
+--enable_query_log
 
 let $start=`SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME LIKE
 'adaptive_hash_searches_btree' ORDER BY NAME`;
@@ -18,6 +31,10 @@ INSERT INTO t1 VALUES(1, 'abc');
 INSERT INTO t1 VALUES(2, 'def');
 INSERT INTO t1 VALUES(3, 'ghi');
 SELECT * FROM t1;
+
+--disable_query_log
+SET GLOBAL DEBUG='-d, non_ahi_search';
+--enable_query_log
 
 let $end=`SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME LIKE
 'adaptive_hash_searches_btree' ORDER BY NAME`;
@@ -29,3 +46,5 @@ if ($diff != 3) {
 }
 
 DROP TABLE t1;
+# temporary workaround for Bug#22284224
+SET GLOBAL innodb_purge_run_now = ON;

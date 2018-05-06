@@ -204,10 +204,10 @@ while ($i < $conn_number)
     --connect (conn$i, 127.0.0.1,root,,test,$MASTER_MYPORT,)
     --let $conn_id=`SELECT connection_id()`
       --disable_reconnect
-      SET @@binlog_format = STATEMENT;
+      SET @@binlog_format = 'STATEMENT';
       if (`SELECT $i % 2`)
       {
-         SET @@binlog_format = ROW;
+         SET @@binlog_format = 'ROW';
       }
     --eval XA START   'trx_$i'
     --disable_warnings

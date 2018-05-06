@@ -1,0 +1,69 @@
+RESET MASTER;
+call mtr.add_suppression("Failed to compress the gtid_executed table.");
+SET @debug_save= @@GLOBAL.DEBUG;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+# simulate_crash_on_compress_gtid_table
+SET @@GLOBAL.DEBUG= '+d, simulate_crash_on_compress_gtid_table';
+FLUSH LOGS;
+SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
+# Restart the master server
+#
+# Veriry that we can get correct gtid sets after server restarts
+# from a crash of compressing gtid_executed table.
+#
+include/assert.inc [committed gtid set is MASTER_UUID:1-3]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	3
+#
+# Verify that no gtid is inserted into gtid_executed table on binlog
+# rotation if no gtid is stored into the last binlog.
+#
+FLUSH LOGS;
+include/assert.inc [committed gtid set is MASTER_UUID:1-3]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	3
+INSERT INTO t1 VALUES(2);
+SET @@GLOBAL.DEBUG= '+d, simulate_error_on_compress_gtid_table';
+FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR compression_failed';
+SET @@GLOBAL.DEBUG= '-d, simulate_error_on_compress_gtid_table';
+#
+# Veriry that we can get correct gtid sets and the gtid_executed table
+# is not compressed if we encountered an error when compressing
+# gtid_executed table.
+#
+include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	3
+MASTER_UUID	4	4
+#
+# Verify that 'Compressing gtid_executed table' stage is set
+# for compression thread when compressing gtid_executed table.
+#
+INSERT INTO t1 VALUES(3);
+SET @@GLOBAL.DEBUG= '+d, fetch_compression_thread_stage_info';
+FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR fetch_thread_stage';
+SELECT NAME, TYPE, PROCESSLIST_STATE, PROCESSLIST_COMMAND FROM performance_schema.threads where NAME= "thread/sql/compress_gtid_table";;
+NAME	thread/sql/compress_gtid_table
+TYPE	FOREGROUND
+PROCESSLIST_STATE	Compressing gtid_executed table
+PROCESSLIST_COMMAND	Daemon
+SET @@GLOBAL.DEBUG= '-d, fetch_compression_thread_stage_info';
+DROP TABLE t1;
+#
+# Write test case to cover error branches of resetting
+# gtid_executed table.
+#
+call mtr.add_suppression("Failed to delete the row: .* from "
+                         "the gtid_executed table.");
+SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
+RESET MASTER;
+ERROR HY000: Got error -1 - 'Unknown error' from storage engine
+SET GLOBAL DEBUG= @debug_save;
+# restart
+RESET MASTER;

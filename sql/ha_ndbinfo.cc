@@ -1,25 +1,43 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbinfo.h"
-#include "ndb_tdc.h"
-#include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
+#include "sql/ha_ndbinfo.h"
 
+#include <mysql/plugin.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"     // ER_THD
+#include "sql/field.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_tdc.h"
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"  // build_table_filename
+#include "sql/table.h"
+#include "storage/ndb/src/ndbapi/NdbInfo.hpp"
+#include "sql/ndb_dummy_ts.h"
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */
@@ -51,7 +69,7 @@ static MYSQL_THDVAR_BOOL(
   "Control if tables should be visible or not",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  FALSE                              /* default */
+  false                              /* default */
 );
 
 static char* opt_ndbinfo_dbname = (char*)"ndbinfo";
@@ -80,7 +98,7 @@ static Uint32 opt_ndbinfo_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
   version,                          /* name */
   opt_ndbinfo_version,              /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version for ndbinfo",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
@@ -90,17 +108,16 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
-static my_bool opt_ndbinfo_offline;
+static bool opt_ndbinfo_offline;
 
 static
 void
-offline_update(THD* thd, struct st_mysql_sys_var* var,
-               void* var_ptr, const void* save)
+offline_update(THD*, SYS_VAR*, void*, const void* save)
 {
   DBUG_ENTER("offline_update");
 
-  const my_bool new_offline =
-    (*(static_cast<const my_bool*>(save)) != 0);
+  const bool new_offline =
+    (*(static_cast<const bool*>(save)) != 0);
   if (new_offline == opt_ndbinfo_offline)
   {
     // No change
@@ -149,7 +166,7 @@ ndbcluster_is_disabled(void)
 }
 
 static handler*
-create_handler(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root)
+create_handler(handlerton *hton, TABLE_SHARE *table, bool, MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbinfo(hton, table);
 }
@@ -231,8 +248,12 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
+  {
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING, ER_GET_ERRNO,
+                        ER_THD(current_thd, ER_GET_ERRNO), error,
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
+  }
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
 
@@ -294,6 +315,11 @@ generate_sql(const NdbInfo::Table* ndb_tab, BaseString& sql)
 static void
 warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
              const char* format, ...)
+  MY_ATTRIBUTE((format(printf, 3, 4)));
+
+static void
+warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
+             const char* format, ...)
 {
   BaseString msg;
   DBUG_ENTER("warn_incompatible");
@@ -303,7 +329,7 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   va_list args;
   char explanation[128];
   va_start(args,format);
-  my_vsnprintf(explanation, sizeof(explanation), format, args);
+  vsnprintf(explanation, sizeof(explanation), format, args);
   va_end(args);
 
   msg.assfmt("Table '%s%s' is defined differently in NDB, %s. The "
@@ -318,12 +344,9 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbinfo::create(const char *name, TABLE *form,
-                       HA_CREATE_INFO *create_info)
+int ha_ndbinfo::create(const char*, TABLE*, HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_ndbinfo::create");
-  DBUG_PRINT("enter", ("name: %s", name));
-
   DBUG_RETURN(0);
 }
 
@@ -337,7 +360,7 @@ bool ha_ndbinfo::is_offline(void) const
   return m_impl.m_offline;
 }
 
-int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
+int ha_ndbinfo::open(const char* name, int mode, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
@@ -663,10 +686,9 @@ void ha_ndbinfo::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
-int ha_ndbinfo::info(uint flag)
+int ha_ndbinfo::info(uint)
 {
   DBUG_ENTER("ha_ndbinfo::info");
-  DBUG_PRINT("enter", ("flag: %d", flag));
   DBUG_RETURN(0);
 }
 
@@ -713,7 +735,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
       }
 
       default:
-        sql_print_error("Found unexpected field type %u", field->type());
+        ndb_log_error("Found unexpected field type %u", field->type());
         break;
       }
 
@@ -729,12 +751,12 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
 
 
 static int
-ndbinfo_find_files(handlerton *hton, THD *thd,
-                   const char *db, const char *path,
-                   const char *wild, bool dir, List<LEX_STRING> *files)
+ndbinfo_find_files(handlerton*, THD* thd,
+                   const char *db, const char*,
+                   const char*, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbinfo_find_files");
-  DBUG_PRINT("enter", ("db: '%s', dir: %d, path: '%s'", db, dir, path));
+  DBUG_PRINT("enter", ("db: '%s', dir: %d", db, dir));
 
   const bool show_hidden = THDVAR(thd, show_hidden);
 
@@ -754,7 +776,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
       if (strcmp(dir_name->str, opt_ndbinfo_dbname))
         continue;
 
-      DBUG_PRINT("info", ("Hiding own databse '%s'", dir_name->str));
+      DBUG_PRINT("info", ("Hiding own database '%s'", dir_name->str));
       it.remove();
     }
 
@@ -780,9 +802,6 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
   DBUG_RETURN(0);
 }
 
-
-handlerton* ndbinfo_hton;
-
 static
 int
 ndbinfo_init(void *plugin)
@@ -796,7 +815,17 @@ ndbinfo_init(void *plugin)
     HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
 
-  ndbinfo_hton = hton;
+  {
+    // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+    // in the data directory, those are just cumbersome having to delete
+    // and or rename on the other MySQL servers
+    hton->sdi_create = ndb_dummy_ts::sdi_create;
+    hton->sdi_drop = ndb_dummy_ts::sdi_drop;
+    hton->sdi_get_keys = ndb_dummy_ts::sdi_get_keys;
+    hton->sdi_get = ndb_dummy_ts::sdi_get;
+    hton->sdi_set = ndb_dummy_ts::sdi_set;
+    hton->sdi_delete = ndb_dummy_ts::sdi_delete;
+  }
 
   if (ndbcluster_is_disabled())
   {
@@ -809,17 +838,18 @@ ndbinfo_init(void *plugin)
                        opt_ndbinfo_dbname, opt_ndbinfo_table_prefix, "", 0);
   DBUG_PRINT("info", ("prefix: '%s'", prefix));
   assert(g_ndb_cluster_connection);
-  g_ndbinfo = new NdbInfo(g_ndb_cluster_connection, prefix,
-                          opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
+  g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix,
+                                         opt_ndbinfo_dbname,
+                                         opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
-    sql_print_error("Failed to create NdbInfo");
+    ndb_log_error("Failed to create NdbInfo");
     DBUG_RETURN(1);
   }
 
   if (!g_ndbinfo->init())
   {
-    sql_print_error("Failed to init NdbInfo");
+    ndb_log_error("Failed to init NdbInfo");
 
     delete g_ndbinfo;
     g_ndbinfo = NULL;
@@ -832,7 +862,7 @@ ndbinfo_init(void *plugin)
 
 static
 int
-ndbinfo_deinit(void *plugin)
+ndbinfo_deinit(void*)
 {
   DBUG_ENTER("ndbinfo_deinit");
 
@@ -845,7 +875,7 @@ ndbinfo_deinit(void *plugin)
   DBUG_RETURN(0);
 }
 
-struct st_mysql_sys_var* ndbinfo_system_variables[]= {
+SYS_VAR* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(max_rows),
   MYSQL_SYSVAR(max_bytes),
   MYSQL_SYSVAR(show_hidden),
@@ -871,6 +901,7 @@ struct st_mysql_plugin ndbinfo_plugin =
   "MySQL Cluster system information storage engine",
   PLUGIN_LICENSE_GPL,
   ndbinfo_init,               /* plugin init */
+  NULL,                       /* plugin uninstall check */
   ndbinfo_deinit,             /* plugin deinit */
   0x0001,                     /* plugin version */
   NULL,                       /* status variables */

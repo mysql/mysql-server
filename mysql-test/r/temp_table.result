@@ -109,10 +109,10 @@ show create table v1;
 Table	Create Table
 v1	CREATE TEMPORARY TABLE `v1` (
   `A` varchar(19) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	utf8mb4	utf8mb4_0900_ai_ci
 drop view v1;
 select * from v1;
 A
@@ -147,7 +147,7 @@ CREATE TEMPORARY TABLE t2 (i INT);
 DROP TEMPORARY TABLE t2, t1;
 ERROR 42S02: Unknown table 'test.t1'
 SELECT * FROM t2;
-ERROR 42S02: Table 'test.t2' doesn't exist
+i
 SELECT * FROM t1;
 i
 DROP TABLE t1;
@@ -158,20 +158,20 @@ CREATE TABLE t2 ( c FLOAT(30,18) );
 INSERT INTO t2 VALUES( 123456 );
 SELECT AVG( c ) FROM t1 UNION SELECT 1;
 AVG( c )
-12139
-1
+12139.000000000000000000
+1.000000000000000000
 SELECT 1 UNION SELECT AVG( c ) FROM t1;
 1
-1
-12139
+1.000000000000000000
+12139.000000000000000000
 SELECT 1 UNION SELECT * FROM t2 UNION SELECT 1;
 1
 1
 123456
 SELECT c/1 FROM t1 UNION SELECT 1;
 c/1
-12139
-1
+12139.000000000000000000
+1.000000000000000000
 DROP TABLE t1, t2;
 create temporary table t1 (a int);
 insert into t1 values (4711);
@@ -259,18 +259,32 @@ INSERT INTO t2 VALUES (11), (12), (13);
 INSERT INTO t3 VALUES (101), (102), (103);
 OPTIMIZE TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
+test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t2	optimize	status	OK
+test.t3	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t3	optimize	status	OK
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (11), (12), (13);
 INSERT INTO t3 VALUES (101), (102), (103);
 REPAIR TABLE t1, t2, t3;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-test.t2	repair	status	OK
-test.t3	repair	status	OK
+test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t2	repair	note	The storage engine for the table doesn't support repair
+test.t3	repair	note	The storage engine for the table doesn't support repair
 DROP TABLES t1, t2, t3;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1(a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+INSERT INTO t1 VALUES (1), (2), (3);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DROP TABLES t1;
 #
 # Bug#19497209 SEGMENTATION FAULT IN FILL_RECORD FOR MULTI_UPDATE
 # Bug#19628808 MULTI-UPDATE CRASH WITH LONG PRIMARY KEY
@@ -299,3 +313,60 @@ COUNT(DISTINCT t1.a)	b
 0	NULL
 1	2
 DROP TABLE t1,t2;
+#
+# Bug24713918: ASSERTION `MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)'
+#              FAILED.
+#
+CREATE DATABASE db1;
+CREATE TABLE t1(a INT);
+CREATE TEMPORARY TABLE t1(c1 INT);
+ALTER TABLE t1 RENAME TO db1.t1;
+DROP DATABASE db1;
+DROP TABLE t1;
+#
+# Bug#25841895: ALTERING A TEMPORARY TABLE IN A NON-EXISTENT
+#               SCHEMA RAISES ASSERT
+#
+# Creating a temporary table in a non-existent schema is now disallowed
+CREATE TEMPORARY TABLE bogus.t1(a INT);
+ERROR 42000: Unknown database 'bogus'
+CREATE SCHEMA bogus;
+CREATE TEMPORARY TABLE bogus.t1(a INT);
+CREATE TEMPORARY TABLE bogus.t2(a INT);
+DROP SCHEMA bogus;
+# Dropping a schema does not delete temporary tables, so they can
+# still be selected from.
+SELECT * FROM bogus.t1;
+a
+# ... but not altered.
+ALTER TABLE bogus.t1 ADD COLUMN (b INT);
+ERROR 42000: Unknown database 'bogus'
+# ... but they can dropped using DROP TEMPORARY TABLE.
+DROP TEMPORARY TABLE bogus.t1;
+# ... or ordinary DROP TABLE.
+DROP TABLE bogus.t2;
+SELECT * FROM bogus.t1;
+ERROR 42000: Unknown database 'bogus'
+SELECT * FROM bogus.t2;
+ERROR 42000: Unknown database 'bogus'
+#
+# Bug#25951134: MEMORY LEAK OF INTERNAL TEMPORARY TABLES
+#
+CREATE TABLE t1(a LONGTEXT);
+SELECT (EXISTS (SELECT 1 FROM t1
+GROUP BY (NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM t1 GROUP BY a)r))))
+FROM t1;
+(EXISTS (SELECT 1 FROM t1
+GROUP BY (NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM t1 GROUP BY a)r))))
+DROP TABLE t1;
+# End of test for bug#25951134
+#
+# Bug#26126789: lock0lock.cc: ((m_mode - (0xful & m_mode)) - (0xf0ul & m_mode) - (256 & m_mode))
+#
+# Failed create of temporary table that would leave REPLACE flag in Innodb txn after
+# the statement had finished
+CREATE TEMPORARY TABLE t1 (a TEXT NOT NULL) REPLACE AS SELECT total_allocated FROM sys.memory_by_thread_by_current_bytes;
+ERROR HY000: Field 'a' doesn't have a default value
+# Create table would assert because REPLACE setting is not compatible with MDL for CREATE
+CREATE TABLE IF NOT EXISTS t2 (a INT);
+DROP TABLE t2;

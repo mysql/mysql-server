@@ -1,58 +1,75 @@
-# Run all default suites without specifying any replication mode. This will  run rpl tests in all 3 modes row, stmt and mixed
+# Daily suite - Collection of tests that are run daily
+# Runs overnight and should finish in under 8 hours
+
+# NOTE : DO NOT ADD "--debug-server" OPTION  TO THE MTR
+# COMMAND LINES IN  default.daily
+# NOTE : ALL COMMAND LINES ADDED TO "default.daily"
+# SHOULD BE ALSO ADDED TO default.weekly WITH "--debug-server" OPTION
+# Daily is not run on debug build because they cannot finish in under 8 hours
+# Weekly runs against debug and runs all tests that are run in deaily
+#
+
+#### SECTION 1: RUN DEFAULT SUITES##############
+# Add all combinations with default suites in this section
+#
+# Run all default suites
+# rpl and binlog suites run with all 3
+# binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests-report
-
-
-# Run all default suites with embedded server
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --force --timer  --big-test --non-parallel-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
 
 # Run default suites with ps protocol
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps  --ps-protocol
 
+############END OF SECTION1(DEFAULT SUITES) ######################
+
+
+
+#################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=nist  --vardir=var-nist --suite=nist
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=nist+ps --vardir=var-ps_nist  --suite=nist  --ps-protocol
+# interactive_utilities,engines, memcached
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
+perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress --no-skip
+perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp --no-skip
+perl mysql-test-run.pl --force --timer  --big-test --parallel=auto --experimental=collections/default.experimental --comment=nist  --vardir=var-nist --suite=nist --no-skip
+perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=nist+ps --vardir=var-ps_nist  --suite=nist  --ps-protocol --no-skip
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities --no-skip
+# Engine independent tests
+perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
+perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb  --no-skip
 
-# Additional modes for rpl and binlog suites. Checksum and relay-log-info-repository
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir=var-rpl_binlog_checksum --suite=rpl,binlog --mysqld=--binlog-checksum=CRC32 --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay --vardir=var-rpl_crash_safe_relay --suite=rpl --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master --vardir=var-rpl_crash_safe_master --suite=rpl --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
+# Memcached tests
+perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached  --no-skip
+
+# Group Replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental --big-test --testcase-timeout=60 --suite-timeout=360
+######END OF SECTION 2 (NON-DEFAULT SUITES)######################
+
+######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######
+# Add runs of rpl and binlog test suites with additional
+# MTR or mysqld options in this section
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --suite=rpl
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-mts-rpl_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --suite=rpl
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
 
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--binlog-checksum=CRC32 --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
-# Run innodb suite including big-test with innodb-page-size=4k and 8k
-# Run innodb_undo suite with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_rollback_segments=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
 
-# Engine independent tests
-perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-rpl-binlog-row-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-binlog-row-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --do-test=rpl --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --timer --force  --parallel=auto  --comment=eits-rpl-binlog-mixed-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-binlog-mixed-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --do-test=rpl --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-rpl-binlog-row-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-row-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --do-test=rpl --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-rpl-binlog-mixed-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-mixed-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --do-test=rpl --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --skip-test-list=collections/disabled-daily.list
+#######SECTION 4 : EXTENDED RUNS FOR INNODB SUITES #####
+# Run innodb suite including big-test with innodb-page-size=4k
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=innodb_page-size-4k_size --vardir=var-innodb_page-size-4k --experimental=collections/default.experimental --mysqld=--innodb-page-size=4k --suite=innodb --no-skip
+# Run innodb suite with innodb-page-size=8k
+perl mysql-test-run.pl --timer --force  --parallel=auto --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k --experimental=collections/default.experimental  --mysqld=--innodb-page-size=8k --suite=innodb --no-skip
 
-# Memcached tests
-perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k --skip-test-list=collections/disabled-daily.list
+####END OF SECTION4(EXTENDED INNODB) ####################
 
-#Run with Query Cache Enabled
 
-perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
 
-# Run all tests under the suite interactive_utilities
-perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=var-interactive  --vardir=interactive-tests  --suite=interactive_utilities

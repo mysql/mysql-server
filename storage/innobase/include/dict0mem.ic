@@ -1,82 +1,87 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/dict0mem.ic
-Data dictionary memory object creation
+/** @file include/dict0mem.ic
+ Data dictionary memory object creation
 
-Created 1/8/1996 Heikki Tuuri
-***********************************************************************/
+ Created 1/8/1996 Heikki Tuuri
+ ***********************************************************************/
 
 #include "data0type.h"
 #include "dict0mem.h"
 #include "fil0fil.h"
 
-/**********************************************************************//**
-This function poplulates a dict_index_t index memory structure with
-supplied information. */
+/** This function poplulates a dict_index_t index memory structure with
+ supplied information. */
 UNIV_INLINE
-void
-dict_mem_fill_index_struct(
-/*=======================*/
-	dict_index_t*	index,		/*!< out: index to be filled */
-	mem_heap_t*	heap,		/*!< in: memory heap */
-	const char*	table_name,	/*!< in: table name */
-	const char*	index_name,	/*!< in: index name */
-	ulint		space,		/*!< in: space where the index tree is
-					placed, ignored if the index is of
-					the clustered type */
-	ulint		type,		/*!< in: DICT_UNIQUE,
-					DICT_CLUSTERED, ... ORed */
-	ulint		n_fields)	/*!< in: number of fields */
+void dict_mem_fill_index_struct(
+    dict_index_t *index,    /*!< out: index to be filled */
+    mem_heap_t *heap,       /*!< in: memory heap */
+    const char *table_name, /*!< in: table name */
+    const char *index_name, /*!< in: index name */
+    ulint space,            /*!< in: space where the index tree is
+                            placed, ignored if the index is of
+                            the clustered type */
+    ulint type,             /*!< in: DICT_UNIQUE,
+                            DICT_CLUSTERED, ... ORed */
+    ulint n_fields)         /*!< in: number of fields */
 {
+  if (heap) {
+    index->heap = heap;
+    index->name = mem_heap_strdup(heap, index_name);
+    index->fields = (dict_field_t *)mem_heap_alloc(
+        heap, 1 + n_fields * sizeof(dict_field_t));
+  } else {
+    index->name = index_name;
+    index->heap = NULL;
+    index->fields = NULL;
+  }
 
-	if (heap) {
-		index->heap = heap;
-		index->name = mem_heap_strdup(heap, index_name);
-		index->fields = (dict_field_t*) mem_heap_alloc(
-			heap, 1 + n_fields * sizeof(dict_field_t));
-	} else {
-		index->name = index_name;
-		index->heap = NULL;
-		index->fields = NULL;
-	}
-
-	/* Assign a ulint to a 4-bit-mapped field.
-	Only the low-order 4 bits are assigned. */
-	index->type = type;
+  /* Assign a ulint to a 4-bit-mapped field.
+  Only the low-order 4 bits are assigned. */
+  index->type = type;
 #ifndef UNIV_HOTBACKUP
-	index->space = (unsigned int) space;
-	index->page = FIL_NULL;
-	index->merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+  index->space = (unsigned int)space;
+  index->page = FIL_NULL;
+  index->merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 #endif /* !UNIV_HOTBACKUP */
-	index->table_name = table_name;
-	index->n_fields = (unsigned int) n_fields;
-	/* The '1 +' above prevents allocation
-	of an empty mem block */
-	index->allow_duplicates = false;
-	index->nulls_equal = false;
-	index->disable_ahi = false;
-	index->last_ins_cur = NULL;
-	index->last_sel_cur = NULL;
-	new (&index->rec_cache) rec_cache_t();
+  index->table_name = table_name;
+  index->n_fields = (unsigned int)n_fields;
+  /* The '1 +' above prevents allocation
+  of an empty mem block */
+  index->allow_duplicates = false;
+  index->nulls_equal = false;
+  index->disable_ahi = false;
+  index->last_ins_cur = nullptr;
+  index->last_sel_cur = nullptr;
+#ifndef UNIV_HOTBACKUP
+  new (&index->rec_cache) rec_cache_t();
 
+#endif /* UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
-	index->magic_n = DICT_INDEX_MAGIC_N;
+  index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
 }

@@ -1,8 +1,5 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
 
 eval SET GLOBAL innodb_file_per_table=$file_per_table;
-eval SET GLOBAL innodb_file_format=$file_format;
 
 #
 # This test is the same as innodb_gis_rollback
@@ -13,7 +10,7 @@ eval CREATE TABLE t1 (
   c2 varchar(15) collate utf8_bin DEFAULT NULL,
   c1 varchar(15) collate utf8_bin DEFAULT NULL,
   c3 varchar(10) collate utf8_bin DEFAULT NULL,
-  spatial_point point NOT NULL,
+  spatial_point point NOT NULL SRID 0,
   PRIMARY KEY(id),
   SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=$row_format ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
@@ -416,5 +413,3 @@ SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-

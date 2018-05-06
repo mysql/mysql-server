@@ -7,7 +7,6 @@
 
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
-source include/have_innodb.inc;
 source include/have_myisam.inc;
 
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');

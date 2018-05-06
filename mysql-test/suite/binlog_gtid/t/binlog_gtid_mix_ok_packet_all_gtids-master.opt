@@ -1,0 +1,1 @@
+--debug=+d,server_uuid_deterministic --session-track-gtids=ALL_GTIDS

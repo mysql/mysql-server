@@ -1,7 +1,8 @@
+# Skipping the test when logbin is enabled due to Bug#22292900
+--source include/not_log_bin.inc
+
 # This file contains XA-related test cases that requires mysql server
 # built with debug.
--- source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 

@@ -1,19 +1,19 @@
-call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
 #
 # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
 #
 CREATE USER u1@localhost;
 CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
 Warnings:
-Note	3163	User 'u1'@'localhost' already exists.
+Note	3163	Authorization ID 'u1'@'localhost' already exists.
 ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
 DROP USER u1@localhost;
 DROP USER IF EXISTS u2@localhost;
@@ -23,143 +23,30 @@ DROP USER IF EXISTS u2@localhost;
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
 Warnings:
-Note	3163	User 'b21807286'@'localhost' already exists.
+Note	3163	Authorization ID 'b21807286'@'localhost' already exists.
 ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
 ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
 Warnings:
-Note	3162	User 'b21807286_not_exists'@'localhost' does not exist.
+Note	3162	Authorization ID 'b21807286_not_exists'@'localhost' does not exist.
 DROP USER b21807286@localhost;
 include/sync_slave_sql_with_master.inc
 [On Slave]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER IF EXISTS u2@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*85D0F19E5598AC04AC7B3FCF5383247D28FB59EF'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*CF18BC9B45678165F755356FBD148E0F84D19A63'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*7B8BEAA4240FE1A214BFAEDD99FB3842E4234E5E'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*498D18FA98FB65CF8E71D1D9DA5721646499DBD1'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'b21807286_not_exists'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER b21807286@localhost
-#
-# Bug #25813089: "CREATE USER IF NOT EXISTS SHOULD ALWAYS
-#                 BE WRITTEN TO THE BINLOGS"
-#
-# ------
-"Scenario 1: CREATE/ALTER USER IF[NOT]EXISTS FOR A SINGLE USER"
-# ------
-CREATE USER u1@localhost IDENTIFIED BY 'pass1';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass2';
-Warnings:
-Note	3163	User 'u1'@'localhost' already exists.
-ALTER USER u1@localhost IDENTIFIED BY 'pass3';
-ALTER USER IF EXISTS u1@localhost IDENTIFIED BY 'pass4';
-ALTER USER IF EXISTS u1_not_exists@localhost IDENTIFIED BY 'pass5';
-Warnings:
-Note	3162	User 'u1_not_exists'@'localhost' does not exist.
-DROP USER u1@localhost;
-[On Master]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*35B5E90BC4F5AE5D02ED515DF6B61141F24EDA02'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B718D8767BBACFBCE02BA2669ECCEB05930FF7D7'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9D3D6FA96FA91117D387A4B990C41F5809A536EE'
-master-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
-include/sync_slave_sql_with_master.inc
-[On Slave]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*35B5E90BC4F5AE5D02ED515DF6B61141F24EDA02'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B718D8767BBACFBCE02BA2669ECCEB05930FF7D7'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9D3D6FA96FA91117D387A4B990C41F5809A536EE'
-slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
-"Creating a user only on slave"
-CREATE USER IF NOT EXISTS slave_user@localhost IDENTIFIED BY 'slave_pass';
-# ------
-"Scenario 2: CREATE/ALTER USER IF[NOT]EXISTS FOR MULTIPLE USERS"
-# ------
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass1',
-u2@localhost IDENTIFIED BY 'pass2';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED BY 'pass1',
-u2@localhost IDENTIFIED BY 'pass2',
-u3@localhost IDENTIFIED BY 'pass3';
-Warnings:
-Note	3163	User 'u1'@'localhost' already exists.
-Note	3163	User 'u2'@'localhost' already exists.
-ALTER USER IF EXISTS u1@localhost IDENTIFIED BY 'pass4',
-u2@localhost IDENTIFIED BY 'pass5',
-u3@localhost IDENTIFIED BY 'pass6',
-u4_not_exists@localhost IDENTIFIED BY 'pass7',
-slave_user@localhost IDENTIFIED BY 'pass8';
-Warnings:
-Note	3162	User 'u4_not_exists'@'localhost' does not exist.
-Note	3162	User 'slave_user'@'localhost' does not exist.
-DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localhost;
-Warnings:
-Note	3162	User 'slave_user'@'localhost' does not exist.
-[On Master]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6','u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*35B5E90BC4F5AE5D02ED515DF6B61141F24EDA02'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B718D8767BBACFBCE02BA2669ECCEB05930FF7D7','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9D3D6FA96FA91117D387A4B990C41F5809A536EE','u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*E4744236E26ADD8C3C3D727C7851A097FBBB8A87','u4_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BEA19EBE4ACA6B1820BF580B4054EB6B5B0D198D','slave_user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F40D7E5342EC4960531243A96CC2E94079BC11B7'
-master-bin.000001	#	Query	#	#	use `test`; DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localhost
-include/sync_slave_sql_with_master.inc
-[On Slave]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'slave_user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*A8204EFAFFB19DEF65BE70042A9D93F1971925BC'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6','u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*35B5E90BC4F5AE5D02ED515DF6B61141F24EDA02'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B718D8767BBACFBCE02BA2669ECCEB05930FF7D7','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9D3D6FA96FA91117D387A4B990C41F5809A536EE','u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*E4744236E26ADD8C3C3D727C7851A097FBBB8A87','u4_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BEA19EBE4ACA6B1820BF580B4054EB6B5B0D198D','slave_user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F40D7E5342EC4960531243A96CC2E94079BC11B7'
-slave-bin.000001	#	Query	#	#	use `test`; DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localhost
-include/stop_slave_io.inc
-# ------
-"Scenario 3: CREATE/ALTER USER IF[NOT]EXISTS WITH"
-"AUTHENTICATION PLUGIN PROVIDED EXPLICITLY"
-# ------
-include/rpl_restart_server.inc [server_number=1 parameters: --default_authentication_plugin=sha256_password]
-include/start_slave_io.inc
-include/rpl_reset.inc
-SHOW VARIABLES LIKE 'default_authentication_plugin';
-Variable_name	Value
-default_authentication_plugin	sha256_password
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH mysql_native_password by 'pass_native';
-CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH mysql_native_password by 'pass_native2';
-Warnings:
-Note	3163	User 'u1'@'localhost' already exists.
-ALTER USER IF EXISTS u1@localhost IDENTIFIED WITH mysql_native_password BY 'pass_native3';
-ALTER USER IF EXISTS u2_not_exists@localhost IDENTIFIED WITH mysql_native_password BY 'pass_native4';
-Warnings:
-Note	3162	User 'u2_not_exists'@'localhost' does not exist.
-SELECT user,authentication_string FROM mysql.user WHERE user='u1';
-user	authentication_string
-u1	*52BA180A884483D54A3CEB45FB50D4E5B8071399
-DROP USER u1@localhost;
-[On Master]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6DD89A65903AC3BCC4873BA43D17EFFB912C67EE'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*AD3E6D897B165BF1FA7D3583FA1FF6AF31FA3C4B'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*52BA180A884483D54A3CEB45FB50D4E5B8071399'
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u2_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*53ED7183CBBC6D9995663DD96EFFA60E2CE2C96E'
-master-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
-include/sync_slave_sql_with_master.inc
-[On Slave]
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6DD89A65903AC3BCC4873BA43D17EFFB912C67EE'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*AD3E6D897B165BF1FA7D3583FA1FF6AF31FA3C4B'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*52BA180A884483D54A3CEB45FB50D4E5B8071399'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u2_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*53ED7183CBBC6D9995663DD96EFFA60E2CE2C96E'
-slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
-# Search warnings in the server log
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS");
+call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
+SET SESSION sql_log_bin= 1;
 include/rpl_end.inc
 
 End of 5.7 tests!

@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.collation_connection;
 SELECT @global_start_value;
 @global_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@local.collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@session.collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_01------------------#'
 SELECT collation_connection;
 ERROR 42S22: Unknown column 'collation_connection' in 'field list'
@@ -39,7 +39,7 @@ SET @@global.collation_connection = latin1_bin;
 SET @@global.collation_connection = DEFAULT;
 SELECT @@global.collation_connection;
 @@global.collation_connection
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_03-------------------------#'
 SET @@session.collation_connection = utf8_polish_ci;
 SELECT @@session.collation_connection;
@@ -598,6 +598,10 @@ SET @@session.collation_connection = eucjpms_bin;
 SELECT @@session.collation_connection;
 @@session.collation_connection
 eucjpms_bin
+SET @@session.collation_connection = utf8mb4_0900_ai_ci;
+SELECT @@session.collation_connection;
+@@session.collation_connection
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_07-------------------------#'
 SET @@global.collation_connection = big5_chinese_ci;
 SELECT @@global.collation_connection;
@@ -1123,6 +1127,10 @@ SET @@global.collation_connection = eucjpms_bin;
 SELECT @@global.collation_connection;
 @@global.collation_connection
 eucjpms_bin
+SET @@global.collation_connection = utf8mb4_0900_ai_ci;
+SELECT @@global.collation_connection;
+@@global.collation_connection
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_08-------------------------#'
 SET @@collation_connection = LATIN7_GENERAL_CS;
 SELECT @@collation_connection;
@@ -1198,6 +1206,10 @@ res_with_true
 big5_chinese_ci
 SET @@collation_connection = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@collation_connection = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@collation_connection = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_015_11-------------------------#'
 SET @@global.collation_connection = latin7_binary;
 ERROR HY000: Unknown collation: 'latin7_binary'
@@ -1216,9 +1228,13 @@ ERROR HY000: Unknown collation: ' eucjpms_bin'
 SET @@global.collation_connection = true;
 SET @@global.collation_connection = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@global.collation_connection = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.collation_connection = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_015_12-------------------------#'
 SELECT @@global.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
@@ -1227,31 +1243,31 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 big5_chinese_ci
 SELECT @@global.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 '#--------------------FN_DYNVARS_015_13-------------------------#'
 SELECT @@collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 SELECT @@local.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 SELECT @@session.collation_connection =
-(SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+(SELECT VARIABLE_VALUE FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='collation_connection') AS res;
 res
 1
 SET @@global.collation_connection = @global_start_value;
 SELECT @@global.collation_connection;
 @@global.collation_connection
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @@session.collation_connection = @session_start_value;
 SELECT @@session.collation_connection;
 @@session.collation_connection
-latin1_swedish_ci
+utf8mb4_0900_ai_ci

@@ -3,12 +3,9 @@
 #
 #
 
---source include/have_innodb.inc
 
 # Must have debug code to use SET DEBUG
 --source include/have_debug.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 # Enable diag print to print query parse tree
 SET GLOBAL innodb_ft_enable_diag_print = 1;
@@ -60,7 +57,7 @@ SET DEBUG="-d,fts_instrument_ignore_ngram_check";
 
 DROP TABLE articles;
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 -- echo # Test Case 2: Test Stopwords
 # Compare with results without stopword check.

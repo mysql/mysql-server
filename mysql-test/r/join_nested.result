@@ -99,7 +99,7 @@ a	b	a3	b3	a4	b4
 4	2	1	2	3	2
 4	2	1	2	4	2
 5	3	NULL	NULL	NULL	NULL
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t2
 LEFT JOIN              
@@ -111,7 +111,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` = 1) or isnull(`test`.`t3`.`c`))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t2
@@ -218,7 +217,7 @@ a	b	a3	b3	a4	b4	a5	b5
 4	2	2	2	4	2	3	1
 4	2	2	2	4	2	3	3
 5	3	NULL	NULL	NULL	NULL	NULL	NULL
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
 FROM t2
 LEFT JOIN              
@@ -231,7 +230,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` > 1) or isnull(`test`.`t3`.`c`))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
 FROM t2
@@ -263,7 +261,7 @@ a	b	a3	b3	a4	b4	a5	b5
 4	2	2	2	4	2	3	1
 4	2	2	2	4	2	3	3
 5	3	NULL	NULL	NULL	NULL	NULL	NULL
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
 FROM t2
 LEFT JOIN              
@@ -277,7 +275,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where (((`test`.`t3`.`a` > 1) or isnull(`test`.`t3`.`c`)) and ((`test`.`t5`.`a` < 3) or isnull(`test`.`t5`.`c`)))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
 FROM t2
@@ -328,7 +325,7 @@ FROM t8;
 a	b
 0	2
 1	2
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM (t6, t7)
 LEFT JOIN 
@@ -339,7 +336,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t7`.`b`) and (`test`.`t6`.`b` < 10))) where 1
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM (t6, t7)
@@ -892,7 +888,7 @@ a	b
 1	1
 1	2
 2	2
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM t0,t1
@@ -929,7 +925,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) where ((`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)))
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
@@ -1028,7 +1023,7 @@ a	b	a	b	a	b	a3	b3	a4	b4	a	b	a6	b6	a7	b7	a	b
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
 FROM t0,t1
@@ -1075,7 +1070,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t9.a,t9.b
 FROM t9;
@@ -1414,7 +1408,7 @@ a	b	a	b	a	b	a	b
 2	2	4	2	1	2	3	2
 2	2	4	2	1	2	4	2
 2	2	5	3	NULL	NULL	NULL	NULL
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t1, (t3, t4)
 RIGHT JOIN
@@ -1427,10 +1421,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) where (`test`.`t1`.`a` <= 2)
 CREATE INDEX idx_b ON t2(b);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM (t3,t4)
 LEFT JOIN              
@@ -1442,7 +1435,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	idx_b	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t3` join `test`.`t4` left join (`test`.`t1` join `test`.`t2`) on(((`test`.`t4`.`b` = `test`.`t3`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = 1))) where 1
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM (t3,t4)
@@ -1473,7 +1465,7 @@ a	b	a	b	a	b
 4	2	1	2	4	2
 NULL	NULL	2	2	3	2
 NULL	NULL	2	2	4	2
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
 FROM t0,t1
@@ -1520,11 +1512,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t4(b);
 CREATE INDEX idx_b ON t5(b);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
 FROM t0,t1
@@ -1571,10 +1562,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t8(b);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
 FROM t0,t1
@@ -1621,11 +1611,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	idx_b	NULL	NULL	NULL	2	56.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t1(b);
 CREATE INDEX idx_a ON t0(a);
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
 FROM t0,t1
@@ -1672,7 +1661,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t8	NULL	ALL	idx_b	NULL	NULL	NULL	2	56.25	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t8`.`b` = `test`.`t9`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
@@ -2316,7 +2304,7 @@ DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 carrier char(2) default NULL,
 id int NOT NULL auto_increment PRIMARY KEY
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
 ('CO',235371754),('CO',235376554),('CO',235376884),('CO',235377874),
 ('CO',231060394),('CO',231059224),('CO',231059314),('CO',231060484),
@@ -2381,7 +2369,7 @@ CREATE TABLE t4 (
 carrier char(2) NOT NULL default '' PRIMARY KEY,
 id int(11) default NULL,
 INDEX id(id)
-);
+) CHARSET utf8mb4;
 INSERT INTO t4 VALUES
 ('99',6),('SK',456),('UA',486),('AI',1081),('OS',1111),('VS',1510);
 CREATE TABLE t5 (
@@ -2412,7 +2400,7 @@ ON t4.carrier = t1.carrier;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	package_id	package_id	5	NULL	45	100.00	Using where; Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.package_id	1	100.00	NULL
-1	SIMPLE	t4	NULL	eq_ref	PRIMARY,id	PRIMARY	2	test.t1.carrier	1	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY,id	PRIMARY	8	test.t1.carrier	1	100.00	NULL
 1	SIMPLE	t5	NULL	ref	carrier_id	carrier_id	5	test.t4.id	22	100.00	Using index
 1	SIMPLE	t3	NULL	ref	package_id	package_id	5	test.t2.package_id	1	100.00	Using index
 Warnings:
@@ -2427,3 +2415,65 @@ COUNT(*)
 6
 DROP TABLE t1,t2,t3,t4,t5;
 End of 5.0 tests
+#
+# Bug#24909223: EXCESSIVE MEMORY USAGE BY QUERY
+#
+CREATE TABLE t (
+a INT,
+b CHAR(255),
+c CHAR(255),
+d INT,
+e INT,
+PRIMARY KEY (e),
+KEY (d)
+) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1, '14effca2', 'cffa3819', 98927, 8767),
+(1, '2f7cbd33', '421aff88', 87613, 70956),
+(1, '5c44507d', '05fd27d3', 36002, 5146),
+(1, '6542ee43', 'c09ee30f', 3673, 91467),
+(1, '786737dd', '6ac95ccb', 46890, 62953),
+(1, '8929d195', '64102e63', 50531, 9712),
+(1, '8cc0c106', '17283316', 16399, 26119),
+(1, '8f3063de', 'ce5d0f35', 21769, 76667),
+(1, 'c32c9202', 'c9525fe8', 12704, 43998),
+(1, 'c5567e1c', 'bc2e97e6', 85805, 84174),
+(1, 'c7acb4d4', '6d67fea7', 58347, 51235),
+(1, 'dbd66341', '03b59a03', 46577, 52495),
+(1, 'f8e0354e', '41a6e523', 36055, 32646),
+(1, 'fb66b513', '10f3de43', 41297, 74334),
+(1, 'ffec6d1b', '2fca4073', 12896, 95807),
+(1, 'aa3fcff8', 'f4981ed8', 99211, 18778);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	d	NULL	NULL	NULL	16	33.33	Range checked for each record (index map: 0x2)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `c` from `test`.`t` `a` join `test`.`t` `b` join `test`.`t` `b` join `test`.`t` `b` where ((`test`.`a`.`a` >= `test`.`b`.`d`) and (`test`.`a`.`a` >= `test`.`b`.`a`) and (`test`.`a`.`b` > `test`.`b`.`b`))
+TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
+SELECT a.c AS c FROM (
+SELECT a.c AS c FROM (
+SELECT a.a AS c FROM t AS a
+INNER JOIN t AS b ON a.b > b.b
+) AS a
+INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+c
+SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE event_name = 'memory/sql/thd::main_mem_root'
+AND thread_id = sys.ps_thread_id(connection_id())
+AND sum_number_of_bytes_alloc > 1000000
+DROP TABLE t;

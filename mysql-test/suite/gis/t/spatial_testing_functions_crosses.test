@@ -1,3 +1,6 @@
+# Disabled on Windows ASAN due to https://bugs.llvm.org/show_bug.cgi?id=35365
+--source include/not_asan_windows.inc
+
 ###############################################################################
 #                                                                             #
 # This test is aimed to focus on Functions for testing Relations between      #
@@ -11,7 +14,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_geometry.inc
 
 ############################################################################################
 # Creating the spatial objects                                                             #
@@ -869,20 +871,25 @@ SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_
 
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
 
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
 
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
 --echo #####################################################################################
@@ -892,7 +899,10 @@ SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_CROSSES(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1044,9 +1054,220 @@ INSERT INTO t1 VALUES (
     POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
     POINT(4,6),POINT(4,4))))));
 
+# We don't care about the result. We just want to put all parameter type
+# combinations through the function.
+--disable_result_log
 SELECT ST_CROSSES(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
+
+SELECT ST_CROSSES(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+--enable_result_log
 
 --echo # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+
+--echo #
+--echo # WL#8579 Spatial Reference Systems
+--echo #
+
+--echo # SRID 0 (should pass)
+SELECT ST_CROSSES(
+  ST_GEOMFROMTEXT('POINT(0 0)', 0),
+  ST_GEOMFROMTEXT('POINT(0 0)', 0)
+);
+
+--echo # Projected SRS (should pass)
+SELECT ST_CROSSES(
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000),
+  ST_GEOMFROMTEXT('POINT(0 0)', 2000)
+);
+
+--echo # Geographic SRS (should pass)
+SELECT ST_CROSSES(
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326),
+  ST_GEOMFROMTEXT('POINT(0 0)', 4326)
+);
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL SRID 0,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('LINESTRING(0 10, 10 10)')),
+  (1, ST_GeomFromText('LINESTRING(0 10, 5 10)')),
+  (2, ST_GeomFromText('LINESTRING(-10 10, 5 10)')),
+  (3, ST_GeomFromText('LINESTRING(0 10.00001, 10 10.00001)')),
+  (4, ST_GeomFromText('LINESTRING(0 9.99999, 10 9.99999)')),
+  (5, ST_GeomFromText('LINESTRING(1 10, 2 10)')),
+  (6, ST_GeomFromText('LINESTRING(2 0, 2 20)')),
+  (7, ST_GeomFromText('LINESTRING(2 10, 8 10)'));
+
+SET @ls = 'LINESTRING(-5 10, 5 10)';
+SET @cart_ls = ST_GeomFromText(@ls);
+SET @geo_ls = ST_GeomFromText(@ls, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Crosses
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Crosses(c, @cart_ls)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Crosses(c, @cart_ls)
+  ORDER BY id;
+
+--echo # Geographic ST_Crosses
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Crosses(g, @geo_ls)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Crosses(g, @geo_ls)
+  ORDER BY id;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #26188208 ST_CROSSES(GC, GC) RETURNS INCORRECT RESULT FOR CORNER
+--echo # CASE
+--echo #
+
+--echo # Should not cross since there's no interior point in the first argument
+--echo # that's in the second arguemnt's exterior.
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 1),POINT(0 10))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2),POINT(0 10))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 1),POINT(0 10))', 4326),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2),POINT(0 10))', 4326)
+) AS res;
+
+--echo # Should not cross since the shared interior is not of dimension 0.
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 1), POINT(0 11))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 1), POINT(0 11))',
+                  4326),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2))', 4326)
+) AS res;
+
+--echo # Should not cross since the shared interior is not of dimension 0.
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 1, 0 3))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 0, 0 2))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 1, 0 3))', 4326),
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 0, 0 2))', 4326)
+) AS res;
+
+--echo # Should cross since the point is inside the polygon while the linestring
+--echo # is not.
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(5 0, 5 5, 10 5), POINT(7 3))'),
+  ST_GeomFromText('POLYGON((6 0, 6 4, 9 4, 6 0))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(5 0, 5 5, 10 5), POINT(7 3))',
+                  4326),
+  ST_GeomFromText('POLYGON((6 0, 6 4, 9 4, 6 0))', 4326)
+) AS res;
+
+--echo # Should not cross since (1 1) is in a boundary point of the
+--echo # multilinestring.
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((0 0, 2 2),(1 1, 2 2)))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+  ST_GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((0 0, 2 2),(1 1, 2 2)))',
+                  4326)
+) AS res;
+
+--echo # Should not cross since (1 1) is in a boundary point of the
+--echo # multilinestring.
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+  ST_GeomFromText('MULTILINESTRING((0 0, 2 2),(1 1, 2 2))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+  ST_GeomFromText('MULTILINESTRING((0 0, 2 2),(1 1, 2 2))', 4326)
+) AS res;
+
+--echo # Should not cross since (1 1) is in a boundary point of one of the
+--echo # linestrings.
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
+                  'LINESTRING(1 1, 2 2))')
+) AS res;
+SELECT ST_Crosses(
+  ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+  ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
+                  'LINESTRING(1 1, 2 2))', 4326)
+) AS res;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_CROSSES(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
+
+--echo #
+--echo # Bug #27576700 GIS: MYSQLD GOT SIGNAL 11 AT ../SQL/GIS/GEOMETRIES.CC:37
+--echo #
+
+DO ST_CROSSES(ST_GeomFromText('MULTILINESTRING((-58.88597
+157.94019,-17.85522 -5.31935,-17.80859 66.34707,-8.4484 -20.57939,-16.15053
+-24.75792,32.71796 -163.83575))', 4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((13.443455046240892
+-26.153114098537444,62.05128 -72.33176,-8.59805 -130.37858,-31.81082259135185
+-82.65801207243817,-70.42619 -130.86883,-56.09334404701969
+-6.644295318933246,-61.6458 34.12106,-55.53375 39.37693,-51.252745479240595
+35.30986970416038,-43.38976 103.45927,-28.50529 157.25408,79.09999
+56.11646,13.443455046240892 -26.153114098537444)),POLYGON((63.110017291878336
+11.399678592060411,80.3392 -167.15302,55.375240472210756
+-162.85403689121705,55.08425 -169.40944,13.66333
+-159.95389,10.013286038933956 -151.33914592929725,-56.78912
+-102.14145,-62.62410567680437 20.097654365570406,-63.28217
+21.6508,-62.73883333175459 22.501133221270692,-68.12018 135.23754,31.42659
+168.39603,53.0133 116.03589,53.696900549622086 108.95148967623732,62.36624
+103.97485,63.59381 22.29884,63.110017291878336
+11.399678592060411)),MULTIPOINT((-10.24117 -64.16013),(-38.99204
+-117.71918),(-28.10106 17.94683),(-73.52889 -137.44223),(62.91798
+63.52398),(-16.96991 -147.03994)),MULTILINESTRING((83.9657 -101.5132,48.81774
+14.53876,-71.20097 21.78803,-31.20884 -62.40592,-32.79402 146.98985,44.27884
+-176.86693),(-10.11554 170.23719,46.14032 -65.71065,58.53335
+81.35396,-28.31051 170.86429,-89.95184 -85.79089,-9.75639 138.94996)))',
+4326));

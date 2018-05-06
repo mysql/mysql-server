@@ -32,13 +32,20 @@ if ($have_next_pos)
 {
 
   let $MYSQLD_DATADIR= `select @@datadir;`;
-  --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+  --exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
-  create table raw_binlog_rows (txt varchar(1000));
+  create table raw_binlog_rows(
+    txt varchar(1000) character set latin1
+  );
 
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
-  create table binlog_stmt_parts_unassoc (txt varchar(1000), line_count int, stmt_boundary int, tx_boundary int);
+  create table binlog_stmt_parts_unassoc(
+    txt varchar(1000) character set latin1,
+    line_count int,
+    stmt_boundary int,
+    tx_boundary int
+  );
 
   set @line_count=0;
   set @stmt_boundary=0;
@@ -63,7 +70,15 @@ if ($have_next_pos)
 
   #select * from binlog_stmt_parts_unassoc;
 
-  create table binlog_stmt_parts_assoc (txt varchar(1000), line_count int, stmt_num int, tx_num int, key(stmt_num), key(line_count), key(txt));
+  create table binlog_stmt_parts_assoc(
+    txt varchar(1000) character set latin1,
+    line_count int,
+    stmt_num int,
+    tx_num int,
+    key(stmt_num),
+    key(line_count),
+    key(txt)
+  );
 
   set @stmt_count = 0;
   set @tx_count = 0;
@@ -85,7 +100,11 @@ if ($have_next_pos)
     select stmt_num from binlog_stmt_parts_assoc
     where txt like '%INSERT INTO mysql.ndb_apply_status%';
 
-  create table relevant_info (txt varchar(1000), tx_num int, line_count int);
+  create table relevant_info(
+    txt varchar(1000) character set latin1,
+    tx_num int,
+    line_count int
+  );
 
   insert into relevant_info
     # Epoch number to tx_num mapping

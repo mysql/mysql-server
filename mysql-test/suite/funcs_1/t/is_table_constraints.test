@@ -16,11 +16,13 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
 
---source include/have_innodb.inc
+
 let $engine_type       = InnoDB;
 
 let $is_table = TABLE_CONSTRAINTS;
@@ -68,7 +70,9 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 SELECT constraint_catalog, constraint_schema, constraint_name,
        table_schema, table_name
 FROM information_schema.table_constraints
-WHERE constraint_catalog IS NOT NULL;
+WHERE constraint_catalog IS NOT NULL AND
+      table_name != 'ndb_binlog_index'
+ORDER BY table_schema,table_name, constraint_name;
 
 
 --echo #########################################################################################

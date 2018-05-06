@@ -1,127 +1,32 @@
---source include/have_partition.inc
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
-
-# These tests is only useful when running on MyISAM,
-# due to DATA/INDEX directory, non transactional behavior, tests with MyISAM
-# files etc.
 --source include/have_myisam.inc
 
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-
 --echo #
---echo # Bug#11763825/56590: PARTITIONS: FULLTEXT SEARCHES FAIL
---echo # (bad/confusing error message)
-CREATE TABLE t1
-(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
- b VARCHAR(200),
- c TEXT)
-ENGINE=MyISAM
-PARTITION BY HASH(a) PARTITIONS 1;
---error ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
-CREATE FULLTEXT INDEX msg ON t1 (b, c);
-DROP TABLE t1;
---error ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
-CREATE TABLE t1
-(a INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
- b VARCHAR(200),
- c TEXT,
- FULLTEXT (b, c))
-ENGINE=MyISAM
-PARTITION BY HASH(a) PARTITIONS 1;
-
+--echo # Bug #27816: Log tables ran with partitions crashes the server when logging
+--echo #             is enabled.
 --echo #
---echo # BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
---echo #
-CREATE TABLE t1 (
-  i INT
-)
-ENGINE=MyISAM
-PARTITION BY RANGE (i)
-(PARTITION p3 VALUES LESS THAN (3),
- PARTITION p5 VALUES LESS THAN (5),
- PARTITION pMax VALUES LESS THAN MAXVALUE);
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
-CHECKSUM TABLE t1;
-ALTER TABLE t1 CHECKSUM = 1;
-CHECKSUM TABLE t1 EXTENDED;
---echo # Before patch this returned 0!
-CHECKSUM TABLE t1;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
 
---echo # Same test without partitioning
-CREATE TABLE t1 (
-  i INT
-) ENGINE=MyISAM;
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
-CHECKSUM TABLE t1;
-ALTER TABLE t1 CHECKSUM = 1;
-CHECKSUM TABLE t1 EXTENDED;
-CHECKSUM TABLE t1;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-
-#
-# Disabled by WL#946: binary format for timestamp column is not compatible.
-# So the trick with replacing FRM file does not work any more.
-#--echo #
-#--echo # Bug#50036: Inconsistent errors when using TIMESTAMP
-#--echo #            columns/expressions
-#
-#--echo # Added test with existing TIMESTAMP partitioning (when it was allowed).
-#CREATE TABLE t1 (a TIMESTAMP)
-#ENGINE = MyISAM
-#PARTITION BY HASH (UNIX_TIMESTAMP(a));
-#INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
-#--sorted_result
-#SELECT * FROM t1;
-#FLUSH TABLES;
-#--echo # replacing t1.frm with TO_DAYS(a) which was allowed earlier.
-#--remove_file $MYSQLD_DATADIR/test/t1.frm
-#--copy_file std_data/parts/t1TIMESTAMP.frm $MYSQLD_DATADIR/test/t1.frm
-#--echo # Disable warnings, since the result would differ when running with
-#--echo # --ps-protocol (only for the 'SELECT * FROM t1' statement).
-#--disable_warnings
-#--sorted_result
-#SELECT * FROM t1;
-#--enable_warnings
-#--replace_result MyISAM <curr_engine> InnoDB <curr_engine>
-#SHOW CREATE TABLE t1;
-#INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
-#--sorted_result
-#SELECT * FROM t1;
-#SELECT a, hex(weight_string(a)) FROM t1;
-#ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
-#--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
-#ALTER TABLE t1
-#PARTITION BY RANGE (TO_DAYS(a))
-#(PARTITION p0 VALUES LESS THAN (10000),
-# PARTITION p1 VALUES LESS THAN (MAXVALUE));
-#SHOW CREATE TABLE t1;
-#CREATE TABLE t2 LIKE t1;
-#SHOW CREATE TABLE t2;
-#DROP TABLE t2;
-#CREATE TABLE t2 SELECT * FROM t1;
-#DROP TABLE t2;
-#ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
-#SHOW CREATE TABLE t1;
-#ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
-#SHOW CREATE TABLE t1;
-#--sorted_result
-#SELECT * FROM t1;
-#DROP TABLE t1;
+USE mysql;
+TRUNCATE TABLE general_log;
+SET @old_general_log_state = @@global.general_log;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+--error ER_WRONG_USAGE
+ALTER TABLE general_log PARTITION BY RANGE (TO_DAYS(event_time))
+  (PARTITION p0 VALUES LESS THAN (733144), PARTITION p1 VALUES LESS THAN (3000000));
+ALTER TABLE general_log ENGINE = CSV;
+SET GLOBAL general_log = @old_general_log_state;
+USE test;
 
 --echo #
 --echo # Bug#31931: Mix of handlers error message
 --echo #
+
 --error ER_MIX_HANDLER_ERROR
 CREATE TABLE t1 (a INT)
 PARTITION BY HASH (a)
 ( PARTITION p0 ENGINE=MyISAM,
   PARTITION p1);
+
 --error ER_MIX_HANDLER_ERROR
 CREATE TABLE t1 (a INT)
 PARTITION BY LIST (a)
@@ -132,122 +37,114 @@ SUBPARTITION BY HASH (a)
 ( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
 
 --echo #
---echo # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
---echo #
-CREATE TABLE t1 (a INT)
-ENGINE = MyISAM
-PARTITION BY HASH (a);
-FLUSH TABLES;
---remove_file $MYSQLD_DATADIR/test/t1.par
---replace_result $MYSQLD_DATADIR ./
-CHECK TABLE t1;
---error ER_FAILED_READ_FROM_PAR_FILE
-SELECT * FROM t1;
---echo # Note that we will remove the frm file when we detect that
---echo # .par file has been deleted.
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
---remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI
---remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYD
-
---echo #
---echo # Bug#50392: insert_id is not reset for partitioned tables
---echo #            auto_increment on duplicate entry
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
-ENGINE = MyISAM;
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-SET INSERT_ID= 12;
---echo # For transactional engines, 12 will not be inserted, since the failing
---echo # statement is rolled back.
---error ER_DUP_ENTRY
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES (NULL);
---echo # NOTE: 12 exists only in non transactional engines!
-SELECT * FROM t1;
-DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
-ENGINE = MyISAM
-PARTITION BY KEY(a);
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-SET INSERT_ID= 12;
---error ER_DUP_ENTRY
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES (NULL);
-SELECT * FROM t1;
-DROP TABLE t1;
-#
-# Bug#30102: rename table does corrupt tables with partition files on failure
-#
---echo # Bug#30102 test
-CREATE TABLE t1 (a INT)
-ENGINE = MyISAM
-PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (6),
- PARTITION `p1....................` VALUES LESS THAN (9),
- PARTITION p2 VALUES LESS THAN MAXVALUE);
-# partition p1 is 't1#P#p1' + @002e * 20 = 107 characters + file ending
-# total path lenght of './test/t1#P#p1@002e@002e<...>@002e.MY[ID]' is 118 chars
---echo # List of files in database `test`, all original t1-files here
---list_files $MYSQLD_DATADIR/test t1*
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
---echo # Renaming to a file name where the first partition is 250 chars
---echo # and the second partition is 350 chars
-# 7,7 avoids the error message, which is not deterministic.
---error 7,7
-RENAME TABLE t1 TO `t2_new..............................................end`;
-#                         1234567890123456789012345678901234567890123456
---echo # List of files in database `test`, should not be any t2-files here
---list_files $MYSQLD_DATADIR/test t2*
---echo # List of files in database `test`, should be all t1-files here
---list_files $MYSQLD_DATADIR/test t1*
---sorted_result
-SELECT * FROM t1;
---echo # List of files in database `test`, should be all t1-files here
---list_files $MYSQLD_DATADIR/test t1*
---echo # Renaming to a file name where the first partition is 156 chars
---echo # and the second partition is 256 chars
-# 7,7 avoids the error message, which is not deterministic.
---error 7,7
-RENAME TABLE t1 TO `t2_............................_end`;
-#                      1234567890123456789012345678
-# 7 + 4 + 5 + 28 * 5 = 16 + 140 = 156
---echo # List of files in database `test`, should not be any t2-files here
---list_files $MYSQLD_DATADIR/test t2*
---echo # List of files in database `test`, should be all t1-files here
---list_files $MYSQLD_DATADIR/test t1*
---sorted_result
-SELECT * FROM t1;
-DROP TABLE t1;
---echo # Should not be any files left here
---list_files $MYSQLD_DATADIR/test t1*
---list_files $MYSQLD_DATADIR/test t2*
---echo # End of bug#30102 test.
-
---echo # Test of post-push fix for bug#11766249/59316
-CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
-ENGINE = MyISAM
-PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
- PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
- PARTITION pMax VALUES LESS THAN MAXVALUE);
-INSERT INTO t1 VALUES (1, "Partition p1, first row");
-DROP TABLE t1;
---echo #
 --echo # bug#11760213-52599: ALTER TABLE REMOVE PARTITIONING ON NON-PARTITIONED
 --echo #                                 TABLE CORRUPTS MYISAM
---disable_warnings
-DROP TABLE if exists `t1`;
---enable_warnings
+
 CREATE TABLE  `t1`(`a` INT)ENGINE=myisam;
 ALTER TABLE `t1` ADD COLUMN `b` INT;
 CREATE UNIQUE INDEX `i1` ON `t1`(`b`);
 CREATE UNIQUE INDEX `i2` ON `t1`(`a`);
 ALTER TABLE `t1` ADD PRIMARY KEY  (`a`);
+
 --error ER_PARTITION_MGMT_ON_NONPARTITIONED
 ALTER TABLE `t1` REMOVE PARTITIONING;
 CHECK TABLE `t1` EXTENDED;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#1074 - Descending index support.
+--echo #
+CREATE TABLE t1
+(a VARCHAR(10),
+ b VARCHAR(10),
+ PRIMARY KEY (a DESC, b DESC),
+ KEY ab_asc (a ASC, b ASC),
+ KEY a_asc_b_desc (a ASC, b DESC),
+ key a_desc_b_asc (a DESC, b ASC))
+ENGINE = InnoDB 
+PARTITION BY KEY (a, b) PARTITIONS 3;
+INSERT INTO t1 VALUES ("0", "0"), ("1", "1"), ("2", "2"), ("3", "3"),
+("4", "4"), ("55", "55"), ("54", "54"), ("1", "2"), ("1", "4"), ("1", "3"),
+("55", "54"), ("0", "1");
+ANALYZE TABLE t1;
+
+--echo # Test non ordered index access
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`ab_asc`);
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+
+--echo # Test sorted index access
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b DESC;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a, b DESC;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 ORDER BY a DESC, b;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a, b DESC;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
+
+--echo # Test index access in different sort order
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+FLUSH STATUS;
+SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+--replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
+EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+
+--echo # Test HANDLER statements.
+FLUSH STATUS;
+HANDLER t1 OPEN;
+HANDLER t1 READ `PRIMARY` FIRST;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` LAST;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ ab_asc FIRST;
+HANDLER t1 READ ab_asc NEXT;
+HANDLER t1 READ ab_asc NEXT;
+HANDLER t1 READ ab_asc NEXT;
+HANDLER t1 READ ab_asc NEXT;
+HANDLER t1 READ ab_asc LAST;
+HANDLER t1 READ ab_asc PREV;
+HANDLER t1 READ ab_asc PREV;
+HANDLER t1 READ ab_asc PREV;
+HANDLER t1 CLOSE;
+SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 DROP TABLE t1;

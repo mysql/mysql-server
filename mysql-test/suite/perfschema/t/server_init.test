@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # This test verifies that the mysys and server instruments are properly
 # initialized and recorded by the performance schema during the bootstrap
 # sequence in mysqld main().
@@ -81,9 +78,6 @@ select count(name) from mutex_instances
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
 
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
-
 # The event scheduler may be disabled
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
@@ -102,10 +96,6 @@ select count(name) from mutex_instances
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_plugin";
-
-# Not a global variable, may be destroyed already.
-# select count(name) from mutex_instances
-#  where name like "wait/synch/mutex/sql/LOCK_gdl";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/tz_LOCK";
@@ -140,9 +130,6 @@ select count(name) from cond_instances
 
 select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-
-select count(name) from cond_instances
- where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
 
 # The event scheduler may be disabled
 # select count(name) from cond_instances

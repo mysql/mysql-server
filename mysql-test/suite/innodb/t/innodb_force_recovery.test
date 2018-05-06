@@ -1,10 +1,13 @@
-# Not supported in embedded
---source include/not_embedded.inc
 
 # This test case needs InnoDB.
--- source include/have_innodb.inc
 
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
 
 create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 create table t2(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
@@ -13,7 +16,6 @@ insert into t2 values(1, 2);
 
 SET GLOBAL innodb_fast_shutdown = 0;
 
---echo # Restart the server with innodb_force_recovery as 4.
 let $restart_parameters = restart: --innodb-force-recovery=4;
 --source include/restart_mysqld.inc
 
@@ -25,16 +27,16 @@ insert into t1 values(2, 3);
 --error ER_INNODB_READ_ONLY
 alter table t1 add f3 int not null, algorithm=copy;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_INNODB_FORCED_RECOVERY
 alter table t1 add f3 int not null, algorithm=inplace;
 
---error ER_INNODB_READ_ONLY
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t1;
 
 --error ER_OPEN_AS_READONLY
 update t1 set f1=3 where f2=2;
 
---error ER_INNODB_READ_ONLY
+--error ER_OPEN_AS_READONLY
 create table t3(f1 int not null)engine=innodb;
 
 --error ER_BAD_TABLE_ERROR
@@ -46,8 +48,11 @@ rename table t1 to t3;
 --error ER_OPEN_AS_READONLY
 truncate table t1;
 
---error ER_CREATE_FILEGROUP_FAILED
-create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
+--error ER_OPEN_AS_READONLY
+create tablespace t4 add datafile 't1.ibd' Engine=InnoDB;
+
+let $restart_parameters =;
+--source include/restart_mysqld.inc
 
 drop table t1;
 show tables;
@@ -64,16 +69,16 @@ insert into t2 values(2, 3);
 --error ER_INNODB_READ_ONLY
 alter table t2 add f3 int not null, algorithm=copy;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_INNODB_FORCED_RECOVERY
 alter table t2 add f3 int not null, algorithm=inplace;
 
---error ER_INNODB_READ_ONLY
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t2;
 
 --error ER_OPEN_AS_READONLY
 update t2 set f1=3 where f2=2;
 
---error ER_INNODB_READ_ONLY
+--error ER_OPEN_AS_READONLY
 create table t1(f1 int not null)engine=innodb;
 
 --error ER_BAD_TABLE_ERROR
@@ -85,10 +90,10 @@ rename table t2 to t3;
 --error ER_OPEN_AS_READONLY
 truncate table t2;
 
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_OPEN_AS_READONLY
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
 
---error ER_BAD_TABLE_ERROR
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t2;
 show tables;
 
@@ -101,19 +106,19 @@ select * from t2;
 --error ER_CANT_LOCK
 insert into t2 values(2, 3);
 
---error ER_CANT_LOCK
+--error ER_INNODB_READ_ONLY
 alter table t2 add f3 int not null, algorithm=copy;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_INNODB_FORCED_RECOVERY
 alter table t2 add f3 int not null, algorithm=inplace;
 
---error ER_CANT_LOCK
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t2;
 
 --error ER_CANT_LOCK
 update t2 set f1=3 where f2=2;
 
---error ER_INNODB_READ_ONLY
+--error ER_OPEN_AS_READONLY
 create table t1(f1 int not null)engine=innodb;
 
 --error ER_BAD_TABLE_ERROR
@@ -125,10 +130,10 @@ rename table t2 to t3;
 --error ER_OPEN_AS_READONLY
 truncate table t2;
 
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_OPEN_AS_READONLY
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
 
---error ER_BAD_TABLE_ERROR
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t2;
 show tables;
 
@@ -137,3 +142,4 @@ let $restart_parameters = restart;
 
 drop table t2;
 show tables;
+

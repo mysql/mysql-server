@@ -1,6 +1,5 @@
 --source include/have_openssl_binary.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 -- echo #
 -- echo #  Bug#21087159 : AUTO-GENERATED SSL CERTS HAVE NO CN
@@ -20,13 +19,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --error 0, 1
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem

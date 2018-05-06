@@ -25,7 +25,7 @@ call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: cou
 call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593");
+call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
 
 SET @old_master_verify_checksum = @@master_verify_checksum;
 
@@ -81,7 +81,7 @@ reap;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1236; # ER_MASTER_FATAL_ERROR_READING_BINLOG
+let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --connection master
 
@@ -92,7 +92,7 @@ SET GLOBAL master_verify_checksum=0;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1595,1743; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 --connection master
 SET GLOBAL debug="";
@@ -103,14 +103,14 @@ SET GLOBAL master_verify_checksum=1;
 --connection slave
 SET GLOBAL debug="d,corrupt_queue_event";
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1595,1743; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 # Emulate corruption in relay log
 --echo # 6. Slave. Corruption in relay log
 SET GLOBAL debug="d,corrupt_read_log_event_char";
 START SLAVE SQL_THREAD;
-let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 # Start normal replication and compare same table on master

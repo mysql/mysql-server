@@ -13,6 +13,9 @@ SET GLOBAL general_log = 'ON';
 # Run plugin
 ##########################################
 INSTALL PLUGIN test_session_in_thd SONAME 'TEST_SESSION_IN_THD';
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+plugin_name
+test_session_in_thd
 ##########################################
 # Stop plugin
 ##########################################
@@ -67,15 +70,15 @@ deinit thread
 ##########################################
 CREATE TABLE t1 (c1 TEXT, c2 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/test_session_general.log' INTO TABLE t1;
-SELECT count(c1) FROM t1 WHERE c2 LIKE '%Connect%';
-count(c1)
-18
-SELECT count(c1) FROM t1 WHERE c2 LIKE '%Quit%';
-count(c1)
-18
-SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
 count(*)
-36
+18
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
+count(*)
+18
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+count(*) >= 36
+1
 ##########################################
 # Cleanup
 ##########################################

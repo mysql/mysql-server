@@ -6,12 +6,8 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (
 a enum('a') CHARACTER SET utf32 COLLATE utf32_spanish2_ci
-) ENGINE=MYISAM PARTITION BY KEY(a) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+) PARTITION BY KEY(a) PARTITIONS 2;
 INSERT INTO t1 VALUES ('a');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a
 a

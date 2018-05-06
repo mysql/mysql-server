@@ -78,15 +78,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -94,15 +94,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -118,35 +118,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -239,15 +239,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -255,75 +255,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 DROP TABLE t1;
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -404,15 +404,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -420,75 +420,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 DROP TABLE t1;
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -567,15 +567,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -583,15 +583,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
@@ -599,35 +599,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -710,15 +710,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -726,15 +726,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
@@ -742,35 +742,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -853,15 +853,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -869,15 +869,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
@@ -885,35 +885,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -996,15 +996,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1012,15 +1012,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
@@ -1028,35 +1028,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
@@ -1141,15 +1141,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1157,15 +1157,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -1181,35 +1181,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -1302,15 +1302,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1318,75 +1318,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -1467,15 +1467,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1483,75 +1483,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -1630,15 +1630,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1646,15 +1646,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
@@ -1662,35 +1662,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -1773,15 +1773,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1789,15 +1789,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
@@ -1805,35 +1805,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -1916,15 +1916,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -1932,15 +1932,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
@@ -1948,35 +1948,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -2059,15 +2059,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2075,15 +2075,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
@@ -2091,35 +2091,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
@@ -2204,15 +2204,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2220,15 +2220,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -2244,35 +2244,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -2365,15 +2365,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2381,75 +2381,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 DROP TABLE t1;
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -2530,15 +2530,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2546,75 +2546,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 DROP TABLE t1;
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -2693,15 +2693,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2709,15 +2709,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
@@ -2725,35 +2725,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -2836,15 +2836,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2852,15 +2852,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
@@ -2868,35 +2868,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -2979,15 +2979,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -2995,15 +2995,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
@@ -3011,35 +3011,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -3122,15 +3122,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3138,15 +3138,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
@@ -3154,35 +3154,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
@@ -3267,15 +3267,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3283,15 +3283,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -3307,35 +3307,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -3428,15 +3428,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3444,75 +3444,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 b	a	27	9
-b	b	18	3
 b	c	18	6
 b	e	18	4
 b	z	18	5
+b	b	18	3
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	b	27	9
-b	b	18	3
 c	b	18	6
 e	b	18	4
 z	b	18	5
+b	b	18	3
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -3593,15 +3593,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3609,75 +3609,75 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 c	a	9	5
-c	b	9	5
 c	c	36	9
 c	d	18	9
 c	f	18	5
+c	b	9	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
-b	c	9	5
 c	c	36	9
 d	c	18	9
 f	c	18	5
+b	c	9	5
 DROP TABLE t1;
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 TRUNCATE TABLE t1;
@@ -3756,15 +3756,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3772,15 +3772,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
@@ -3788,35 +3788,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -3899,15 +3899,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -3915,15 +3915,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
@@ -3931,35 +3931,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -4042,15 +4042,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -4058,15 +4058,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
@@ -4074,35 +4074,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -4185,15 +4185,15 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
@@ -4201,15 +4201,15 @@ a	b	27
 a	c	18
 a	d	18
 b	a	27
-b	b	18
 b	c	18
 b	e	18
 b	z	18
 c	a	9
-c	b	9
 c	c	36
 c	d	18
 c	f	18
+b	b	18
+c	b	9
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
@@ -4217,35 +4217,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
-a	c	9
 b	a	27
+c	a	18
+d	a	18
+a	b	27
+c	b	18
+e	b	18
+z	b	18
+a	c	9
+c	c	36
+d	c	18
+f	c	18
 b	b	18
 b	c	9
-c	a	18
-c	b	18
-c	c	36
-d	a	18
-d	c	18
-e	b	18
-f	c	18
-z	b	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
@@ -4330,27 +4330,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -4370,35 +4370,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -4491,88 +4491,88 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
 c	f	18
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
-b	a	27	9
 b	b	18	3
+b	a	27	9
 b	c	18	6
 b	e	18	4
 b	z	18	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
-b	a	27	9
 b	b	18	3
+b	a	27	9
 b	c	18	6
 b	e	18	4
 b	z	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
-a	b	27	9
 b	b	18	3
+a	b	27	9
 c	b	18	6
 e	b	18	4
 z	b	18	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
-a	b	27	9
 b	b	18	3
+a	b	27	9
 c	b	18	6
 e	b	18	4
 z	b	18	5
@@ -4656,27 +4656,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -4698,35 +4698,35 @@ c	f	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
@@ -4819,27 +4819,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -4851,35 +4851,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -4962,27 +4962,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -4994,35 +4994,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -5105,27 +5105,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -5137,35 +5137,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -5248,27 +5248,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -5280,35 +5280,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
@@ -5393,27 +5393,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -5433,35 +5433,35 @@ a	d	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	a	18	9
@@ -5554,88 +5554,88 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
 c	f	18
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
-b	a	27	9
 b	b	18	3
+b	a	27	9
 b	c	18	6
 b	e	18	4
 b	z	18	5
 SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
 c1	c2	COUNT(*)	MAX(c3)
-b	a	27	9
 b	b	18	3
+b	a	27	9
 b	c	18	6
 b	e	18	4
 b	z	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
-a	b	27	9
 b	b	18	3
+a	b	27	9
 c	b	18	6
 e	b	18	4
 z	b	18	5
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
-a	b	27	9
 b	b	18	3
+a	b	27	9
 c	b	18	6
 e	b	18	4
 z	b	18	5
@@ -5719,27 +5719,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -5761,35 +5761,35 @@ c	f	18	5
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 a	c	9	5
@@ -5882,27 +5882,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -5914,35 +5914,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
@@ -6025,27 +6025,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -6057,35 +6057,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
@@ -6168,27 +6168,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -6200,35 +6200,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
@@ -6311,27 +6311,27 @@ a	b
 a	c
 a	d
 b	a
-b	b
 b	c
 b	e
 b	z
 c	a
-c	b
 c	c
 c	d
 c	f
+b	b
+c	b
 SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
 c1	c2	COUNT(*)
 a	a	18
+c	a	9
 a	b	27
 a	c	18
 a	d	18
-b	a	27
 b	b	18
+b	a	27
 b	c	18
 b	e	18
 b	z	18
-c	a	9
 c	b	9
 c	c	36
 c	d	18
@@ -6343,35 +6343,35 @@ c1	c2	COUNT(*)	MAX(c3)
 SELECT c2,c1 FROM t1 GROUP BY c2,c1;
 c2	c1
 a	a
-a	b
-a	c
 b	a
+c	a
+d	a
+a	b
+c	b
+e	b
+z	b
+a	c
+c	c
+d	c
+f	c
 b	b
 b	c
-c	a
-c	b
-c	c
-d	a
-d	c
-e	b
-f	c
-z	b
 SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
 c2	c1	COUNT(*)
 a	a	18
-a	b	27
 a	c	9
 b	a	27
-b	b	18
-b	c	9
 c	a	18
-c	b	18
-c	c	36
 d	a	18
-d	c	18
+b	b	18
+a	b	27
+c	b	18
 e	b	18
-f	c	18
 z	b	18
+b	c	9
+c	c	36
+d	c	18
+f	c	18
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
 c2	c1	COUNT(*)	MAX(c3)
 SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;

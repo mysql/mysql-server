@@ -5,6 +5,10 @@ CREATE TABLE t1 (
 a varchar(32) character set utf8 collate utf8_bin NOT NULL,
 b varchar(32) character set utf8 collate utf8_bin NOT NULL )
 ENGINE=MyISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 ('AAAAAAAAAA','AAAAAAAAAA'), ('AAAAAAAAAB','AAAAAAAAAB '),
 ('AAAAAAAAAB','AAAAAAAAAB'), ('AAAAAAAAAC','AAAAAAAAAC'),
@@ -12,11 +16,19 @@ INSERT INTO t1 VALUES
 ('AAAAAAAAAF','AAAAAAAAAF'), ('AAAAAAAAAG','AAAAAAAAAG'),
 ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
 ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
+set session internal_tmp_mem_storage_engine='memory';
 set tmp_table_size=1024;
 set session debug="d,raise_error";
 SELECT MAX(a) FROM t1 GROUP BY a,b;
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'
+WITH qn (z) AS
+(
+SELECT 1 FROM t1, t1 t2, t1 t3, t1 t4 LIMIT 100000000
+)
+SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
+ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
+set session internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
 #
 # Bug #50946: fast index creation still seems to copy the table
@@ -31,7 +43,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(100) NOT NULL,
   KEY `a` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a
 0
@@ -42,6 +54,7 @@ DROP TABLE t1;
 # Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
 #
 CREATE TABLE t1(a BLOB);
+call mtr.add_suppression(".*Out of memory *");
 SET SESSION debug="+d,bug42064_simulate_oom";
 INSERT INTO t1 VALUES("");
 Got one of the listed errors

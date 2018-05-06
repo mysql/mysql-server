@@ -434,10 +434,24 @@ DROP DATABASE db3;
 DROP DATABASE db1_1gb;
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
+master_info_repository	TABLE
+SHOW VARIABLES LIKE "relay_log_info_repository";
+Variable_name	Value
+relay_log_info_repository	TABLE
+SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+SET GLOBAL relay_log_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+SHOW VARIABLES LIKE "master_info_repository";
+Variable_name	Value
 master_info_repository	FILE
 SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	FILE
+Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
+Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
 SET GLOBAL master_info_repository= 'TABLE';
 SET GLOBAL relay_log_info_repository= 'TABLE';
 SHOW VARIABLES LIKE "master_info_repository";
@@ -446,13 +460,22 @@ master_info_repository	TABLE
 SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	TABLE
-Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
-Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
-SET GLOBAL master_info_repository= 'FILE';
-SET GLOBAL relay_log_info_repository= 'FILE';
-SHOW VARIABLES LIKE "master_info_repository";
-Variable_name	Value
-master_info_repository	FILE
-SHOW VARIABLES LIKE "relay_log_info_repository";
-Variable_name	Value
-relay_log_info_repository	FILE
+#
+# Dump a table that has column statistics
+#
+CREATE SCHEMA column_statistics_dump;
+USE column_statistics_dump;
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 22 BUCKETS;
+Table	Op	Msg_type	Msg_text
+column_statistics_dump.t1	histogram	status	Histogram statistics created for column 'col1'.
+# Verify that the number of buckets specified (22) is also present in the
+# dump file.
+SELECT schema_name, table_name, column_name,
+JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')
+column_statistics_dump	t1	col1	22
+include/assert_grep.inc [Check for ANALYZE TABLE with histogram clause]
+DROP SCHEMA column_statistics_dump;

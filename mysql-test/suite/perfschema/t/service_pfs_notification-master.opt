@@ -1,0 +1,2 @@
+$TEST_PFS_NOTIFICATION_SERVICE_OPT 
+--local-infile=true

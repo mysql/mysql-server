@@ -1,0 +1,45 @@
+## Inserting doc into non-doc table 
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+USE xtest;
+CREATE TABLE xtable (nodoc JSON);
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_insert_nodoc.tmp
+
+-->quiet
+Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+        literal {
+          type: V_STRING 
+          v_string {
+            value: '{"a":10, "b":20}'
+        }
+      }
+    }
+  }
+}
+-->noquiet
+-->expecterror 5117
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_nodoc.tmp 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/crud_insert_nodoc.tmp
+--source include/xplugin_drop_user.inc

@@ -1,0 +1,46 @@
+-- source include/have_ndb.inc
+
+# For locked reads primary will be used, for unlocked reads primary or
+# backup may be used.
+# But since partitioning hash function is endian dependent results may
+# differ between different platforms with different endian.
+# Until test is made endian independent test is disabled for big endian
+# systems.
+--source suite/ndb/include/have_little_endian.inc
+
+--let $KEYS=40
+--let $TEST_STEP=5
+
+# Classic table
+--let $comment=NDB_TABLE=READ_BACKUP=0,FULLY_REPLICATED=0
+--let $expect=Classic distribution, always PRIMARY
+--source ndb_read_balance.inc
+
+# Read Backup table
+# Force O_P_L_P_N to get Primaries on both nodes, pending
+# fix to primary node balance.
+--let $comment=NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM
+--let $expect=Read Backup, Mix of Primary + Backup, except where locks are used
+--source ndb_read_balance.inc
+
+# Fully replicated table
+--let $comment=NDB_TABLE=FULLY_REPLICATED=1
+--let $expect=Fully replicated, Mix of Primary + Backup, except where locks are used
+--source ndb_read_balance.inc
+
+# Potential TODO :
+#   - Extend to cover FR
+#   - Add hinted OI scan too ??  Requires composite primary key...
+#   - Balance when Backup ! local
+#   - Look at balance across nodes, LDMs, NGs etc...
+#     For updates + reads
+#   - Look at RB aspects, that we *do* RB
+#     - Read *all* in one trans, expect some RB?
+#     - Map rows to fragments to help?
+#       - 2 node / NG-local reads, always local to node?
+#       - NG !local reads, balanced?
+#       - Map rows to 'Primary', 'Backup'  (row, primary node, backup node)
+#       - Determine nodegroups (distinct (a<b:a:b), (a<b:b:a))
+#       - Read rows in a single nodegroup...check purely local...
+#   - FR?
+

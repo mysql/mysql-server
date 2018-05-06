@@ -1,8 +1,7 @@
 #
 # Tests with the utf8 character set
 #
-
---source include/have_innodb.inc
+--source include/no_ps_protocol.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -39,9 +38,12 @@ select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 # characters in case insensitive manner.
 # Case insensitive search LIKE comparison
 # was broken for multibyte characters:
+--character_set latin1
 select convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8);
+--character_set koi8r
 select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
 select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
+--character_set utf8mb4
 
 #
 # Check the following:
@@ -121,7 +123,9 @@ set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
+--character_set koi8r
 insert into t1 values (_koi8r'��');
+--character_set utf8mb4
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 drop table t1;
 
@@ -201,14 +205,28 @@ set names utf8;
 set names utf8;
 
 # This should return TRUE
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select ' вася ' rlike '[[:<:]]вася[[:>:]]';
 
 # This should return FALSE
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 
 #
@@ -1179,7 +1197,6 @@ drop table t1;
 #
 
 SET CHARACTER SET utf8;
-SHOW VARIABLES LIKE 'character\_set\_%';
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8;
@@ -1602,15 +1619,15 @@ GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 DROP TABLE t1;
 
 --echo #
---echo # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
+--echo # Bug#11764503 (Bug#57341) Query in EXPLAIN shows wrong characters
 --echo #
 # Emulate utf8 client erroneously started with --default-character-set=latin1,
 # as in the bug report. EXPLAIN output should still be pretty readable
 SET NAMES latin1;
-EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' AS u;
+EXPLAIN SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' AS u;
 # Test normal utf8
 SET NAMES utf8;
-EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
+EXPLAIN SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
 
 --echo #
 --echo # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
@@ -1639,12 +1656,10 @@ ORDER BY l DESC;
 set names utf8;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Checking strnxfrm() with odd length
@@ -1671,3 +1686,14 @@ SET NAMES utf8;
 --echo # End of 5.6 tests
 --echo #
 
+--echo #
+--echo # Bug#22531111 FUNC CONVERT AND CONVERT(,BINARY) WORKS
+--echo #              INCORRECT W/ MULTI-BYTE+MULTI-ROWS
+--echo #
+
+SET NAMES utf8;
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+SELECT hex(convert( substr(_utf8 0xE5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD, 1, 15), BINARY)) FROM t1;
+SELECT hex(convert( substr('大不列颠及北爱尔兰联合王国', 1, 15), BINARY)) FROM t1;
+DROP TABLE t1;

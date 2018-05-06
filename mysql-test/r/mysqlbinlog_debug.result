@@ -1,7 +1,15 @@
 #
 # Bug#18742916 : MYSQLBINLOG --RAW DOES NOT CHECK FOR ERRORS
 #
-ERROR: Could not write into log file 'MYSQLTEST_VARDIR/tmp/master-bin.000001'
-ERROR: Could not write into log file 'MYSQLTEST_VARDIR/tmp/master-bin.000001'
+ERROR: Could not write into log file 'MYSQLTEST_VARDIR/tmp/binlog.000001'
+ERROR: Could not write into log file 'MYSQLTEST_VARDIR/tmp/binlog.000001'
+#
+# Bug#24323288 : MAIN.MYSQLBINLOG_DEBUG FAILS WITH A LEAKSANITIZER ERROR
+#
+ERROR: Could not create log file 'MYSQLTEST_VARDIR/tmp/binlog.000001'
+CREATE TABLE T1(s INT);
+SET @a= 10;
+INSERT INTO T1 VALUES(@a);
+DROP TABLE T1;
 
 End of tests

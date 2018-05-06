@@ -3,7 +3,7 @@
 SET @session_sql_big_selects = @@SESSION.sql_big_selects;
 SET @session_max_join_size = @@SESSION.max_join_size;
 SET @global_max_join_size = @@GLOBAL.max_join_size;
-SET MAX_JOIN_SIZE=9;
+SET MAX_JOIN_SIZE=4;
 CREATE TEMPORARY TABLE t1(a varchar(20) not null, b varchar(20));
 CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
 INSERT INTO t1 VALUES('aa','bb');

@@ -8,10 +8,8 @@
 # File Formts Compressed & Dynamic
 # All Geometric functions.
 #********************************************************
---source include/have_geometry.inc
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 SET default_storage_engine=InnoDB;
 SET innodb_strict_mode=OFF;
@@ -128,8 +126,8 @@ c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB;
 
 --echo #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab'
 ORDER BY sc.name;
@@ -473,6 +471,7 @@ c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB
 KEY_BLOCK_SIZE=8 ROW_FORMAT=COMPRESSED;
 
 --echo #check file format
+--replace_regex /KEY_BLOCK_SIZE=[2,8]/KEY_BLOCK_SIZE=key_block_size/
 SHOW CREATE TABLE tab3;
 
 ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
@@ -482,8 +481,8 @@ SHOW CREATE TABLE tab3;
 
 --echo #check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
@@ -598,13 +597,13 @@ SELECT fid, ST_GeometryType(g) FROM gis_geometry;
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry;
 --replace_column 10 #
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 
 --echo #check Geometry point functions
 SELECT fid, ST_X(g) FROM gis_point;
 SELECT fid, ST_Y(g) FROM gis_point;
 --replace_column 10 #
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
 SELECT fid, ST_AsText(ST_EndPoint(g)) FROM gis_line;
@@ -613,7 +612,7 @@ SELECT fid, ST_NumPoints(g) FROM gis_line;
 SELECT fid, ST_AsText(ST_PointN(g, 2)) FROM gis_line;
 SELECT fid, ST_IsClosed(g) FROM gis_line;
 --replace_column 10 #
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),
 ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
@@ -622,7 +621,7 @@ SELECT fid, ST_AsText(ST_ExteriorRing(g)) FROM gis_polygon;
 SELECT fid, ST_NumInteriorRings(g) FROM gis_polygon;
 SELECT fid, ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 --replace_column 10 #
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),
 ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
@@ -635,7 +634,7 @@ SELECT fid, ST_NumGeometries(g) from gis_multi_line;
 SELECT fid, ST_NumGeometries(g) from gis_multi_polygon;
 SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
 --replace_column 10 #
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_line;
@@ -643,7 +642,7 @@ SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_polygon;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_geometrycollection;
 SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
 --replace_column 10 #
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
@@ -651,7 +650,7 @@ MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g)
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 --replace_column 10 #
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r

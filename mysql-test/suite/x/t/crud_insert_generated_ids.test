@@ -1,0 +1,200 @@
+## Inserting with upsert
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/crud_insert_docid.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->varlet %DOC_S1% type:V_OCTETS v_octets{value:'{"_id": "1", "one":1}' content_type:2}
+-->varlet %DOC_S2% type:V_OCTETS v_octets{value:'{"two":2}' content_type:2}
+
+-->varlet %DOC_1% type:LITERAL literal{%DOC_S1%}
+-->varlet %DOC_2% type:LITERAL literal{%DOC_S2%}
+-->varlet %DOC_3% type:LITERAL literal{type:V_OCTETS v_octets{value:'{"three":3}' content_type:2}}
+
+-->varlet %DOC_BAD% type:LITERAL literal{type:V_SINT v_signed_int:42}
+
+-->varlet %DOC_O1% type:OBJECT object{fld{key:"_id" value{type:LITERAL literal{type: V_OCTETS v_octets{value:"1"}}}} fld{key:"one" value{type:LITERAL literal{type:V_SINT v_signed_int:1}}}}
+-->varlet %DOC_O2% type:OBJECT object{fld{key:"two" value{type:LITERAL literal{type:V_SINT v_signed_int:2}}}}
+
+
+-->macro Setup %NAME%
+-->stmtadmin ensure_collection	{"schema":"xtest","name":"%NAME%"}
+-->recvresult
+-->stmtsql truncate table xtest.%NAME%
+-->recvresult
+-->endmacro
+
+
+-->macro Insert_via_placeholder	%MODEL%	%TABLE%	%ARG%	%ERROR%
+-->callmacro Insert_raw	%MODEL%	%TABLE%	row{field {type:PLACEHOLDER position:0}} args{ %ARG% }
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->macro Check_notice_for_insert_one  %MODEL%  %TABLE%  %ROW%
+-->callmacro Insert_raw	%MODEL%	%TABLE%	row{field{%ROW%}}
+#-->recvuntil Mysqlx.Notice.Frame
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->endmacro
+
+
+-->macro Check_notice_for_insert_two  %MODEL%  %TABLE%  %ROW1%  %ROW2%
+-->callmacro Insert_raw	%MODEL%	%TABLE%	row{field{%ROW1%}} row{field{%ROW2%}}
+#-->recvuntil Mysqlx.Notice.Frame
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->endmacro
+
+
+
+-->title -Insert: doc with _id (literal)
+-->callmacro Setup	coll
+-->callmacro Insert_one	DOCUMENT	coll	%DOC_1%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: doc without _id (literal)
+-->callmacro Setup	coll
+-->callmacro Insert_one	DOCUMENT	coll	%DOC_2%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: doc with _id (object)
+-->callmacro Setup	coll
+-->callmacro Insert_one	DOCUMENT	coll	%DOC_O1%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: doc without _id (object)
+-->callmacro Setup	coll
+-->callmacro Insert_one	DOCUMENT	coll	%DOC_O2%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: doc with _id (placeholder)
+-->callmacro Setup	coll
+-->callmacro Insert_via_placeholder	DOCUMENT	coll	%DOC_S1%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: doc without _id (placeholder)
+-->callmacro Setup	coll
+-->callmacro Insert_via_placeholder	DOCUMENT	coll	%DOC_S2%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: 2 doc without _id (literal)
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: 2 doc without _id (literal/object)
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_3%	%DOC_O2%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: 2 doc with/without _id (literal)
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_1%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: 2 doc with/without _id (object)
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_O1%	%DOC_O2%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: bad doc (literal) no insert
+-->callmacro Setup	coll
+-->callmacro Insert_one	DOCUMENT	coll	%DOC_BAD%	ER_INVALID_JSON_TEXT
+-->callmacro Show	coll
+
+
+-->title -Insert: 2 doc (literal) one bad, no insert
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_BAD%	%DOC_1%	ER_INVALID_JSON_TEXT
+-->callmacro Show	coll
+
+
+-->title -Insert: change of "unique_prefix"
+-->stmtsql set global mysqlx_document_id_unique_prefix = 255
+-->recvresult
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: change of "auto_increment_increment"
+-->stmtsql set auto_increment_increment = 256
+-->recvresult
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: change of "auto_increment_offset"
+-->stmtsql set auto_increment_offset = 128
+-->recvresult
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Insert: reset of "unique_prefix", "auto_increment_increment" and "auto_increment_offset"
+-->sql
+set global mysqlx_document_id_unique_prefix = DEFAULT;
+set auto_increment_increment = DEFAULT;
+set auto_increment_offset = DEFAULT;
+-->endsql
+-->callmacro Setup	coll
+-->callmacro Insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%	ER_SUCCESS
+-->callmacro Show	coll
+
+
+-->title -Notice: insert doc with _id
+-->callmacro Setup	coll
+-->callmacro Check_notice_for_insert_one	DOCUMENT	coll	%DOC_1%
+
+
+-->title -Notice: insert doc without _id
+-->callmacro Setup	coll
+-->callmacro Check_notice_for_insert_one	DOCUMENT	coll	%DOC_2%
+
+
+-->title -Notice: insert 2 doc with/without _id
+-->callmacro Setup	coll
+-->callmacro Check_notice_for_insert_two	DOCUMENT	coll	%DOC_1%	%DOC_3%
+
+
+-->title -Notice: insert 2 doc without _id
+-->callmacro Setup	coll
+-->callmacro Check_notice_for_insert_two	DOCUMENT	coll	%DOC_2%	%DOC_3%
+
+-->title -Notice: insert bad doc
+-->callmacro Setup	coll
+-->callmacro Insert_raw	DOCUMENT	coll	row{field{ %DOC_BAD% }}
+-->recvuntil Mysqlx.Error
+EOF
+
+CREATE SCHEMA xtest;
+
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_docid.xpl 2>&1;
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
+set global mysqlx_document_id_unique_prefix = DEFAULT;
+DROP SCHEMA IF EXISTS xtest;

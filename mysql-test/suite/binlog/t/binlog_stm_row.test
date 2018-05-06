@@ -82,7 +82,7 @@ SELECT RELEASE_LOCK('Bug#34306');
 
 --connection con2
 --echo # con2
-SET SESSION BINLOG_FORMAT = ROW;
+SET SESSION BINLOG_FORMAT = 'ROW';
 --connection con1
 --echo # con1
 SELECT GET_LOCK('Bug#34306', 120);

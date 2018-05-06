@@ -17,62 +17,62 @@ innodb_print_all_deadlocks	OFF
 SHOW session variables LIKE 'innodb_print_all_deadlocks';
 Variable_name	Value
 innodb_print_all_deadlocks	OFF
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	OFF
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
+innodb_print_all_deadlocks	OFF
 SET global innodb_print_all_deadlocks='OFF';
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 0
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	OFF
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
+innodb_print_all_deadlocks	OFF
 SET @@global.innodb_print_all_deadlocks=1;
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 1
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	ON
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
+innodb_print_all_deadlocks	ON
 SET global innodb_print_all_deadlocks=0;
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 0
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	OFF
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	OFF
+innodb_print_all_deadlocks	OFF
 SET @@global.innodb_print_all_deadlocks='ON';
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 1
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	ON
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
+innodb_print_all_deadlocks	ON
 SET session innodb_print_all_deadlocks='OFF';
 ERROR HY000: Variable 'innodb_print_all_deadlocks' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@session.innodb_print_all_deadlocks='ON';
@@ -88,14 +88,14 @@ SET global innodb_print_all_deadlocks=-3;
 SELECT @@global.innodb_print_all_deadlocks;
 @@global.innodb_print_all_deadlocks
 1
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM performance_schema.global_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
-SELECT * FROM information_schema.session_variables 
+innodb_print_all_deadlocks	ON
+SELECT * FROM performance_schema.session_variables 
 WHERE variable_name='innodb_print_all_deadlocks';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_PRINT_ALL_DEADLOCKS	ON
+innodb_print_all_deadlocks	ON
 SET global innodb_print_all_deadlocks='AUTO';
 ERROR 42000: Variable 'innodb_print_all_deadlocks' can't be set to the value of 'AUTO'
 SET @@global.innodb_print_all_deadlocks = @start_global_value;

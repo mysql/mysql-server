@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test query expressions with LIMIT and/or OFFSET:
 
 CREATE TABLE t1(a INTEGER);
@@ -236,6 +231,7 @@ drop table t1;
 #
 create table t1 (a int);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+analyze table t1;
 explain select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 explain select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
@@ -276,7 +272,7 @@ select 1 as a limit 4294967296,10;
 --echo End of 5.1 tests
 
 --echo #
---echo # Bug #11747810: EXPLAIN EXTENDED SHOWS BOGUS VALUE FOR
+--echo # Bug #11747810: EXPLAIN SHOWS BOGUS VALUE FOR
 --echo #                'FILTERED' COLUMN FOR LIMIT QUERY
 --echo #
 

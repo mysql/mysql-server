@@ -1,15 +1,12 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree multi level split.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 delimiter |;

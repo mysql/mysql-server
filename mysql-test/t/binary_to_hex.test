@@ -10,7 +10,6 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---source include/not_embedded.inc
 
 USE test;
 --disable_warnings

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,7 +31,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 782;
+const GlobalSignalNumber MAX_GSN = 826;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -308,9 +315,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIGETNODESCONF              210
 #define GSN_DIGETNODESREF               211
 #define GSN_DIGETNODESREQ               212
-#define GSN_DIH_SCAN_GET_NODES_REQ      213
-#define GSN_DIH_SCAN_GET_NODES_REF      215
-#define GSN_DIH_SCAN_GET_NODES_CONF     214
+
+/*
+ Signal 213, 214, 215 no longer used, was
+ DIH_SCAN_GET_NODES_REQ/CONF/REF
+*/
 
 #define GSN_DIH_RESTARTCONF             217
 #define GSN_DIH_RESTARTREF              218
@@ -838,9 +847,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CHECK_NODE_RESTARTCONF      619
 
 #define GSN_GET_CPU_USAGE_REQ           620
-#define GSN_621
-#define GSN_622
-#define GSN_623
+#define GSN_OVERLOAD_STATUS_REP         621
+#define GSN_SEND_THREAD_STATUS_REP      622
+#define GSN_NODE_OVERLOAD_STATUS_ORD    623
 
 #define GSN_CREATE_FK_REQ               627
 #define GSN_CREATE_FK_REF               628
@@ -871,6 +880,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_647
 #define GSN_648
 #define GSN_649
+
+#define GSN_SET_WAKEUP_THREAD_ORD       657
+#define GSN_WAKEUP_THREAD_ORD           658
+#define GSN_SEND_WAKEUP_THREAD_ORD      659
 
 #define GSN_UTIL_CREATE_LOCK_REQ        132
 #define GSN_UTIL_CREATE_LOCK_REF        133
@@ -1102,4 +1115,69 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUMA_HANDOVER_COMPLETE_REP  780
 #define GSN_END_TOREP                   781
 #define GSN_LOCAL_RECOVERY_COMP_REP     782
+
+#define GSN_PROCESSINFO_REP             783
+#define GSN_SYNC_PAGE_CACHE_REQ         784
+#define GSN_SYNC_PAGE_CACHE_CONF        785
+
+#define GSN_SYNC_EXTENT_PAGES_REQ       786
+#define GSN_SYNC_EXTENT_PAGES_CONF      787
+
+#define GSN_RESTORABLE_GCI_REP          788
+
+#define GSN_LCP_START_REP               789 /* No longer used */
+
+#define GSN_WAIT_ALL_COMPLETE_LCP_REQ   790
+#define GSN_WAIT_ALL_COMPLETE_LCP_CONF  791
+
+#define GSN_WAIT_COMPLETE_LCP_REQ       792
+#define GSN_WAIT_COMPLETE_LCP_CONF      793
+
+#define GSN_INFORM_BACKUP_DROP_TAB_REQ  794
+#define GSN_INFORM_BACKUP_DROP_TAB_CONF 795
+
+#define GSN_HALT_COPY_FRAG_REQ          796
+#define GSN_HALT_COPY_FRAG_CONF         797
+#define GSN_HALT_COPY_FRAG_REF          798
+
+#define GSN_RESUME_COPY_FRAG_REQ        799
+#define GSN_RESUME_COPY_FRAG_CONF       800
+#define GSN_RESUME_COPY_FRAG_REF        801
+
+#define GSN_READ_LOCAL_SYSFILE_REQ      802
+#define GSN_READ_LOCAL_SYSFILE_CONF     803
+#define GSN_WRITE_LOCAL_SYSFILE_REQ     804
+#define GSN_WRITE_LOCAL_SYSFILE_CONF    805
+
+#define GSN_CUT_UNDO_LOG_TAIL_REQ       806
+#define GSN_CUT_UNDO_LOG_TAIL_CONF      807
+
+#define GSN_CUT_REDO_LOG_TAIL_REQ       808
+#define GSN_CUT_REDO_LOG_TAIL_CONF      809
+
+#define GSN_LCP_ALL_COMPLETE_REQ        810
+#define GSN_LCP_ALL_COMPLETE_CONF       811
+
+#define GSN_START_DISTRIBUTED_LCP_ORD   812
+#define GSN_START_FULL_LOCAL_LCP_ORD    813
+#define GSN_COPY_FRAG_IN_PROGRESS_REP   814
+#define GSN_COPY_FRAG_NOT_IN_PROGRESS_REP 815
+
+#define GSN_SET_LOCAL_LCP_ID_REQ        816
+#define GSN_SET_LOCAL_LCP_ID_CONF       817
+
+#define GSN_START_NODE_LCP_REQ          818
+#define GSN_START_NODE_LCP_CONF         819
+
+#define GSN_GET_LATEST_GCI_REQ          820
+
+#define GSN_UNDO_LOG_LEVEL_REP          821
+#define GSN_START_LOCAL_LCP_ORD         822
+
+#define GSN_INFO_GCP_STOP_TIMER         823
+
+#define GSN_CHECK_LCP_IDLE_ORD          824
+
+#define GSN_SET_LATEST_LCP_ID           825
+#define GSN_SYNC_PAGE_WAIT_REP          826
 #endif

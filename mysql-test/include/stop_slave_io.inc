@@ -13,14 +13,14 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
 # --source include/stop_slave_io.inc
 #
 # Parameters:
 #   $rpl_channel_name
-#     If this is not '', a FOR CHANNEL  '$rpl_channel_name' is added.
+#     If set, a FOR CHANNEL $rpl_channel_name is added.
 #
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
@@ -30,6 +30,12 @@
 
 
 --let $include_filename= stop_slave_io.inc
+--let $_for_channel_clause=
+if ($rpl_channel_name)
+{
+  --let $_for_channel_clause= FOR CHANNEL $rpl_channel_name
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 
@@ -39,14 +45,8 @@ if (!$rpl_debug)
 }
 
 
-if ($rpl_channel_name != '')
-{
-  eval STOP SLAVE IO_THREAD FOR CHANNEL  '$rpl_channel_name';
-}
-if ($rpl_channel_name == '')
-{
-  STOP SLAVE IO_THREAD;
-}
+--eval STOP SLAVE IO_THREAD $_for_channel_clause
+
 
 --source include/wait_for_slave_io_to_stop.inc
 

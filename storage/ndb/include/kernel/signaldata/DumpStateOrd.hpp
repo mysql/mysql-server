@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -76,6 +83,12 @@ public:
     LQHLogFileInitStatus = 102000,
     _LQHMax = 102999,
 
+    _CMVMIMin = 103000,
+    SetSchedulerResponsiveness = 103000,
+    EnableEventLoggerDebug = 103001,
+    DisableEventLoggerDebug = 103002,
+    _CMVMIMax = 103099,
+
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information
@@ -105,6 +118,7 @@ public:
     CmvmiSchedulerSpinTimer = 506,
     // 1222-1225 DICT
     DictDumpLockQueue = 1228,
+    DictDumpGetTabInfoQueue = 1229,
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
     LqhDumpOneScanRec = 2300,
@@ -152,6 +166,9 @@ public:
     CmvmiLongSignalMemorySnapshot = 2608,
     CmvmiLongSignalMemorySnapshotCheck = 2609,
     CmvmiSetKillerWatchdog = 2610,
+    CmvmiLongSignalMemorySnapshotCheck2 = 2611,
+
+    CmvmiShowLongSignalOwnership = 2612, /* Show owners of LSM */
 
     LCPContinue = 5900,
     // 7000 DIH
@@ -193,6 +210,7 @@ public:
      * Allows GCP stop thresholds to be set
      */
     DihSetGcpStopVals = 7026,
+    DihStallLcpStart = 7027,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,
@@ -205,8 +223,13 @@ public:
     TuxSetLogFlags = 12002,
     TuxMetaDataJunk = 12009,
     
-    DumpTsman = 9800, 
+    DumpTsman = 9800,
+ 
     DumpLgman = 10000,
+    LgmanDumpUndoStateClusterLog = 10001,
+    LgmanDumpUndoStateLocalLog = 10002,
+    LgmanCheckCallbacksClear = 10003,
+    
     DumpPgman = 11000,
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,

@@ -18,7 +18,7 @@ Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;
@@ -104,7 +104,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	fetch	2
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

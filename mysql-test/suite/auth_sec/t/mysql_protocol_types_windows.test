@@ -1,20 +1,8 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 --source include/windows.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
-# Only run this test if shared memory is avaliable
-let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
-if ($shm != ON){
-  skip No shm support;
-}
+
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
-
-
-let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if ($nmp != ON){
-  skip No named pipe support;
-}
-
 
 # WL#7729
 #

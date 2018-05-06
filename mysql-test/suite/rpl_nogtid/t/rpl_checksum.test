@@ -1,0 +1,269 @@
+# WL2540 replication events checksum
+# Testing configuration parameters
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
+call mtr.add_suppression('Replication event checksum verification failed');
+# due to C failure simulation
+call mtr.add_suppression('Relay log write failure: could not queue event from master');
+call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
+call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
+call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
+
+# A. read/write access to the global vars:
+# binlog_checksum master_verify_checksum slave_sql_verify_checksum
+
+connection master;
+
+set @master_save_binlog_checksum= @@global.binlog_checksum;
+set @save_master_verify_checksum =  @@global.master_verify_checksum;
+
+select @@global.binlog_checksum as 'must be CRC32 because of the command line option';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.binlog_checksum as 'no session var';
+
+select @@global.master_verify_checksum  as 'must be zero because of default';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.master_verify_checksum  as 'no session var';
+
+connection slave;
+
+set @slave_save_binlog_checksum= @@global.binlog_checksum;
+set @save_slave_sql_verify_checksum = @@global.slave_sql_verify_checksum;
+
+select @@global.slave_sql_verify_checksum  as 'must be one because of default';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.slave_sql_verify_checksum  as 'no session var';
+
+connection master;
+
+source include/show_binary_logs.inc;
+set @@global.binlog_checksum = NONE;
+--echo  *** must be rotations seen ***
+source include/show_binary_logs.inc;
+
+set @@global.binlog_checksum = default;
+
+# testing lack of side-effects in non-effective update of binlog_checksum:
+set @@global.binlog_checksum = CRC32;
+set @@global.binlog_checksum = CRC32; 
+
+set @@global.master_verify_checksum = 0;
+set @@global.master_verify_checksum = default;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.binlog_checksum = ADLER32;
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.master_verify_checksum = 2; # the var is of bool type
+
+connection slave;
+
+set @@global.slave_sql_verify_checksum = 0;
+set @@global.slave_sql_verify_checksum = default;
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.slave_sql_verify_checksum = 2; # the var is of bool type
+
+#
+# B. Old Slave to New master conditions
+#
+# while master does not send a checksum-ed binlog the Old Slave can
+# work with the New Master
+
+connection master;
+
+set @@global.binlog_checksum = NONE;
+create table t1 (a int);
+
+# testing that binlog rotation preserves opt_binlog_checksum value
+flush logs;
+flush logs;
+flush logs;
+
+sync_slave_with_master;
+#connection slave;
+# checking that rotation on the slave side leaves slave stable
+flush logs;
+flush logs;
+flush logs;
+select count(*) as zero from t1;
+
+source include/stop_slave.inc;
+
+connection master;
+set @@global.binlog_checksum = CRC32;
+insert into t1 values (1) /* will not be applied on slave due to simulation */;
+
+# instruction to the dump thread
+
+connection slave;
+set @@global.debug='d,simulate_slave_unaware_checksum';
+start slave;
+let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $show_slave_io_error= 1
+# Mask line numbers
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+source include/wait_for_slave_io_error.inc;
+
+select count(*) as zero from t1;
+
+###connection master;
+
+# *always* make sure the slave threads are stopped 
+# or in waiting state before updating the global debug
+# variable (see BUG#11765758 for details).
+--source include/stop_slave.inc
+set @@global.debug='';
+
+connection slave;
+source include/start_slave.inc;
+
+# 
+# C. checksum failure simulations
+#
+
+# C1. Failure by a client thread
+connection master;
+set @@global.master_verify_checksum = 1;
+set @@session.debug='d,simulate_checksum_test_failure';
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+show binlog events;
+set @@session.debug='';
+set @@global.master_verify_checksum = default;
+
+#connection master;
+sync_slave_with_master;
+
+connection slave;
+source include/stop_slave.inc;
+
+connection master;
+create table t2 (a int);
+let $pos_master= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+connection slave;
+
+# C2. Failure by IO thread
+# instruction to io thread
+set @@global.debug='d,simulate_checksum_test_failure';
+start slave io_thread;
+# ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 13122, 13115;
+--let $show_slave_io_error= 0
+source include/wait_for_slave_io_error.inc;
+# no need to stop the IO thread, it is already stopped
+set @@global.debug='';
+
+# to make IO thread re-read it again w/o the failure
+start slave io_thread;
+--connection master
+--source include/sync_slave_io_with_master.inc
+
+# C3. Failure by SQL thread
+# instruction to sql thread;
+set @@global.slave_sql_verify_checksum = 1;
+set @@global.debug='d,simulate_checksum_test_failure';
+start slave sql_thread;
+let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
+--let $show_slave_sql_error= 1
+source include/wait_for_slave_sql_error.inc;
+--source include/stop_slave.inc
+# resuming SQL thread to parse out the event w/o the failure
+set @@global.debug=''; 
+source include/start_slave.inc;
+
+connection master;
+sync_slave_with_master;
+
+#connection slave;
+select count(*) as 'must be zero' from t2;
+
+#
+# D. Reset slave, Change-Master, Binlog & Relay-log rotations with 
+#    random value on binlog_checksum on both master and slave
+#
+connection slave;
+stop slave;
+reset slave;
+reset master;
+
+# randomize slave server's own checksum policy
+set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
+flush logs;
+
+connection master;
+set @@global.binlog_checksum= CRC32;
+reset master;
+flush logs;
+create table t3 (a int, b char(5));
+
+connection slave;
+source include/start_slave.inc;
+
+connection master;
+sync_slave_with_master;
+
+#connection slave;
+select count(*) as 'must be zero' from t3;
+source include/stop_slave.inc;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
+eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
+
+connection master;
+flush logs;
+reset master;
+insert into t3 value (1, @@global.binlog_checksum);
+
+connection slave;
+source include/start_slave.inc;
+flush logs;
+
+connection master;
+sync_slave_with_master;
+
+#connection slave;
+select count(*) as 'must be one' from t3;
+
+connection master;
+set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
+insert into t3 value (1, @@global.binlog_checksum);
+sync_slave_with_master;
+
+#connection slave;
+
+#clean-up
+
+connection master;
+drop table t1, t2, t3;
+set @@global.binlog_checksum = @master_save_binlog_checksum;
+set @@global.master_verify_checksum = @save_master_verify_checksum;
+
+#
+# BUG#58564: flush_read_lock fails in mysql-trunk-bugfixing after merging with WL#2540
+#
+# Sanity check that verifies that no assertions are triggered because
+# of old FD events (generated by versions prior to server released with 
+# checksums feature)
+#
+# There is no need for query log, if something wrong this should trigger
+# an assertion
+
+--disable_query_log
+
+BINLOG '
+MfmqTA8BAAAAZwAAAGsAAAABAAQANS41LjctbTMtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAx+apMEzgNAAgAEgAEBAQEEgAAVAAEGggAAAAICAgCAA==
+';
+
+--enable_query_log
+
+#connection slave;
+sync_slave_with_master;
+set @@global.binlog_checksum = @slave_save_binlog_checksum;
+set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
+
+--source include/rpl_end.inc

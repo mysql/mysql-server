@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -158,9 +165,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIGETNODESCONF,         "DIGETNODESCONF" }
   ,{ GSN_DIGETNODESREF,          "DIGETNODESREF" }
   ,{ GSN_DIGETNODESREQ,          "DIGETNODESREQ" }
-  ,{ GSN_DIH_SCAN_GET_NODES_REQ, "DIH_SCAN_GET_NODES_REQ" }
-  ,{ GSN_DIH_SCAN_GET_NODES_REF, "DIH_SCAN_GET_NODES_REF" }
-  ,{ GSN_DIH_SCAN_GET_NODES_CONF,"DIH_SCAN_GET_NODES_CONF" }
   ,{ GSN_DIH_RESTARTCONF,        "DIH_RESTARTCONF" }
   ,{ GSN_DIH_RESTARTREF,         "DIH_RESTARTREF" }
   ,{ GSN_DIH_RESTARTREQ,         "DIH_RESTARTREQ" }
@@ -490,6 +494,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_BACKUP_FRAGMENT_REQ,    "BACKUP_FRAGMENT_REQ" }
   ,{ GSN_BACKUP_FRAGMENT_REF,    "BACKUP_FRAGMENT_REF" }
   ,{ GSN_BACKUP_FRAGMENT_CONF,   "BACKUP_FRAGMENT_CONF" }
+  ,{ GSN_BACKUP_FRAGMENT_COMPLETE_REP,
+      "BACKUP_FRAGMENT_COMPLETE_REP" }
   ,{ GSN_STOP_BACKUP_REQ,        "STOP_BACKUP_REQ" }
   ,{ GSN_STOP_BACKUP_REF,        "STOP_BACKUP_REF" }
   ,{ GSN_STOP_BACKUP_CONF,       "STOP_BACKUP_CONF" }
@@ -564,6 +570,10 @@ const GsnName SignalNames [] = {
   ,{ GSN_CREATE_FRAGMENTATION_REF,  "CREATE_FRAGMENTATION_REF" }
   ,{ GSN_CREATE_FRAGMENTATION_CONF, "CREATE_FRAGMENTATION_CONF" }
 
+  ,{ GSN_SET_WAKEUP_THREAD_ORD,  "SET_WAKEUP_THREAD_ORD" }
+  ,{ GSN_WAKEUP_THREAD_ORD,      "WAKEUP_THREAD_ORD" }
+  ,{ GSN_SEND_WAKEUP_THREAD_ORD,  "SEND_WAKEUP_THREAD_ORD" }
+
   ,{ GSN_UTIL_CREATE_LOCK_REQ,   "UTIL_CREATE_LOCK_REQ" }
   ,{ GSN_UTIL_CREATE_LOCK_REF,   "UTIL_CREATE_LOCK_REF" }
   ,{ GSN_UTIL_CREATE_LOCK_CONF,  "UTIL_CREATE_LOCK_CONF" }
@@ -630,6 +640,10 @@ const GsnName SignalNames [] = {
   ,{ GSN_CHECK_NODE_RESTARTCONF, "CHECK_NODE_RESTARTCONF" }
 
   ,{ GSN_GET_CPU_USAGE_REQ, "GET_CPU_USAGE_REQ" }
+
+  ,{ GSN_OVERLOAD_STATUS_REP, "OVERLOAD_STATUS_REP" }
+  ,{ GSN_SEND_THREAD_STATUS_REP, "SEND_THREAD_STATUS_REP" }
+  ,{ GSN_NODE_OVERLOAD_STATUS_ORD, "NODE_OVERLOAD_STATUS_ORD" }
 
   /* DICT LOCK */
   ,{ GSN_DICT_LOCK_REQ,          "DICT_LOCK_REQ" }
@@ -817,5 +831,50 @@ const GsnName SignalNames [] = {
   ,{ GSN_LOCAL_RECOVERY_COMP_REP, "LOCAL_RECOVERY_COMP_REP" }
   ,{ GSN_CANCEL_SUBSCRIPTION_REQ, "CANCEL_SUBSCRIPTION_REQ" }
   ,{ GSN_ISOLATE_ORD, "ISOLATE_ORD" }
+  ,{ GSN_PROCESSINFO_REP, "PROCESSINFO_REP" }
+  ,{ GSN_SYNC_PAGE_CACHE_REQ, "SYNC_PAGE_CACHE_REQ" }
+  ,{ GSN_SYNC_PAGE_CACHE_CONF, "SYNC_PAGE_CACHE_CONF" }
+  ,{ GSN_SYNC_EXTENT_PAGES_REQ, "SYNC_EXTENT_PAGES_REQ" }
+  ,{ GSN_SYNC_EXTENT_PAGES_CONF, "SYNC_EXTENT_PAGES_CONF" }
+  ,{ GSN_RESTORABLE_GCI_REP, "RESTORABLE_GCI_REP" }
+  ,{ GSN_WAIT_ALL_COMPLETE_LCP_REQ, "WAIT_ALL_COMPLETE_LCP_REQ" }
+  ,{ GSN_WAIT_ALL_COMPLETE_LCP_CONF, "WAIT_ALL_COMPLETE_LCP_CONF" }
+  ,{ GSN_WAIT_COMPLETE_LCP_REQ, "WAIT_COMPLETE_LCP_REQ" }
+  ,{ GSN_WAIT_COMPLETE_LCP_CONF, "WAIT_COMPLETE_LCP_CONF" }
+  ,{ GSN_INFO_GCP_STOP_TIMER, "INFO_STOP_GCP_TIMER" }
+  ,{ GSN_READ_LOCAL_SYSFILE_REQ, "READ_LOCAL_SYSFILE_REQ" }
+  ,{ GSN_READ_LOCAL_SYSFILE_CONF, "READ_LOCAL_SYSFILE_CONF" }
+  ,{ GSN_WRITE_LOCAL_SYSFILE_REQ, "WRITE_LOCAL_SYSFILE_REQ" }
+  ,{ GSN_WRITE_LOCAL_SYSFILE_CONF, "WRITE_LOCAL_SYSFILE_CONF" }
+  ,{ GSN_GET_LATEST_GCI_REQ, "GET_LATEST_GCI_REQ" }
+  ,{ GSN_HALT_COPY_FRAG_REQ, "HALT_COPY_FRAG_REQ" }
+  ,{ GSN_HALT_COPY_FRAG_CONF, "HALT_COPY_FRAG_CONF" }
+  ,{ GSN_HALT_COPY_FRAG_REF, "HALT_COPY_FRAG_REF" }
+  ,{ GSN_RESUME_COPY_FRAG_REQ, "RESUME_COPY_FRAG_REQ" }
+  ,{ GSN_RESUME_COPY_FRAG_CONF, "RESUME_COPY_FRAG_CONF" }
+  ,{ GSN_RESUME_COPY_FRAG_REF, "RESUME_COPY_FRAG_REF" }
+  ,{ GSN_START_LOCAL_LCP_ORD, "START_LOCAL_LCP_ORD" }
+  ,{ GSN_START_FULL_LOCAL_LCP_ORD, "START_FULL_LOCAL_LCP_ORD" }
+  ,{ GSN_START_DISTRIBUTED_LCP_ORD, "START_DISTRIBUTED_LCP_ORD" }
+  ,{ GSN_CUT_UNDO_LOG_TAIL_REQ, "CUT_UNDO_LOG_TAIL_REQ" }
+  ,{ GSN_CUT_UNDO_LOG_TAIL_CONF, "CUT_UNDO_LOG_TAIL_CONF" }
+  ,{ GSN_CUT_REDO_LOG_TAIL_REQ, "CUT_REDO_LOG_TAIL_REQ" }
+  ,{ GSN_CUT_REDO_LOG_TAIL_CONF, "CUT_REDO_LOG_TAIL_CONF" }
+  ,{ GSN_LCP_ALL_COMPLETE_REQ, "LCP_ALL_COMPLETE_REQ" }
+  ,{ GSN_LCP_ALL_COMPLETE_CONF, "LCP_ALL_COMPLETE_CONF" }
+  ,{ GSN_COPY_FRAG_IN_PROGRESS_REP, "COPY_FRAG_IN_PROGRESS_REP" }
+  ,{ GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
+     "COPY_FRAG_NOT_IN_PROGRESS_REP" }
+  ,{ GSN_SET_LOCAL_LCP_ID_REQ, "SET_LOCAL_LCP_ID_REQ" }
+  ,{ GSN_SET_LOCAL_LCP_ID_CONF, "SET_LOCAL_LCP_ID_CONF" }
+  ,{ GSN_START_NODE_LCP_REQ, "START_NODE_LCP_REQ" }
+  ,{ GSN_START_NODE_LCP_CONF, "START_NODE_LCP_CONF" }
+  ,{ GSN_UNDO_LOG_LEVEL_REP, "UNDO_LOG_LEVEL_REP" }
+  ,{ GSN_LCP_START_REP, "LCP_START_REP" }
+  ,{ GSN_INFORM_BACKUP_DROP_TAB_REQ, "INFORM_BACKUP_DROP_TAB_REQ" }
+  ,{ GSN_INFORM_BACKUP_DROP_TAB_CONF, "INFORM_BACKUP_DROP_TAB_CONF" }
+  ,{ GSN_CHECK_LCP_IDLE_ORD, "CHECK_LCP_IDLE_ORD" }
+  ,{ GSN_SET_LATEST_LCP_ID, "SET_LATEST_LCP_ID" }
+  ,{ GSN_SYNC_PAGE_WAIT_REP, "SYNC_PAGE_WAIT_REP" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

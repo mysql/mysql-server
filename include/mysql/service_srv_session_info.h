@@ -1,42 +1,44 @@
 #ifndef MYSQL_SERVICE_SRV_SESSION_INFO_INCLUDED
 #define MYSQL_SERVICE_SRV_SESSION_INFO_INCLUDED
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file include/mysql/service_srv_session_info.h
   Service providing setters and getters for some properties of a session
 */
 
-
 #include "mysql/service_srv_session.h"
 #ifndef MYSQL_ABI_CHECK
-#include "my_thread.h"           /* my_thread_id */
-#include "m_string.h"            /* LEX_CSTRING */
-#include "plugin.h"              /* MYSQL_THD */
-#include "mysql_com.h"           /* Vio for violite.h */
-#include "violite.h"             /* enum_vio_type */
-#include <stdint.h>              /* uint16_t */
+#include <stdint.h>    /* uint16_t */
+#include "m_string.h"  /* LEX_CSTRING */
+#include "my_thread.h" /* my_thread_id */
+#include "my_thread_local.h"
+#include "mysql_com.h" /* Vio for violite.h */
+#include "plugin.h"    /* MYSQL_THD */
+#include "violite.h"   /* enum_vio_type */
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern struct srv_session_info_service_st {
+extern "C" struct srv_session_info_service_st {
   MYSQL_THD (*get_thd)(MYSQL_SESSION session);
 
   my_thread_id (*get_session_id)(MYSQL_SESSION session);
@@ -52,19 +54,27 @@ extern struct srv_session_info_service_st {
 
   unsigned int (*session_count)();
   unsigned int (*thread_count)(const void *plugin);
-} *srv_session_info_service;
+} * srv_session_info_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define srv_session_info_get_thd(session)            srv_session_info_service->get_thd((session))
-#define srv_session_info_get_session_id(sess)        srv_session_info_service->get_session_id((sess))
-#define srv_session_info_get_current_db(sess)        srv_session_info_service->get_current_db((sess))
-#define srv_session_info_get_client_port(sess)       srv_session_info_service->get_client_port((sess))
-#define srv_session_info_set_client_port(sess, port) srv_session_info_service->set_client_port((sess), (port))
-#define srv_session_info_set_connection_type(sess, type) srv_session_info_service->set_connection_type((sess), (type))
-#define srv_session_info_killed(sess)                srv_session_info_service->killed((sess))
-#define srv_session_info_session_count(sess)         srv_session_info_service->session_count(sess)
-#define srv_session_info_thread_count(plugin)          srv_session_info_service->thread_count(plugin)
+#define srv_session_info_get_thd(session) \
+  srv_session_info_service->get_thd((session))
+#define srv_session_info_get_session_id(sess) \
+  srv_session_info_service->get_session_id((sess))
+#define srv_session_info_get_current_db(sess) \
+  srv_session_info_service->get_current_db((sess))
+#define srv_session_info_get_client_port(sess) \
+  srv_session_info_service->get_client_port((sess))
+#define srv_session_info_set_client_port(sess, port) \
+  srv_session_info_service->set_client_port((sess), (port))
+#define srv_session_info_set_connection_type(sess, type) \
+  srv_session_info_service->set_connection_type((sess), (type))
+#define srv_session_info_killed(sess) srv_session_info_service->killed((sess))
+#define srv_session_info_session_count(sess) \
+  srv_session_info_service->session_count(sess)
+#define srv_session_info_thread_count(plugin) \
+  srv_session_info_service->thread_count(plugin)
 
 #else
 
@@ -155,7 +165,6 @@ int srv_session_info_killed(MYSQL_SESSION session);
 */
 unsigned int srv_session_info_session_count();
 
-
 /**
   Returns the number opened sessions in thread initialized by srv_session
   service.
@@ -166,9 +175,5 @@ unsigned int srv_session_info_session_count();
 unsigned int srv_session_info_thread_count(const void *plugin);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* MYSQL_SERVICE_SRV_SESSION_INFO_INCLUDED */

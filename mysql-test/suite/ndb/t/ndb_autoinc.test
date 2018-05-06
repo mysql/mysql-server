@@ -1,10 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
@@ -36,12 +30,16 @@ CREATE TABLE t3 (
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 
+--disable_warnings
 SHOW CREATE TABLE t3;
+--enable_warnings
 
 DROP TABLE t1, t3;
 

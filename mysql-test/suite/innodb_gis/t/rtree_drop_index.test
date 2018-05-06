@@ -1,6 +1,4 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug #21899444	INNODB: ASSERT FAILURE (COL->ORD_PART)

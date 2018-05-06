@@ -1,6 +1,3 @@
---source include/have_innodb.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#19904800 - MISSING DBUG_RETURN IN HA_INNOBASE::UPDATE_ROW
@@ -12,9 +9,7 @@ CREATE TABLE t2(b int PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(2);
 
-SET GLOBAL innodb_fast_shutdown=0;
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 --error ER_OPEN_AS_READONLY
 UPDATE t1,t2 SET t1.a = 2, t2.b = 2 WHERE t1.a = 1;
@@ -29,6 +24,11 @@ DROP TABLE t2;
 --echo #
 --echo # Bug#20578834 - INNODB READ ONLY MODE AND NON EXISTENT TMP DIR CRASHES SERVER
 --echo #
+
+--disable_query_log
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--enable_query_log
 
 CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
 

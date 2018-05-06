@@ -51,6 +51,8 @@ eval SET $charset_variable = armscii8;
 eval SELECT $charset_variable;
 eval SET $charset_variable = utf8;
 eval SELECT $charset_variable;
+eval SET $charset_variable = utf8mb4;
+eval SELECT $charset_variable;
 # Error with Linux
 --error 0,ER_WRONG_VALUE_FOR_VAR
 eval SET $charset_variable = ucs2;

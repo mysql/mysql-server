@@ -17,22 +17,22 @@ innodb_compression_level	6
 show session variables like 'innodb_compression_level';
 Variable_name	Value
 innodb_compression_level	6
-select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from performance_schema.global_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	6
-select * from information_schema.session_variables where variable_name='innodb_compression_level';
+innodb_compression_level	6
+select * from performance_schema.session_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	6
+innodb_compression_level	6
 set global innodb_compression_level=2;
 select @@global.innodb_compression_level;
 @@global.innodb_compression_level
 2
-select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from performance_schema.global_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	2
-select * from information_schema.session_variables where variable_name='innodb_compression_level';
+innodb_compression_level	2
+select * from performance_schema.session_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	2
+innodb_compression_level	2
 set session innodb_compression_level=4;
 ERROR HY000: Variable 'innodb_compression_level' is a GLOBAL variable and should be set with SET GLOBAL
 set global innodb_compression_level=1.1;
@@ -47,18 +47,18 @@ Warning	1292	Truncated incorrect innodb_compression_level value: '10'
 select @@global.innodb_compression_level;
 @@global.innodb_compression_level
 9
-select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from performance_schema.global_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	9
+innodb_compression_level	9
 set global innodb_compression_level=-7;
 Warnings:
 Warning	1292	Truncated incorrect innodb_compression_level value: '-7'
 select @@global.innodb_compression_level;
 @@global.innodb_compression_level
 0
-select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from performance_schema.global_variables where variable_name='innodb_compression_level';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_COMPRESSION_LEVEL	0
+innodb_compression_level	0
 set global innodb_compression_level=0;
 select @@global.innodb_compression_level;
 @@global.innodb_compression_level

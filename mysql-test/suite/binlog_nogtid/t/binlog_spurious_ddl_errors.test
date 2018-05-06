@@ -1,0 +1,97 @@
+################################################################################
+# BUG#50479 DDL stmt on row-only/stmt-only tables generate spurious
+#           binlog_format errors
+#
+# In the fix of BUG#39934 in 5.1-rep+3, errors are generated when
+# binlog_format='row' and a statement modifies a table restricted to
+# statement-logging (ER_BINLOG_ROW_MODE_AND_STMT_ENGINE); or if
+# binlog_format=statement and a statement modifies a table limited to
+# row-logging (ER_BINLOG_STMT_MODE_AND_ROW_ENGINE).
+#
+# In this test case, we check if some DDL statements that lock tables do not
+# trigger errors as they do not generate rows events and as such are harmless
+# from the point of view of conflicts between the engine's supported logging
+# format and the value of binlog_format.
+#
+# In particular, we check if:
+#   1 - ALTER TABLE, CREATE INDEX and CREATE TRIGGER do not generate either
+#   ER_BINLOG_STMT_MODE_AND_ROW_ENGINE or ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+#
+#   2 - CREATE TABLE ... SELECT generates an error because the command can
+#   generate row events but CREATE TABLE without SELECT does not generate
+#   an error.
+################################################################################
+--source include/have_example_plugin.inc
+--source include/have_log_bin.inc
+--source include/no_ps_protocol.inc
+
+SET @old_binlog_format= @@global.binlog_format;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+--echo ################################################################################
+--echo # Verifies if ER_BINLOG_STMT_MODE_AND_ROW_ENGINE happens by setting the binlog
+--echo # format to STATEMENT and the transaction isolation level to READ COMMITTED as
+--echo # such changes force Innodb to accept changes in the row format.
+--echo #
+--echo # When CREATE TABLE, ALTER TABLE, CREATE INDEX and CREATE TRIGGER are executed
+--echo # any error should be triggered.
+--echo # 
+--echo # In contrast, CREATE TABLE ... SELECT should trigger the following error:
+--echo # ER_BINLOG_STMT_MODE_AND_ROW_ENGINE.
+--echo ################################################################################
+SET binlog_format = STATEMENT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+CREATE TABLE t_row (a VARCHAR(100)) ENGINE = InnoDB;
+
+ALTER TABLE t_row ADD COLUMN b INT;
+
+CREATE TRIGGER trig_row BEFORE INSERT ON t_row FOR EACH ROW INSERT INTO t_stmt VALUES (1);
+
+CREATE INDEX i ON t_row(a);
+
+--error ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+CREATE TABLE t_row_new ENGINE = InnoDB SELECT * FROM t_row;
+
+DROP TABLE t_row;
+
+--echo
+--echo
+
+--echo ################################################################################
+--echo # Verifies if ER_BINLOG_ROW_MODE_AND_STMT_ENGINE happens by setting the binlog
+--echo # format to ROW and using a engine, i.e. EXAMPLE, that only supports STATEMENT.
+--echo #
+--echo # When CREATE TABLE, ALTER TABLE, CREATE INDEX and CREATE TRIGGER are executed
+--echo # the error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE is not triggered. Note that other
+--echo # errors are triggered due to restrictions in the engine.
+--echo # 
+--echo # In contrast, CREATE TABLE ... SELECT should trigger the following error:
+--echo # ER_BINLOG_ROW_MODE_AND_STMT_ENGINE.
+--echo ################################################################################
+SET binlog_format = 'ROW';
+CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
+
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t_stmt ADD COLUMN b INT;
+
+CREATE TRIGGER trig_stmt BEFORE INSERT ON t_stmt FOR EACH ROW INSERT INTO t_stmt VALUES (1);
+
+--error ER_TOO_MANY_KEYS
+CREATE INDEX i ON t_stmt(a);
+
+--error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
+CREATE TABLE t_stmt_new ENGINE = EXAMPLE SELECT * FROM t_stmt;
+
+DROP TABLE t_stmt;
+
+--echo
+--echo
+
+--echo ################################################################################
+--echo #                                 CLEAN UP                                     #
+--echo ################################################################################
+flush tables;
+UNINSTALL PLUGIN example;
+SET @@global.binlog_format = @old_binlog_format;
+SET @@session.binlog_format = @old_binlog_format;

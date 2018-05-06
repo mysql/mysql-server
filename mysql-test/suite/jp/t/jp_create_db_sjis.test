@@ -1,4 +1,3 @@
---source include/have_sjis.inc
 --character_set sjis
 SET NAMES sjis;
 SET character_set_database = sjis;
@@ -16,7 +15,8 @@ CREATE DATABASE `ﾆﾎﾝｺﾞ`;
 CREATE DATABASE `日本語`;
 CREATE DATABASE `ソ十表`;
 
-SELECT schema_name from information_schema.schemata where schema_name <> 'mtr';
+SELECT schema_name from information_schema.schemata
+  where schema_name <> 'mtr' order by schema_name;
 
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;

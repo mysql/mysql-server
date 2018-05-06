@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -100,6 +107,7 @@ Uint32 ndbGetOwnVersion();
  */
 #define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
 
+#define NDB_DISK_V2 NDB_MAKE_VERSION(7,6,0)
 /**
  * From which version do we support rowid
  */ 
@@ -131,6 +139,7 @@ Uint32 ndbGetOwnVersion();
 #define NDBD_MT_LQH_VERSION MAKE_VERSION(6,4,0)
 
 #define NDBD_SCHEMA_TRANS_VERSION NDB_MAKE_VERSION(6,4,0)
+#define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
 static
 inline
@@ -261,7 +270,7 @@ ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
   }
 }
 
-#if NOT_YET
+#ifdef NOT_YET
 #define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
 #define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
 #endif
@@ -274,7 +283,7 @@ ndb_fire_trig_ord_transid(Uint32 version)
   if (version >= NDB_VERSION_D)
     return 1;
 
-#if NOT_YET
+#ifdef NOT_YET
   const Uint32 major = (version >> 16) & 0xFF;
   const Uint32 minor = (version >>  8) & 0xFF;
   if (major >= 6)
@@ -792,6 +801,24 @@ ndbd_fixed_lookup_query_abort(Uint32 x)
 }
 
 /**
+ * Including vers. 'NDBD_SPJ_API_ONLY_LONG_TRANSID_AI',
+ * TRANSID_AI received from a SPJ query execution
+ * was required to always be a 'long signal'.
+ * (As it was always sent with the FLUSH_AI pseudo-read)
+ * From Cluster 7.6.2 and up, TRANSID_AI results rows from
+ * SPJ execution can be sent as (packed) 'short' signals.
+ */
+#define NDBD_SPJ_API_ONLY_LONG_TRANSID_AI NDB_MAKE_VERSION(7,6,1)
+
+static
+inline
+int
+ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
+{
+  return x > NDBD_SPJ_API_ONLY_LONG_TRANSID_AI;
+}
+
+/**
  * NOTE1:
  *   Even though pushed join support wasn't GA intil 7.2.4
  *   we claim support for it in all 7.2.x versions.
@@ -804,9 +831,31 @@ ndbd_fixed_lookup_query_abort(Uint32 x)
 static
 inline
 int
-ndb_join_pushdown(Uint32 x)
+ndbd_join_pushdown(Uint32 x)
 {
   return x >= NDBD_JOIN_PUSHDOWN;
+}
+
+/**
+ * An enhanced version of the SCAN_FRAGREQ signal has been
+ * introduced in 7.6.4, where multiple fragments to be scanned
+ * can be specified in a single 'REQ'.
+ *
+ * At the same time an updated version of QueryNode introduced
+ * a new QN_SCAN_FRAG OpNode type, with an extended format
+ * for specifying the scan 'batchSize'.
+ *
+ * That also deprecated (still supported) the former 'SCAN' type
+ * QueryNode into QN_SCAN_FRAG_v1 and QN_SCAN_INDEX_v1.
+ */
+#define NDBD_SPJ_MULTIFRAG_SCAN NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_spj_multifrag_scan(Uint32 x)
+{
+  return x >= NDBD_SPJ_MULTIFRAG_SCAN;
 }
 
 /**
@@ -895,6 +944,26 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
  */
 #define NDBD_SUPPORT_PARALLEL_SYNCH NDB_MAKE_VERSION(7,4,3)
 
+/**
+ * Support for wl#9819 ndbinfo.processes
+ */
+#define NDBD_PROCESSINFO_VERSION_75 NDB_MAKE_VERSION(7,5,7)
+#define NDBD_PROCESSINFO_VERSION_76 NDB_MAKE_VERSION(7,6,2)
+#define RELEASE_7_6_0 NDB_MAKE_VERSION(7,6,0)
+static
+inline
+int
+ndbd_supports_processinfo(Uint32 x)
+{
+  if(x < NDBD_PROCESSINFO_VERSION_75 ||
+    (x >= RELEASE_7_6_0 && x < NDBD_PROCESSINFO_VERSION_76))
+  {
+    return 0;
+  }
+  return 1;
+}
+
+
 #define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
 #define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
 #define NDBD_ISOLATE_ORD_74 NDB_MAKE_VERSION(7,4,3)
@@ -934,4 +1003,133 @@ ndbd_isolate_ord(Uint32 x)
   return 1;
 }
 
+/**
+ * Support for NDB_TABLE=PARTITION_BALANCE=...
+ * This is a table property that can change the number of fragments per
+ * table and still maintaining the automatic behaviour of NDB tables.
+ * Thus the real fragment number is still a function of cluster size.
+ */
+#define NDBD_SUPPORT_PARTITION_BALANCE NDB_MAKE_VERSION(7,5,2)
+
+static
+inline
+int
+ndbd_support_partition_balance(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_SUPPORT_PARTITION_BALANCE;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Support for NDB_TABLE=READ_BACKUP=...
+ * This is a table property that adapts the transaction protocol
+ * on these tables. It requires all data nodes to support this
+ * feature to be useful.
+ */
+#define NDBD_SUPPORT_READ_BACKUP NDB_MAKE_VERSION(7,5,2)
+
+static
+inline
+int
+ndbd_support_read_backup(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_SUPPORT_READ_BACKUP;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Support for NDB_TABLE=FULLY_REPLICATED=...
+ * This is a table property that adapts the transaction protocol
+ * on these tables. It requires all data nodes to support this
+ * feature to be useful.
+ */
+#define NDBD_SUPPORT_FULLY_REPLICATED NDB_MAKE_VERSION(7,5,2)
+
+static
+inline
+int
+ndbd_support_fully_replicated(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_SUPPORT_FULLY_REPLICATED;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Uses new Partial LCP format for LCPs
+ */
+#define NDBD_USE_PARTIAL_LCP_v1 NDB_MAKE_VERSION(7,6,3)
+#define NDBD_USE_PARTIAL_LCP_v2 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_use_partial_lcp(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_USE_PARTIAL_LCP_v2;
+    }
+  }
+  return 1;
+}
 #endif

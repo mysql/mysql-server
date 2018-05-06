@@ -1,0 +1,25 @@
+DROP SCHEMA IF EXISTS xtest;
+Warnings:
+Note	1008	Can't drop database 'xtest'; database doesn't exist
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (x INT AUTO_INCREMENT PRIMARY KEY, y VARCHAR(1) NOT NULL, z INT UNSIGNED UNIQUE);
+INSERT INTO xtest.xtable VALUES (1,2,3);
+CREATE TABLE xtest.ytable (a INT ZEROFILL, b TIMESTAMP, c FLOAT UNSIGNED, INDEX(a));
+INSERT INTO xtest.ytable VALUES (1,'2015-02-15',3);
+x	y	z
+1	2	3
+x:SINT: NOT_NULL PRIMARY_KEY AUTO_INCREMENT
+y:BYTES: NOT_NULL
+z:UINT: UNIQUE_KEY
+command ok
+a	b	c
+1	2015-02-15 00:00:00	3
+a:UINT: ZEROFILL MULTIPLE_KEY
+b:DATETIME: TIMESTAMP
+c:FLOAT: UNSIGNED
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

@@ -1,12 +1,22 @@
-
 #
 # Just a couple of tests to make sure that schema works.
 #
 # Drop mysqltest1 database, as it can left from the previous tests.
 #
 
+--source include/have_debug_sync.inc
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+# MDL blocking concurrent drop schema is different with --ps-protocol
+let $drop_schema_target_state='Waiting for schema metadata lock';
+if (`SELECT $PS_PROTOCOL = 1`)
+{
+  let $drop_schema_target_state='Waiting for table metadata lock';
+}
 
 --disable_warnings
 drop database if exists mysqltest1;
@@ -43,13 +53,12 @@ connection con2;
 
 --echo # Connection default
 connection default;
+
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-                     WHERE state= 'Waiting for table metadata lock' 
+                     WHERE state= $drop_schema_target_state
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
-# Error 1 is from ALTER DATABASE when the database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 1,1
+--error ER_NO_SUCH_DB
 ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
 SET autocommit= TRUE;
 
@@ -172,9 +181,11 @@ connection con2;
 
 --echo # Connection 3
 connection con3;
+
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table metadata lock' and info='DROP DATABASE db1';
+  WHERE state= $drop_schema_target_state;
 --source include/wait_condition.inc
+
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
@@ -195,7 +206,513 @@ connection default;
 disconnect con2;
 disconnect con3;
 
+--enable_connect_log
+
+--echo #
+--echo # Bug#21305766: DML ON A NON EXISTING TABLE DOES NOT ACQUIRE MDL ON THE SCHEMA NAME
+--echo #
+
+--echo # Set lock_wait_timeout, create a schema and a connection con1.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+
+--connect(con1, localhost, root)
+--echo # Access a non-existing table in the created schema, and park it after
+--echo # acquiring the schema while acquiring the dd::Table object.
+SET DEBUG_SYNC= 'acquired_schema_while_acquiring_table SIGNAL acquired WAIT_FOR cont';
+--send SELECT * from testdb.no_such_table
+
+--connection default
+--echo # From the default connection, drop the schema, then resume
+--echo # con1. Without the patch in the server code, DROP SCHEMA
+--echo # will fail with an assert due to the schema object being
+--echo # acquired by more than one thread. With the patch, we get
+--echo # a lock wait timeout for DROP since the other thread has an
+--echo # IX-lock on the schema name.
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP SCHEMA testdb;
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping SELECT * from testdb.no_such_table
+--error ER_NO_SUCH_TABLE
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Drop testdb and reset
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log
+
+--echo #
+--echo # Bug #21837759: SYNCHRONIZE USAGE OF SCHEMA DD OBJECTS BY MDL ACQUISITION
+--echo #
+--echo # Do a 'USE <schema>' and park it after retrieving the schema for
+--echo # finding the default db collation. Then, from a different
+--echo # connection, drop the same schema. Without the bugfix, this
+--echo # will fail due to improper concurrent usage of the DD cache
+--echo # elements. With the bugfix, the DROP will fail with a lock
+--echo # wait timeout due to the operations now being properly synchronized
+--echo # by meta data locking.
+
+--enable_connect_log
+
+--echo #
+--echo # Create the schema to be used in the test.
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+CREATE SCHEMA testdb;
+
+--echo #
+--echo # Create a new connection, change schema, and stop after
+--echo # retrieving the schema object for finding the default
+--echo # collation.
+--connect (con1, localhost, root)
+SET DEBUG_SYNC= 'acquired_schema_while_getting_collation SIGNAL acquired WAIT_FOR cont';
+--send USE testdb
+
+--echo #
+--echo # On the default connection, do a DROP schema while the
+--echo # other connection is holding the same schema object.
+--echo # This will fail with a lock wait timeout when the operations
+--echo # are properly synched by MDL. Without the synchronization,
+--echo # this will trigger an assert in the shared DD cache.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR acquired';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP SCHEMA testdb;
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--echo #
+--echo # Reap, reset, and delete connection.
+--connection con1
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+SET DEBUG_SYNC= 'RESET';
+DROP SCHEMA testdb;
+SET @@session.lock_wait_timeout= @start_session_value;
+--disable_connect_log
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+
+#
+# WL#6378: New data dictionary.
+#
+# Replace usage of 'check_db_dir_existence()' by
+# 'dd::schema_exists()'. Error handling will be
+# slightly different in some situations. Below,
+# six test cases check the behavior.
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to find tablespace");
+CALL mtr.add_suppression("Ignoring tablespace");
+CALL mtr.add_suppression("Cannot rename");
+CALL mtr.add_suppression("Cannot calculate");
+CALL mtr.add_suppression("Cannot open datafile");
+CALL mtr.add_suppression("The error means the system cannot find");
+CALL mtr.add_suppression("File ./s/t_innodb.ibd");
+CALL mtr.add_suppression("Operating system error number");
+--enable_query_log
+
+# 1. Create schema, remove directory, then try schema statements.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# SHOW CREATE SCHEMA accesses meta data only, and succeeds.
+SHOW CREATE SCHEMA s;
+
+# USE SCHEMA checks meta data only, and succeeds
+USE s;
+
+# ALTER SCHEMA is a meta data only operation, and succeeds.
+ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
+
+# SHOW CREATE SCHEMA accesses meta data only, and succeeds.
+SHOW CREATE SCHEMA s;
+
+# DROP SCHEMA verifies directory existence, and fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
+DROP SCHEMA s;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 2. Create schema, remove directory, then try CREATE VIEW.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# CREATE VIEW does not access the file system, and succeeds.
+CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 3. Create schema, remove directory, then try CREATE TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# CREATE TABLE for MyISAM fails.
+--replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR/
+--error 1,1
+CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+
+# CREATE TABLE for InnoDB creates parent directory, and succeeds.
+CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+--list_files $SCHEMA_DIR
+
+# DROP will work here since InnoDB created the directory.
+DROP SCHEMA s;
+
+# 4. Create schema, create tables, remove directory, then try ALTER TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR *
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# ALTER TABLE for MyISAM fails.
+--error ER_FILE_NOT_FOUND
+ALTER TABLE s.t_myisam ADD COLUMN c INTEGER;
+
+# ALTER TABLE for InnoDB fails differently depending on platform.
+--error ER_GET_ERRNO, ER_TABLESPACE_MISSING
+ALTER TABLE s.t_innodb ADD COLUMN c INTEGER;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 5. Create schema, create tables, remove directory, then try SHOW CREATE TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR *
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# SHOW CREATE TABLE for MyISAM fails.
+--error ER_FILE_NOT_FOUND
+SHOW CREATE TABLE s.t_myisam;
+
+# SHOW CREATE TABLE for InnoDB succeeds except on Windows.
+# Mute the statement due to platform dependent output.
+--disable_query_log
+--error 0, ER_TABLESPACE_MISSING
+SHOW CREATE TABLE s.t_innodb;
+--enable_query_log
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 6. Create schema, create tables, remove directory, then try DROP TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR *
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# DROP TABLE for MyISAM fails.
+--error ER_ENGINE_CANT_DROP_MISSING_TABLE
+DROP TABLE s.t_myisam;
+
+# DROP TABLE for InnoDB succeeds.
+DROP TABLE s.t_innodb;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# End of tests for WL#6378: New data dictionary.
+
+
+--echo #
+--echo # Bug#24732194: "USE DB_NAME" AND "SELECT SCHEMA()"
+--echo #               WORK FOR NON-EXISTING DATABASES
+--echo #
+
+# Create the directory manually
+--mkdir $SCHEMA_DIR
+
+# USE should fail, it didn't before.
+--error ER_BAD_DB_ERROR
+USE s;
+
+# Cleanup
+--rmdir $SCHEMA_DIR
+
+
+--echo #
+--echo # WL#7743 "New data dictionary: changes to DDL-related parts of SE API"
+--echo #
+--echo # Additional test coverage for changes in DROP DATABASE implementation.
+--echo # Check what happens when we fail to remove database directory during
+--echo # the last step of DROP DATABASE, when statement is already committed.
+
+--enable_connect_log
+--disable_query_log
+CALL mtr.add_suppression("Problem while dropping database. Can't remove database directory .* Please remove it manually.");
+--enable_query_log
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INT RETURN 0;
+
+connect (con1, localhost, root,,);
+--echo # Acquire S lock on db1.f1(), so upcoming DROP DATABASE will get
+--echo # blocked.
+BEGIN;
+SELECT db1.f1();
+
+connection default;
+--echo # Send:
+--send DROP DATABASE db1
+
+connection con1;
+--echo # Wait until the above DROP DATABASE is blocked because of S lock.
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+                     WHERE state= 'Waiting for stored function metadata lock'
+                     AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+
+--echo # Replace database directory with an empty file.
+--rmdir $MYSQLD_DATADIR/db1
+--write_file $MYSQLD_DATADIR/db1
+EOF
+--echo # Unblock DROP DATABASE by releasing S lock.
+COMMIT;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # Reap DROP DATABASE. Statement should succeed, but send warnings
+--echo # about problems with removing database directory to user ...
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--replace_regex /errno: [0-9]+ - .*\)/errno: ## - ...)/
+--reap
+--echo # ... and error log too. Let's check that.
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let SEARCH_PATTERN= Problem while dropping database. Can't remove database directory .* Please remove it manually.
+--source include/search_pattern.inc
+
+--echo # Clean-up.
+--remove_file $MYSQLD_DATADIR/db1
+--disable_connect_log
+
+
+--echo #
+--echo # Bug#24510948: ALTER TABLE+INSERT+DROP DB HANG
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT, title VARCHAR(100),
+                    FULLTEXT fidx(title), PRIMARY KEY(id));
+
+--echo # Con1 will attempt insert and block holding open_in_progress on share
+--connect(con1, localhost, root)
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL wait_share WAIT_FOR continue_insert';
+SET SESSION lock_wait_timeout= 5;
+--send INSERT INTO db1.t1 VALUES(1, 'mysql database')
+
+--echo # Con2 will attempt alter and block before waiting on COND_open
+--connect(con2, localhost, root)
+SET DEBUG_SYNC= 'now WAIT_FOR wait_share';
+SET DEBUG_SYNC= 'get_share_before_COND_open_wait SIGNAL wait_cond WAIT_FOR continue_alter';
+--send ALTER TABLE db1.t1 DROP INDEX fidx
+
+--echo # Con3 will wait until the other connections are waiting for signals,
+--echo # then attempt to drop schema, which requires X-MDL
+--connect(con3, localhost, root)
+SET DEBUG_SYNC= 'now WAIT_FOR wait_cond';
+
+--send DROP DATABASE db1
+
+--connection default
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for schema metadata lock" AND
+        info = "DROP DATABASE db1";
+--source include/wait_condition.inc
+
+--echo # Con3 is now waiting for MDL on schema. Waking the other connections
+--echo # should let them continue (before fix con1 and con2 would deadlock
+--echo # on schema MDL and LOCK_open (protecting share->open_in_progress)
+--echo # until con1 aborts with lock timeout
+SET DEBUG_SYNC= 'now SIGNAL continue_insert';
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+
+--echo # Reaping connection con1
+--connection con1
+--reap
+
+--echo # Reaping connection con2
+--connection con2
+--reap
+
+--echo # Reaping connection con3
+--connection con3
+--reap
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing!");
+--enable_query_log
+
+--echo #
+--echo # Bug#26043994: CREATE DATABASE/DIRECTORY INCONSISTENCY
+--echo #
+
+--echo # Dropping a non-existing schema fails
+--error ER_DB_DROP_EXISTS
+DROP SCHEMA s1;
+
+--echo # but drop succeeds (with a warning) when using IF EXISTS
+DROP SCHEMA IF EXISTS s1;
+
+--echo # Verify that schema can be created successfully
+CREATE SCHEMA s1;
+
+--echo # Verify that trying to create it again fails
+--error ER_DB_CREATE_EXISTS
+CREATE SCHEMA s1;
+
+--echo # but create succeds (with a warning) when using IF NOT EXITSTS
+CREATE SCHEMA IF NOT EXISTS s1;
+DROP SCHEMA s1;
+
+--echo # Create a directory in datadir manually
+--mkdir $MYSQLD_DATADIR/bogus__
+
+--echo # Creating a schema with the same name as directory in datadir fails
+--echo # but with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA bogus__;
+
+--echo # Creating a schema with the same name as a directory in datadir
+--echo # with IF NOT EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA IF NOT EXISTS bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir with IF EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA IF EXISTS bogus__;
+
+--rmdir $MYSQLD_DATADIR/bogus__
+
+CREATE SCHEMA broken;
+--echo # Remove the schema directory for an existing schema
+--rmdir $MYSQLD_DATADIR/broken
+
+--echo # Drop then fails with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
+DROP SCHEMA broken;
+
+--echo # but drop succeeds (with warning) when adding IF EXISTS
+--echo # Suppress output since it is not stable across platforms
+--disable_warnings ONCE
+DROP SCHEMA IF EXISTS broken;
+
+--echo # Create and drop schema again to make sure nothing is left behind
+CREATE SCHEMA broken;
+DROP SCHEMA broken;

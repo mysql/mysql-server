@@ -1,0 +1,125 @@
+SET @start_value = @@global.expire_logs_days;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SELECT @start_value;
+@start_value
+0
+SET @@global.expire_logs_days = 0;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SET @start_value_sec = @@global.binlog_expire_logs_seconds;
+SELECT @start_value_sec;
+@start_value_sec
+2592000
+SET @@global.binlog_expire_logs_seconds = 8734635;
+SET @@global.binlog_expire_logs_seconds = DEFAULT;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+2592000
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds = 2592000;
+@@global.binlog_expire_logs_seconds = 2592000
+1
+SET @@global.binlog_expire_logs_seconds = 0;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+0
+SET @@global.binlog_expire_logs_seconds = 99;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+99
+SET @@global.binlog_expire_logs_seconds = 10;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+10
+SET @@global.binlog_expire_logs_seconds = 21;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+21
+SET @@global.binlog_expire_logs_seconds = -1;
+Warnings:
+Warning	1292	Truncated incorrect binlog_expire_logs_seconds value: '-1'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+0
+SET @@global.binlog_expire_logs_seconds = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'binlog_expire_logs_seconds'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+0
+SET @@global.binlog_expire_logs_seconds = -1024;
+Warnings:
+Warning	1292	Truncated incorrect binlog_expire_logs_seconds value: '-1024'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+0
+SET @@global.binlog_expire_logs_seconds = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect binlog_expire_logs_seconds value: '42949672950'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+4294967295
+SET @@global.binlog_expire_logs_seconds = ON;
+ERROR 42000: Incorrect argument type to variable 'binlog_expire_logs_seconds'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+4294967295
+SET @@global.binlog_expire_logs_seconds = 'test';
+ERROR 42000: Incorrect argument type to variable 'binlog_expire_logs_seconds'
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+4294967295
+SET @@session.binlog_expire_logs_seconds = 0;
+ERROR HY000: Variable 'binlog_expire_logs_seconds' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@binlog_expire_logs_seconds;
+@@binlog_expire_logs_seconds
+4294967295
+SELECT @@global.binlog_expire_logs_seconds = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_seconds';
+@@global.binlog_expire_logs_seconds = VARIABLE_VALUE
+1
+SELECT @@binlog_expire_logs_seconds = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='binlog_expire_logs_seconds';
+@@binlog_expire_logs_seconds = VARIABLE_VALUE
+1
+SET @@global.binlog_expire_logs_seconds = TRUE;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+1
+SET @@global.binlog_expire_logs_seconds = FALSE;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+0
+SET @@global.binlog_expire_logs_seconds = 1;
+SELECT @@binlog_expire_logs_seconds = @@global.binlog_expire_logs_seconds;
+@@binlog_expire_logs_seconds = @@global.binlog_expire_logs_seconds
+1
+SET binlog_expire_logs_seconds = 1;
+ERROR HY000: Variable 'binlog_expire_logs_seconds' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@binlog_expire_logs_seconds;
+@@binlog_expire_logs_seconds
+1
+SET local.binlog_expire_logs_seconds = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.binlog_expire_logs_seconds = 1' at line 1
+SELECT local.binlog_expire_logs_seconds;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.binlog_expire_logs_seconds = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_expire_logs_seconds = 1' at line 1
+SELECT global.binlog_expire_logs_seconds;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT binlog_expire_logs_seconds = @@session.binlog_expire_logs_seconds;
+ERROR 42S22: Unknown column 'binlog_expire_logs_seconds' in 'field list'
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds;
+@@global.binlog_expire_logs_seconds
+2592000
+SET @@global.expire_logs_days = @start_value;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+SELECT @@global.expire_logs_days;
+@@global.expire_logs_days
+0
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

@@ -9,12 +9,12 @@ ft_stopword_file	(built-in)
 show session variables like 'ft_stopword_file';
 Variable_name	Value
 ft_stopword_file	(built-in)
-select * from information_schema.global_variables where variable_name='ft_stopword_file';
+select * from performance_schema.global_variables where variable_name='ft_stopword_file';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_STOPWORD_FILE	(built-in)
-select * from information_schema.session_variables where variable_name='ft_stopword_file';
+ft_stopword_file	(built-in)
+select * from performance_schema.session_variables where variable_name='ft_stopword_file';
 VARIABLE_NAME	VARIABLE_VALUE
-FT_STOPWORD_FILE	(built-in)
+ft_stopword_file	(built-in)
 set global ft_stopword_file=1;
 ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 set session ft_stopword_file=1;

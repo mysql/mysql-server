@@ -1,100 +1,97 @@
 DROP TABLE IF EXISTS t1,t2,t3;
-CREATE TABLE t1(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME, c4 TIMESTAMP, PRIMARY KEY(c1), UNIQUE INDEX(c2));
-CREATE TABLE t2(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME, c4 TIMESTAMP, PRIMARY KEY(c1,c2));
-CREATE TABLE t3(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME, c4 TIMESTAMP, UNIQUE INDEX idx(c1,c2));
-CREATE TABLE t4(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME, c4 TIMESTAMP);
+CREATE TABLE t1(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY(c1), UNIQUE INDEX(c2));
+CREATE TABLE t2(c1 DATE NOT NULL, c2 DATE NOT NULL, c3 DATETIME,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY(c1,c2));
+CREATE TABLE t3(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+UNIQUE INDEX idx(c1,c2));
+CREATE TABLE t4(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
+ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
-Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
 INSERT INTO t2 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
-Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
 INSERT INTO t3 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
-Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
 INSERT INTO t4 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
-Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
 INSERT INTO t1 VALUES('20070523091528','070523091528','20070524091528','070524091528'),('20070525','070525','20070526','070526');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '20070523091528' for column 'c1' at row 1
+Note	1292	Incorrect date value: '070523091528' for column 'c2' at row 1
 INSERT INTO t2 VALUES('20070523091528','070523091528','20070524091528','070524091528'),('20070525','070525','20070526','070526');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '20070523091528' for column 'c1' at row 1
+Note	1292	Incorrect date value: '070523091528' for column 'c2' at row 1
 INSERT INTO t3 VALUES('20070523091528','070523091528','20070524091528','070524091528'),('20070525','070525','20070526','070526');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '20070523091528' for column 'c1' at row 1
+Note	1292	Incorrect date value: '070523091528' for column 'c2' at row 1
 INSERT INTO t4 VALUES('20070523091528','070523091528','20070524091528','070524091528'),('20070525','070525','20070526','070526');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '20070523091528' for column 'c1' at row 1
+Note	1292	Incorrect date value: '070523091528' for column 'c2' at row 1
 INSERT INTO t1 VALUES(19830905132800,830905132800,19830906132800,830906132800),(19830907,830907,19830908,830908);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '19830905132800' for column 'c1' at row 1
+Note	1292	Incorrect date value: '830905132800' for column 'c2' at row 1
 INSERT INTO t2 VALUES(19830905132800,830905132800,19830906132800,830906132800),(19830907,830907,19830908,830908);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '19830905132800' for column 'c1' at row 1
+Note	1292	Incorrect date value: '830905132800' for column 'c2' at row 1
 INSERT INTO t3 VALUES(19830905132800,830905132800,19830906132800,830906132800),(19830907,830907,19830908,830908);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '19830905132800' for column 'c1' at row 1
+Note	1292	Incorrect date value: '830905132800' for column 'c2' at row 1
 INSERT INTO t4 VALUES(19830905132800,830905132800,19830906132800,830906132800),(19830907,830907,19830908,830908);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
+Note	1292	Incorrect date value: '19830905132800' for column 'c1' at row 1
+Note	1292	Incorrect date value: '830905132800' for column 'c2' at row 1
 SET TIMESTAMP=1233216687;
 INSERT INTO t1 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
+Note	1292	Incorrect date value: '2009-01-29 11:11:27' for column 'c1' at row 1
 INSERT INTO t2 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
+Note	1292	Incorrect date value: '2009-01-29 11:11:27' for column 'c1' at row 1
 INSERT INTO t3 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
+Note	1292	Incorrect date value: '2009-01-29 11:11:27' for column 'c1' at row 1
 INSERT INTO t4 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-INSERT INTO t2 VALUES('98-12-31 11:30:45','98@12@30 11^30^45','98-12-31 11:30:45','98.12.31 11+30+45'),('98-12-29','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45');
+Note	1292	Incorrect date value: '2009-01-29 11:11:27' for column 'c1' at row 1
+INSERT INTO t2 VALUES('98-12-31 11:30:45','98@12@30 11^30^45','98-12-31 11:30:45','98.12.31 11+30+45');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c2' at row 2
-INSERT INTO t3 VALUES('98-12-31 11:30:45','98@12@30 11^30^45','98-12-31 11:30:45','98.12.31 11+30+45'),('98-12-29','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45');
+Note	1292	Incorrect date value: '98-12-31 11:30:45' for column 'c1' at row 1
+Note	1292	Incorrect date value: '98@12@30 11^30^45' for column 'c2' at row 1
+INSERT INTO t2 VALUES('98-12-29','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45');
 Warnings:
-Note	1265	Data truncated for column 'c1' at row 1
-Note	1265	Data truncated for column 'c2' at row 1
-Note	1265	Data truncated for column 'c2' at row 2
+Note	1292	Incorrect date value: '98@12@30 11^30^45' for column 'c2' at row 1
+INSERT INTO t3 VALUES('98-12-31 11:30:45','98@12@30 11^30^45','98-12-31 11:30:45','98.12.31 11+30+45');
+Warnings:
+Note	1292	Incorrect date value: '98-12-31 11:30:45' for column 'c1' at row 1
+Note	1292	Incorrect date value: '98@12@30 11^30^45' for column 'c2' at row 1
+INSERT INTO t3 VALUES('98-12-29','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45');
+Warnings:
+Note	1292	Incorrect date value: '98@12@30 11^30^45' for column 'c2' at row 1
 INSERT INTO t1 VALUES('2008-01-01',NULL,'08-01-02','08/01/03');
 INSERT INTO t3 VALUES('2008-01-01',NULL,'08-01-02','08/01/03');
 INSERT INTO t4 VALUES('2008-01-01',NULL,'08-01-02','08/01/03');
 INSERT INTO t1(c1,c2) VALUES('08/01/17',NULL);
 DELETE FROM t1 WHERE c1='08/01/17' AND c2 IS NULL;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES('','','08-01-04','08/01/05') /* Inserts zero dates for '' strings */;
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c2' at row 1
 INSERT INTO t2 VALUES('2008-04-31','2008-04-31','08-01-06','08/01/07') /* Inserts zero dates for invalid dates */;
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 INSERT INTO t3 VALUES('10:45:15','10:45:15','08-01-08','08/1/9') /* Inserts zero dates for invalid dates */;
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -105,8 +102,8 @@ INSERT INTO t4 VALUES('abcd','abcd','08-01-10','08/01/11'),(1234,1234,'08-01-12'
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c2' at row 1
-Warning	1264	Out of range value for column 'c1' at row 2
-Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c2' at row 2
 SELECT * FROM t1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -219,12 +216,20 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 SELECT * FROM t1 WHERE c1 = '1998-12-31 11:30:45' ORDER BY c1;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '1998-12-31 11:30:45' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '1998-12-31 11:30:45' ORDER BY c1 DESC;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '1998-12-31 11:30:45' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <> '1998-12-31 11:30:45' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -290,8 +295,12 @@ c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 SELECT * FROM t1 WHERE c1 <=> '1998-12-31 11:30:45' ORDER BY c1;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '1998-12-31 11:30:45' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -299,24 +308,40 @@ c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00 00:00:00','1998-12-29 00:00:00') ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00 00:00:00','1998-12-29 00:00:00') ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00 00:00:00' AND c1 < '1998-12-29 00:00:00' AND c2 = '1983-09-07 00:00:00' ORDER BY c1;
 c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00 00:00:00' AND c1 < '1998-12-29 00:00:00' AND c2 = '1983-09-07 00:00:00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IS NULL ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -405,8 +430,12 @@ c1	c2	c3	c4
 1998-12-30	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
 SELECT * FROM t1 WHERE c1 <=> '1998-12-31 11:30:45' ORDER BY c1 DESC;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '1998-12-31 11:30:45' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
@@ -414,7 +443,11 @@ c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
-SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 DESC LIMIT 2;
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+SELECT * FROM t1 WHERE c1 BETWEEN '1900-01-01 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
@@ -422,16 +455,24 @@ SELECT * FROM t1 WHERE c1 IN ('0000-00-00 00:00:00','1998-12-29 00:00:00') ORDER
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00 00:00:00','1998-12-29 00:00:00') ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00 00:00:00' AND c1 < '1998-12-29 00:00:00' AND c2 = '1983-09-07 00:00:00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00 00:00:00' AND c1 < '1998-12-29 00:00:00' AND c2 = '1983-09-07 00:00:00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IS NULL ORDER BY c1 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -511,15 +552,23 @@ c1	c2	c3	c4
 SELECT * FROM t1 WHERE c1 = '0000-00-00' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '0000-00-00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 = '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <> '0000-00-00' ORDER BY c1;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -532,6 +581,12 @@ c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <> '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -548,6 +603,10 @@ c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 > '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -565,26 +624,50 @@ c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 SELECT * FROM t1 WHERE c1 < '0000-00-00' ORDER BY c1;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 < '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <= '0000-00-00' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <= '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '0000-00-00' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '0000-00-00' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -598,6 +681,10 @@ c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -606,14 +693,24 @@ SELECT * FROM t1 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-31 11:30:45' ORDER BY c1;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-31 11:30:45' ORDER BY c1 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1 IS NULL ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -649,6 +746,12 @@ c1	c2	c3	c4
 1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <> '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
@@ -665,10 +768,20 @@ c1	c2	c3	c4
 1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 > '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
@@ -682,26 +795,56 @@ c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 < '0000-00-00' ORDER BY c1 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 < '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <= '0000-00-00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <= '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '0000-00-00' ORDER BY c1 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 <=> '0000-00-00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1 DESC;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
@@ -715,22 +858,42 @@ c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1 DESC;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-31 11:30:45' ORDER BY c1 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-31 11:30:45' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Note	1292	Incorrect date value: '1998-12-31 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1 IS NULL ORDER BY c1 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -809,12 +972,20 @@ c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 SELECT * FROM t1 WHERE c2 = '1998-12-30 11:30:45' ORDER BY c2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 = '1998-12-30 11:30:45' ORDER BY c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 = '1998-12-30 11:30:45' ORDER BY c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 = '1998-12-30 11:30:45' ORDER BY c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 <> '1998-12-30 11:30:45' ORDER BY c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -877,8 +1048,12 @@ c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 SELECT * FROM t1 WHERE c2 <=> '1998-12-30 11:30:45' ORDER BY c2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 <=> '1998-12-30 11:30:45' ORDER BY c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-31 11:30:45' ORDER BY c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -888,6 +1063,10 @@ c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 1998-12-30	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
 1998-12-31	1998-12-31	1998-12-31 11:30:45	1998-12-31 11:30:45
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-31 11:30:45' ORDER BY c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
@@ -895,15 +1074,23 @@ c1	c2	c3	c4
 SELECT * FROM t1 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-31 11:30:45') ORDER BY c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-31 11:30:45') ORDER BY c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-31 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-31 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c2 LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c2 IS NULL ORDER BY c2;
 c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
@@ -988,8 +1175,12 @@ c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 SELECT * FROM t1 WHERE c2 <=> '1998-12-30 11:30:45' ORDER BY c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 <=> '1998-12-30 11:30:45' ORDER BY c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Note	1292	Incorrect date value: '1998-12-30 11:30:45' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-31 11:30:45' ORDER BY c2 DESC;
 c1	c2	c3	c4
 1998-12-31	1998-12-31	1998-12-31 11:30:45	1998-12-31 11:30:45
@@ -999,6 +1190,10 @@ c1	c2	c3	c4
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-31 11:30:45' ORDER BY c2 DESC LIMIT 2;
 c1	c2	c3	c4
 1998-12-31	1998-12-31	1998-12-31 11:30:45	1998-12-31 11:30:45
@@ -1006,15 +1201,23 @@ c1	c2	c3	c4
 SELECT * FROM t1 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-31 11:30:45') ORDER BY c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-31 11:30:45') ORDER BY c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-31 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c2 DESC;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-31 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c2 DESC LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-04 00:00:00	2008-01-05 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c2 IS NULL ORDER BY c2 DESC;
 c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
@@ -1428,18 +1631,34 @@ SELECT * FROM t2 WHERE c1 = '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -1453,6 +1672,12 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -1470,6 +1695,10 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 > '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -1489,30 +1718,58 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 SELECT * FROM t2 WHERE c1 < '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 < '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <= '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1528,6 +1785,10 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1537,14 +1798,26 @@ c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '2007-05-23 09:15:28' ORDER BY c1,c2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '2007-05-23 09:15:28' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IS NULL ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1585,10 +1858,22 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 > '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -1602,10 +1887,18 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 > '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1621,30 +1914,62 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 < '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 < '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1660,23 +1985,43 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '2007-05-23 09:15:28' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '2007-05-23 09:15:28' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IS NULL ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	2008-01-06	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1856,22 +2201,40 @@ c1	c2	c3	c4
 1998-12-31	1998-12-30	1998-12-31 11:30:45	1998-12-31 11:30:45
 1998-12-31	1998-12-31	1998-12-31 11:30:45	1998-12-31 11:30:45
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '2007-05-23 09:15:28' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 IN ('0000-00-00 00:00:00','2007-05-23 09:15:28') ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 IN ('0000-00-00 00:00:00','2007-05-23 09:15:28') ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '2007-05-23 09:15:28' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '2007-05-23 09:15:28' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -1982,22 +2345,40 @@ c1	c2	c3	c4
 1998-12-31	1998-12-31	1998-12-31 11:30:45	1998-12-31 11:30:45
 1998-12-31	1998-12-30	1998-12-31 11:30:45	1998-12-31 11:30:45
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '2007-05-23 09:15:28' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 IN ('0000-00-00 00:00:00','2007-05-23 09:15:28') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 IN ('0000-00-00 00:00:00','2007-05-23 09:15:28') ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t2 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '2007-05-23 09:15:28' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '2007-05-23 09:15:28' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-06 00:00:00	2008-01-07 00:00:00
@@ -2407,15 +2788,31 @@ c1	c2	c3	c4
 SELECT * FROM t3 WHERE c1 = '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 = '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 = '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 = '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <> '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -2431,6 +2828,12 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <> '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -2450,6 +2853,10 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 > '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -2470,26 +2877,54 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 SELECT * FROM t3 WHERE c1 < '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 < '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <= '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2506,6 +2941,10 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2514,14 +2953,26 @@ SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-30 11:30:45' ORDER BY c1,c2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-30 11:30:45' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IS NULL ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2563,10 +3014,22 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <> '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 > '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
@@ -2582,10 +3045,18 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 > '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
 1983-09-07	1983-09-07	1983-09-08 00:00:00	1983-09-08 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2602,26 +3073,58 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 < '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 < '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <= '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <=> '0000-00-00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2638,22 +3141,42 @@ c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 BETWEEN '0000-00-00' AND '2009-01-29' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2009-01-29') ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2009-01-29	2009-01-29	2009-01-29 11:11:27	2009-01-29 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-30 11:30:45' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '0000-00-00' AND c1 < '2009-01-29' AND c2 = '1998-12-30 11:30:45' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IS NULL ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
@@ -2839,24 +3362,42 @@ c1	c2	c3	c4
 1998-12-30	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
 1998-12-31	1998-12-30	1998-12-31 11:30:45	1998-12-31 11:30:45
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-30 11:30:45' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-30 11:30:45') ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-30 11:30:45') ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-30 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-30 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c1,c2;
 c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
@@ -2967,24 +3508,42 @@ c1	c2	c3	c4
 1998-12-30	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
 1998-12-31	1998-12-30	1998-12-31 11:30:45	1998-12-31 11:30:45
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 BETWEEN '0000-00-00 00:00:00' AND '1998-12-30 11:30:45' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-30 11:30:45') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 IN ('0000-00-00 00:00:00','1998-12-30 11:30:45') ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-30 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c2 >= '0000-00-00 00:00:00' AND c2 < '1998-12-30 11:30:45' AND c1 = '0000-00-00 00:00:00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
-0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 2008-01-01	NULL	2008-01-02 00:00:00	2008-01-03 00:00:00
@@ -3019,9 +3578,17 @@ ERROR 23000: Duplicate entry '1983-09-07' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07-1983-09-07' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07-1983-09-07' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07-1983-09-07' for key 'idx'
 SELECT * FROM t1 WHERE c1='20070525' /* Returns 1 row with c1=2007-05-25 */;
 c1	c2	c3	c4
 2007-05-25	2007-05-25	2007-05-26 00:00:00	2007-05-26 00:00:00
@@ -3062,8 +3629,7 @@ INSERT INTO t1 SET c1='1999-01-01',c2='1999-01-01';
 INSERT INTO t2 SET c1='1999-01-01',c2='1999-01-01';
 INSERT INTO t3 SET c1='1999-01-01';
 INSERT INTO t4 SET c2='1999-01-01';
-Warnings:
-Warning	1364	Field 'c1' doesn't have a default value
+ERROR HY000: Field 'c1' doesn't have a default value
 SELECT * FROM t1 WHERE c1='1999-01-01' AND c2='1999-01-01' /* Returns 1 row with values for other column as NULL */;
 c1	c2	c3	c4
 1999-01-01	1999-01-01	NULL	2009-01-29 11:11:27
@@ -3075,8 +3641,9 @@ c1	c2	c3	c4
 1999-01-01	NULL	NULL	2009-01-29 11:11:27
 SELECT * FROM t4 WHERE c2='1999-01-01' /* Returns 1 row with values for other column as NULL */;
 c1	c2	c3	c4
-0000-00-00	1999-01-01	NULL	2009-01-29 11:11:27
 CREATE TABLE t5(c1 DATE NOT NULL, c2 DATE NULL, c3 DATETIME, c4 TIMESTAMP, INDEX idx(c1,c2));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t5 SELECT * FROM t1 WHERE c1 >=0 AND c1 < '20070523091528';
 SELECT * FROM t5;
 c1	c2	c3	c4
@@ -3097,23 +3664,16 @@ c1	c2	c3	c4
 2007-05-23	2007-05-23	2007-05-24 09:15:28	2007-05-24 09:15:28
 TRUNCATE TABLE t5;
 INSERT INTO t5 SELECT * FROM t3 WHERE c2 BETWEEN 0 AND '1998-12-30 11:30:45';
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
-Warning	1292	Truncated incorrect INTEGER value: '1998-12-30 11:30:45'
 SELECT * FROM t5;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
+1983-09-05	1983-09-05	1983-09-06 13:28:00	1983-09-06 13:28:00
+1983-09-09	1983-09-10	1983-09-08 00:00:00	2009-01-29 11:11:27
+1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
+1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
+1998-12-29	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
+1998-12-30	1998-12-30	1998-12-30 11:30:45	1998-12-30 11:30:45
+1998-12-31	1998-12-30	1998-12-31 11:30:45	1998-12-31 11:30:45
 2008-01-06	0000-00-00	2008-01-08 00:00:00	2008-01-09 00:00:00
 TRUNCATE TABLE t5;
 DROP TABLE t5;
@@ -3121,17 +3681,19 @@ INSERT INTO t1 VALUES('1000-01-01','2000-01-01','2009-01-01','2009-01-02'),('300
 INSERT INTO t2 VALUES('1000-01-01','2000-01-01','2009-01-01','2009-01-02'),('3000-01-01','4000-01-01','2009-01-03','2009-01-04'),('5000-01-01','6000-01-01','2009-01-05','2009-01-06'),('7000-01-01','8000-01-01','2009-01-07','2009-01-08'),('9000-01-01','9000-01-01','2009-01-09','2009-01-10'),('9999-12-31','9999-12-31','2009-01-11','2009-01-12');
 INSERT INTO t3 VALUES('1000-01-01','2000-01-01','2009-01-01','2009-01-02'),('3000-01-01','4000-01-01','2009-01-03','2009-01-04'),('5000-01-01','6000-01-01','2009-01-05','2009-01-06'),('7000-01-01','8000-01-01','2009-01-07','2009-01-08'),('9000-01-01','9000-01-01','2009-01-09','2009-01-10'),('9999-12-31','9999-12-31','2009-01-11','2009-01-12');
 INSERT INTO t4 VALUES('1000-01-01','2000-01-01','2009-01-01','2009-01-02'),('3000-01-01','4000-01-01','2009-01-03','2009-01-04'),('5000-01-01','6000-01-01','2009-01-05','2009-01-06'),('7000-01-01','8000-01-01','2009-01-07','2009-01-08'),('9000-01-01','9000-01-01','2009-01-09','2009-01-10'),('9999-12-31','9999-12-31','2009-01-11','2009-01-12');
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1(c1,c2) VALUES('2010-00-01','2010-10-00');
 INSERT INTO t2(c1,c2) VALUES('2010-00-01','2010-10-00');
 INSERT INTO t3(c1,c2) VALUES('2010-00-01','2010-10-00');
 INSERT INTO t4(c1,c2) VALUES('2010-00-01','2010-10-00');
 INSERT INTO t4(c1) VALUES('2009-02-30'),('2009-04-31'),('2009-06-31'),('2009-09-31'),('2009-11-31'),('2009-13-01'),('2009-12-32');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c1' at row 2
-Warning	1265	Data truncated for column 'c1' at row 3
-Warning	1265	Data truncated for column 'c1' at row 4
-Warning	1265	Data truncated for column 'c1' at row 5
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c1' at row 4
+Warning	1264	Out of range value for column 'c1' at row 5
 Warning	1265	Data truncated for column 'c1' at row 6
 Warning	1265	Data truncated for column 'c1' at row 7
 INSERT INTO t1(c1) VALUES(NULL);
@@ -3143,6 +3705,8 @@ ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t4 VALUES(NULL,'2008-01-14','08-01-15','08/01/16');
 ERROR 23000: Column 'c1' cannot be null
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t4 SET c2='1999-01-01' /* NOT NULL column will not get the default value */;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -3218,7 +3782,6 @@ SELECT * FROM t4;
 c1	c2	c3	c4
 0000-00-00	0000-00-00	2008-01-10 00:00:00	2008-01-11 00:00:00
 0000-00-00	0000-00-00	2008-01-12 00:00:00	2008-01-13 00:00:00
-0000-00-00	1999-01-01	NULL	2009-01-29 11:11:27
 0000-00-00	NULL	NULL	2009-01-29 11:11:27
 0000-00-00	NULL	NULL	2009-01-29 11:11:27
 0000-00-00	NULL	NULL	2009-01-29 11:11:27
@@ -9598,10 +10161,20 @@ c1	MIN(c2)
 9000-01-01	9000-01-01
 9999-12-31	9999-12-31
 DROP TABLE t1,t2,t3,t4;
-CREATE TABLE t1(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE, c4 TIMESTAMP, PRIMARY KEY(c1), UNIQUE INDEX(c2));
-CREATE TABLE t2(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE, c4 TIMESTAMP, PRIMARY KEY(c1,c2));
-CREATE TABLE t3(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE, c4 TIMESTAMP, UNIQUE INDEX idx(c1,c2));
-CREATE TABLE t4(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE, c4 TIMESTAMP);
+CREATE TABLE t1(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY(c1), UNIQUE INDEX(c2));
+CREATE TABLE t2(c1 DATETIME NOT NULL, c2 DATETIME NOT NULL, c3 DATE,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(c1,c2));
+CREATE TABLE t3(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+UNIQUE INDEX idx(c1,c2));
+CREATE TABLE t4(c1 DATETIME NOT NULL, c2 DATETIME NULL, c3 DATE,
+c4 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
 Warnings:
 Note	1265	Data truncated for column 'c3' at row 1
@@ -9670,24 +10243,24 @@ INSERT INTO t1(c1,c2) VALUES('08/01/17',NULL);
 DELETE FROM t1 WHERE c1='08/01/17' AND c2 IS NULL;
 INSERT INTO t1 VALUES('','','08-01-04','08/01/05') /* Inserts zero dates for '' strings */;
 Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 INSERT INTO t2 VALUES('2008-04-31','2008-04-31','08-01-06','08/01/07') /* Inserts zero dates for invalid dates */;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
 INSERT INTO t3 VALUES('10:45:15','10:45:15','08-01-08','08/1/9') /* Inserts zero dates for invalid dates */;
 Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 INSERT INTO t2 VALUES('0000-00-00','08-01-06','08-01-06','08/01/07');
 INSERT INTO t3 VALUES('08-01-06','00-00-00','08-01-08','08/1/9');
 INSERT INTO t4 VALUES('abcd','abcd','08-01-10','08/01/11'),(1234,1234,'08-01-12','08/01/13') /* Inserts zero dates for absurd dates */;
 Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
-Warning	1264	Out of range value for column 'c2' at row 1
-Warning	1264	Out of range value for column 'c1' at row 2
-Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c2' at row 2
 SELECT * FROM t1;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-04	2008-01-05 00:00:00
@@ -12658,9 +13231,17 @@ ERROR 23000: Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 SELECT * FROM t1 WHERE c1='20070525' /* Returns 1 row with c1=2007-05-25 */;
 c1	c2	c3	c4
 2007-05-25 00:00:00	2007-05-25 00:00:00	2007-05-26	2007-05-26 00:00:00
@@ -12760,11 +13341,11 @@ Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c1' at row 3
 Warning	1264	Out of range value for column 'c1' at row 4
 Warning	1264	Out of range value for column 'c1' at row 5
-Warning	1264	Out of range value for column 'c1' at row 6
-Warning	1264	Out of range value for column 'c1' at row 7
-Warning	1264	Out of range value for column 'c1' at row 8
-Warning	1264	Out of range value for column 'c1' at row 9
-Warning	1264	Out of range value for column 'c1' at row 10
+Warning	1265	Data truncated for column 'c1' at row 6
+Warning	1265	Data truncated for column 'c1' at row 7
+Warning	1265	Data truncated for column 'c1' at row 8
+Warning	1265	Data truncated for column 'c1' at row 9
+Warning	1265	Data truncated for column 'c1' at row 10
 INSERT INTO t1(c1) VALUES(NULL);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t2(c1) VALUES(NULL);
@@ -12774,6 +13355,8 @@ ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t4 VALUES(NULL,'2008-01-14 00:00:00','08-01-15','08/01/16');
 ERROR 23000: Column 'c1' cannot be null
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t4 SET c2='1999-01-01' /* NOT NULL column will not get the default value */;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -19233,7 +19816,7 @@ c1	MIN(c2)
 9999-12-31 23:59:59	9999-12-31 23:59:59
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
-CREATE TABLE t2(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
+CREATE TABLE t2(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NOT NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
 CREATE TABLE t3(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t4(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME);
 INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
@@ -19308,8 +19891,8 @@ Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c2' at row 1
 INSERT INTO t2 VALUES('2008-04-31','2008-04-31','08-01-06','08/01/07') /* Inserts zero dates for invalid dates */;
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 INSERT INTO t3 VALUES('10:45:15','10:45:15','08-01-08','08/1/9') /* Inserts zero dates for invalid dates */;
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -22256,9 +22839,17 @@ ERROR 23000: Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(19830907,830907) /* Row with c1=19830907,c2=830907 exists */;
 ERROR 23000: Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '2007-05-25 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(19830907,830907) /* doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '1983-09-07 00:00:00-1983-09-07 00:00:00' for key 'idx'
 SELECT * FROM t1 WHERE c1='20070525' /* Returns 1 row with c1=2007-05-25 */;
 c1	c2	c3	c4
 2007-05-25 00:00:00	2007-05-25 00:00:00	2007-05-26	2007-05-26 00:00:00
@@ -22299,6 +22890,8 @@ INSERT INTO t1 SET c1='1999-01-01',c2='1999-01-01';
 INSERT INTO t2 SET c1='1999-01-01',c2='1999-01-01';
 INSERT INTO t3 SET c1='1999-01-01';
 INSERT INTO t4 SET c2='1999-01-01';
+Warnings:
+Warning	1364	Field 'c1' doesn't have a default value
 SELECT * FROM t1 WHERE c1='1999-01-01' AND c2='1999-01-01' /* Returns 1 row with values for other column as NULL */;
 c1	c2	c3	c4
 1999-01-01 00:00:00	1999-01-01 00:00:00	NULL	NULL
@@ -22310,7 +22903,7 @@ c1	c2	c3	c4
 1999-01-01 00:00:00	NULL	NULL	NULL
 SELECT * FROM t4 WHERE c2='1999-01-01' /* Returns 1 row with values for other column as NULL */;
 c1	c2	c3	c4
-2009-01-29 11:11:27	1999-01-01 00:00:00	NULL	NULL
+0000-00-00 00:00:00	1999-01-01 00:00:00	NULL	NULL
 CREATE TABLE t5(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, INDEX idx(c1,c2));
 INSERT INTO t5 SELECT * FROM t1 WHERE c1 >=0 AND c1 < '20070523091528';
 SELECT * FROM t5;
@@ -22327,6 +22920,8 @@ TRUNCATE TABLE t5;
 INSERT INTO t5 SELECT * FROM t2 WHERE c1 >='98-12-31 11:30:45' AND c1 < '20070523091528' AND c2 <> '070525';
 SELECT * FROM t5;
 c1	c2	c3	c4
+1998-12-31 11:30:45	1998-12-30 11:30:45	1998-12-31	1998-12-31 11:30:45
+1998-12-31 11:30:45	1998-12-31 11:30:45	1998-12-31	1998-12-31 11:30:45
 1999-01-01 00:00:00	1999-01-01 00:00:00	NULL	NULL
 TRUNCATE TABLE t5;
 INSERT INTO t5 SELECT * FROM t3 WHERE c2 BETWEEN 0 AND '1998-12-30 11:30:45';
@@ -22349,22 +22944,22 @@ INSERT INTO t3 VALUES('1971-01-01 00:00:01','1980-01-01 00:00:01','2009-01-01','
 INSERT INTO t4 VALUES('1971-01-01 00:00:01','1980-01-01 00:00:01','2009-01-01','2009-01-02'),('1990-01-01 00:00:01','2000-01-01 00:00:01','2009-01-03','2009-01-04'),('2038-01-09 03:14:07','2038-01-09 03:14:07','2009-01-05','2009-01-06');
 INSERT INTO t4(c1,c2) VALUES('2010-00-01','2010-10-00');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 INSERT INTO t4(c1) VALUES('2009-02-30'),('2009-04-31'),('2009-06-31'),('2009-09-31'),('2009-11-31'),('2009-13-01'),('2009-12-32'),('2009-01-01 23:60:60'),('2009-01-01 24:59:59'),('2009-01-01 23:59:60');
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c1' at row 2
-Warning	1265	Data truncated for column 'c1' at row 3
-Warning	1265	Data truncated for column 'c1' at row 4
-Warning	1265	Data truncated for column 'c1' at row 5
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c1' at row 4
+Warning	1264	Out of range value for column 'c1' at row 5
 Warning	1265	Data truncated for column 'c1' at row 6
 Warning	1265	Data truncated for column 'c1' at row 7
 Warning	1265	Data truncated for column 'c1' at row 8
 Warning	1265	Data truncated for column 'c1' at row 9
 Warning	1265	Data truncated for column 'c1' at row 10
 DELETE FROM t1 WHERE c1=NOW() /* because the row with current timestamp exists */;
-INSERT INTO t1 VALUES(NULL,NOW(),NOW(),NOW());
+INSERT INTO t1 VALUES(NOW(),NOW(),NOW(),NOW());
 Warnings:
 Note	1265	Data truncated for column 'c3' at row 1
 SELECT * FROM t1 WHERE c1 IS NULL /* returns no rows */;
@@ -22372,11 +22967,15 @@ c1	c2	c3	c4
 SELECT * FROM t1 WHERE c1=NOW() /* returns 1 row */;
 c1	c2	c3	c4
 2009-01-29 11:11:27	2009-01-29 11:11:27	2009-01-29	2009-01-29 11:11:27
-INSERT INTO t2(c1) VALUES(NULL);
-INSERT INTO t3 VALUES(NULL,'2008-01-14 00:00:00','08-01-15','08/01/16');
-INSERT INTO t4 VALUES(NULL,'2008-01-14 00:00:00','08-01-15','08/01/16');
+INSERT INTO t2(c1) VALUES(NOW());
+Warnings:
+Warning	1364	Field 'c2' doesn't have a default value
+INSERT INTO t3 VALUES(NOW(),'2008-01-14 00:00:00','08-01-15','08/01/16');
+INSERT INTO t4 VALUES(NOW(),'2008-01-14 00:00:00','08-01-15','08/01/16');
 SET SQL_MODE=STRICT_ALL_TABLES;
-INSERT INTO t4 SET c2='1999-01-01' /* NOT NULL column will get the default value as current timestamp */;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t4 SET c2='1999-01-01',c1=NOW();
 SET SQL_MODE='';
 SELECT * FROM t1;
 c1	c2	c3	c4
@@ -22441,6 +23040,7 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-10	2008-01-11 00:00:00
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-12	2008-01-13 00:00:00
 0000-00-00 00:00:00	0000-00-00 00:00:00	NULL	NULL
+0000-00-00 00:00:00	1999-01-01 00:00:00	NULL	NULL
 0000-00-00 00:00:00	NULL	NULL	NULL
 0000-00-00 00:00:00	NULL	NULL	NULL
 0000-00-00 00:00:00	NULL	NULL	NULL
@@ -22462,7 +23062,6 @@ c1	c2	c3	c4
 2007-05-23 09:15:28	2007-05-23 09:15:28	2007-05-24	2007-05-24 09:15:28
 2007-05-25 00:00:00	2007-05-25 00:00:00	2007-05-26	2007-05-26 00:00:00
 2008-01-01 00:00:00	NULL	2008-01-02	2008-01-03 00:00:00
-2009-01-29 11:11:27	1999-01-01 00:00:00	NULL	NULL
 2009-01-29 11:11:27	1999-01-01 00:00:00	NULL	NULL
 2009-01-29 11:11:27	2008-01-14 00:00:00	2008-01-15	2008-01-16 00:00:00
 2009-01-29 11:11:27	2009-01-29 00:00:00	2009-01-29	2009-01-29 00:00:00
@@ -23380,9 +23979,6 @@ SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' ORDER B
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-04	2008-01-05 00:00:00
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00','2010-00-01 00:00:00') ORDER BY c1;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-04	2008-01-05 00:00:00
@@ -24101,9 +24697,6 @@ SELECT * FROM t1 WHERE c2 BETWEEN '1971-01-01 00:00:01' AND '2010-10-00 00:00:00
 c1	c2	c3	c4
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
 1983-09-05 13:28:00	1983-09-05 13:28:00	1983-09-06	1983-09-06 13:28:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2010-10-00 00:00:00') ORDER BY c2;
 c1	c2	c3	c4
 Warnings:
@@ -24240,9 +24833,6 @@ SELECT * FROM t1 WHERE c2 BETWEEN '1971-01-01 00:00:01' AND '2010-10-00 00:00:00
 c1	c2	c3	c4
 2009-01-29 11:11:27	2009-01-29 11:11:27	2009-01-29	2009-01-29 11:11:27
 2007-05-27 00:00:00	2007-05-25 00:00:00	2007-05-26	2007-05-26 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2010-10-00 00:00:00') ORDER BY c2 DESC;
 c1	c2	c3	c4
 Warnings:
@@ -25328,9 +25918,6 @@ SELECT * FROM t2 WHERE c1 BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' ORDER B
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
 0000-00-00 00:00:00	2008-01-06 00:00:00	2008-01-06	2008-01-07 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IN ('0000-00-00','2010-00-01 00:00:00') ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
@@ -25409,7 +25996,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 > '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
@@ -25420,7 +26006,6 @@ c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 >= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
@@ -25430,7 +26015,6 @@ SELECT * FROM t2 WHERE c1 >= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 < '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
@@ -25459,7 +26043,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00 00:00:00	2008-01-06 00:00:00	2008-01-06	2008-01-07 00:00:00
@@ -25486,7 +26069,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	2008-01-06 00:00:00	2008-01-06	2008-01-07 00:00:00
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <=> '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
@@ -25522,7 +26104,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	2008-01-06 00:00:00	2008-01-06	2008-01-07 00:00:00
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-06	2008-01-07 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 IN ('0000-00-00','2010-00-01 00:00:00') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
@@ -27261,9 +27842,6 @@ SELECT * FROM t3 WHERE c1 <> '2010-00-01 00:00:00' ORDER BY c1,c2 LIMIT 2;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 > '2010-00-01 00:00:00' ORDER BY c1,c2;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
@@ -27378,9 +27956,6 @@ SELECT * FROM t3 WHERE c1 BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' ORDER B
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2010-00-01 00:00:00') ORDER BY c1,c2;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
@@ -27459,7 +28034,6 @@ c1	c2	c3	c4
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 > '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
@@ -27470,7 +28044,6 @@ c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 >= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
@@ -27480,7 +28053,6 @@ SELECT * FROM t3 WHERE c1 >= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC LIMIT 2;
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 < '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
@@ -27510,7 +28082,6 @@ c1	c2	c3	c4
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <= '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
@@ -27538,7 +28109,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 <=> '2010-00-01 00:00:00' ORDER BY c1,c2 DESC;
 c1	c2	c3	c4
@@ -27575,7 +28145,6 @@ c1	c2	c3	c4
 0000-00-00 00:00:00	0000-00-00 00:00:00	2008-01-08	2008-01-09 00:00:00
 1971-01-01 00:00:01	1980-01-01 00:00:01	2009-01-01	2009-01-02 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect datetime value: '2010-00-01 00:00:00' for column 'c1' at row 1
 SELECT * FROM t3 WHERE c1 IN ('0000-00-00','2010-00-01 00:00:00') ORDER BY c1,c2 DESC;
 c1	c2	c3	c4

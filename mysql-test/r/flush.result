@@ -77,7 +77,6 @@ ERROR HY000: Can't execute the given command because you have active locked tabl
 unlock tables;
 drop table t1, t2;
 set session low_priority_updates=default;
-select benchmark(200, (select sin(1))) > 1000;
 End of 5.0 tests
 set @old_general_log= @@general_log;
 set @old_read_only= @@read_only;
@@ -117,7 +116,7 @@ drop tables t1, t2;
 # I. Check the incompatible changes in the grammar.
 #
 flush tables with read lock, hosts;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' hosts' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', hosts' at line 1
 flush privileges, tables;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tables' at line 1
 flush privileges, tables with read lock;
@@ -125,7 +124,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 flush privileges, tables;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tables' at line 1
 flush tables with read lock, tables;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' tables' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', tables' at line 1
 show tables;
 Tables_in_test
 #

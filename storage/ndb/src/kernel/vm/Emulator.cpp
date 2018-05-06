@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,7 +38,6 @@
 #include <NodeState.hpp>
 #include "ndbd_malloc_impl.hpp"
 
-#include <NdbMem.h>
 #include <NdbMutex.h>
 
 #include <EventLogger.hpp>
@@ -395,7 +401,7 @@ static const char* const jamFileNames[] =
    "SafeMutex.cpp",                      // 265
    "SafeCounter.cpp",                    // 266
    "bench_pool.cpp",                     // 267
-   "DataBuffer2.hpp",                    // 268
+   "DataBuffer2.hpp",                    // 268 DELETED FILE
    "Mutex.hpp",                          // 269
    "testSuperPool.cpp",                  // 270
    "CArray.hpp",                         // 271
@@ -429,7 +435,7 @@ static const char* const jamFileNames[] =
    "DynArr256.hpp",                      // 299
    "LongSignal_mt.cpp",                  // 300
    "Configuration.cpp",                  // 301
-   "WaitQueue.hpp",                      // 302
+   "WaitQueue.hpp",                      // 302 DELETED FILE
    "WOPool.hpp",                         // 303
    "CountingPool.cpp",                   // 304
    "TransporterCallbackKernel.hpp",      // 305
@@ -444,7 +450,7 @@ static const char* const jamFileNames[] =
    "VMSignal.hpp",                       // 314
    "Pool.hpp",                           // 315
    "Rope.hpp",                           // 316
-   "KeyTable2Ref.hpp",                   // 317
+   "KeyTable2Ref.hpp",                   // 317 DELETED FILE
    "LockQueue.cpp",                      // 318
    "arrayListTest.cpp",                  // 319
    "main.cpp",                           // 320
@@ -624,7 +630,9 @@ static const char* const jamFileNames[] =
    "IsolateOrd.hpp",                     // 494
    "IsolateOrd.cpp"                      // 495
    "SegmentList.hpp",                    // 496
-   "SegmentList.cpp"                     // 497
+   "SegmentList.cpp",                    // 497
+   "LocalSysfile.hpp",                   // 498
+   "UndoLogLevel.hpp"                    // 499
    };
 
 bool 
@@ -694,13 +702,11 @@ EmulatorData::create(){
     For multithreaded ndbd, each thread will set a local jam buffer later.
   */
 #ifndef NO_EMULATED_JAM
-  void * jamBuffer = (void *)&theEmulatedJamBuffer;
+  EmulatedJamBuffer * jamBuffer = &theEmulatedJamBuffer;
 #else
-  void * jamBuffer = 0;
+  EmulatedJamBuffer * jamBuffer = nullptr;
 #endif
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
-
-  NdbMem_Create();
+  NDB_THREAD_TLS_JAM = jamBuffer;
 
   theConfiguration = new Configuration();
   theWatchDog      = new WatchDog();
@@ -731,18 +737,22 @@ EmulatorData::create(){
 void
 EmulatorData::destroy(){
   if(theConfiguration)
-    delete theConfiguration; theConfiguration = 0;
+    delete theConfiguration;
+  theConfiguration = 0;
   if(theWatchDog)
-    delete theWatchDog; theWatchDog = 0;
+    delete theWatchDog;
+  theWatchDog = 0;
   if(theThreadConfig)
-    delete theThreadConfig; theThreadConfig = 0;
+    delete theThreadConfig;
+  theThreadConfig = 0;
   if(theSimBlockList)
-    delete theSimBlockList; theSimBlockList = 0;
+    delete theSimBlockList;
+  theSimBlockList = 0;
   if(m_socket_server)
-    delete m_socket_server; m_socket_server = 0;
+    delete m_socket_server;
+  m_socket_server = 0;
   NdbMutex_Destroy(theShutdownMutex);
   if (m_mem_manager)
-    delete m_mem_manager; m_mem_manager = 0;
-  
-  NdbMem_Destroy();
+    delete m_mem_manager;
+  m_mem_manager = 0;
 }

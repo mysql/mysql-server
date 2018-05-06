@@ -1,13 +1,20 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,7 +23,7 @@
 #ifndef OPT_TRACE_CONTEXT_INCLUDED
 #define OPT_TRACE_CONTEXT_INCLUDED
 
-#include "my_config.h"  // OPTIMIZER_TRACE
+#include "my_dbug.h"
 #include "prealloced_array.h"
 
 /**
@@ -26,12 +33,9 @@
    It is recommend to read opt_trace.h first.
 */
 
-#ifdef OPTIMIZER_TRACE
+class Opt_trace_stmt;  // implementation detail local to opt_trace.cc
 
-class Opt_trace_stmt;           // implementation detail local to opt_trace.cc
-
-typedef Prealloced_array<Opt_trace_stmt*, 16> Opt_trace_stmt_array;
-
+typedef Prealloced_array<Opt_trace_stmt *, 16> Opt_trace_stmt_array;
 
 /**
   @class Opt_trace_context
@@ -79,10 +83,8 @@ typedef Prealloced_array<Opt_trace_stmt*, 16> Opt_trace_stmt_array;
   function high up (frame #3 in the last example).
 */
 
-class Opt_trace_context
-{
-public:
-
+class Opt_trace_context {
+ public:
   Opt_trace_context() : pimpl(NULL), I_S_disabled(0) {}
   ~Opt_trace_context();
 
@@ -120,11 +122,9 @@ public:
                               destructor is permitted on it; any other
                               member function has undefined effects.
   */
-  bool start(bool support_I_S,
-             bool support_dbug_or_missing_priv,
-             bool end_marker, bool one_line,
-             long offset, long limit, ulong max_mem_size,
-             ulonglong features);
+  bool start(bool support_I_S, bool support_dbug_or_missing_priv,
+             bool end_marker, bool one_line, long offset, long limit,
+             ulong max_mem_size, ulonglong features);
 
   /**
     Ends the current (=open, unfinished, being-generated) trace.
@@ -137,8 +137,9 @@ public:
   void end();
 
   /// Returns whether there is a current trace
-  bool is_started() const
-  { return unlikely(pimpl != NULL) && pimpl->current_stmt_in_gen != NULL; }
+  bool is_started() const {
+    return unlikely(pimpl != NULL) && pimpl->current_stmt_in_gen != NULL;
+  }
 
   /**
      @returns whether the current trace writes to I_S.
@@ -154,8 +155,7 @@ public:
      @param   length   query's length
      @param   charset  charset which was used to encode this query
   */
-  void set_query(const char* query, size_t length,
-                 const CHARSET_INFO *charset);
+  void set_query(const char *query, size_t length, const CHARSET_INFO *charset);
 
   /**
      Brainwash: deletes all remembered traces and resets counters regarding
@@ -178,11 +178,7 @@ public:
   static const char *flag_names[];
 
   /** Flags' numeric values for @@@@optimizer_trace variable */
-  enum {
-    FLAG_DEFAULT=    0,
-    FLAG_ENABLED=    1 << 0,
-    FLAG_ONE_LINE=   1 << 1
-  };
+  enum { FLAG_DEFAULT = 0, FLAG_ENABLED = 1 << 0, FLAG_ONE_LINE = 1 << 1 };
 
   /**
      Features' names for @@@@optimizer_trace_features variable of
@@ -199,10 +195,10 @@ public:
 
   /** Features' numeric values for @@@@optimizer_trace_features variable */
   enum feature_value {
-    GREEDY_SEARCH=      1 << 0,
-    RANGE_OPTIMIZER=    1 << 1,
-    DYNAMIC_RANGE=      1 << 2,
-    REPEATED_SUBSELECT= 1 << 3,
+    GREEDY_SEARCH = 1 << 0,
+    RANGE_OPTIMIZER = 1 << 1,
+    DYNAMIC_RANGE = 1 << 2,
+    REPEATED_SUBSELECT = 1 << 3,
     /*
       If you add here, update feature_value of empty implementation
       and default_features!
@@ -213,7 +209,7 @@ public:
        This feature cannot be disabled by the user; for this it is important
        that it always has biggest flag; flag's value itself does not matter.
     */
-    MISC=               1 << 7
+    MISC = 1 << 7
   };
 
   /**
@@ -232,16 +228,18 @@ public:
      @returns whether an optimizer feature should be traced.
      @param  f  feature
   */
-  bool feature_enabled (feature_value f) const
-  { return unlikely(pimpl != NULL) && (pimpl->features & f); }
+  bool feature_enabled(feature_value f) const {
+    return unlikely(pimpl != NULL) && (pimpl->features & f);
+  }
 
   /**
      Opt_trace_struct is passed Opt_trace_context*, and needs to know
      to which statement's trace to attach, so Opt_trace_context must provide
      this information.
   */
-  Opt_trace_stmt *get_current_stmt_in_gen()
-  { return pimpl->current_stmt_in_gen; }
+  Opt_trace_stmt *get_current_stmt_in_gen() {
+    return pimpl->current_stmt_in_gen;
+  }
 
   /**
      @returns the next statement to show in I_S.
@@ -252,27 +250,22 @@ public:
   const Opt_trace_stmt *get_next_stmt_for_I_S(long *got_so_far) const;
 
   /// Temporarily disables I_S for this trace and its children.
-  void disable_I_S_for_this_and_children()
-  {
+  void disable_I_S_for_this_and_children() {
     ++I_S_disabled;
-    if (unlikely(pimpl != NULL))
-      pimpl->disable_I_S_for_this_and_children();
+    if (unlikely(pimpl != NULL)) pimpl->disable_I_S_for_this_and_children();
   }
 
   /**
      Restores I_S support to what it was before the previous call to
      disable_I_S_for_this_and_children().
   */
-  void restore_I_S()
-  {
+  void restore_I_S() {
     --I_S_disabled;
     DBUG_ASSERT(I_S_disabled >= 0);
-    if (unlikely(pimpl != NULL))
-      pimpl->restore_I_S();
+    if (unlikely(pimpl != NULL)) pimpl->restore_I_S();
   }
 
-private:
-
+ private:
   /**
      To have the smallest impact on THD's size, most of the implementation is
      moved to a separate class Opt_trace_context_impl which is instantiated on
@@ -282,15 +275,17 @@ private:
      This class is declared here so that frequently called functions like
      Opt_trace_context::is_started() can be inlined.
   */
-  class Opt_trace_context_impl
-  {
-  public:
-    Opt_trace_context_impl() : current_stmt_in_gen(NULL),
-      stack_of_current_stmts(PSI_INSTRUMENT_ME),
-      all_stmts_for_I_S(PSI_INSTRUMENT_ME),
-      all_stmts_to_del(PSI_INSTRUMENT_ME),
-      features(feature_value(0)), offset(0), limit(0), since_offset_0(0)
-    {}
+  class Opt_trace_context_impl {
+   public:
+    Opt_trace_context_impl()
+        : current_stmt_in_gen(NULL),
+          stack_of_current_stmts(PSI_INSTRUMENT_ME),
+          all_stmts_for_I_S(PSI_INSTRUMENT_ME),
+          all_stmts_to_del(PSI_INSTRUMENT_ME),
+          features(feature_value(0)),
+          offset(0),
+          limit(0),
+          since_offset_0(0) {}
 
     void disable_I_S_for_this_and_children();
     void restore_I_S();
@@ -352,7 +347,7 @@ private:
     */
     Opt_trace_stmt_array all_stmts_to_del;
 
-    bool end_marker;        ///< copy of parameter of Opt_trace_context::start
+    bool end_marker;  ///< copy of parameter of Opt_trace_context::start
     bool one_line;
     feature_value features;
     long offset;
@@ -366,7 +361,7 @@ private:
     long since_offset_0;
   };
 
-  Opt_trace_context_impl *pimpl;     /// Dynamically allocated implementation.
+  Opt_trace_context_impl *pimpl;  /// Dynamically allocated implementation.
 
   /**
     <>0 <=> any to-be-created statement's trace should not be in
@@ -397,33 +392,9 @@ private:
   size_t allowed_mem_size_for_current_stmt() const;
 
   /// Not defined copy constructor, to disallow copy.
-  Opt_trace_context(const Opt_trace_context&);
+  Opt_trace_context(const Opt_trace_context &);
   /// Not defined assignment operator, to disallow assignment.
-  Opt_trace_context& operator=(const Opt_trace_context&);
+  Opt_trace_context &operator=(const Opt_trace_context &);
 };
-
-#else /* OPTIMIZER_TRACE */
-
-/** Empty implementation used when optimizer trace is not compiled in */
-class Opt_trace_context
-{
-public:
-  /// We need those enums even if tracing is disabled
-  enum feature_value {
-    GREEDY_SEARCH=      1 << 0,
-    RANGE_OPTIMIZER=    1 << 1,
-    DYNAMIC_RANGE=      1 << 2,
-    REPEATED_SUBSELECT= 1 << 3,
-    MISC=               1 << 7
-  };
-  enum {
-    FLAG_DEFAULT=    0,
-    FLAG_ENABLED=    1 << 0,
-    FLAG_ONE_LINE=   1 << 1
-  };
-  static bool is_started() { return false; }
-};
-
-#endif /* OPTIMIZER_TRACE */
 
 #endif /* OPT_TRACE_CONTEXT_INCLUDED */

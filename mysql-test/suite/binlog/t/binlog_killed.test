@@ -1,14 +1,9 @@
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 -- source include/have_binlog_format_statement.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
-# You cannot use `KILL' with the Embedded MySQL Server library,
-# because the embedded server merely runs inside the threads of the host
-# application. -- the docs
 
--- source include/not_embedded.inc
 
 ###
 ### bug#22725 : incorrect killed error in binlogged query
@@ -32,8 +27,6 @@ connection con2;
 let $ID= `select connection_id()`;
 
 #
-# reset master does not reset binlogging on the embedded server.
-# the test is not run on the embedded for reason of using KILL query.
 # `reset master' problem is to be addressed by bug#15580 fixes.
 #
 reset master;
@@ -61,7 +54,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --let $row_number=6
 --let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
 --let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, $row_number)
---exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_result_log
 eval select
@@ -286,7 +279,7 @@ source include/show_binlog_events.inc;
 
 --echo *** a proof the query is binlogged with an error ***
 
---exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -336,7 +329,7 @@ source include/show_binlog_events.inc;
 
 # a proof the query is binlogged with an error
 
---exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))

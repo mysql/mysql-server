@@ -1,0 +1,121 @@
+# ==== Purpose ====
+#
+# Added test cases to cover error branches.
+#
+# ==== Implementation ====
+#
+# 1. Simulate an error on copying global replication filters
+#    when executing CHANGE MASTER TO.
+#
+# 2. Simulate an error on creating channel's replication filters
+#    when executing CHANGE MASTER TO.
+#
+# 3. Simulate an error on executing CHANGE REPLICATION FILTER
+#    with no FOR CHANNEL clause.
+#
+# 4. Simulate an error on executing CHANGE REPLICATION FILTER
+#    with FOR CHANNEL clause.
+#
+# ==== References ====
+#
+# WL#7361 MSR: per-channel replication filters
+
+
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/not_group_replication_plugin.inc
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+# Restrict the test runs to only debug builds, since we set DEBUG point in the test.
+--source include/have_debug.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Slave: failed in copying the global filters to its own per-channel filters on configuration for channel 'ch1'");
+call mtr.add_suppression("Failed to add a replication filter into filter map for channel 'ch1'");
+call mtr.add_suppression("Slave: failed in creating filter for channel 'ch1'");
+call mtr.add_suppression(".*Failed to allocate memory for master info repositories..*");
+call mtr.add_suppression(".*Failed to allocate memory for the relay log info structure.*");
+
+STOP SLAVE SQL_THREAD FOR CHANNEL '';
+SET @saved_debug= @@GLOBAL.debug;
+
+--echo #
+--echo # 1. Simulate an error on copying global replication filters
+--echo #    when executing CHANGE MASTER TO.
+--echo #
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_table';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_table';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_do_table';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_wild_ignore_table';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_ignore_db';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_do_db';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_copy_rewrite_db';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+--echo #
+--echo # 2. Simulate an error on creating channel's replication filters
+--echo #    when executing CHANGE MASTER TO.
+--echo #
+SET GLOBAL debug='d,simulate_out_of_memory_on_create_filter';
+--error ER_OUTOFMEMORY
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+--error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+--echo #
+--echo # 3. Simulate an error on executing CHANGE REPLICATION FILTER
+--echo #    with no FOR CHANNEL clause.
+--echo #
+SET GLOBAL debug='d,simulate_out_of_memory_on_CRF';
+--error ER_OUTOFMEMORY
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
+
+SET GLOBAL debug='d,simulate_out_of_memory_on_global_CRF';
+--error ER_OUTOFMEMORY
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1);
+
+--echo #
+--echo # 4. Simulate an error on executing CHANGE REPLICATION FILTER
+--echo #    with FOR CHANNEL clause.
+--echo #
+SET GLOBAL debug='d,simulate_out_of_memory_on_CRF_FOR_CHA';
+--error ER_OUTOFMEMORY
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL '' ;
+
+START SLAVE SQL_THREAD FOR CHANNEL '';
+SET GLOBAL debug= @saved_debug;
+
+# Cleanup
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc

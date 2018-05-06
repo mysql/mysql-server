@@ -1,7 +1,6 @@
 # Created: 2015-07-01  Lalit Choudhary
 # WL#8540
 # Testing IF [NOT] EXISTS clause in CREATE/DROP/ALTER USER with Replication.
-
 --source include/master-slave.inc
 --connection master
 --echo [On Master]
@@ -11,11 +10,8 @@
 --echo [On Master]
 --echo # No users exist:
 
-# For already existing users in case of CREATE USER IF NOT EXISTS
-# and for non-existing users in case of ALTER USER IF EXISTS,
-# the warnings will be generated if default authentication plugin
-# is used while writing the entries to binlog.
-call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS');
 
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 SELECT COUNT(*) FROM mysql.user WHERE user = 'wl8540';
@@ -87,19 +83,11 @@ FLUSH PRIVILEGES;
 
 --source include/sync_slave_sql_with_master.inc
 
-# Search for the warnings in the server log
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_FILE= $server_log;
---echo # Search warnings in the server log
+--echo WL#11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
 
---let SEARCH_PATTERN= Following users were specified in CREATE USER IF NOT EXISTS
---source include/search_pattern_in_file.inc
-
---echo WL11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
-
---source include/rpl_connection_master.inc
 --echo # All users exist on master, some on slave
 
+--source include/rpl_connection_master.inc
 CREATE USER u1,u2;
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
@@ -107,7 +95,7 @@ set @@session.sql_log_bin=1;
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
-DROP USER u1, u2, u3, u4;
+DROP USER IF EXISTS u1, u2, u3, u4;
 
 CREATE USER u1,u2;
 set @@session.sql_log_bin=0;
@@ -126,7 +114,7 @@ set @@session.sql_log_bin=1;
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
-DROP USER u1, u2, u3, u4;
+DROP USER IF EXISTS u1, u2, u3, u4;
 
 set @@session.sql_log_bin=0;
 CREATE USER u1,u2,u3,u4;
@@ -186,7 +174,7 @@ set @@session.sql_log_bin=1;
 
 ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
-DROP USER u1, u2, u3, u4;
+DROP USER IF EXISTS u1, u2, u3, u4;
 
 set @@session.sql_log_bin=0;
 CREATE USER u3,u4;
@@ -222,7 +210,7 @@ ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
 CREATE USER IF NOT EXISTS u1, u2, u3, u4;
 
 set @@session.sql_log_bin=0;
-DROP USER u1, u2, u3, u4;
+DROP USER IF EXISTS u1, u2, u3, u4;
 set @@session.sql_log_bin=1;
 
 DROP USER IF EXISTS u1, u2, u3, u4;
@@ -245,6 +233,12 @@ CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
 --error ER_PARSE_ERROR
 ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
 
+# Gets error as there is no auth_plugin named 'xyz'
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'xyz';
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
+
 # Check that  the above statements have not been logged in binary log
 --let $assert_text= assert that the above Event has not been added to binlog
 --let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
@@ -259,52 +253,99 @@ ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
 # Check that replication works correctly in multi create/alter statements
 # where create/alter of some user gets failed.
 
-# User u1 does not exists
+CREATE USER u3;
 
-CREATE USER u3 IDENTIFIED WITH 'mysql_native_password';
+# User u1 does not exists
+--let $pos_before= query_get_value(show master status,Position,1)
+
 # CREATE gets ERROR since shsh auth_plugin do not exists
 --error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED WITH 'sha256_password',u3 IDENTIFIED WITH 'sha256_password';
---source include/sync_slave_sql_with_master.inc
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
 
-# Check that user u3's auth_plugin has not changed
---let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
---let $assert_text= assert that u3's auth_plugin has not changed
---let $assert_cond= "mysql_native_password" = "$auth_plugin"
+# Check that  the above statement has not been logged
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
 --source include/assert.inc
-
---source include/rpl_connection_master.inc
-DROP USER u2;
 
 # User u1 exists
 
 CREATE USER u1;
+--let $pos_before= query_get_value(show master status,Position,1)
 # CREATE gets ERROR since shsh auth_plugin do not exists
 --error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED WITH 'sha256_password';
---source include/sync_slave_sql_with_master.inc
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
 
-# Check that user u3's auth_plugin has not changed
---let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
---let $assert_text= assert that u3's auth_plugin has not changed
---let $assert_cond=  "$auth_plugin" = "mysql_native_password"
+# Check that  the above statement has not been logged
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
+DROP USER u3;
 
-# ALTER gets ERROR since shsh auth_plugin do not exists
---error ER_PLUGIN_IS_NOT_LOADED
-ALTER USER IF EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'xyz',u3 IDENTIFIED WITH 'sha256_password';
+--echo # Errors scenarios related to password_history
 
---source include/sync_slave_sql_with_master.inc
+SET @old_password_history= @@GLOBAL.password_history;
+SET GLOBAL password_history=1;
 
-# Check that user u3's auth_plugin has got changed
---let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
---let $assert_text= assert that u3's auth_plugin has been changed by alter
---let $assert_cond=  "$auth_plugin" = "sha256_password"
+CREATE USER default_def@localhost IDENTIFIED BY 'haha';
+
+--let $pos_before= query_get_value(show master status,Position,1)
+
+# Alter will fail as password is in history
+--error ER_CREDENTIALS_CONTRADICT_TO_HISTORY
+ALTER USER IF EXISTS default_def@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY 'xyz',u2 IDENTIFIED BY 'pqr';
+
+# Check that  the above statement has not been logged
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
 --source include/assert.inc
 
---source include/rpl_connection_master.inc
-DROP USER u1,u2,u3;
+DROP USER default_def@localhost;
 
+CREATE USER to_be_renamed@localhost IDENTIFIED BY 'haha' PASSWORD HISTORY 1;
+RENAME USER to_be_renamed@localhost TO now_renamed@localhost;
+
+--let $pos_before= query_get_value(show master status,Position,1)
+
+# Alter will fail as password is in history
+--error ER_CREDENTIALS_CONTRADICT_TO_HISTORY
+ALTER USER IF EXISTS now_renamed@localhost IDENTIFIED BY 'haha',u1 IDENTIFIED BY 'mno',u2 IDENTIFIED BY 'pqr';
+
+# Check that  the above statement has not been logged
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--source include/assert.inc
+
+DROP USER now_renamed@localhost;
+DROP USER u1;
+
+CREATE USER no_pwd_history@localhost IDENTIFIED BY 'haha';
+
+RENAME TABLE mysql.password_history TO mysql.password_history_backup;
+
+--let $pos_before= query_get_value(show master status,Position,1)
+
+--echo # Create will fail: eventual write operation to history
+--error ER_NO_SUCH_TABLE
+CREATE USER IF NOT EXISTS u1, no_pwd_history_err@localhost IDENTIFIED BY 'haha'
+  PASSWORD HISTORY 0 PASSWORD REUSE INTERVAL 0 DAY;
+
+--echo # Shall fail as ALTER USER IDENTIFIED BY can write to history
+--error ER_NO_SUCH_TABLE
+ALTER USER IF EXISTS u1, no_pwd_history@localhost IDENTIFIED BY 'hihi';
+
+--echo # Shall fail as DROP USER can write to history
+--error ER_NO_SUCH_TABLE
+DROP USER IF EXISTS u1,no_pwd_history@localhost;
+
+# Check that  the above statements have not been logged in binary log
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--source include/assert.inc
+
+RENAME TABLE mysql.password_history_backup TO mysql.password_history;
+
+# Cleanup
+SET @@GLOBAL.password_history= @old_password_history;
+DROP USER no_pwd_history@localhost;
 --source include/rpl_end.inc

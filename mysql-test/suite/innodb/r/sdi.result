@@ -1,0 +1,158 @@
+# create bootstrap file
+# Stop the MTR default DB server
+# Run the bootstrap command
+# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB);
+CREATE TABLE t3 (a INT PRIMARY KEY, b SMALLINT, c TEXT, d JSON, UNIQUE KEY k1(b), KEY k2(b, c(20)));
+CREATE TABLE t4 (a INT PRIMARY KEY, b TINYINT, c MEDIUMINT, d BIGINT);
+CREATE TABLE t5 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a,b), c DECIMAL(5,2), d FLOAT(7,4), e DOUBLE);
+create table `t6` (
+`c0291` char(140) not null,
+`c0292` int(10) unsigned zerofill not null,
+`c0293` time(3) default null,
+`c0294` int(11) not null,
+`c0295` binary(1) not null,
+`c0296` datetime(6) not null,
+`c0297` date default null,
+`c0298` mediumtext not null,
+`c0299` int(10) unsigned zerofill not null,
+`c0300` decimal(54,6) not null,
+primary key (`c0296`,`c0298`(186)),
+unique key `i0002` (`c0294`),
+unique key `i0005` (`c0298`(102)),
+unique key `i0007` (`c0299`,`c0292`,`c0297`),
+unique key `i0008` (`c0296`,`c0293`),
+unique key `i0001` (`c0297`,`c0298`(240),`c0296`,`c0293`,`c0294`),
+unique key `i0004` (`c0296`,`c0295`,`c0293`,`c0291`(95),`c0298`(215)),
+key `i0003` (`c0296`,`c0291`(26)),
+key `i0006` (`c0297`,`c0296`,`c0293`,`c0294`),
+key `i0009` (`c0299`,`c0292`,`c0300`) using btree
+) engine=innodb default charset=latin1 row_format=compact;
+CREATE TABLE t7(
+a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+b INT NOT NULL DEFAULT '123',
+c TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00'
+) ROW_FORMAT=REDUNDANT ENGINE=InnoDB;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t8(fld1 INT NOT NULL PRIMARY KEY) TABLESPACE=ts1 ENGINE=InnoDB;
+CREATE TABLE t9(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t8(fld1) ON UPDATE CASCADE) TABLESPACE=ts1 ENGINE=InnoDB;
+CREATE TABLE t10(a INT PRIMARY KEY, b JSON, c BLOB, d LONGBLOB, e MEDIUMBLOB, f TINYBLOB);
+CREATE TABLE t11 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10),
+j INT, m INT  GENERATED ALWAYS AS(b + x), n VARCHAR(10),
+p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, y)),
+x INT, y CHAR(20), z INT, INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p)) ENGINE=InnoDB;
+CREATE TABLE t12 (
+id INT NOT NULL,
+store_id INT NOT NULL,
+x INT GENERATED ALWAYS AS (id + store_id)
+) ENGINE=InnoDB
+PARTITION BY RANGE (store_id) (
+PARTITION p0 VALUES LESS THAN (6),
+PARTITION p1 VALUES LESS THAN (11),
+PARTITION p2 VALUES LESS THAN (16),
+PARTITION p3 VALUES LESS THAN (21)
+);
+CREATE TABLE t13 (
+FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+id int(10) not null ,
+first_name varchar(50) NOT NULL,
+last_name varchar(50) NOT NULL,
+PRIMARY KEY (FTS_DOC_ID),
+UNIQUE KEY idx_1 (first_name, last_name),
+FULLTEXT KEY `idx_2` (first_name)
+) ENGINE=InnoDB;
+CREATE TABLE t14 (
+i int(10) unsigned not null auto_increment primary key,
+a varchar(255) not null,
+FULLTEXT KEY (a)
+) ENGINE = INNODB;
+create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
+CREATE TABLE t16 (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB TABLESPACE=`innodb_system`;
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t17(
+c1 iNT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+SET GLOBAL innodb_file_per_table=default;
+SET NAMES UTF8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
+# Check SDI from mysql.ibd
+# Check SDI from t1.ibd
+# Check SDI from t2.ibd
+# Check SDI from t3.ibd
+# Check SDI from t4.ibd
+# Check SDI from t5.ibd
+# Check SDI from t6.ibd
+# Check SDI from t7.ibd
+# Check SDI from ts1.ibd(holds t8 & t9)
+# Check SDI from t10.ibd
+# Check SDI from t11.ibd
+# Check SDI from partition tables t12.ibd
+# Check SDI from t13.ibd
+# Check SDI from t14.ibd
+# Check SDI from t15.ibd
+# Check SDI from system tablespace(has 16,17)
+# Check SDI from t18.ibd
+# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2
+# ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
+ALTER TABLE t1 ADD COLUMN b INT;
+# ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index
+ALTER TABLE t2 ADD INDEX k1(b(10));
+# ALTER TABLE t3, DROP INDEX, Verify SDI doesn't show dropped index
+ALTER TABLE t3 DROP INDEX k2;
+# ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column
+ALTER TABLE t4 DROP COLUMN d;
+# ALTER TABLE RENAME column
+ALTER TABLE t10 CHANGE a pk INT;
+# Drop virtual column, verify SDI is updated
+ALTER TABLE t11 DROP COLUMN m;
+# Create and drop tables in general tablespace
+CREATE TABLE t19(a INT) TABLESPACE=`ts1`;
+CREATE TABLE t20(a INT, b INT) TABLESPACE=`ts1`;
+DROP TABLE t19;
+DROP TABLE t20;
+# ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column 'b'
+# Check SDI from t1.ibd
+# ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index 'k1'
+# Check SDI from t2.ibd
+# ALTER TABLE t3, DROP INDEX, Verify SDI doesn't show dropped index 'k2'
+# Check SDI from t3.ibd
+# ALTER TABLE t4, DROP column, Verify SDI doesn't show dropped column 'd'
+# Check SDI from t4.ibd
+# ALTER TABLE t10 RENAME column from 'a' to 'pk'. Verify column name is 'pk'
+# Check SDI from t10.ibd
+# Drop virtual column of t11, verify SDI doesn't show clumn 'm'
+# Check SDI from t11.ibd
+# Create and drop tables in general tablespace. Shouldn't show t19, t20
+# restart
+#
+# Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE DATABASE sdi;
+CREATE TABLE sdi.t1(i int) TABLESPACE ts1;
+# Shutdown the server
+# Remove ts1.ibd file
+# restart
+ALTER TABLE sdi.t1 ADD COLUMN j INT;
+ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
+ALTER TABLE sdi.t1 RENAME COLUMN i to j;
+ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
+ALTER TABLESPACE ts1 RENAME to ts2;
+ERROR HY000: Tablespace is missing for table ts1.
+DROP DATABASE sdi;
+DROP TABLESPACE ts1;

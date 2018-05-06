@@ -1,0 +1,235 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Table grants
+
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Valid grants to multiple users
+GRANT SELECT ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show new grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Update existing grant
+GRANT INSERT , UPDATE ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show updated grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT INSERT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 6 : Create new user with an account without CREATE USER privilege
+
+CREATE USER userA, userB;
+GRANT SELECT ON db1.table1 to userX WITH GRANT OPTION;
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+connect(conn_userX, localhost, userX,,,,,);
+connection conn_userX;
+
+--echo # should succeed
+GRANT SELECT ON db1.table1 TO userY, userZ;
+
+--echo # should fail
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT ON db1.table1 TO userA, userB, userC;
+
+connection default;
+disconnect conn_userX;
+
+--echo # Must show updated grants
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Must not have any change
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+--let $event= !Q(GRANT SELECT ON.*db1.*table1.*TO.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+--source include/save_binlog_position.inc
+--echo # End : Tests for GRANT : Table grants
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Column grants
+
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Valid grants to multiple users
+GRANT SELECT(c1, c2) ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show new grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT SELECT(.*c1.*c2.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Update existing grant
+GRANT INSERT(c1, c3), UPDATE(c2, c3) ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show updated grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT INSERT (.*), UPDATE (.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 6 : Create new user with an account without CREATE USER privilege
+
+CREATE USER userA, userB;
+GRANT SELECT(c1, c3) ON db1.table1 to userX WITH GRANT OPTION;
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+connect(conn_userX, localhost, userX,,,,,);
+connection conn_userX;
+
+--echo # should succeed
+GRANT SELECT(c1) ON db1.table1 TO userY, userZ;
+
+--echo # should fail
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT(c1) ON db1.table1 TO userA, userB, userC;
+
+connection default;
+disconnect conn_userX;
+
+--echo # Must show updated grants
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Must not have any change
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+--let $event= !Q(GRANT SELECT (.*) ON.*db1.*table1.*TO.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+--source include/save_binlog_position.inc
+--echo # End : Tests for GRANT : Column grants
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Table and Column grants
+
+CREATE USER userX, userY, userZ;
+CREATE DATABASE db1;
+CREATE TABLE db1.table1(c1 int, c2 int, c3 int);
+--source include/save_binlog_position.inc
+
+--echo # Case 1 : Valid grants to multiple users
+GRANT SELECT ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show new grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT SELECT ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Update existing grant
+GRANT INSERT(c1, c3) , UPDATE ON db1.table1 TO userX, userY, userZ;
+
+--echo # Must show updated grants
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT INSERT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 6 : Create new user with an account without CREATE USER privilege
+
+CREATE USER userA, userB;
+GRANT SELECT(c1, c3), INSERT ON db1.table1 to userX WITH GRANT OPTION;
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+connect(conn_userX, localhost, userX,,,,,);
+connection conn_userX;
+
+--echo # should succeed
+GRANT SELECT(c1), INSERT ON db1.table1 TO userY, userZ;
+
+--echo # should fail
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT(c1), INSERT ON db1.table1 TO userA, userB, userC;
+
+connection default;
+disconnect conn_userX;
+
+--echo # Must show updated grants
+
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Must not have any change
+SHOW GRANTS FOR userA;
+SHOW GRANTS FOR userB;
+
+--let $event= !Q(GRANT SELECT (.*), INSERT ON.*db1.*table1.*TO.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userX, userY, userZ, userA, userB;
+DROP TABLE db1.table1;
+DROP DATABASE db1;
+--source include/save_binlog_position.inc
+--echo # End : Tests for GRANT : Table and Column grants
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

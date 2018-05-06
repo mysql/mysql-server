@@ -62,6 +62,6 @@ Warnings:
 Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
 Warnings:
-Warning	1478	InnoDB: Cannot create a COMPRESSED table when innodb_page_size > 16k. Assuming ROW_FORMAT=DYNAMIC.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4 as ROW_FORMAT is not COMPRESSED.
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;

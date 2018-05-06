@@ -1,0 +1,1533 @@
+=============================================
+CRUD UPDATE ARRAY_INSERT SCENARIOS
+=============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+create user updatearrayinsert@localhost identified by 'updatearrayinsert';
+grant all on *.* to updatearrayinsert@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN SET SQL_SAFE_UPDATES = 0
+
+0 rows affected
+RUN DROP SCHEMA if EXISTS mysqlxcoll
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxcoll
+
+1 rows affected
+RUN USE mysqlxcoll
+
+0 rows affected
+RUN CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": ["Victor"], "last_name": ["Otero"],"amount": [4.99]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": ["Gonzalo"], "last_name": ["Chrystens"],"amount": [120.57]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": ["Abraham"], "last_name": ["Vega"],"amount": [74.56]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": ["Jennifer"], "last_name": ["Leon"],"amount": [387.14]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": ["Jhonny"], "last_name": ["Test"],"amount": [125.45]}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+Update insert String value into Array using == Operator for criteria
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Victor_Extra_Name"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [387.14], "last_name": ["Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [125.45], "last_name": ["Test"]}	5
+0 rows affected
+Update a valid collection with == operator and for Quotes
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"VictorArrayInsert\""
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [387.14], "last_name": ["Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [125.45], "last_name": ["Test"]}	5
+0 rows affected
+Update a valid collection with string value and > operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "extra_last_name"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update a valid collection with string value and < operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "extra_last_name_2"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update a valid collection with string value and <= operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "last_name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "extra_last_name_3"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update a valid collection with string value and >= operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 257.52
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Rows matched: 3  Changed: 3  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update a valid collection with string value and != operator for multiple docs
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "4"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 546.12
+      }
+    }
+  }
+}
+
+
+4 rows affected
+Rows matched: 4  Changed: 4  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [546.12, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert a Double 
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 1
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 6.2564
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert a Float 
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_FLOAT
+        v_float: 356.85941
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert a NULL 
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert in different index values
+array index equal to 1
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 1
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 1
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+array index equal to 2
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 2
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 2
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+array index equal to 3
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 3
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 3, 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+array index equal to 4
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 4
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 4
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 3, 4, 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert a String into a only numbers member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 5
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Index_5"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor"], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update array insert a number into a only String member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_UINT
+        v_unsigned_int: 253
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", 253], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update with order clause update last _id in desc order (_id = 5)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "0"
+          }
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 1
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: DESC
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 1234.567
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", 253], "amount": [546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update with order clause update first two _id in asc order (_id = 1,2)
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "0"
+          }
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 2
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "_id"
+      }
+    }
+    direction: ASC
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 9876.543
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+Update transaction rollback
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "i_must_be_rollback"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", "i_must_be_rollback", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+RUN ROLLBACK
+
+0 rows affected
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update transaction commit
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "i_must_be_commited"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN COMMIT
+
+0 rows affected
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", "i_must_be_commited", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Update with non existing doc member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "i_donot_exists"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "iamnotadoc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Test"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Unknown column 'iamnotadoc' in 'field list' (code 1054)
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", "i_must_be_commited", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+Invalid type of update for Document
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 3
+      }
+      name: "doc"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "Test"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Invalid column name to update (code 5052)
+Update array insert with an index value out of range
+send Mysqlx.Crud.Update {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "amount"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 9999999
+      }
+      name: "doc"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+      literal {
+        type: V_DOUBLE
+        v_double: 20
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN select * from maincoll
+doc	_id
+{"_id": "1", "name": ["\"VictorArrayInsert\"", "Victor_Extra_Name", "Victor", "i_must_be_commited", 253], "amount": [9876.543, 546.12, 4.99], "last_name": ["extra_last_name_3", "extra_last_name_2", "Otero"]}	1
+{"_id": "2", "name": ["Gonzalo"], "amount": [9876.543, null, 1, 2, 3, 4, "Index_5", 546.12, 120.57, 20], "last_name": ["extra_last_name_3", "Chrystens"]}	2
+{"_id": "3", "name": ["Abraham"], "amount": [356.859, 546.12, 6.2564, 257.52, 74.56], "last_name": ["Vega"]}	3
+{"_id": "4", "name": ["Jennifer"], "amount": [257.52, 387.14], "last_name": ["extra_last_name", "Leon"]}	4
+{"_id": "5", "name": ["Jhonny"], "amount": [1234.567, 546.12, 257.52, 125.45], "last_name": ["extra_last_name", "Test"]}	5
+0 rows affected
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA if EXISTS mysqlxcoll
+
+1 rows affected
+RUN DROP USER updatearrayinsert@localhost
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

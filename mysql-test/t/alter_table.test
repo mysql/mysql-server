@@ -1,7 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# InnoDB page size 16k is required
 
 #
 # Test of alter table
@@ -11,7 +8,9 @@ drop table if exists t1,t2;
 drop database if exists mysqltest;
 --enable_warnings
 
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+SET SESSION information_schema_stats_expiry=0;
 
 create table t1 (
 col1 int not null auto_increment primary key,
@@ -30,7 +29,7 @@ modify column col6 int not null first;
 select * from t1;
 drop table t1;
 
-create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=myisam;
 insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
 alter table t1 add column new_col int, order by payoutid,bandid;
 select * from t1;
@@ -38,7 +37,16 @@ alter table t1 order by bandid,payoutid;
 select * from t1;
 drop table t1;
 
-# Check that pack_keys and dynamic length rows are not forced. 
+# ORDER BY does not make sence for InnoDB tables,because InnoDB always orders table rows based on the clustered index
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=InnoDB;
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+alter table t1 order by bandid,payoutid;
+select * from t1;
+drop table t1;
+
+# Check that pack_keys and dynamic length rows are not forced.
 
 CREATE TABLE t1 (
 GROUP_ID int(10) unsigned DEFAULT '0' NOT NULL,
@@ -98,7 +106,7 @@ select * from t1;
 drop table t1;
 
 #
-# Bug #2628: 'alter table t1 rename mysqltest.t1' silently drops mysqltest.t1 
+# Bug #2628: 'alter table t1 rename mysqltest.t1' silently drops mysqltest.t1
 # if it exists
 #
 create table t1 (name char(15));
@@ -115,7 +123,7 @@ select * from mysqltest.t1;
 drop table t1;
 drop database mysqltest;
 
-#
+# Disable/Enable keys supported by Myisam only
 # ALTER TABLE ... ENABLE/DISABLE KEYS
 
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
@@ -123,7 +131,7 @@ create table t1 (n1 int not null, n2 int, n3 int, n4 float,
                 key (n1, n2, n3, n4),
                 key (n2, n3, n4, n1),
                 key (n3, n4, n1, n2),
-                key (n4, n1, n2, n3) );
+                key (n4, n1, n2, n3) ) engine=Myisam;
 alter table t1 disable keys;
 show keys from t1;
 #let $1=10000;
@@ -308,7 +316,7 @@ drop table t1;
 # Bug#2821
 # Test that table CHARACTER SET does not affect blobs
 #
-create table t1 (myblob longblob,mytext longtext) 
+create table t1 (myblob longblob,mytext longtext)
 default charset latin1 collate latin1_general_cs;
 show create table t1;
 alter table t1 character set latin2;
@@ -369,6 +377,7 @@ alter table t1 add unique ( a(1) );
 drop table t1;
 
 #
+# Disable/Enable keys supported by Myisam only
 # Bug #24395: ALTER TABLE DISABLE KEYS doesn't work when modifying the table
 #
 # This problem happens if the data change is compatible.
@@ -377,7 +386,7 @@ drop table t1;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (a int, key(a));
+create table t1 (a int, key(a)) engine=myisam;
 show indexes from t1;
 --echo "this used not to disable the index"
 alter table t1 modify a int, disable keys;
@@ -411,7 +420,7 @@ show indexes from t1;
 drop table t1;
 
 --echo "Now will test with one unique index"
-create table t1(a int, b char(10), unique(a));
+create table t1(a int, b char(10), unique(a)) engine=myisam;
 show indexes from t1;
 alter table t1 disable keys;
 show indexes from t1;
@@ -436,7 +445,7 @@ show indexes from t1;
 drop table t1;
 
 --echo "Now will test with one unique and one non-unique index"
-create table t1(a int, b char(10), unique(a), key(b));
+create table t1(a int, b char(10), unique(a), key(b)) engine=myisam;
 show indexes from t1;
 alter table t1 disable keys;
 show indexes from t1;
@@ -497,10 +506,11 @@ use test;
 drop table t1;
 
 #
+# ROW_FORMAT=FIXED supported by Myisam only
 # BUG#23404 - ROW_FORMAT=FIXED option is lost is an index is added to the
 # table
 #
-CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE TABLE t1(a INT) ENGINE=MyISAM ROW_FORMAT=FIXED;
 CREATE INDEX i1 ON t1(a);
 SHOW CREATE TABLE t1;
 DROP INDEX i1 ON t1;
@@ -508,6 +518,7 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #
+# Disable/Enable keys supported by Myisam only
 # Bug#24219 - ALTER TABLE ... RENAME TO ... , DISABLE KEYS leads to crash
 #
 --disable_warnings
@@ -515,7 +526,7 @@ DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
 --enable_warnings
 
-CREATE TABLE bug24219 (a INT, INDEX(a));
+CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
 
 SHOW INDEX FROM bug24219;
 
@@ -634,7 +645,7 @@ drop table t1;
 #            NO_ZERO_DATE mode.
 #
 set sql_mode= default;
-create table t1(f1 int);
+create table t1(f1 int) engine=myisam;
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');
 --error 1292
@@ -680,7 +691,7 @@ drop table t1;
 # Bug#6073 "ALTER table minor glich": ALTER TABLE complains that an index
 # without # prefix is not allowed for TEXT columns, while index
 # is defined with prefix.
-# 
+#
 create table t1 (t varchar(255) default null, key t (t(80)))
 engine=myisam default charset=latin1;
 alter table t1 change t t text;
@@ -692,7 +703,7 @@ drop table t1;
 #
 CREATE TABLE t1 (a varchar(500));
 
-ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
+ALTER TABLE t1 ADD b GEOMETRY NOT NULL SRID 0, ADD SPATIAL INDEX(b);
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD KEY(b(50));
 SHOW CREATE TABLE t1;
@@ -764,9 +775,10 @@ drop table t1;
 #
 # Extended test coverage for ALTER TABLE behaviour under LOCK TABLES
 # It should be consistent across all platforms and for all engines
-# (Before 5.1 this was not true as behavior was different between 
+# (Before 5.1 this was not true as behavior was different between
 # Unix/Windows and transactional/non-transactional tables).
-# See also innodb_mysql.test
+# See also innodb_mysql.test.
+# See alter_table-big.test for extended full ALTER TABLE RENAME coverage.
 #
 --disable_warnings
 drop table if exists t1, t2, t3;
@@ -787,12 +799,12 @@ select * from t1;
 alter table t1 change i c char(10) default "Two";
 insert into t1 values ();
 select * from t1;
-# If table is renamed then it should be removed from the list
-# of locked tables. 'Fast' ALTER TABLE with RENAME clause:
+# If table is renamed then it should stay in the list of locked tables
+# under new name (unless SE doesn't support atomic DDL and it is an error).
+# 'Fast' ALTER TABLE with RENAME clause:
 alter table t1 modify c char(10) default "Three", rename to t2;
 --error ER_TABLE_NOT_LOCKED
 select * from t1;
---error ER_TABLE_NOT_LOCKED
 select * from t2;
 select * from t3;
 unlock tables;
@@ -801,7 +813,6 @@ select * from t2;
 lock table t2 write, t3 read;
 # Full ALTER TABLE with RENAME
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
---error ER_TABLE_NOT_LOCKED
 select * from t1;
 --error ER_TABLE_NOT_LOCKED
 select * from t2;
@@ -883,7 +894,7 @@ DESCRIBE t1;
 
 SHOW INDEXES FROM t1;
 
-INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet"); 
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
 --echo "Non-copy data change - new frm, but old data and index files"
 ALTER TABLE t1
   CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
@@ -956,9 +967,10 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 DROP TABLE t1;
 
 #
+# pack_keys and max_data_length options are meant for Myisam tables
 # Bug#39372 "Smart" ALTER TABLE not so smart after all.
 #
-create table t1(f1 int not null, f2 int not null, key  (f1), key (f2));
+create table t1(f1 int not null, f2 int not null, key  (f1), key (f2)) engine=myisam;
 let $count= 50;
 --disable_query_log
 while ($count)
@@ -988,7 +1000,7 @@ drop table t1;
 #
 # Bug #23113: Different behavior on altering ENUM fields between 5.0 and 5.1
 #
-CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, 
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY,
   b ENUM('a', 'b', 'c') NOT NULL);
 INSERT INTO t1 (b) VALUES ('a'), ('c'), ('b'), ('b'), ('a');
 ALTER TABLE t1 MODIFY b ENUM('a', 'z', 'b', 'c') NOT NULL;
@@ -1058,7 +1070,7 @@ DROP TABLE t1;
 
 
 --echo #
---echo # Bug #31145: ALTER TABLE DROP COLUMN, ADD COLUMN crashes (linux) 
+--echo # Bug #31145: ALTER TABLE DROP COLUMN, ADD COLUMN crashes (linux)
 --echo #   or freezes (win) the server
 --echo #
 
@@ -1100,10 +1112,10 @@ drop table t1;
 #
 # Bug #31031 ALTER TABLE regression in 5.0
 #
-#  The ALTER TABLE operation failed with 
+#  The ALTER TABLE operation failed with
 #  ERROR 1089 (HY000): Incorrect sub part key; ...
 #
-CREATE TABLE t1(c CHAR(10), 
+CREATE TABLE t1(c CHAR(10),
   i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES('a',2),('b',4),('c',6);
 ALTER TABLE t1
@@ -1114,7 +1126,7 @@ DROP TABLE t1;
 
 
 #
-# Bug#50542 5.5.x doesn't check length of key prefixes: 
+# Bug#50542 5.5.x doesn't check length of key prefixes:
 #           corruption and crash results
 #
 # This case is related to Bug#31031 (above)
@@ -1346,11 +1358,12 @@ ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
 
 DROP TABLE t1, m1;
 
+# Disable/Enable keys supported by Myisam only
 --echo #
 --echo # 6: Possible deadlock involving thr_lock.c
 --echo #
 
-CREATE TABLE t1(a INT PRIMARY KEY, b INT);
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,2);
 
 START TRANSACTION;
@@ -1560,15 +1573,11 @@ DROP TABLE tm1;
 
 use mysql;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE db ENGINE=innodb;
+ALTER TABLE db ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE user ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE proc ENGINE=heap;
---error ER_UNSUPPORTED_ENGINE
 ALTER TABLE func ENGINE=csv;
---error ER_UNSUPPORTED_ENGINE
-ALTER TABLE event ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE servers ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
@@ -1582,15 +1591,11 @@ ALTER TABLE time_zone ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE help_topic ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE db (dummy int) ENGINE=innodb;
+CREATE TABLE db (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE user (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE proc (dummy int) ENGINE=heap;
---error ER_UNSUPPORTED_ENGINE
 CREATE TABLE func (dummy int) ENGINE=csv;
---error ER_UNSUPPORTED_ENGINE
-CREATE TABLE event (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE servers (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
@@ -1625,14 +1630,14 @@ show create table t1;
 
 --echo # 1.b) It should be impossible to rename index that doesn't
 --echo #      exists, dropped or added within the same ALTER TABLE.
---error ER_KEY_DOES_NOT_EXITS 
+--error ER_KEY_DOES_NOT_EXITS
 alter table t1 rename key d to e;
 show create table t1;
---error ER_KEY_DOES_NOT_EXITS 
+--error ER_KEY_DOES_NOT_EXITS
 alter table t1 drop key c, rename key c to d;
 show create table t1;
---error ER_KEY_DOES_NOT_EXITS 
-alter table t1 add key d(j), rename key d to e; 
+--error ER_KEY_DOES_NOT_EXITS
+alter table t1 add key d(j), rename key d to e;
 show create table t1;
 
 --echo # 1.c) It should be impossible to rename index to a name
@@ -1663,13 +1668,13 @@ alter table t1 rename key primary to d;
 show create table t1;
 --echo # Even using 'funny' syntax.
 --error ER_WRONG_NAME_FOR_INDEX
-alter table t1 rename key t1.primary to d;
+alter table t1 rename key `primary` to d;
 show create table t1;
 --error ER_PARSE_ERROR
 alter table t1 rename key c to primary;
 show create table t1;
 --error ER_WRONG_NAME_FOR_INDEX
-alter table t1 rename key c to t1.primary;
+alter table t1 rename key c to `primary`;
 show create table t1;
 drop table t1;
 
@@ -1744,7 +1749,7 @@ alter table t2 algorithm=inplace, rename key kkkk to k, alter column i set defau
 show create table t1;
 show create table t2;
 --echo # Combining with non-inplace operation results in the whole ALTER
---echo # becoming non-inplace. 
+--echo # becoming non-inplace.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 algorithm=inplace, rename key k to kk, add column j int;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
@@ -1781,9 +1786,9 @@ create table t1 ( a int, b int, c int, d int,
                   primary key (a), index i1 (b), index i2 (c) ) engine=innodb;
 alter table t1 add index i1 (d), rename index i1 to x;
 show create table t1;
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-                                     information_schema.innodb_sys_indexes as i,
-                                     information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+                                     information_schema.innodb_indexes as i,
+                                     information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 drop table t1;
@@ -1791,9 +1796,9 @@ create table t1 (a int, b int, c int, d int,
                  primary key (a), index i1 (b), index i2 (c)) engine=innodb;
 alter table t1 add index i1 (d), rename index i1 to i2, drop index i2;
 show create table t1;
-select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
-                                     information_schema.innodb_sys_indexes as i,
-                                     information_schema.innodb_sys_fields as f
+select i.name as k, f.name as c from information_schema.innodb_tables as t,
+                                     information_schema.innodb_indexes as i,
+                                     information_schema.innodb_fields as f
 where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
 order by k, c;
 drop table t1;
@@ -1818,16 +1823,16 @@ drop table t1;
 
 --enable_connect_log
 --echo # Suppress error messages which will be generated by IMPORT TABLESPACE
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 
 CREATE TABLE t1 (i INT) ENGINE=InnoDB;
 
 --echo #
 --echo # 1) Check that ALTER TABLE ... IMPORT/DISCARD TABLESPACE on
 --echo #    base table acquire X lock (when not under LOCK TABLES).
---echo # 
+--echo #
 
 connect(con1, localhost, root);
 --echo # Acquire S lock on table 't1'.
@@ -1908,7 +1913,7 @@ DROP TEMPORARY TABLE t1;
 --echo #
 --echo # 3) Check that ALTER TABLE ... IMPORT/DISCARD TABLESPACE on
 --echo #    base table under LOCK TABLES acquire X lock.
---echo # 
+--echo #
 
 connection con2;
 LOCK TABLES t1 WRITE;
@@ -2046,8 +2051,8 @@ CREATE TABLE t1(a INT NOT NULL, b POINT NOT NULL) ENGINE=INNODB;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD UNIQUE INDEX (b);
 
---echo # Note that SHOW CREATE TABLE does not list b as a primary key, 
---echo # even though it was promoted. This appears to be the case also 
+--echo # Note that SHOW CREATE TABLE does not list b as a primary key,
+--echo # even though it was promoted. This appears to be the case also
 --echo # for other column types.
 SHOW CREATE TABLE t1;
 
@@ -2055,22 +2060,22 @@ ALTER TABLE t1 ADD UNIQUE INDEX (a);
 SHOW CREATE TABLE t1;
 
 --echo # Verify that the expected indices have been created by Innodb
-SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME, 
+SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
        CASE I.TYPE 
-            WHEN 0 THEN 'Secondary' 
-            WHEN 1 THEN 'Clustered' 
-            WHEN 2 THEN 'Unique' 
-            WHEN 3 THEN 'Primary' 
-            WHEN 32 THEN 'Full text' 
-            WHEN 64 THEN 'Spatial' 
-            ELSE 'Unknown' 
-       END AS INDEX_TYPE, 
-       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM 
-              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN 
-              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN 
-              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F 
-              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID 
-       WHERE T.NAME = 'test/t1';
+            WHEN 0 THEN 'Secondary'
+            WHEN 1 THEN 'Clustered'
+            WHEN 2 THEN 'Unique'
+            WHEN 3 THEN 'Primary'
+            WHEN 32 THEN 'Full text'
+            WHEN 64 THEN 'Spatial'
+            ELSE 'Unknown'
+       END AS INDEX_TYPE,
+       F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
+              INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+              INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+              INFORMATION_SCHEMA.INNODB_FIELDS AS F
+              ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
+       WHERE T.NAME = 'test/t1' ORDER BY I.NAME, F.NAME;
 
 DROP TABLE t1;
 
@@ -2084,21 +2089,25 @@ SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 
 --echo # Test with '767' as index size limit.
-SET GLOBAL innodb_large_prefix=OFF;
-CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
-INSERT INTO t1 VALUES('a');
+CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) charset latin1 ENGINE= INNODB
+ROW_FORMAT=COMPACT;
+--error ER_INDEX_COLUMN_TOO_LONG
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
+DROP TABLE t1;
+CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) charset latin1 ENGINE= INNODB,
+ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES('a');
+ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(3073), ALGORITHM= INPLACE;
 
 --echo # Without patch, the below statement will assert in a debug build.
 SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 
 --echo # Cleanup.
 DROP TABLE t1;
-SET GLOBAL innodb_large_prefix=default;
 
---echo # Test with innodb large prefix indexes(Upto 3072).
+--echo # Test with innodb prefix indexes up to 3072 bytes.
 
-CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB
+CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) charset latin1 ENGINE= INNODB
 ROW_FORMAT= DYNAMIC;
 INSERT INTO t1 VALUES('a');
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(3073), ALGORITHM= INPLACE;
@@ -2110,462 +2119,6 @@ SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 DROP TABLE t1;
 SET sql_mode= @orig_sql_mode;
 
---echo # BUG#17246318 - ALTER TABLE SHOULD NOT ALLOW CREATION OF TABLES
---echo #                WITH BOTH 5.5 AND 5.6 TEMPORALS
---echo #
-
---echo # BUG 18985760 -"FAST" ALTER TABLE CHANGE ON ENUM COLUMN 
---echo #                TRIGGERS FULL TABLE REBUILD.
---echo # Test for the case where 'avoid_temporal_upgrade' is set
---echo # to the DEFAULT value(OFF).
-
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
---copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
---copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
-
-ALTER TABLE t1 ENGINE= INNODB;
-
---echo #ALTER operations using INPLACE algorithm is disallowed
---echo #since the table contains old temporal type.
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111',
-ALGORITHM= INPLACE;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= INPLACE;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= INPLACE;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 CHANGE COLUMN f_time fld4 TIMESTAMP, ALGORITHM= INPLACE;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 MODIFY f_datetime TIME, ALGORITHM= INPLACE;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD INDEX index1(f_datetime), ALGORITHM= INPLACE;
-
---echo #ALTER operations using COPY algorithm is allowed
---echo #when the table contains old temporal type.
-
---echo #Note: Timestamp encoding remains the same for the non-fractional part
---echo #even in the 5.6 format. Hence there is no change in the display before
---echo #and after upgrade.
-
---echo #ADD COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD COLUMN FIRST upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD COLUMN AFTER upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #CHANGE COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 CHANGE COLUMN f_timestamp fld4 TIMESTAMP, ALGORITHM= COPY;
-SELECT f_time, f_datetime, fld4, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(fld4)) FROM t2;
-DROP TABLE t2;
-
---echo #MODIFY COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 MODIFY f_timestamp TIME, ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD INDEX upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD INDEX index1(f_timestamp), ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ALTER operations using DEFAULT algorithm is allowed
---echo #when the table contains old temporal type.
-
---echo #ADD COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD COLUMN FIRST upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP FIRST, ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD COLUMN AFTER upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #CHANGE COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 CHANGE COLUMN f_timestamp fld4 DATETIME, ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, fld4, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(fld4)) FROM t2;
-DROP TABLE t2;
-
---echo #MODIFY COLUMN upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 MODIFY f_timestamp TIME, ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ADD INDEX upgrades the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD INDEX index1(f_timestamp), ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ALTER TABLE FORCE upgrades the old temporal types.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-              HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 FORCE;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-              HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #Examples where the NOT NULL/NULL FLAG and DEFAULT values are retained
---echo #after upgrade.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
---echo #Before upgrade.
-SHOW CREATE TABLE t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
---echo #After upgrade.
-SHOW CREATE TABLE t2;
-
---echo #Examples of the Alter operation which does not upgrade
---echo #the temporal formats. 
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
-
-ALTER TABLE t1 DROP COLUMN f_timestamp;
-SELECT f_time, f_datetime, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)) FROM t1;
-
-RENAME TABLE t1 to t3;
-SELECT f_time, f_datetime, HEX(WEIGHT_STRING(f_time)),
-              HEX(WEIGHT_STRING(f_datetime)) FROM t3;
-
---echo #Once the old temporal type is upgraded to new temporal type,
---echo #ADD/CHANGE COLUMN, ADD INDEX operations succeed using INPLACE
---echo #ALGORITHM.
-
-ALTER TABLE t2 ADD COLUMN fld5 INT, ALGORITHM= INPLACE;
-
-ALTER TABLE t2 ADD INDEX index2(fld5), ALGORITHM= INPLACE;
-
-ALTER TABLE t2 CHANGE fld5 fld6 INT, ALGORITHM= INPLACE;
-
-ALTER TABLE t2 MODIFY fld6 INT, ALGORITHM= INPLACE;
-
---echo #Cleanup
-DROP TABLE t2, t3;
-
-
---echo #
---echo # BUG 18985760 -"FAST" ALTER TABLE CHANGE ON ENUM COLUMN 
---echo #                TRIGGERS FULL TABLE REBUILD.
---echo #   
-
-
-let $MYSQLD_DATADIR= `select @@datadir`;
---copy_file std_data/55_temporal.frm $MYSQLD_DATADIR/test/t1.frm
---copy_file std_data/55_temporal.MYD $MYSQLD_DATADIR/test/t1.MYD
---copy_file std_data/55_temporal.MYI $MYSQLD_DATADIR/test/t1.MYI
-
---echo # To support INPLACE ALTER table operations later in the test.
-ALTER TABLE t1 ENGINE= INNODB;
-
---echo #Test cases with the global variable 'avoid_temporal_upgrade'
---echo #enabled.
-
-SET @save_avoid_temporal_upgrade= @@global.avoid_temporal_upgrade;
-SET GLOBAL avoid_temporal_upgrade= ON;
-
---echo #ALTER operations using INPLACE algorithm are allowed
---echo #when the table contains old temporal type since
---echo #the global variable 'avoid_temporal_upgrade' is
---echo #enabled. The old temporal types are not upgraded. 
-
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= INPLACE;
-SELECT f_time, f_datetime, f_timestamp, fld4, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
-       HEX(WEIGHT_STRING(fld4)) FROM t2;
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld5 TIME DEFAULT '101010' FIRST, ALGORITHM= INPLACE;
-SELECT f_time, f_datetime, f_timestamp, fld5, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
-       HEX(WEIGHT_STRING(fld5)) FROM t2;
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= INPLACE;
-SELECT f_time, f_datetime, f_timestamp, fld6, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)),
-       HEX(WEIGHT_STRING(fld6)) FROM t2;
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD INDEX index1(f_datetime), ALGORITHM= INPLACE;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ALTER operations using COPY algorithm are allowed
---echo #when the table contains old temporal type and 
---echo #does not upgrade the old temporal types.
-
---echo #ADD COLUMN does not upgrade the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD COLUMN FIRST does not upgrade the old temporal type.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld5 TIMESTAMP FIRST, ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD COLUMN AFTER does not upgrade the old temporal type.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= COPY;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #CHANGE COLUMN upgrades the old temporal type only for the column which
---echo #is changed.
-#Setup table having old temporal type.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 CHANGE COLUMN f_datetime fld7 DATETIME, ALGORITHM= COPY;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-              HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #MODIFY COLUMN upgrades the old temporal type only for the column
---echo #modified.
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 MODIFY f_timestamp DATETIME, ALGORITHM= COPY;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD INDEX does not upgrade the old temporal type.
-#Setup table having old temporal type.
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD INDEX index1(f_time), ALGORITHM= COPY;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ALTER operations using DEFAULT algorithm are allowed
---echo #when the table contains old temporal type and does not
---echo #upgrade the old temporal types.
-
---echo #ADD COLUMN does not upgrade the old temporal type.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld4 TIMESTAMP DEFAULT '201211111', ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD COLUMN FIRST does not upgrade the old temporal type.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld5 TIMESTAMP FIRST, ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD COLUMN AFTER does not upgrade the old temporal type.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD COLUMN fld6 TIMESTAMP DEFAULT '201211111' AFTER f_timestamp,
-ALGORITHM= DEFAULT;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #CHANGE COLUMN upgrades the old temporal type only for the column which
---echo #is changed.
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 CHANGE COLUMN f_datetime fld7 DATETIME, ALGORITHM= DEFAULT;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #MODIFY COLUMN upgrades the old temporal type only for the column
---echo #modified.
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 MODIFY f_timestamp DATETIME, ALGORITHM= DEFAULT;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-
---echo #ADD INDEX does not upgrade the old temporal type.
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 ADD INDEX index1(f_time), ALGORITHM= DEFAULT;
-SELECT f_time, fld7, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(fld7)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
---echo #ALTER TABLE FORCE does not upgrade the old temporal types.
-#Setup table having old temporal type.
-CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
-
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-ALTER TABLE t2 FORCE;
-SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
-       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
-DROP TABLE t2;
-
-SET @@global.avoid_temporal_upgrade= @save_avoid_temporal_upgrade;
-
---echo #Test cases with the session variable 'show_old_temporals'
---echo #enabled.
-
---echo #Setup
-CREATE TABLE t2(fld1 time, fld2 datetime, fld3 timestamp);
-SET @save_show_old_temporals= @@session.show_old_temporals;
-SET SESSION show_old_temporals= ON;
-
---echo #Displays a comment to indicate that the columns are of 5.5
---echo #binary format
-SHOW CREATE TABLE t1;
-SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t1';
-
---echo #Since the temporal types are in new format, no comment is 
---echo #displayed
-SHOW CREATE TABLE t2;
-SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t2';
-
---echo #Does not display the comment for table with old temporal types 
---echo #since the session variable 'show_old_temporals' is OFF.
-SET SESSION show_old_temporals= OFF;
-SHOW CREATE TABLE t1;
-SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t1';
-
---echo #Cleanup
-SET @@session.show_old_temporals= @save_show_old_temporals;
-DROP TABLE t1, t2;
 
 
 --echo #
@@ -2606,30 +2159,30 @@ DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE=INNODB;
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
-DROP TABLE t1;
-
-CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40') 
-ENGINE=INNODB;
-SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
-ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
-SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
 CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
 ENGINE=INNODB;
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
+ENGINE=INNODB;
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 'MERGE_THRESHOLD=45';
 SHOW INDEX FROM t1;
-SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
 
 --echo #
@@ -2656,6 +2209,61 @@ ALTER TABLE t TABLESPACE s;
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
 
+--echo #
+--echo # Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
+--echo #                CHARACTER SET LATIN1 SHOULD FAIL
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+
+--echo # Case 1: Alter table with CHARACTER SET X, CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
+
+--echo # Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+
+--echo # Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
+
+--echo # Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+
+--echo # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+
+--echo # Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
+
+--echo # Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+
+--echo # Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+--echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+--echo # Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+--echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+--echo # Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
+--echo #          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+# Clean-up
+DROP TABLE t1;
 
 --echo #
 --echo # BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
@@ -2744,11 +2352,11 @@ SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
             WHEN 3 THEN "yes"
             ELSE "no" END AS IS_PRIMARY_KEY,
        F.NAME AS FIELD_NAME, F.POS AS FIELD_POS FROM
-              INFORMATION_SCHEMA.INNODB_SYS_TABLES AS T JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_INDEXES AS I JOIN
-              INFORMATION_SCHEMA.INNODB_SYS_FIELDS AS F
+              INFORMATION_SCHEMA.INNODB_TABLES AS T JOIN
+              INFORMATION_SCHEMA.INNODB_INDEXES AS I JOIN
+              INFORMATION_SCHEMA.INNODB_FIELDS AS F
               ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
-       WHERE T.NAME LIKE 'test/%';
+       WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 
 
 DROP TABLE t0;
@@ -2756,6 +2364,20 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
+
+
+--echo #
+--echo # Bug #22141913  ASSERTION: !"INVALID KEY_PART->FIELDNR
+--echo # FILL_DD_INDEX_ELEMENTS_FROM_KEY_PARTS
+--echo #
+
+CREATE TABLE t (a TIMESTAMP(1) GENERATED ALWAYS AS (1) VIRTUAL,
+                b INT GENERATED ALWAYS AS (1) VIRTUAL
+               ) ENGINE=INNODB;
+
+--echo # The below ALTER asserts without the fix.
+ALTER TABLE t ADD  INDEX (b);
+DROP TABLE t;
 
 
 --echo #
@@ -2768,10 +2390,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
 --echo # Without fix, the CHARSET SET for table remains gbk.
 SHOW CREATE TABLE t1;
 
-let $test_dir =
-    `SELECT CONCAT(variable_value, 'test/') FROM
-     INFORMATION_SCHEMA.GLOBAL_VARIABLES
-     WHERE LOWER(variable_name) = 'datadir'`;
+let $test_dir= `SELECT CONCAT(@@datadir, 'test/')`;
 
 --echo # Without fix, the temporary .frm file is not cleaned up.
 --list_files $test_dir `#sql-*.frm`
@@ -2798,14 +2417,36 @@ ALTER TABLE t1 CHARACTER SET UTF8, ALGORITHM = INPLACE;
 
 SHOW CREATE TABLE t1;
 
-let $test_dir =
-    `SELECT CONCAT(variable_value, 'test/') FROM
-     INFORMATION_SCHEMA.GLOBAL_VARIABLES
-     WHERE LOWER(variable_name) = 'datadir'`;
+let $test_dir= `SELECT CONCAT(@@datadir, 'test/')`;
 
 --list_files $test_dir `#sql-*.frm`
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#22227958: ASSERT IN DD::FILL_DD_TABLE_FROM_CREATE_INFO, DDL
+--echo #
+--echo # Verify that it is possible to set conflicting values for PACK_KEYS,
+--echo # STATS_PERSISTENT CHECKSUM and DELAY_KEY_WRITE
+--echo # The last value set should be displayed by SHOW CREATE TABLE.
+
+--echo # Create table with conflicting values
+CREATE TABLE t1(i INT) ENGINE=INNODB PACK_KEYS=0 PACK_KEYS=1
+STATS_PERSISTENT=0 STATS_PERSISTENT=1 CHECKSUM=0 CHECKSUM=1
+DELAY_KEY_WRITE=0 DELAY_KEY_WRITE=1;
+
+--echo # Should show PACK_KEYS=1 STATS_PERSISTENT=1
+--echo # CHECKSUM=1 DELAY_KEY_WRITE=1
+SHOW CREATE TABLE t1;
+
+--echo # Alter table with conflicting values
+ALTER TABLE t1 PACK_KEYS=1 PACK_KEYS=0 STATS_PERSISTENT=1 STATS_PERSISTENT=0 CHECKSUM=1 CHECKSUM=0 DELAY_KEY_WRITE=1 DELAY_KEY_WRITE=0;
+
+--echo # Should show PACK_KEYS=0 STATS_PERSISTENT=0 (0 is default for CHECKSUM and DELAY_KEY_WRITE)
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
 
 --echo #
 --echo # Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
@@ -2912,6 +2553,43 @@ TRUNCATE TABLE t1;
 ALTER TABLE t1 ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM=INPLACE;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Additional coverage for WL#7743 "New data dictionary: changes to
+--echo # DDL-related parts of SE API". Check that ALTER TABLE INPLACE with
+--echo # RENAME TO clause correctly handles FKs and triggers.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk)) ENGINE=InnoDB;
+ALTER TABLE t2 ADD COLUMN j INT, RENAME TO t3, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+DROP TABLE t3;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t4, ALGORITHM=INPLACE;
+SELECT trigger_name, event_object_schema, event_object_table, action_statement
+  FROM information_schema.triggers WHERE event_object_schema = 'test';
+DROP TABLE t4;
+
+--echo
+--echo Bug#25779239 ALTER TABLE FAILS WHEN DEFAULT
+--echo              CHARACTER SET CHANGES TO UTF8MB4
+--echo
+
+CREATE TABLE t1(
+  i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) charset latin1;
+ALTER TABLE t1
+  DROP i,
+  ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  AUTO_INCREMENT = 1;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) charset utf8mb4;
+ALTER TABLE t1
+  DROP i,
+  ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  AUTO_INCREMENT = 1;
+DROP TABLE t1;
 
 --echo #
 --echo # BUG#25385334: MYSQL 5.7 ERROR WITH ALTER TABLE MODIFY SYNTAX
@@ -3044,3 +2722,194 @@ ALTER TABLE t1 MODIFY fld0 DATETIME NOT NULL;
 ALTER TABLE t2 MODIFY fld0 POINT NOT NULL;
 
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # WL#10761 : ALTER TABLE RENAME COLUMN
+--echo #
+
+CREATE TABLE t1(a INT, b VARCHAR(30), c FLOAT);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(1,'abcd',1.234);
+CREATE TABLE t2(a INT, b VARCHAR(30), c FLOAT) ENGINE=MyIsam;
+SHOW CREATE TABLE t2;
+INSERT INTO t2 VALUES(1,'abcd',1.234);
+
+# Rename one column
+ALTER TABLE t1 RENAME COLUMN a TO a;
+ALTER TABLE t1 RENAME COLUMN a TO m;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+# Rename multiple column
+ALTER TABLE t1 RENAME COLUMN m TO x,
+               RENAME COLUMN b TO y,
+               RENAME COLUMN c TO z;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+# Rename multiple columns with MyIsam Engine
+ALTER TABLE t2 RENAME COLUMN a TO d, RENAME COLUMN b TO e, RENAME COLUMN c to f;
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+
+# Mix different ALTER operations with RENAME COLUMN
+ALTER TABLE t1 CHANGE COLUMN x a INT, RENAME COLUMN y TO b;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 CHANGE COLUMN z c DOUBLE, RENAME COLUMN b to b;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 CHANGE COLUMN a b int, RENAME COLUMN b TO c, CHANGE COLUMN c d FLOAT;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN zz INT, RENAME COLUMN d TO f;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP COLUMN zz, RENAME COLUMN c TO zz;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 RENAME COLUMN zz to c, DROP COLUMN f;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN d INT DEFAULT 5, RENAME COLUMN c TO b, DROP COLUMN b;
+SHOW CREATE TABLE t1;
+
+#Cyclic Rename
+ALTER TABLE t1 RENAME COLUMN b TO d, RENAME COLUMN d TO b;
+SHOW CREATE TABLE t1;
+
+# Rename with Indexes
+ALTER TABLE t1 ADD KEY(b);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 RENAME COLUMN b TO bb;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+# Rename with Foreign keys.
+CREATE TABLE t3(a int, b int, KEY(b)) ENGINE=InnoDB;
+ALTER TABLE t3 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(bb);
+SHOW CREATE TABLE t3;
+ALTER TABLE t1 RENAME COLUMN bb TO b;
+SHOW CREATE TABLE t1;
+ALTER TABLE t3 RENAME COLUMN b TO c;
+SHOW CREATE TABLE t3;
+
+# Different Algorithm
+CREATE TABLE t4(a int);
+ALTER TABLE t4 RENAME COLUMN a TO aa, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t4;
+ALTER TABLE t4 RENAME COLUMN aa TO a, ALGORITHM = COPY;
+SHOW CREATE TABLE t4;
+DROP TABLE t4;
+
+# View, Trigger and SP
+CREATE VIEW v1 AS SELECT d,e,f FROM t2;
+CREATE TRIGGER trg1 BEFORE UPDATE on t2 FOR EACH ROW SET NEW.d=OLD.d + 10;
+CREATE PROCEDURE sp1() INSERT INTO t2(d) VALUES(10);
+ALTER TABLE t2 RENAME COLUMN d TO g;
+SHOW CREATE TABLE t2;
+SHOW CREATE VIEW v1;
+--error ER_VIEW_INVALID
+SELECT * FROM v1;
+--error ER_BAD_FIELD_ERROR
+UPDATE t2 SET f = f + 10;
+--error ER_BAD_FIELD_ERROR
+CALL sp1();
+DROP TRIGGER trg1;
+DROP PROCEDURE sp1;
+
+# Generated Columns
+CREATE TABLE t_gen(a INT, b DOUBLE GENERATED ALWAYS AS (SQRT(a)));
+INSERT INTO t_gen(a) VALUES(4);
+SELECT * FROM t_gen;
+SHOW CREATE TABLE t_gen;
+ALTER TABLE t_gen RENAME COLUMN a TO c, CHANGE COLUMN b b DOUBLE GENERATED ALWAYS AS (SQRT(c));
+SELECT * FROM t_gen;
+SHOW CREATE TABLE t_gen;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t_gen CHANGE COLUMN c a INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t_gen RENAME COLUMN c TO a;
+DROP TABLE t_gen;
+
+## Histogram invalidation
+CREATE TABLE foo (col1 INT);
+INSERT INTO foo VALUES (1), (2);
+ANALYZE TABLE foo UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+# The following query should now list one entry for the column "col1"
+# Remove 'last-updated' from the histogram, since it will change on every
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE foo RENAME COLUMN col1 TO col2;
+# It should not show an entry for "col1" now.
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE foo;
+
+#
+# Negative tests
+#
+SHOW CREATE TABLE t1;
+
+# Invalid Syntax
+--error ER_PARSE_ERROR
+ALTER TABLE t1 RENAME COLUMN b z;
+--error ER_PARSE_ERROR
+ALTER TABLE t1 RENAME COLUMN FROM b TO z;
+--error ER_PARSE_ERROR
+ALTER TABLE t1 RENAME COLUMN b TO 1;
+
+# Duplicate column name
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN b TO e, RENAME COLUMN c TO e;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1 ADD COLUMN z INT, RENAME COLUMN b TO z;
+
+# Multiple operation on same column
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN b, RENAME COLUMN b TO z;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN b TO b, RENAME COLUMN b TO b;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 RENAME COLUMN b TO c3, DROP COLUMN c3;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 ADD COLUMN z INT, CHANGE COLUMN z y INT, DROP COLUMN y;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 ADD COLUMN z INT, RENAME COLUMN z TO y, DROP COLUMN y;
+
+# Invalid column name while renaming
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1 RENAME COLUMN b TO `nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn`;
+# This error is different compared to ALTER TABLE ... CHANGE command
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t1 CHANGE b `nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn` int;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+# Cleanup
+DROP VIEW v1;
+DROP TABLE t3,t1,t2;
+SET SESSION information_schema_stats_expiry=default;
+
+--echo #
+--echo # Bug#27252354: UNABLE TO CREATE INDEX WHEN DATE/DATETIME DATATYPES
+--echo #               ARE USED WITH REQUIRED OPTION
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES ();
+# Allow adding NOT NULL generated DATE columns to a non-empty table.
+ALTER TABLE t
+ADD COLUMN b DATE GENERATED ALWAYS AS ('1999-09-09') VIRTUAL NOT NULL;
+ALTER TABLE t
+ADD COLUMN c DATE GENERATED ALWAYS AS ('1999-09-09') STORED NOT NULL;
+# Constraints are not checked when adding virtual generated columns.
+ALTER TABLE t
+ADD COLUMN d DATE GENERATED ALWAYS AS (NULL) VIRTUAL NOT NULL;
+# Constraints are checked when adding an index on a virtual column.
+--error ER_BAD_NULL_ERROR
+CREATE INDEX idx ON t(d);
+# Constraints are checked when adding stored generated columns.
+--error ER_BAD_NULL_ERROR
+ALTER TABLE t
+ADD COLUMN e DATE GENERATED ALWAYS AS (NULL) STORED NOT NULL;
+SELECT * FROM t;
+DROP TABLE t;

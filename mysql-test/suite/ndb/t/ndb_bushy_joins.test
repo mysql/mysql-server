@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ########################################################
 # ndb_bushy_joins.test
 #
@@ -21,7 +16,6 @@
 #
 ########################################################
 
---source include/not_embedded.inc
 --source include/have_ndb.inc
 --source include/have_multi_ndb.inc
 
@@ -167,8 +161,6 @@ let $query4 =
 
 connection j1;
 set ndb_join_pushdown = on;
-
-call mtr.add_suppression("starting connect thread");
 
 -- echo ===============================
 -- echo Run single instance of 'query1' 

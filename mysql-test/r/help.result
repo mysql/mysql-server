@@ -1,6 +1,4 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into mysql.help_category(help_category_id,name)values(10001,'impossible_category_1');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value

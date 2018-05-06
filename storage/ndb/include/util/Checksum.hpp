@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -119,6 +126,95 @@ computeXorChecksum(const Uint32 *buf, Uint32 words, Uint32 sum = 0)
     return computeXorChecksumLong(buf,words,sum);
 }
 
+inline
+Uint32
+rotateChecksum(const Uint32 sum, Uint32 byte_steps)
+{
+  assert(byte_steps > 0);
+  assert(byte_steps < 4);
+
+  const unsigned char *psum = static_cast<const unsigned char*>(static_cast<const void*>(&sum));
+  Uint32 rot;
+  unsigned char *prot = static_cast<unsigned char*>(static_cast<void*>(&rot));
+  for (int i=0, j = byte_steps; i < 4; i ++, j = (j + 1) % 4)
+  {
+    prot[i] = psum[j];
+  }
+  return rot;
+}
+
+/**
+ * @buf series of bytes for which the checksum has to be computed
+ * @bytes size of buf in bytes
+ * @sum checksum
+ */
+inline
+Uint32
+computeXorChecksumBytes(const unsigned char* buf, size_t bytes, Uint32 sum = 0)
+{
+  assert(bytes > 0);
+
+  // For undoing rotate
+  size_t rotate_back = (size_t)buf % sizeof(Uint32);
+  /**
+   * Number of bytes at the start of buf that are not word aligned.
+   * Also the index to the original byte 0 in checksum word.
+   */
+  size_t rotate = (sizeof(Uint32) - rotate_back) % sizeof(Uint32);
+  size_t words = (bytes > rotate) ? (bytes - rotate) / 4 : 0;
+
+  // checksum buf[0..rotate-1] per byte
+  if (rotate > 0)
+  {
+    unsigned char * psum = static_cast<unsigned char*>(static_cast<void*>(&sum));
+    for (size_t i = 0; i < rotate && i < bytes; i ++ )
+    {
+      psum[i] ^= buf[i];
+    }
+  }
+
+  // checksum buf[rotate..rotate+4*words-1] per word
+  if (words > 0)
+  {
+    // Rotate sum to match alignment
+    if (rotate > 0)
+    {
+      sum = rotateChecksum(sum, rotate);
+    }
+
+    sum = computeXorChecksum(static_cast<const Uint32*>(static_cast<const void*>(buf + rotate)), words, sum);
+
+    // Rotate back sum
+    if (rotate > 0)
+    {
+      sum = rotateChecksum(sum, rotate_back);
+    }
+  }
+
+  // checksum buf[rotate+4*words..bytes-1] per byte
+  {
+    unsigned char * psum = static_cast<unsigned char*>(static_cast<void*>(&sum));
+    for (size_t i = rotate, j = rotate + 4 * words; j < bytes; j ++, i = (i + 1) %4)
+    {
+      psum[i] ^= buf[j];
+    }
+  }
+
+  /**
+   * Return checksum rotated such that it can be passed in as checksum for
+   * next buffer. The 'next byte to XOR' can be memorised in the checksum
+   * itself by rotating the checksum so that byte 0 is always next.
+   */
+  {
+    size_t rotate_forward = bytes % 4;
+    if (rotate_forward > 0)
+    {
+      sum = rotateChecksum(sum, rotate_forward);
+    }
+  }
+
+  return sum;
+}
 
 #endif // CHECKSUM_HPP
 

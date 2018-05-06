@@ -8,7 +8,6 @@ PARTITION p2 VALUES LESS THAN MAXVALUE);
 t1#P#p0.ibd
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
 t1#P#p2.ibd
-t1.frm
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 # Renaming to a file name where the first partition is 155 chars
 # and the second partition is 255 chars
@@ -18,7 +17,6 @@ RENAME TABLE t1 TO `t2_............................end`;
 t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p0.ibd
 t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
 t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p2.ibd
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend.frm
 SELECT * FROM `t2_............................end`;
 a
 1
@@ -36,7 +34,6 @@ RENAME TABLE `t2_............................end` to t1;
 t1#P#p0.ibd
 t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
 t1#P#p2.ibd
-t1.frm
 SELECT * FROM t1;
 a
 1

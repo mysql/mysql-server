@@ -2,16 +2,14 @@
 # This test case will test basic encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
---source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
+call mtr.add_suppression("The error means that another program is using InnoDB's files");
+call mtr.add_suppression("Operating system error number .* in a file operation");
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
 
 #------------------------------------------------------------------------------
 # InnoDB transparent encrypted tablespace:
@@ -58,7 +56,7 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE tde_db.t_encrypt(c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -193,7 +191,7 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE tde_db.t_encrypt(c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -223,7 +221,7 @@ begin
 
         DROP TABLE IF EXISTS tde_db.t_encrypt;
 
-        SET @sql_text = CONCAT('CREATE TABLE tde_db.t_encrypt  ('," c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL,spatial INDEX idx2 (c7) ) ", ' ENCRYPTION="Y" ',  row_form ,' ENGINE=InnoDB');
+        SET @sql_text = CONCAT('CREATE TABLE tde_db.t_encrypt  ('," c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) ) ", ' ENCRYPTION="Y" ',  row_form ,' ENGINE=InnoDB');
         PREPARE stmt FROM @sql_text;
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
@@ -317,22 +315,22 @@ INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4) SELECT c3,c4 FROM tde_db.t_encrypt;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 DELETE FROM tde_db.t_encrypt WHERE c2 > 10;
 UPDATE tde_db.t_encrypt SET c2 = 100 WHERE c2=1;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 ALTER TABLE tde_db.t_encrypt TRUNCATE PARTITION p2;
-SELECT c2,c4,c5 FROM tde_db.t_encrypt LIMIT 10;
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 SHOW CREATE TABLE tde_db.t_encrypt;
 
 --echo # restart with keying
 let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/restart_mysqld.inc
-SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
+SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt ORDER BY c2 LIMIT 10;
 
 DROP TABLE tde_db.t_encrypt;
 
@@ -361,7 +359,7 @@ CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
@@ -570,9 +568,9 @@ disconnect con1;
 connect (con2,localhost,encryptnonprivuser,'noauth',);
 SELECT CURRENT_USER();
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
---error 1227
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE tde_db.t_encrypt_np(c1 INT, c2 char(20), c3 BLOB) ENCRYPTION="Y" ENGINE = InnoDB;
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 disconnect con2;
@@ -587,11 +585,11 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 --source include/restart_mysqld.inc
  SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 
+DROP USER encryptnonprivuser@localhost;
+DROP USER encryptprivuser@localhost;
 DROP TABLE tde_db.t_encrypt;
 #
 ## Cleanup
-DROP USER encryptnonprivuser@localhost;
-DROP USER encryptprivuser@localhost;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 
 
@@ -691,7 +689,7 @@ DROP TABLE IF EXISTS tde_db.t_encrypt;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT ,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL,spatial INDEX idx2 (c7) , PRIMARY KEY (c2,c3(100))) ENCRYPTION="Y" ENGINE=InnoDB;
+CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT ,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) , PRIMARY KEY (c2,c3(100))) ENCRYPTION="Y" ENGINE=InnoDB;
 
 DELIMITER |;
 CREATE PROCEDURE tde_db.txn_t_encrypt()
@@ -747,17 +745,24 @@ SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt WHERE c2 > 500 AND c2 < 600;
 SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt ORDER BY c2 DESC LIMIT 10;
 DROP DATABASE tde_db;
 
---echo #
---echo # Bug#24404091 FAILING ASSERTION: !SRV_READ_ONLY_MODE ||
---echo # M_IMPL.M_LOG_MODE == MTR_LOG_NO_REDO
---echo #
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_read_only=1;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /.dll/.so/
---source include/restart_mysqld.inc
-
---error ER_INNODB_READ_ONLY
+--echo # Global privilege ENCRYPTION_KEY_ADMIN can replace super.
+connection default;
+USE test;
+CREATE USER encryption_admin@localhost IDENTIFIED BY 'foo';
+GRANT ENCRYPTION_KEY_ADMIN, CREATE ON *.* TO encryption_admin@localhost;
+connect (con10,localhost,encryption_admin,foo,test); 
+# Create a table with encryption
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
+connection default;
+REVOKE ENCRYPTION_KEY_ADMIN ON *.* FROM encryption_admin@localhost;
+connection con10;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+connection default;
+disconnect con10;
+DROP USER encryption_admin@localhost;
+DROP TABLE t1;
 
 # Normal restart
 --disable_query_log

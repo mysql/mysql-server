@@ -1,0 +1,17 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "status_by_user";
+let $key_group = 3.1;
+let $target_variable_name = Opened_tables;
+
+--echo TABLE: $table
+--echo INDEXES: PK (USER, VARIABLE_NAME)
+
+--source ../include/idx_compare_setup.inc
+
+--source ../include/idx_compare_load.inc
+
+--source ../include/idx_compare_cleanup.inc

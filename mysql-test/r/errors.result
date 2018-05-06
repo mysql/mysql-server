@@ -27,11 +27,9 @@ create table t1 (a int(256));
 ERROR 42000: Display width out of range for column 'a' (max = 255)
 set sql_mode='traditional';
 create table t1 (a varchar(66000));
-ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
+ERROR 42000: Column length too big for column 'a' (max = 16383); use BLOB or TEXT instead
 set sql_mode=default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT);
 SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 a
@@ -88,7 +86,6 @@ Variable_name	Value
 Com_insert	2
 select * from t1;
 a
-1
 select * from t2;
 a
 drop table t1;
@@ -96,6 +93,8 @@ drop table t2;
 drop function f1;
 drop function f2;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET sql_quote_show_create= _binary x'5452C39C45';
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TR\xC3\x9CE'
 SET sql_quote_show_create= _utf8 x'5452C39C45';
@@ -145,6 +144,8 @@ DROP TABLE t1;
 SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
 ERROR 22003: DOUBLE value is out of range in 'cot('v')'
 SET NAMES utf8 COLLATE utf8_latvian_ci ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
 ERROR 22003: BIGINT value is out of range in '(-(73) * -(2465717823867977728))'
 #
@@ -164,3 +165,32 @@ ERROR 42S22: Unknown column '' in 'VALUES() function'
 INSERT INTO t2(a,b) VALUES (1,0) ON DUPLICATE KEY UPDATE
 b=(SELECT VALUES(a)+2 FROM t1);
 DROP TABLE t1, t2;
+#
+# Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
+#
+CREATE USER nopriv_user@localhost;
+connection: default
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP FUNCTION IF EXISTS f;
+CREATE TABLE t1 (key1 INT PRIMARY KEY);
+CREATE TABLE t2 (key2 INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+GRANT FILE ON *.* TO 'nopriv_user'@'localhost';
+FLUSH PRIVILEGES;
+connection: con1
+SELECT MAX(key1) FROM t1 WHERE f() < 1 INTO OUTFILE '<outfile>';
+ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'
+INSERT INTO t2 SELECT MAX(key1) FROM t1 WHERE f() < 1;
+ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'
+SELECT MAX(key1) INTO @dummy FROM t1 WHERE f() < 1;
+ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'
+CREATE TABLE t3 (i INT) AS SELECT MAX(key1) FROM t1 WHERE f() < 1;
+ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'
+connection: default
+DROP TABLE t1,t2;
+DROP FUNCTION f;
+DROP USER nopriv_user@localhost;
+#
+# End Bug#54812
+#

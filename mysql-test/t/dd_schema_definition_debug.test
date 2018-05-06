@@ -1,0 +1,580 @@
+--echo ########################################################################
+--echo #
+--echo # Verify definitions of DD tables.
+--echo # --------------------------------
+--echo # This test has four parts:
+--echo #
+--echo # 1. Verify the hard coded ids of the mysql schema, the mysql
+--echo #     tablespace, the dd_properties table, and the
+--echo #     innodb_dynamic_metadata table.
+--echo # 2. Verify the existence of the expected DD tables, neither less nor
+--echo #    more.
+--echo # 3. Verify the CREATE TABLE statements of the DD tables.
+--echo # 4. Verify the checksum of the generated meta data associated with the
+--echo #    current DD version number.
+--echo #
+--echo ########################################################################
+--echo #
+--echo # A note regarding the checksum usage.
+--echo # ------------------------------------
+--echo # This is based on a test by Marc Alff (perfschema.dd_version_check).
+--echo # The idea is to keep a record of each DD version released with the
+--echo # DD version number and a checksum created based on the meta data for
+--echo # the DD tables. It is important not to change the expected checksum
+--echo # once a release has been published.
+--echo #
+--echo # If there was an intentional change, leading to a new checksum, then:
+--echo #
+--echo # 1. Uncomment the debug output showing the low level meta data and
+--echo #    verify that the changes are intentional.
+--echo # 2. Create a new target DD version (unless the existing target DD
+--echo #    version is not publicly released yet).
+--echo # 3. Add a new row in test.dd_published_schema with the new target
+--echo #    DD version and the new checksum (or update the expected
+--echo #    checksum if the target DD version is not publicly released yet).
+--echo #
+--echo # Note that a failure to do 2, when doing 3, will result in a broken
+--echo # upgrade where the server code is expecting a certain DD table
+--echo # definition, while the actual persisted DD table definition is
+--echo # different (because it was created by a previous server binary, and
+--echo # DD upgrade handling was not triggered).
+--echo #
+--echo # Thus, this part of the test is designed to be a reminder to do 2.
+--echo # by detecting differences in 3.
+--echo #
+--echo ########################################################################
+--echo #
+--echo # How to handle test failures.
+--echo # ----------------------------
+--echo # In general, if there is a change leading to a failure in this test,
+--echo # then we must first consider whether the change is intentional, i.e.,
+--echo # whether there is a change in a DD table definition or DD bootstrap
+--echo # code that we actually want to do, or whether the change is by mistake
+--echo # or not needed.
+--echo #
+--echo # Then, if the change is intentional, we must make sure the following
+--echo # scenarios are handled:
+--echo #
+--echo # 1. Plain initialization of the server. This is most likely handled,
+--echo #    otherwise we wouldn't even get to the point where this test starts
+--echo #    failing.
+--echo # 2. Plain server restart using a data directory initialized by this
+--echo #    server.
+--echo # 3. Upgrade from any supported DD version, or server restart using
+--echo #    a data directory from a different server version using the same
+--echo #    DD version.
+--echo # 4. Minor downgrade to any DD version within the minor downgrade
+--echo #    threshold, or restart of a different server version using the
+--echo #    data directory initialized by this server.
+--echo #
+--echo # Failures in the different parts of the test must be handled as
+--echo # follows:
+--echo #
+--echo # *  A failure in part 1 means that the server may not be able to start,
+--echo #    e.g. if we restart a previous server version (expecting different
+--echo #    ids) using a data directory initialized by this server version.
+--echo # *  A failure in part 2 means that a DD table is added or removed.
+--echo #    In this case, please make sure the tables 'dd_table_names' and
+--echo #    'ddse_table_names' below are kept up to date. Also make sure that
+--echo #    the list of SHOW CREATE TABLE statements is up to date.
+--echo # *  A failure in part 2 or 3 means that there is a change in the DD
+--echo #    table definitions, and that we have a new DD version. So
+--echo #    if the current target DD version number is released publicly,
+--echo #    then we must bump the target DD version. If the DD version is
+--echo #    not yet released, and has already been bumped, then it should
+--echo #    stay the same. Additionally, we must add server code to handle
+--echo #    the DD upgrade. This test must have its results re-recorded. A
+--echo #    failure in part 2 or 3 will most likely also lead to a failure
+--echo #    in part 4.
+--echo # *  A failure in part 4 means that the generated meta data is
+--echo #    different than it used to be. If there is a change in part 2 or
+--echo #    3, this is to be expected. In that case, the test results must
+--echo #    be re-recorded, and we must either update the expected checksum
+--echo #    (if the DD version stays the same) or add the new DD version
+--echo #    along with the expected checksum. However, if there is not a
+--echo #    change in part 2 or 3, then we have changes in the SQL DDL
+--echo #    semantics. This should be handled by changing the DD initialization
+--echo #    procedure to either tweak the DDL statements before execution
+--echo #    (without changing the DDL statements that are stored in the
+--echo #    mysql.dd_properties table), or by tweaking the generated low
+--echo #    level meta data. Either way, the result of the changes to the
+--echo #    server code should be that this test stops failing.
+--echo #
+--echo ########################################################################
+
+--source include/have_debug.inc
+use test;
+SET GLOBAL debug= '+d,skip_dd_table_access_check';
+
+--echo # PART 1
+
+--echo ########################################################################
+--echo # The actual DD version stored on disk.
+--echo ########################################################################
+SELECT SUBSTRING_INDEX(SUBSTRING(properties,
+         LOCATE('DD_VERSION', properties), 30), ';', 1)
+         AS DD_VERSION
+  FROM mysql.dd_properties;
+
+--echo ########################################################################
+--echo # The id of the mysql schema must be fixed.
+--echo ########################################################################
+let $assert_cond= "[SELECT id FROM mysql.schemata WHERE name LIKE \'mysql\']"
+                  = 1;
+--let $assert_text= The id of the 'mysql' schema is 1.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # The ids of the mysql tablespace must be fixed.
+--echo ########################################################################
+let $assert_cond= "[SELECT id FROM mysql.tablespaces WHERE name LIKE
+                    \'mysql\']" = 1;
+--let $assert_text= The id of the 'mysql' tablespace is 1.
+--source include/assert.inc
+
+let $assert_cond= "[SELECT SUBSTRING_INDEX(SUBSTRING(se_private_data,
+                             LOCATE(\'id\', se_private_data), 30), \';\', 1)
+                      FROM mysql.tablespaces WHERE name LIKE \'mysql\']"
+                  = "id=4294967294";
+
+--let $assert_text= The SE private id of the 'mysql' tablespace is 4294967294.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # The ids of the dd_properties table must be fixed.
+--echo ########################################################################
+let $assert_cond= "[SELECT id FROM mysql.tables
+                      WHERE name LIKE \'dd_properties\' AND schema_id = 1]"
+                  = 1;
+--let $assert_text= The id of 'mysql.dd_properties' is 1.
+--source include/assert.inc
+
+let $assert_cond= "[SELECT se_private_id FROM mysql.tables
+                      WHERE name LIKE \'dd_properties\' AND schema_id = 1]"
+                  = 1;
+--let $assert_text= The SE private id of 'mysql.dd_properties' is 1.
+--source include/assert.inc
+
+let $assert_cond= "[SELECT id FROM mysql.indexes
+                      WHERE table_id =
+                        (SELECT id FROM mysql.tables
+                           WHERE name LIKE \'dd_properties\'
+                           AND schema_id = 1)]"
+                  = 1;
+--let $assert_text= The clustering index id of 'mysql.dd_properties' is 1.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # The ids of the innodb_dynamic_metadata table must be fixed.
+--echo ########################################################################
+let $assert_cond= "[SELECT id FROM mysql.tables
+                      WHERE name LIKE \'innodb_dynamic_metadata\'
+                      AND schema_id = 1]"
+                  = 2;
+--let $assert_text= The id of 'mysql.innodb_dynamic_metadata' is 2.
+--source include/assert.inc
+
+let $assert_cond= "[SELECT se_private_id FROM mysql.tables
+                      WHERE name LIKE \'innodb_dynamic_metadata\'
+                      AND schema_id = 1]"
+                  = 2;
+--let $assert_text= The SE private id of 'mysql.innodb_dynamic_metadata' is 2.
+--source include/assert.inc
+
+let $assert_cond= "[SELECT id FROM mysql.indexes
+                      WHERE table_id =
+                        (SELECT id FROM mysql.tables
+                           WHERE name LIKE \'innodb_dynamic_metadata\'
+                           AND schema_id = 1)]"
+                  = 2;
+--let $assert_text= The index id of 'mysql.innodb_dynamic_metadata' is 2.
+--source include/assert.inc
+
+--echo # PART 2
+
+--echo ########################################################################
+--echo # The number of hidden DD/DDSE tables must be as expected.
+--echo ########################################################################
+let $assert_cond= "[SELECT COUNT(*) from mysql.tables
+                      WHERE schema_id = 1 AND hidden = \'System\']" = 31;
+--let $assert_text= There are 31 hidden DD/DDSE tables.
+--source include/assert.inc
+
+# Fill two help tables with the names of the DDSE and DD tables.
+--disable_query_log
+--disable_result_log
+CREATE TABLE ddse_table_names (name VARCHAR(64) PRIMARY KEY);
+INSERT INTO ddse_table_names (name) VALUES
+               ('innodb_ddl_log'),
+               ('innodb_dynamic_metadata'),
+               ('innodb_index_stats'),
+               ('innodb_table_stats');
+
+CREATE TABLE dd_table_names (name VARCHAR(64) PRIMARY KEY);
+INSERT INTO dd_table_names (name) VALUES
+               ('catalogs'),
+               ('character_sets'),
+               ('collations'),
+               ('column_statistics'),
+               ('column_type_elements'),
+               ('columns'),
+               ('dd_properties'),
+               ('events'),
+               ('foreign_key_column_usage'),
+               ('foreign_keys'),
+               ('index_column_usage'),
+               ('index_partitions'),
+               ('index_stats'),
+               ('indexes'),
+               ('parameter_type_elements'),
+               ('parameters'),
+               ('resource_groups'),
+               ('routines'),
+               ('schemata'),
+               ('st_spatial_reference_systems'),
+               ('table_partition_values'),
+               ('table_partitions'),
+               ('table_stats'),
+               ('tables'),
+               ('tablespace_files'),
+               ('tablespaces'),
+               ('triggers'),
+               ('view_routine_usage'),
+               ('view_table_usage');
+--enable_result_log
+--enable_query_log
+
+--echo ########################################################################
+--echo # No unexpected DD tables must be present.
+--echo ########################################################################
+let $assert_cond= "[SELECT COUNT(*) FROM mysql.tables
+                      WHERE schema_id = 1
+                      AND hidden = \'System\'
+                      AND name NOT IN (SELECT name FROM dd_table_names)
+                      AND name NOT IN (SELECT name FROM ddse_table_names)]"
+                  = 0;
+--let $assert_text= No unexpected DD tables are present.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # All expected DD tables must be present.
+--echo ########################################################################
+let $assert_cond= "[SELECT COUNT(*) FROM dd_table_names
+                      WHERE name NOT IN
+                        (SELECT name FROM mysql.tables WHERE schema_id = 1)]"
+                  = 0;
+--let $assert_text= All expected DD tables are present.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # All expected DDSE tables must be present.
+--echo ########################################################################
+let $assert_cond= "[SELECT COUNT(*) FROM ddse_table_names
+                      WHERE name NOT IN
+                        (SELECT name FROM mysql.tables WHERE schema_id = 1)]"
+                  = 0;
+--let $assert_text= All expected DDSE are be present.
+--source include/assert.inc
+
+--echo # PART 3
+
+--echo ########################################################################
+--echo # List the CREATE TABLE statements for the DD tables.
+--echo # Mask the AUTO INCREMENT counter, which is not
+--echo # deterministic when running mtr. Mask collations that
+--echo # depend on the lower case table names setting.
+--echo ########################################################################
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.catalogs;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.character_sets;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.collations;
+replace_regex /`schema_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`schema_name` varchar(64) <LCTN dependent collation> NOT NULL/
+              /`table_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`table_name` varchar(64) <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.column_statistics;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.column_type_elements;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.columns;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.dd_properties;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.events;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.foreign_key_column_usage;
+replace_regex /(`referenced_table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.foreign_keys;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.index_column_usage;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.index_partitions;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.index_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.indexes;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.innodb_ddl_log;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.innodb_dynamic_metadata;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.innodb_index_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.innodb_table_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.parameter_type_elements;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.parameters;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.resource_groups;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.routines;
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.schemata;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.st_spatial_reference_systems;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.table_partition_values;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.table_partitions;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.table_stats;
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.tables;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.tablespace_files;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.tablespaces;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE mysql.triggers;
+replace_regex /(`routine_catalog` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              /(`routine_schema` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.view_routine_usage;
+replace_regex /(`table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              / AUTO_INCREMENT=[0-9]+//;
+SHOW CREATE TABLE mysql.view_table_usage;
+
+--echo # PART 4
+
+--echo ########################################################################
+--echo # Create a checksum associated with the current DD version. Compare this
+--echo # with an already recorded checksum.
+--echo ########################################################################
+
+--disable_query_log
+
+CREATE TABLE dd_check_table (id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   t TEXT NOT NULL,
+   row_hash VARCHAR(64) DEFAULT NULL);
+
+# Expression representing the DD table ids
+let $dd_table_ids=
+  SELECT id FROM mysql.tables
+  WHERE schema_id= 1
+  AND name IN (SELECT name FROM dd_table_names UNION
+               SELECT name FROM ddse_table_names);
+
+# Schema meta data excluding timestamps.
+INSERT INTO dd_check_table(t)
+  SELECT CONCAT(id, '-', catalog_id, '-',
+    name, '-', default_collation_id, '-',
+    IFNULL(options, 'NULL'))
+  FROM mysql.schemata
+  WHERE name = 'mysql';
+
+# Tablespace meta data excluding timestamps. Filter out server version.
+INSERT INTO dd_check_table(t)
+  SELECT CONCAT(id, '-', name, '-',
+    IFNULL(options, 'NULL'), '-',
+    IFNULL(INSERT(se_private_data, 
+             INSTR(se_private_data, 'server_version'),
+             20, 'server_version=x'),
+      'NULL'),
+    '-', comment, '-', engine)
+  FROM mysql.tablespaces
+  WHERE name = 'mysql';
+
+# Subset of definitions from tables, not including
+# timestamps, partitioning, view definitions and
+# default values
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(id, '-', name, '-', type, '-',
+    engine, '-', collation_id, '-',
+    comment, '-', hidden, '-',
+    IFNULL(options, 'NULL'), '-',
+    IFNULL(se_private_data, 'NULL'), '-',
+    se_private_id, '-',
+    tablespace_id)
+  FROM mysql.tables
+  WHERE id IN ($dd_table_ids)
+  ORDER BY id;
+
+# Subset of definitions from columns, not including
+# default_values.
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(id, '-', table_id, '-', name, '-',
+    ordinal_position, '-', type, '-', is_nullable, '-',
+    IFNULL(is_zerofill, 'NULL'), '-',
+    IFNULL(is_unsigned, 'NULL'), '-',
+    IFNULL(char_length, 'NULL'), '-',
+    IFNULL(numeric_precision, 'NULL'), '-',
+    IFNULL(numeric_scale, 'NULL'), '-',
+    IFNULL(datetime_precision, 'NULL'), '-',
+    IFNULL(collation_id, 'NULL'), '-',
+    IFNULL(default_option, 'NULL'), '-',
+    IFNULL(update_option, 'NULL'), '-',
+    IFNULL(is_auto_increment, 'NULL'), '-',
+    comment, '-',
+    hidden, '-',
+    IFNULL(options, 'NULL'), '-',
+    IFNULL(se_private_data, 'NULL'))
+  FROM mysql.columns
+  WHERE table_id IN ($dd_table_ids)
+  ORDER BY id;
+
+# Definitions from indexes.
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(
+    id, '-',
+    table_id, '-',
+    name, '-',
+    type, '-',
+    algorithm, '-',
+    is_algorithm_explicit, '-',
+    is_visible, '-',
+    is_generated, '-',
+    hidden, '-',
+    ordinal_position, '-',
+    comment, '-',
+    IFNULL(options, 'NULL'), '-',
+    IFNULL(se_private_data, 'NULL'), '-',
+    IFNULL(tablespace_id, 'NULL'), '-',
+    engine)
+  FROM mysql.indexes
+  WHERE table_id IN ($dd_table_ids)
+  ORDER BY id;
+
+# Definitions from index_column_usage.
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(
+    index_id, '-',
+    ordinal_position, '-',
+    column_id, '-',
+    IFNULL(length, 'NULL'), '-',
+    `order`, '-',
+    hidden)
+  FROM mysql.index_column_usage
+  WHERE index_id IN (
+    SELECT id FROM mysql.indexes WHERE table_id IN ($dd_table_ids)
+  )
+  ORDER BY index_id, column_id;
+
+# Definitions from foreign_keys.
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(
+    id, '-',
+    schema_id, '-',
+    table_id, '-',
+    name, '-',
+    IFNULL(unique_constraint_name, 'NULL'), '-',
+    match_option, '-',
+    update_rule, '-',
+    delete_rule, '-',
+    referenced_table_catalog, '-',
+    referenced_table_schema, '-',
+    referenced_table_name, '-',
+    IFNULL(options, 'NULL'))
+  FROM mysql.foreign_keys
+  WHERE table_id IN ($dd_table_ids)
+  ORDER BY id;
+
+# Definitions from foreign_key_column_usage..
+eval INSERT INTO dd_check_table(t)
+  SELECT CONCAT(
+    foreign_key_id, '-',
+    ordinal_position, '-',
+    column_id, '-',
+    referenced_column_name)
+  FROM mysql.foreign_key_column_usage
+  WHERE foreign_key_id IN (
+    SELECT id FROM mysql.foreign_keys WHERE table_id IN ($dd_table_ids)
+  )
+  ORDER BY foreign_key_id, ordinal_position;
+
+# Create checksums for each row.
+UPDATE dd_check_table SET row_hash = SHA2(t, 256);
+
+# And then a checksum of all rows. We need about 1500 rows of varchar(64)
+# concatenated.
+SET @old_group_concat_max_len = @@group_concat_max_len;
+SET group_concat_max_len = 100000;
+
+CREATE TABLE whole_schema(row_checksums LONGTEXT, checksum VARCHAR(64));
+INSERT INTO whole_schema (row_checksums)
+  SELECT GROUP_CONCAT(row_hash ORDER BY id)
+    FROM dd_check_table;
+UPDATE whole_schema SET checksum = SHA2(row_checksums, 256);
+
+let $assert_cond= "[SELECT LENGTH(row_checksums) FROM whole_schema]"
+                  < @@group_concat_max_len;
+--let $assert_text= The group concat max length is sufficient.
+--source include/assert.inc
+
+# Insert historical records of DD version numbers and checksums. For a
+# new DD version, add a new row below. Please read the comments at the
+# beginning of the test file to make sure this is done correctly. Note
+# that the checksums are different depending on case sensitivity of the
+# underlying file system. Hence, the lctn field is used as a discriminator
+# (lctn = lower case table names).
+
+CREATE TABLE dd_published_schema(
+  version VARCHAR(20),
+  lctn BOOL,
+  checksum VARCHAR(64),
+  PRIMARY KEY (version, lctn));
+
+INSERT INTO dd_published_schema
+  VALUES ('80004', 0,
+    '7de8b2fe214be4dbb15c3d8e4c08ab74f190bca269dd08861a4cf66ea5de1804');
+INSERT INTO dd_published_schema
+  VALUES ('80004', 1,
+    'f607ab08b2d2b2d93d8867ad75116655d9c942647245d7846be440ec916c440f');
+INSERT INTO dd_published_schema
+  VALUES ('80011', 0,
+    'e849364aeb724ff89f9d4d01bea6e933b9f0ef5087b4098a83acbe584a2f0702');
+INSERT INTO dd_published_schema
+  VALUES ('80011', 1,
+    'ac9e620d1fcd8389cce7660c7f7bbc0acbe3a31fd52799ef8816981bf6de73fd');
+
+SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
+                     version, '.'),
+              CONCAT('No DD version found with schema checksum ',
+                     whole_schema.checksum, '.')) AS CHECK_STATUS
+  FROM dd_published_schema
+    RIGHT OUTER JOIN whole_schema
+    ON dd_published_schema.checksum= whole_schema.checksum;
+
+# Please read the comments at the beginning of the test file to make sure an
+# error in the assert below is handled correctly.
+
+let $assert_cond= "[SELECT COUNT(version)
+                      FROM dd_published_schema, whole_schema
+                      WHERE dd_published_schema.checksum =
+                            whole_schema.checksum
+                      AND lctn = @@global.lower_case_file_system]" = 1;
+--let $assert_text= The schema checksum corresponds to a known DD version.
+--source include/assert.inc
+
+SET group_concat_max_len = @old_group_concat_max_len;
+DROP TABLES dd_check_table, whole_schema, dd_published_schema,
+            dd_table_names, ddse_table_names;
+SET GLOBAL debug= '-d,skip_dd_table_access_check';
+USE test;
+
+--enable_query_log

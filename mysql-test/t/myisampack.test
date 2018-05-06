@@ -115,118 +115,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo # Run MYISAMCHK tool on the compressed table
 --exec $MYISAMCHK -srq $MYSQLD_DATADIR/mysql_db1/t1
 SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
-#
-# Bug#36573 myisampack --join does not create destination table .frm file
-#
-#############################################################################
-# Testcase myisampack.1: Positive test for myisampack --join
-# To test myisampack --join operation creates .frm file
-# If it creates .frm file, we will be able to access from mysql
-# server
-#############################################################################
---echo # ===== myisampack.1 =====
-CREATE TABLE t1(a INT);
-INSERT INTO t1 VALUES(20);
-
-let $i=9;
---disable_query_log
-while ($i)
-{
- INSERT INTO t1 SELECT a from t1;
- dec $i;
-}
---enable_query_log
-
-CREATE TABLE t2(a INT);
-INSERT INTO t2 VALUES(40);
-
-let $i=9;
---disable_query_log
-while ($i)
-{
- INSERT INTO t2 SELECT a from t2;
- dec $i;
-}
---enable_query_log
-
-FLUSH TABLE t1,t2;
---exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
-
---echo #If the myisampack --join operation is successful, we have table t3(.frm)
---echo #so we should be able to query about the table from server.
-SELECT COUNT(a) FROM t3;
-
-#############################################################################
-# Testcase myisampack.2: 2nd Positive test for myisampack --join
-# Test myisampack join operation  with an existing destination frm file.
-# It should finish the join operation successfully
-#############################################################################
---echo # ===== myisampack.2 =====
-FLUSH TABLE t3;
---remove_file $MYSQLD_DATADIR/test/t3.MYI
---remove_file $MYSQLD_DATADIR/test/t3.MYD
---exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
---echo #Tests the myisampack join operation with an existing destination .frm file, 
---echo #the command should return correct exit status(0) and
---echo #we should be able to query the table.
-
-SELECT COUNT(a) FROM t3;
-
-#############################################################################
-# Testcase myisampack.3: 3rd Positive test for myisampack --join
-# Test myisampack join operation  without frm file for first table and second
-# table. It should finish the join operation successfully
-#############################################################################
---echo # ===== myisampack.3 =====
---copy_file $MYSQLD_DATADIR/test/t1.frm  $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm
---copy_file $MYSQLD_DATADIR/test/t2.frm  $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm
---remove_file $MYSQLD_DATADIR/test/t1.frm
---remove_file $MYSQLD_DATADIR/test/t2.frm
-
-DROP TABLE t3;
---exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
---echo #Tests the myisampack join operation without frm file for the first and second table
---echo #No frm file is generated in this and we shouldn't  be able to access the newly 
---echo #created table
-
---error ER_NO_SUCH_TABLE
-SELECT COUNT(a) FROM t3;
-
---copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm  $MYSQLD_DATADIR/test/t1.frm
---copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm  $MYSQLD_DATADIR/test/t2.frm
---copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm  $MYSQLD_DATADIR/test/t3.frm
---remove_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm
---remove_file $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm
-
-#############################################################################
-# Testcase myisampack.4: Negative test for myisampack --join
-# Test myisampack join operation  with an existing .MYI,.MDI,.frm files
-# the test should fail
-#############################################################################
---echo # ===== myisampack.4 =====
---echo #Tests the myisampack join operation with an existing destination .frm,.MYI,.MDI 
---echo #the command should fail with exit status 2
-#
-# Note: Use of regular expressions in this file is for output printed in result file
-#       The main purpose of this regular expression is to supress the filenames for
-#       error messages produced so that we can create a generic result file
-#
-#1.    /.*myisampack(\.exe)?: Can't create\/write to file .*\(/myisampack: Can't create\/write to file (/
-#      Replace everything before "myisampack" or "myisampack.exe" and followed by
-#      ": Can't create\/write to file " until the first open paranthesis , with
-#      "myisampack:  Can't create\/write to file ("
-#      
-#2.    /Aborted: .*is/Aborted: file is/
-#      Replace everything after starting with "Aborted: " until ending with "is" with
-#      "Aborted: file is/
-#
---replace_regex /.*myisampack(\.exe)?: Can't create\/write to file .*\(/myisampack: Can't create\/write to file (/ /Aborted: .*is/Aborted: file is/
---error 2
---exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
-
-DROP TABLE t1,t2,t3;
-
-DROP TABLE mysql_db1.t1;
 DROP DATABASE mysql_db1;
 
 --echo #
@@ -285,3 +173,58 @@ CREATE TABLE db1.t1(c1 INT) ENGINE=MyISAM;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 --exec $MYISAMPACK -b -f $MYSQLD_DATADIR/db1/t1
 DROP DATABASE db1;
+
+
+--echo #
+--echo # Test coverage for myisampack/myisamchk --unpack interaction with
+--echo # the data dictionary.
+--echo #
+--echo # The first DML statement which accesses table after it was
+--echo # compressed/uncompressed triggers data-dictionary update which
+--echo # synchronizes ROW_FORMAT for the table stored in the data dictionary
+--echo # and in the MyISAM files.
+--echo #
+
+--echo #
+--echo # This test assumes that the table metadata being shown by
+--echo # INFORMATION_SCHEMA.TABLES would internally 'open' the table.
+--echo # However with WL#6599, we do not open the under lying table for every
+--echo # row fetch for INFORMATION_SCHEMA.TABLES by default. This
+--echo # demands following two things,
+--echo # 1. Use of configuration variable
+--echo #    'information_schema_stats_expiry' to be set to '0',
+--echo #    which would make INFORMATION_SCHEMA implementation to access
+--echo #    storage engine to open the table and fetch dynamic statistics.
+--echo # 2. Use a column of INFORMATION_SCHEMA.TABLES which would fetch
+--echo #    dynamic table statistics, which would trigger 1.
+--echo #
+SET SESSION information_schema_stats_expiry=0;
+
+CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+--echo # Compressing table t1.
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYISAMPACK -sf $MYSQLD_DATADIR/test/t1
+--echo # ROW_FORMAT in DD is invalid/outdated here.
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+--echo # The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+FLUSH TABLE t1;
+--echo # Uncompressing table t1.
+--exec $MYISAMCHK -s --unpack $MYSQLD_DATADIR/test/t1
+--echo # ROW_FORMAT in DD is invalid/outdated here.
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+--echo # The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+DROP TABLE t1;
+
+SET SESSION information_schema_stats_expiry=default;

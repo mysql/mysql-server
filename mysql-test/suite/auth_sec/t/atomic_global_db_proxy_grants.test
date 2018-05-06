@@ -1,0 +1,344 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Global grants
+
+CREATE USER userX, userY, userZ;
+
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Case 1 : Trying to create user with empty password
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SUPER ON *.* TO userX, userY, userA;
+
+--echo # Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SUPER ON.*userX.*userY.*userA.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 3 : GRANT to a user with empty plugin
+
+--echo # Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# This would generate a warning in server log
+FLUSH PRIVILEGES;
+--source include/save_binlog_position.inc
+
+--echo # Attempt to GRANT privileges to userW
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SUPER ON *.* TO userX, userW, userY;
+
+--echo Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SUPER ON.*userX.*userW.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+
+--source include/save_binlog_position.inc
+
+--echo # Case 4 : Use unprivileged account to create new user using GRANT
+
+CREATE USER userSUPER;
+GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
+--source include/save_binlog_position.inc
+
+connect(conn_userSUPER, localhost, userSUPER,,,,,);
+
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SUPER ON *.* TO userX, userY, userA , userB;
+
+--connection default
+disconnect conn_userSUPER;
+--echo Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SUPER ON.*userX.*userY.*userA.*userB)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 5 : Valid grant
+GRANT SUPER ON *.* TO userX, userY, userZ;
+
+--echo Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.user table too
+SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
+
+--let $event= !Q(GRANT SUPER ON.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+DROP USER userW, userX, userY, userZ, userSUPER;
+
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for GRANT : Global grants
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : DB grants
+
+CREATE USER userX, userY, userZ;
+
+--echo # Grant some DB privileges to some of the users so that
+--echo # we cover both path : One creates new entry in mysql.db and
+--echo # the other which updates existing entries.
+
+GRANT INSERT ON mysql.* TO userX;
+
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Case 1 : Trying to create user with empty password
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT ON mysql.* TO userX, userY, userA;
+
+--echo # Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userA)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 3 : GRANT to a user with empty plugin
+
+--echo # Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# This would generate a warning in server log
+FLUSH PRIVILEGES;
+--source include/save_binlog_position.inc
+
+--echo # Attempt to GRANT privileges to userW
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT ON mysql.* TO userX, userW, userY;
+
+--echo Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userW.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+
+--echo # Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+
+--echo # Case 4 : Use unprivileged account to create new user using GRANT
+
+CREATE USER userSELECT;
+GRANT SELECT ON mysql.* TO userSELECT WITH GRANT OPTION;
+
+--source include/save_binlog_position.inc
+
+connect(conn_userSELECT, localhost, userSELECT,,,,,);
+
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT SELECT ON mysql.* TO userX, userY, userA , userB;
+
+--connection default
+disconnect conn_userSELECT;
+
+--echo Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userW.*userA.*userB.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 5 : Valid grant
+GRANT SELECT ON mysql.* TO userX, userY, userZ;
+
+--echo Grants for userX, userY, userZ should show SELECT on mysql.*
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+
+--let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+
+--source include/save_binlog_position.inc
+
+--echo # Case 6 : Wrong set of privileges for DB grant
+--error ER_WRONG_USAGE
+GRANT SUPER ON mysql.* TO userX, userY, userZ;
+
+--echo Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+--echo # Check mysql.db table too
+SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
+
+--let $invert= 1
+--let $event= !Q(GRANT SUPER ON.*mysql.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+DROP USER userW, userX, userY, userZ, userSELECT;
+
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for GRANT : DB grants
+
+--echo # ----------------------------------------------------------------------
+
+--echo # Begin : Tests for GRANT : Proxy grants
+
+CREATE USER userX, userY, userZ;
+CREATE USER proxied;
+
+--source include/save_binlog_position.inc
+
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--echo # Case 1 : Trying to create user with empty password
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT PROXY ON proxied TO userX, userY, userA;
+
+--echo # Grants for userX, userY, userZ should not have changed
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $invert= 1
+--let $event= !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 3 : GRANT to a user with empty plugin
+
+--echo # Create userW and get rid of the plugin value for userW
+CREATE USER userW IDENTIFIED BY 'abcd';
+UPDATE mysql.user SET plugin="" WHERE user like 'userW';
+call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# This would generate a warning in server log
+FLUSH PRIVILEGES;
+--source include/save_binlog_position.inc
+
+--echo # Attempt to GRANT privileges to userW
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT PROXY ON proxied TO userX, userW, userY;
+
+--echo Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $invert= 1
+--let $event= !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userW.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Restore userW to its former state
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
+FLUSH PRIVILEGES;
+
+--source include/save_binlog_position.inc
+
+--echo # Case 4 : Use unprivileged account to create new user using GRANT
+
+CREATE USER userPROXY;
+connect(conn_userPROXY, localhost, userPROXY,,,,,);
+
+--connection default
+GRANT PROXY ON proxied TO userPROXY WITH GRANT OPTION;
+--source include/save_binlog_position.inc
+
+--connection conn_userPROXY
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT PROXY ON proxied TO userX, userY, userA, userB;
+
+--connection default
+disconnect conn_userPROXY;
+
+--echo Grants for userX, userY, userZ should show SUPER
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $invert= 1
+--let $event= !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userA.*userB.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+--echo # Case 5 : Valid grant
+GRANT PROXY ON proxied TO userX, userY, userZ;
+
+--echo Grants for userX, userY, userZ should show SELECT on mysql.*
+SHOW GRANTS FOR userX;
+SHOW GRANTS FOR userY;
+SHOW GRANTS FOR userZ;
+
+--let $event= !Q(GRANT PROXY ON.*proxied.*TO.*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+DROP USER proxied, userW, userX, userY, userZ, userPROXY;
+
+--source include/save_binlog_position.inc
+
+--echo # End : Tests for GRANT : Proxy grants
+
+--echo # ----------------------------------------------------------------------
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

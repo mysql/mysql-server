@@ -1,16 +1,15 @@
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 --enable_query_log
  
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -303,4 +302,4 @@ UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
  
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

@@ -26,7 +26,7 @@
 # Test will verify that the data on all servers is the same.
 # In the case of bug if
 # 1) GTID_MODE is set to ON on all three servers, the slave will fail with
-# error code:1837 i.e ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# error code:1837 i.e ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 # 2) GTID_MODE is set to OFF on all three servers diff tables command will
 # fail.
 ###############################################################################

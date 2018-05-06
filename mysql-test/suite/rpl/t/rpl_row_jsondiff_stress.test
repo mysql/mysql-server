@@ -1,0 +1,525 @@
+# ==== Requirements ====
+#
+# Test combinations of updates in multiple columns and multiple rows,
+# with value updates of the following different kinds:
+# - Columns of the following types:
+#   - T1. JSON
+#   - T2. INT
+# - Column values in the following modes:
+#   - Mode of field in before-image:
+#     B1. Not included in image
+#     B2. NULL
+#     B3. Non-NULL
+#   - Mode of field in after-image:
+#     A1. Not included in image
+#     A2. NULL
+#     A3. Full format
+#     A4. Partial format, using zero diffs (not for T2 or B2)
+#     A5. Partial format, using one or more diffs (not for T2 or B2)
+# - Modes of slave applier accepting the update:
+#   S1. Update succeeds
+#   S2. Column does not exist in slave table
+#   S3. Column exists in slave table but is generated
+#!   S4. Row not found on slave
+#!   S5. Column exists on slave but field is NULL (for T1 + B1 + A4/A5)
+#!   S6. Partial JSON fails to apply due to mismatch on JSON path
+#       (for T1 + A5)
+#!   S7. Partial or full JSON fails due to non-NULL constraint violation
+#       in index on generated column (for T1 + A4/A5)
+#!   S8. Partial or full JSON fails due to uniqueness constraint
+#       violation in index on generated column (for T1 + A4/A5).
+# - Slave configuration:
+#   C1. partial JSON enabled/disabled
+#   C2. binlog_row_image=MINIMAL/NOBLOB/FULL
+#   C3. slave_rows_search_algorithms=INDEX_SCAN/HASH_SCAN/TABLE_SCAN
+#   C4. slave_exec_mode=idempotent/strict
+#!   C5. slave_skip_errors includes expected error, or not
+
+
+--source include/have_binlog_format_row.inc
+# mysqlbinlog.inc with $only_decoded_rows needs have_grep.inc
+--source include/have_grep.inc
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+--source include/rpl_default_connections.inc
+
+--source include/rpl_connection_slave.inc
+SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
+SET @old_slave_exec_mode= @@GLOBAL.SLAVE_EXEC_MODE;
+
+--source include/rpl_connection_master.inc
+SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
+
+# Verbosity. Set to different value for debugging.
+# 0=quiet, 1=table+update+binlog, 2=decisions, 3=progress
+if (!$verb) {
+  --let $verb= 0
+}
+# Maximum number of scenarios to execute before test ends.
+if (!$iteration_max) {
+  --let $iteration_max= 200
+}
+# Maximum time before test ends.
+if (!$time_max) {
+  --let $time_max= 60
+}
+# Number of columns on master will be randomized.
+# This sets the min (inclusive) and max (exlusive).
+if (!$master_column_count_min) {
+  --let $master_column_count_min= 1
+}
+if (!$master_column_count_max) {
+  --let $master_column_count_max= 20
+}
+# Number of columns on master will be randomized.
+# This sets the min (inclusive); the max (inclusive) is equal to the
+# number of columns on master.
+if (!$slave_column_count_min) {
+  --let $slave_column_count_min= 0
+}
+# Number of inserted rows will be randomized.
+# This sets the min (inclusive) and max (exclusive)
+if (!$row_count_min) {
+  --let $row_count_min= 1
+}
+if (!$row_count_max) {
+  --let $row_count_max= 10
+}
+
+--let $dollar_func= CHAR(36)
+--let $dollar= `SELECT $dollar_func`
+
+if ($verb<3) {
+  --disable_warnings
+  --disable_query_log
+  --let $include_silent= 1
+  --let $rpl_connection_silent= 1
+}
+
+--let $rand_type= init
+--source include/rand.inc
+
+if ($verb>=1) { echo # - rand_seed=$rand_seed; }
+
+if ($verb==3) { echo # Compute statement to compare tables on master and slave; }
+
+--let $start_time= `SELECT UNIX_TIMESTAMP()`
+--let $done= 0
+--let $iteration= 1
+while (!$done)
+{
+  if ($verb>=1) { echo ==== $iteration ====; }
+
+  --let $table_def_master= CREATE TABLE t (i INT PRIMARY KEY
+  --let $table_def_slave= CREATE TABLE t (i INT PRIMARY KEY
+  --let $fix=
+  # --let $where= i != 0
+  --let $set=
+  --let $rpl_diff_statement= SELECT i
+
+  --source include/rpl_connection_slave.inc
+
+  if ($verb==3) { echo # Decide master_column_count; }
+  --let $rand_type= int
+  --let $rand_min= $master_column_count_min
+  --let $rand_max= $master_column_count_max
+  --source include/rand.inc
+  --let $master_column_count= $rand
+  if ($verb>=2) { echo # - master_column_count=$master_column_count; }
+
+  if ($verb==3) { echo # Decide slave_column_count; }
+  if ($slave_column_count_min >= $master_column_count)
+  {
+    --let $slave_column_count= $master_column_count
+  }
+  if ($slave_column_count_min < $master_column_count)
+  {
+    --let $rand_type= int
+    --let $rand_min= $slave_column_count_min
+    # 0.5 probability that slave_column_count==master_column_count;
+    # 0.5 probability that slave_column_count_min<=slave_column_count<master_column_count
+    --let $rand_max= $master_column_count + ($master_column_count - $slave_column_count_min)
+    --source include/rand.inc
+    if ($rand <= $master_column_count) {
+      --let $slave_column_count= $rand
+    }
+    if ($rand > $master_column_count) {
+      --let $slave_column_count= $master_column_count
+    }
+  }
+  if ($verb>=2) { echo # - slave_column_count=$slave_column_count; }
+
+  if ($verb==3) { echo # Decide row_count; }
+  --let $rand_type= int
+  --let $rand_min= $row_count_min
+  --let $rand_max= $row_count_max
+  --source include/rand.inc
+  --let $row_count= $rand
+  if ($verb>=2) { echo # - row_count=$row_count; }
+
+  if ($verb==3) { echo # Decide binlog_row_value_options; }
+  --let $rand_type= decide
+  --let $rand_probability= 0.5
+  --source include/rand.inc
+  --let $partial_json=$rand
+  if ($verb>=2) { echo # - partial_json=$partial_json; }
+  if ($verb>=1) { enable_query_log; }
+  if ($partial_json) {
+    SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
+  }
+  if (!$partial_json) {
+    SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = '';
+  }
+
+  if ($verb==3) { echo # Decide binlog_row_image; }
+  --let $rand_type= int
+  --let $rand_min= 0
+  --let $rand_max= 3
+  --source include/rand.inc
+  --let $binlog_row_image=$rand
+  if ($verb>=2) { echo # - binlog_row_image=$binlog_row_image; }
+  if ($binlog_row_image == 0) {
+    SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
+  }
+  if ($binlog_row_image == 1) {
+    SET @@GLOBAL.BINLOG_ROW_IMAGE = 'NOBLOB';
+  }
+  if ($binlog_row_image == 2) {
+    SET @@GLOBAL.BINLOG_ROW_IMAGE = 'FULL';
+  }
+
+  if ($verb==3) { echo # Decide slave_rows_search_algorithms; }
+  --let $rand_type= int
+  --let $rand_min= 0
+  --let $rand_max= 3
+  --source include/rand.inc
+  --let $slave_rows_search_algorithms=$rand
+  if ($verb>=2) { echo # - slave_rows_search_algorithms=$slave_rows_search_algorithms; }
+  if ($slave_rows_search_algorithms == 0) {
+    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'INDEX_SCAN,HASH_SCAN';
+  }
+  if ($slave_rows_search_algorithms == 1) {
+    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'INDEX_SCAN,TABLE_SCAN';
+  }
+  if ($slave_rows_search_algorithms == 2) {
+    SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'HASH_SCAN,TABLE_SCAN';
+  }
+
+  if ($verb==3) { echo # Decide slave_exec_mode; }
+  --let $rand_type= decide
+  --let $rand_probability= 0.5
+  --source include/rand.inc
+  --let $idempotent=$rand
+  if ($verb>=2) { echo # - idempotent=$idempotent; }
+  if ($idempotent) {
+    SET @@GLOBAL.SLAVE_EXEC_MODE = 'IDEMPOTENT';
+  }
+  if (!$idempotent) {
+    SET @@GLOBAL.SLAVE_EXEC_MODE = 'STRICT';
+  }
+
+  if ($verb<3) { disable_query_log; }
+
+  --source include/rpl_connection_master.inc
+
+  --let $col_i= 1
+  while ($col_i <= $master_column_count)
+  {
+    if ($verb==3) { echo ---- c$col_i ----; }
+
+    if ($verb==3) { echo # Decide JSON or INT; }
+    --let $rand_type= decide
+    --let $rand_probability= 0.75
+    --source include/rand.inc
+    if (!$rand) {
+      --let $col_type= INT
+    }
+    if ($rand) {
+      --let $col_type= JSON
+    }
+    --let $table_def_master= $table_def_master, c$col_i $col_type
+    if ($col_i <= $slave_column_count) {
+      --let $table_def_slave= $table_def_slave, c$col_i $col_type
+    }
+    if ($verb>=2) { echo # - col_type=$col_type; }
+
+    if ($col_i <= $slave_column_count) {
+      if ($verb==3) { echo # Decide generated on slave or not; }
+      --let $rand_type= int
+      --let $rand_min= 0
+      --let $rand_max= 4
+      --source include/rand.inc
+      --let $generated= $rand
+      # Disable generated columns due to BUG#26283971
+      --let $generated= 9
+      if ($verb>=2) { echo # - generated=$generated; }
+      if ($generated < 2) {
+        if ($col_type == JSON) {
+          --let $gcol_def= CAST(CONCAT('[', i + 1, ']') AS JSON)
+        }
+        if ($col_type == INT) {
+          --let $gcol_def= i + 1
+        }
+        --let $table_def_slave= $table_def_slave AS ($gcol_def)
+        if ($generated == 0) {
+          --let $table_def_slave= $table_def_slave VIRTUAL
+        }
+        if ($generated == 1) {
+          --let $table_def_slave= $table_def_slave STORED
+        }
+      }
+      # Compare non-generated columns between master and slave
+      if ($generated >= 2) {
+        --let $rpl_diff_statement= $rpl_diff_statement, c$col_i
+      }
+    }
+
+    # Doesn't work - this won't put it in the BI
+    if (0) {
+      if ($verb==3) { echo # Decide if in BI or not; }
+      --let $rand_type= decide
+      --let $rand_probability= 0.5
+      --source include/rand.inc
+      --let $in_bi= $rand
+      if ($in_bi) {
+        --let $where= $where OR (c$col_i + NULL) IS NULL
+      }
+      if ($verb>=2) { echo # - in_bi=$in_bi; }
+    }
+
+    if ($verb==3) { echo # Decide if in AI or not; }
+    --let $rand_type= decide
+    --let $rand_probability= 0.75
+    --source include/rand.inc
+    --let $in_ai= $rand
+    if ($verb>=2) { echo # - in_ai=$in_ai; }
+
+    if ($verb==3) { echo # Decide if update uses JSON function or just sets the value; }
+    --let $use_json_func= 0
+    if ($in_ai) {
+      if ($col_type == JSON) {
+        --let $rand_type= decide
+        --let $rand_probability= 0.666666
+        --source include/rand.inc
+        --let $use_json_func= $rand
+      }
+    }
+    if ($verb>=2) { echo # - use_json_func=$use_json_func; }
+
+    --let $null_rows= 0
+
+    --let $row_i= 1
+    while ($row_i <= $row_count)
+    {
+      if ($verb==3) { echo -- r$row_i --; }
+      if ($verb==3) { echo # Decide mode of BI; }
+      --let $rand_type= decide
+      --let $rand_probability= 0.8
+      --source include/rand.inc
+      # 0=NULL 1=VALUE
+      --let $bi_type= $rand
+      if ($verb>=2) { echo # - bi_type=$bi_type; }
+
+      if ($verb==3) { echo # Decide mode of AI; }
+      if ($in_ai)
+      {
+        --let $rand_type= int
+        --let $ai_type= -1
+        if ($use_json_func) {
+          if ($bi_type == 0) {
+            --let $ai_type= 0
+          }
+          if ($bi_type == 1) {
+            --let $rand_min= 0
+            --let $rand_max= 4
+            --let $rant_type= int
+            --source include/rand.inc
+            --let $ai_type= $rand
+          }
+        }
+        if (!$use_json_func) {
+          --let $rand_type= int
+          --let $rand_min= 0
+          --let $rand_max= 3
+          --source include/rand.inc
+          --let $ai_type= $rand
+        }
+        if ($verb>=2) { echo # - ai_type=$ai_type; }
+
+        if ($verb==3) { echo # Add to NULL rows; }
+        if ($ai_type == 0) {
+          # NULL
+          --let $null_rows= $null_rows, $row_i
+        }
+
+        if ($verb==3) { echo # Set before-value; }
+        if ($bi_type == 1) {
+          if ($ai_type <= 1) {
+            # NULL, FULL
+            if ($col_type == INT) {
+              --let $fix= $fix UPDATE t SET c$col_i = 1 WHERE i = $row_i;
+            }
+            if ($col_type == JSON) {
+                --let $fix= $fix UPDATE t SET c$col_i = '[1]' WHERE i = $row_i;
+            }
+          }
+          if ($ai_type == 2) {
+            # NOP
+            if ($col_type == INT) {
+              --let $fix= $fix UPDATE t SET c$col_i = 2 WHERE i = $row_i;
+            }
+            if ($col_type == JSON) {
+              --let $fix= $fix UPDATE t SET c$col_i = '[2]' WHERE i = $row_i;
+            }
+          }
+          if ($ai_type == 3) {
+            # PARTIAL
+            --let $fix= $fix UPDATE t SET c$col_i = '[1, "long string in col $col_i, row $row_i"]' WHERE i = $row_i;
+          }
+        }
+      }
+      if (!$in_ai) {
+        if ($bi_type == 1) {
+          if ($col_type == INT) {
+            --let $fix= $fix UPDATE t SET c$col_i = 1 WHERE i = $row_i;
+          }
+          if ($col_type == JSON) {
+            --let $fix= $fix UPDATE t SET c$col_i = '[1]' WHERE i = $row_i;
+          }
+        }
+      }
+
+      --inc $row_i
+    }
+
+    if ($in_ai) {
+      if ($set) {
+        --let $set= $set,
+      }
+      if ($use_json_func) {
+        --let $set= $set c$col_i = JSON_SET(c$col_i, '$dollar[0]', 'astring', IF(i IN ($null_rows), NULL, '$dollar[0]'), 2)
+      }
+      if (!$use_json_func) {
+        if ($col_type == INT) {
+          --let $set= $set c$col_i = IF(i IN ($null_rows), NULL, 2)
+        }
+        if ($col_type == JSON) {
+          --let $set= $set c$col_i = IF(i IN ($null_rows), NULL, '[2]')
+        }
+      }
+    }
+
+    --inc $col_i
+  }
+
+  --let $table_def_master= $table_def_master)
+  --let $table_def_slave= $table_def_slave)
+  --let $rpl_diff_statement= $rpl_diff_statement FROM t ORDER BY i
+
+  if ($verb>=1) {
+    --echo master: $table_def_master
+    --echo slave: $table_def_slave
+  }
+  if ($verb>=2) {
+    --echo # fix=[$fix]
+    --echo # set=[$set]
+    #--echo # where=[$where]
+    --echo # rpl_diff_statement=[$rpl_diff_statement]
+  }
+
+  if (!$set)
+  {
+    if ($verb>=1) { echo # No SET clause - skipping scenario; }
+  }
+  if ($set)
+  {
+    if ($verb==3) { echo # Create and populate table; }
+    --source include/rpl_connection_master.inc
+    SET SQL_LOG_BIN = 0;
+    eval $table_def_master;
+    SET SQL_LOG_BIN = 1;
+    --source include/rpl_connection_slave.inc
+    eval $table_def_slave;
+    --source include/rpl_connection_master.inc
+    BEGIN;
+    --let $row_i= 1
+    while ($row_i <= $row_count)
+    {
+      eval INSERT INTO t(i) VALUES ($row_i);
+      --inc $row_i
+    }
+    if ($fix)
+    {
+      --eval $fix
+    }
+    COMMIT;
+
+    if ($verb>=1) { SELECT * FROM t; }
+
+    if ($verb==3) { echo # Replicate, reset binlogs, reset replication, pickup new slave config; }
+
+    --source include/rpl_sync.inc
+
+    --source include/rpl_connection_master.inc
+    RESET MASTER;
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --let $rpl_connection_name=server_3
+    --source include/rpl_connection.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
+    --source include/save_binlog_position.inc
+
+    if ($verb==3) { echo # Execute UPDATE; }
+    --let $statement= UPDATE t SET $set
+    if ($verb>=1) { echo $statement; }
+    eval $statement;
+
+    if ($verb==3) { echo # See decoded rows; }
+    if ($verb>=1) {
+      --let $mysqlbinlog_only_decoded_rows= 1
+      --let $mysqlbinlog_allow_error= 1
+      --source include/mysqlbinlog.inc
+    }
+
+    --source include/rpl_sync.inc
+    --source include/rpl_diff.inc
+
+    DROP TABLE t;
+    --source include/rpl_sync.inc
+  }
+
+  --inc $iteration
+  if ($iteration_max) {
+    if ($iteration > $iteration_max) {
+      --let $done= 1
+    }
+  }
+  if ($time_max) {
+    if (`SELECT UNIX_TIMESTAMP() - $start_time >= $time_max`) {
+      --let $done= 1
+    }
+  }
+}
+
+--source include/rpl_connection_slave.inc
+--enable_query_log
+SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS= @old_slave_rows_search_algorithms;
+SET @@GLOBAL.SLAVE_EXEC_MODE= @old_slave_exec_mode;
+--disable_query_log
+
+--source include/rpl_end.inc

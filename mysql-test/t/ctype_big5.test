@@ -3,8 +3,6 @@
 # This has to be removed along with the fix for Bug#17022890
 -- source include/no_valgrind_without_big.inc
 
--- source include/have_big5.inc
-
 #
 # Tests with the big5 character set
 #
@@ -17,6 +15,8 @@ SET @test_collation= 'big5_chinese_ci';
 -- source include/ctype_common.inc
 
 SET NAMES big5;
+--character_set big5
+
 SET collation_connection='big5_chinese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
@@ -130,7 +130,10 @@ let $default_engine = `select @@SESSION.default_storage_engine`;
 --replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
 SELECT COUNT(*) FROM t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
 # Display all characters that have upper or lower case mapping.
@@ -168,12 +171,10 @@ DROP TABLE t1;
 
 set names big5;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 set collation_connection=big5_bin;
 --source include/weight_string.inc
---source include/weight_string_l1.inc
 --source include/weight_string_A1A1.inc
 
 --echo #

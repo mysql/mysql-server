@@ -1,0 +1,3129 @@
+##################
+# UPDATE HISTOGRAM
+##################
+#
+# Verify that we can build and store a histogram for all valid data types.
+#
+CREATE TABLE all_types (
+col_bool BOOLEAN,
+col_bit BIT(64),
+col_tinyint TINYINT,
+col_smallint SMALLINT,
+col_mediumint MEDIUMINT,
+col_integer INTEGER,
+col_bigint BIGINT,
+col_tinyint_unsigned TINYINT UNSIGNED,
+col_smallint_unsigned SMALLINT UNSIGNED,
+col_mediumint_unsigned MEDIUMINT UNSIGNED,
+col_integer_unsigned INTEGER UNSIGNED,
+col_bigint_unsigned BIGINT UNSIGNED,
+col_float FLOAT,
+col_double DOUBLE,
+col_decimal DECIMAL(65, 2),
+col_date DATE,
+col_time TIME,
+col_year YEAR,
+col_datetime DATETIME,
+col_timestamp TIMESTAMP NULL,
+col_char CHAR(255),
+col_varchar VARCHAR(255),
+col_tinytext TINYTEXT,
+col_text TEXT,
+col_mediumtext MEDIUMTEXT,
+col_longtext LONGTEXT,
+col_binary BINARY(255),
+col_varbinary VARBINARY(255),
+col_tinyblob TINYBLOB,
+col_blob BLOB,
+col_mediumblob MEDIUMBLOB,
+col_longblob LONGBLOB,
+col_enum ENUM('red', 'black', 'pink', 'white', 'purple'),
+col_set SET('one', 'two', 'three'));
+INSERT INTO all_types VALUES (
+NULL,     # BOOLEAN
+NULL,     # BIT
+NULL,     # TINYINT
+NULL,     # SMALLINT
+NULL,     # MEDIUMINT
+NULL,     # INTEGER
+NULL,     # BIGINT
+NULL,     # TINYINT_UNSIGNED
+NULL,     # SMALLINT_UNSIGNED
+NULL,     # MEDIUMINT_UNSIGNED
+NULL,     # INTEGER_UNSIGNED
+NULL,     # BIGINT_UNSIGNED
+NULL,     # FLOAT
+NULL,     # DOUBLE
+NULL,     # DECIMAL(65, 2)
+NULL,     # DATE
+NULL,     # TIME
+NULL,     # YEAR
+NULL,     # DATETIME
+NULL,     # TIMESTAMP
+NULL,     # CHAR
+NULL,     # VARCHAR
+NULL,     # TINYTEXT
+NULL,     # TEXT
+NULL,     # MEDIUMTEXT
+NULL,     # LONGTEXT
+NULL,     # BINARY
+NULL,     # VARBINARY
+NULL,     # TINYBLOB
+NULL,     # BLOB
+NULL,     # MEDIUMBLOB
+NULL,     # LONGBLOB
+NULL,     # ENUM
+NULL);
+INSERT INTO all_types VALUES (
+FALSE,                                                               # BOOLEAN
+b'0000000000000000000000000000000000000000000000000000000000000000', # BIT
+-128,                                                                # TINYINT
+-32768,                                                              # SMALLINT
+-8388608,                                                            # MEDIUMINT
+-2147483648,                                                         # INTEGER
+-9223372036854775808,                                                # BIGINT
+0,                                                                   # TINYINT_UNSIGNED
+0,                                                                   # SMALLINT_UNSIGNED
+0,                                                                   # MEDIUMINT_UNSIGNED
+0,                                                                   # INTEGER_UNSIGNED
+0,                                                                   # BIGINT_UNSIGNED
+-3.402823466E+38,                                                    # FLOAT
+-1.7976931348623157E+308,                                            # DOUBLE
+-999999999999999999999999999999999999999999999999999999999999999.99, # DECIMAL(65, 2)
+'1000-01-01',                                                        # DATE
+'-838:59:59.000000',                                                 # TIME
+1901,                                                                # YEAR
+'1000-01-01 00:00:00',                                               # DATETIME
+'1970-01-02 00:00:01',                                               # TIMESTAMP
+'',                                                                  # CHAR
+'',                                                                  # VARCHAR
+'',                                                                  # TINYTEXT
+'',                                                                  # TEXT
+'',                                                                  # MEDIUMTEXT
+'',                                                                  # LONGTEXT
+'',                                                                  # BINARY
+'',                                                                  # VARBINARY
+'',                                                                  # TINYBLOB
+'',                                                                  # BLOB
+'',                                                                  # MEDIUMBLOB
+'',                                                                  # LONGBLOB
+'red',                                                               # ENUM
+'');
+INSERT INTO all_types VALUES (
+TRUE,                                                                # BOOLEAN
+b'1111111111111111111111111111111111111111111111111111111111111111', # BIT
+127,                                                                 # TINYINT
+32767,                                                               # SMALLINT
+8388607,                                                             # MEDIUMINT
+2147483647,                                                          # INTEGER
+9223372036854775807,                                                 # BIGINT
+255,                                                                 # TINYINT_UNSIGNED
+65535,                                                               # SMALLINT_UNSIGNED
+16777215,                                                            # MEDIUMINT_UNSIGNED
+4294967295,                                                          # INTEGER_UNSIGNED
+18446744073709551615,                                                # BIGINT_UNSIGNED
+3.402823466E+38,                                                     # FLOAT
+1.7976931348623157E+308,                                             # DOUBLE
+999999999999999999999999999999999999999999999999999999999999999.99,  # DECIMAL(65, 2)
+'9999-12-31',                                                        # DATE
+'838:59:59.000000',                                                  # TIME
+2155,                                                                # YEAR
+'9999-12-31 23:59:59',                                               # DATETIME
+'2038-01-19 03:14:07',                                               # TIMESTAMP
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # CHAR
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # VARCHAR
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TINYTEXT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TEXT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # MEDIUMTEXT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # LONGTEXT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # BINARY
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # VARBINARY
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TINYBLOB
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # BLOB
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # MEDIUMBLOB
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # LONGBLOB
+'purple',                                                            # ENUM
+'three');
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+# Check that ANALZYE TABLE without the "UPDATE HISTOGRAM"-clause doesn't
+# have any effect on histogram statistics.
+ANALYZE TABLE all_types;
+Table	Op	Msg_type	Msg_text
+test.all_types	analyze	status	OK
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+ANALYZE TABLE all_types UPDATE HISTOGRAM ON col_bool,
+col_bit,
+col_tinyint,
+col_smallint,
+col_mediumint,
+col_integer,
+col_bigint,
+col_tinyint_unsigned,
+col_smallint_unsigned,
+col_mediumint_unsigned,
+col_integer_unsigned,
+col_bigint_unsigned,
+col_float,
+col_double,
+col_decimal,
+col_date,
+col_time,
+col_year,
+col_datetime,
+col_timestamp,
+col_char,
+col_varchar,
+col_tinytext,
+col_text,
+col_mediumtext,
+col_longtext,
+col_binary,
+col_varbinary,
+col_tinyblob,
+col_blob,
+col_mediumblob,
+col_longblob,
+col_enum,
+col_set WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.all_types	histogram	status	Histogram statistics created for column 'col_bigint'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_bigint_unsigned'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_binary'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_bit'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_blob'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_bool'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_char'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_date'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_datetime'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_decimal'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_double'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_enum'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_float'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_integer'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_integer_unsigned'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_longblob'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_longtext'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_mediumblob'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_mediumint'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_mediumint_unsigned'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_mediumtext'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_set'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_smallint'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_smallint_unsigned'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_text'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_time'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_timestamp'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_tinyblob'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_tinyint'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_tinyint_unsigned'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_tinytext'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_varbinary'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_varchar'.
+test.all_types	histogram	status	Histogram statistics created for column 'col_year'.
+# Remove 'last-updated' from the histogram, since it will change on every
+# run.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	all_types	col_bigint	{"buckets": [[-9223372036854775808, 0.3333333333333333], [9223372036854775807, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bigint_unsigned	{"buckets": [[0, 0.3333333333333333], [18446744073709551615, 0.6666666666666666]], "data-type": "uint", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_binary	{"buckets": [["base64:type254:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bit	{"buckets": [[-1, 0.3333333333333333], [0, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_blob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_bool	{"buckets": [[0, 0.3333333333333333], [1, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_char	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_date	{"buckets": [["1000-01-01", 0.3333333333333333], ["9999-12-31", 0.6666666666666666]], "data-type": "date", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_datetime	{"buckets": [["1000-01-01 00:00:00.000000", 0.3333333333333333], ["9999-12-31 23:59:59.000000", 0.6666666666666666]], "data-type": "datetime", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_decimal	{"buckets": [[-999999999999999999999999999999999999999999999999999999999999999.99, 0.3333333333333333], [999999999999999999999999999999999999999999999999999999999999999.99, 0.6666666666666666]], "data-type": "decimal", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_double	{"buckets": [[-1.7976931348623157e308, 0.3333333333333333], [1.7976931348623157e308, 0.6666666666666666]], "data-type": "double", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_enum	{"buckets": [[1, 0.3333333333333333], [5, 0.6666666666666666]], "data-type": "enum", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_float	{"buckets": [[-3.4028234663852886e38, 0.3333333333333333], [3.4028234663852886e38, 0.6666666666666666]], "data-type": "double", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_integer	{"buckets": [[-2147483648, 0.3333333333333333], [2147483647, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_integer_unsigned	{"buckets": [[0, 0.3333333333333333], [4294967295, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_longblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_longtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumint	{"buckets": [[-8388608, 0.3333333333333333], [8388607, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumint_unsigned	{"buckets": [[0, 0.3333333333333333], [16777215, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_mediumtext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_set	{"buckets": [[0, 0.3333333333333333], [4, 0.6666666666666666]], "data-type": "set", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_smallint	{"buckets": [[-32768, 0.3333333333333333], [32767, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_smallint_unsigned	{"buckets": [[0, 0.3333333333333333], [65535, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_text	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_time	{"buckets": [["-838:59:59.000000", 0.3333333333333333], ["838:59:59.000000", 0.6666666666666666]], "data-type": "time", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_timestamp	{"buckets": [["1970-01-02 00:00:01.000000", 0.3333333333333333], ["2038-01-19 03:14:07.000000", 0.6666666666666666]], "data-type": "datetime", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyblob	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyint	{"buckets": [[-128, 0.3333333333333333], [127, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinyint_unsigned	{"buckets": [[0, 0.3333333333333333], [255, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_tinytext	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_varbinary	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 63, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_varchar	{"buckets": [["base64:type254:", 0.3333333333333333], ["base64:type254:YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh", 0.6666666666666666]], "data-type": "string", "null-values": 0.3333333333333333, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	all_types	col_year	{"buckets": [[1901, 0.3333333333333333], [2155, 0.6666666666666666]], "data-type": "int", "null-values": 0.3333333333333333, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+# When we remove the table, all histograms that belong to this table
+# should also dissapear.
+DROP TABLE all_types;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+#
+# Check that we don't try to build and/or store histogram statistics for
+# unsupported data types.
+#
+CREATE TABLE unsupported_types (col_geometry GEOMETRY,
+col_point POINT,
+col_linestring LINESTRING,
+col_polygon POLYGON,
+col_multipoint MULTIPOINT,
+col_multilinestring MULTILINESTRING,
+col_multipolygon MULTIPOLYGON,
+col_geometrycollection GEOMETRYCOLLECTION,
+col_json JSON);
+ANALYZE TABLE unsupported_types UPDATE HISTOGRAM ON col_geometry,
+col_point,
+col_linestring,
+col_polygon,
+col_multipoint,
+col_multilinestring,
+col_multipolygon,
+col_geometrycollection,
+col_json WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.unsupported_types	histogram	Error	The column 'col_geometry' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_geometrycollection' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_json' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_linestring' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_multilinestring' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_multipoint' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_multipolygon' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_point' has an unsupported data type.
+test.unsupported_types	histogram	Error	The column 'col_polygon' has an unsupported data type.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+DROP TABLE unsupported_types;
+CREATE TABLE t1 (col_integer INT);
+#
+# Non-existing column
+#
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON foobar WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	The column 'foobar' does not exist.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+#
+# Non-existing table
+#
+ANALYZE TABLE foobar UPDATE HISTOGRAM ON foobar WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.foobar	histogram	Error	Table 'test.foobar' doesn't exist.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+#
+# Temporary table
+#
+CREATE TEMPORARY TABLE temp_table (col1 INT);
+ANALYZE TABLE temp_table UPDATE HISTOGRAM ON col1 WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.temp_table	histogram	Error	Cannot create histogram statistics for a temporary table.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+DROP TABLE temp_table;
+#
+# View
+#
+CREATE VIEW my_view AS SELECT * FROM t1;
+ANALYZE TABLE my_view UPDATE HISTOGRAM ON col_integer WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.my_view	histogram	Error	Cannot create histogram statistics for a view.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+DROP VIEW my_view;
+#
+# Generated column
+#
+ALTER TABLE t1 ADD COLUMN virtual_generated INT AS (col_integer + 10) VIRTUAL,
+ADD COLUMN stored_generated INT AS (col_integer + 20) STORED;
+INSERT INTO t1 (col_integer) VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer,
+virtual_generated,
+stored_generated
+WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_integer'.
+test.t1	histogram	status	Histogram statistics created for column 'stored_generated'.
+test.t1	histogram	status	Histogram statistics created for column 'virtual_generated'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col_integer	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t1	stored_generated	{"buckets": [[30, 0.3333333333333333], [40, 0.6666666666666666], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+test	t1	virtual_generated	{"buckets": [[20, 0.3333333333333333], [30, 0.6666666666666666], [40, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
+ALTER TABLE t1 DROP COLUMN virtual_generated, DROP COLUMN stored_generated;
+# The histogram for 'virtual_generated' and 'stored_generated' should now
+# be gone
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col_integer
+DELETE FROM t1;
+#
+# Check that the server switches between singleton and equi-height when
+# it should.
+#
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_integer'.
+SELECT schema_name, table_name, column_name,
+JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_singleton
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	should_be_singleton
+test	t1	col_integer	"singleton"
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 9 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_integer'.
+SELECT schema_name, table_name, column_name,
+JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_equiheight
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	should_be_equiheight
+test	t1	col_integer	"equi-height"
+DROP TABLE t1;
+#
+# Check that invalid range for the number of buckets is rejected
+# (should be in the range [1, 1024]).
+#
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH 0 BUCKETS;
+ERROR 22003: Number of buckets value is out of range in 'ANALYZE TABLE'
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH 1025 BUCKETS;
+ERROR 22003: Number of buckets value is out of range in 'ANALYZE TABLE'
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH -1 BUCKETS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1 BUCKETS' at line 1
+#
+# Check that 'tbl.col' and 'db.tbl.col' isn't allowed.
+#
+ANALYZE TABLE foo UPDATE HISTOGRAM ON tbl.col WITH 100 BUCKETS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.col WITH 100 BUCKETS' at line 1
+ANALYZE TABLE foo UPDATE HISTOGRAM ON db.tbl.col WITH 100 BUCKETS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.tbl.col WITH 100 BUCKETS' at line 1
+#
+# Multiple tables in ANALYZE TABLE .. UPDATE HISTOGRAM
+#
+ANALYZE TABLE foo, foo2 UPDATE HISTOGRAM ON bar WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+	histogram	Error	Only one table can be specified while modifying histogram statistics.
+#
+# Histogram statistics should not be created for columns covered by a
+# single-part unique index
+#
+CREATE TABLE t1 (col1 INT PRIMARY KEY,
+col2 INT,
+col3 INT,
+UNIQUE INDEX index_1 (col2),
+UNIQUE INDEX index_2 (col3, col2));
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	The column 'col1' is covered by a single-part unique index.
+test.t1	histogram	Error	The column 'col2' is covered by a single-part unique index.
+test.t1	histogram	status	Histogram statistics created for column 'col3'.
+# We should end up with histogram statistics for 'col3'
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col3
+# If we hide the index however, we should be able to create a histogram
+# for 'col2'
+ALTER TABLE t1 ALTER INDEX index_1 INVISIBLE;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+test	t1	col3
+DROP TABLE t1;
+#
+# The server should not create a histogram with more buckets than
+# specified
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 10
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+JSON_LENGTH(histogram->'$.buckets') <= 10
+1
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 57 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 57
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+JSON_LENGTH(histogram->'$.buckets') <= 57
+1
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 255 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 255
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+JSON_LENGTH(histogram->'$.buckets') <= 255
+1
+#
+# If the same column is specified more than once, the server should raise
+# the error ER_DUP_FIELDNAME
+#
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
+ERROR 42S21: Duplicate column name 'col1'
+DROP TABLE t1;
+################
+# DROP HISTOGRAM
+################
+# Check that we don't have any histograms here
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+CREATE TABLE t1 (col1 INT, col2 VARCHAR(255));
+INSERT INTO t1 VALUES (1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5"),
+(6, "6"), (7, "7"), (8, "8"), (9, "9"), (10, "10");
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+# We should now have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+ANALYZE TABLE t1 DROP HISTOGRAM ON col2;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'col2'.
+# We should now have one histogram.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'col1'.
+# All histograms should have been removed.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+# We should now have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+ANALYZE TABLE t1 DROP HISTOGRAM ON col2, col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'col1'.
+test.t1	histogram	status	Histogram statistics removed for column 'col2'.
+# All histograms should have been removed.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+# Try to drop histogram statistics for a column that does not have any
+# histogram
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	No histogram statistics found for column 'col1'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1, col2;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	No histogram statistics found for column 'col1'.
+test.t1	histogram	status	Histogram statistics removed for column 'col2'.
+#
+# Non-existing column
+#
+ANALYZE TABLE t1 DROP HISTOGRAM ON foobar;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	No histogram statistics found for column 'foobar'.
+#
+# Non-existing table
+#
+ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
+Table	Op	Msg_type	Msg_text
+test.foo	histogram	Error	No histogram statistics found for column 'foobar'.
+#
+# The same column specified multiple times
+#
+ANALYZE TABLE foo DROP HISTOGRAM ON foobar, foobar;
+ERROR 42S21: Duplicate column name 'foobar'
+#
+# Multiple tables specified in ANALYZE TABLE .. DROP HISTOGRAM should not
+# be allowed.
+#
+CREATE TABLE t2 (col1 INT);
+ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+	histogram	Error	Only one table can be specified while modifying histogram statistics.
+DROP TABLE t1, t2;
+#####################################
+# HISTOGRAM REMOVAL ON DDL STATEMENTS
+#####################################
+# Check that we don't have any histograms here
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+#
+# DROP TABLE
+#
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+DROP TABLE t1;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+#
+# Rename column
+#
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+ALTER TABLE t1 CHANGE COLUMN col1 col1_renamed INT;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+#
+# Change column definition
+#
+ALTER TABLE t1 CHANGE COLUMN col2 col2 VARCHAR(255);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+#
+# Drop column
+#
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+ALTER TABLE t1 DROP COLUMN col2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+#
+# Rename table
+#
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1_renamed WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1_renamed'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+RENAME TABLE t1 TO t1_renamed;
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+ALTER TABLE t1_renamed RENAME TO t1;
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+ALTER TABLE t1 RENAME TO t1_renamed, ALGORITHM = INPLACE;
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1_renamed	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+ALTER TABLE t1_renamed RENAME TO t1, ALGORITHM = COPY;
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1_renamed	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+DROP TABLE t1;
+#
+# Do RENAME TABLE on a table with string contents, since they have a more
+# complicated memory handling. Test both singleton and equi-height
+#
+CREATE TABLE t1 (col1 VARCHAR(255), col2 VARCHAR(255));
+INSERT INTO t1 VALUES ('foo', 'foo'), ('bar', 'bar'), ('fo', 'fo'),
+('yay', 'yay');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+RENAME TABLE t1 TO t1_renamed;
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1_renamed	col1	{"buckets": [["base64:type254:YmFy", 0.25], ["base64:type254:Zm8=", 0.5], ["base64:type254:Zm9v", 0.75], ["base64:type254:eWF5", 1.0]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	t1_renamed	col2	{"buckets": [["base64:type254:YmFy", "base64:type254:Zm8=", 0.5, 2], ["base64:type254:Zm9v", "base64:type254:eWF5", 1.0, 2]], "data-type": "string", "null-values": 0.0, "collation-id": 255, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+DROP TABLE t1_renamed;
+#
+# Drop database
+#
+CREATE DATABASE histogram_db;
+CREATE TABLE histogram_db.t1 (col1 INT);
+ANALYZE TABLE histogram_db.t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+histogram_db.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+histogram_db	t1	col1
+DROP DATABASE histogram_db;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+#
+# Change character set
+#
+CREATE TABLE t1 (col1 VARCHAR(255), col2 CHAR(10), col3 TEXT, col4 INT,
+col5 BLOB) CHARACTER SET latin1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
+WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+test.t1	histogram	status	Histogram statistics created for column 'col3'.
+test.t1	histogram	status	Histogram statistics created for column 'col4'.
+test.t1	histogram	status	Histogram statistics created for column 'col5'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+test	t1	col3
+test	t1	col4
+test	t1	col5
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4;
+# Only col4 and col5 should remain
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col4
+test	t1	col5
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
+WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+test.t1	histogram	status	Histogram statistics created for column 'col3'.
+test.t1	histogram	status	Histogram statistics created for column 'col4'.
+test.t1	histogram	status	Histogram statistics created for column 'col5'.
+ALTER TABLE t1 MODIFY COLUMN col1 VARCHAR(255) CHARACTER SET latin1;
+# col2, col3, col4 and col5 should remain
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+test	t1	col3
+test	t1	col4
+test	t1	col5
+DROP TABLE t1;
+#
+# Adding a column should not affect existing histograms
+#
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+ALTER TABLE t1 ADD COLUMN col2 INT;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+#
+# Dropping a column without histogram should not affect existing
+# histograms
+#
+ALTER TABLE t1 DROP COLUMN col2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+DROP TABLE t1;
+#
+# Column names are always case insensitive, so verify that histogram
+# statistics respect this.
+#
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON COL1, col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+ALTER TABLE t1 DROP COLUMN COL1;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+DROP TABLE t1;
+#
+# Using ANALYZE TABLE in a prepared statement
+#
+CREATE TABLE t(x INT);
+PREPARE ps FROM 'ANALYZE TABLE t UPDATE HISTOGRAM ON x WITH 10 BUCKETS';
+EXECUTE ps;
+Table	Op	Msg_type	Msg_text
+test.t	histogram	status	Histogram statistics created for column 'x'.
+EXECUTE ps;
+Table	Op	Msg_type	Msg_text
+test.t	histogram	status	Histogram statistics created for column 'x'.
+DROP TABLE t;
+#
+# Check that any existing histogram is removed if we add a single-part
+# unique index to a column
+#
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 INT, col5 INT, col6 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5, col6
+WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+test.t1	histogram	status	Histogram statistics created for column 'col3'.
+test.t1	histogram	status	Histogram statistics created for column 'col4'.
+test.t1	histogram	status	Histogram statistics created for column 'col5'.
+test.t1	histogram	status	Histogram statistics created for column 'col6'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+test	t1	col3
+test	t1	col4
+test	t1	col5
+test	t1	col6
+ALTER TABLE t1 ADD UNIQUE INDEX (col1);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col2
+test	t1	col3
+test	t1	col4
+test	t1	col5
+test	t1	col6
+ALTER TABLE t1 ADD UNIQUE INDEX (col2), ALGORITHM = INPLACE;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col3
+test	t1	col4
+test	t1	col5
+test	t1	col6
+ALTER TABLE t1 ADD UNIQUE INDEX (col3), ALGORITHM = COPY;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col4
+test	t1	col5
+test	t1	col6
+ALTER TABLE t1 ADD PRIMARY KEY (col4);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col5
+test	t1	col6
+# Adding a multi-part unique index should NOT remove histograms
+ALTER TABLE t1 ADD UNIQUE INDEX (col5, col6);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col5
+test	t1	col6
+CREATE UNIQUE INDEX index_col5 ON t1 (col5);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col6
+# Adding a non-unique single part index should NOT remove histograms
+CREATE INDEX index_col6 ON t1 (col6);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col6
+ALTER TABLE t1 MODIFY COLUMN col6 INT UNIQUE;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+# Set the server in read-only mode, and verify that a histogram cannot
+# be created.
+SET GLOBAL read_only = 1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+	histogram	Error	The server is in read-only mode.
+SET GLOBAL read_only = 0;
+DROP TABLE t1;
+#
+# Bug#25841057 WL8943: ASSERTION `!TABLE || (!TABLE->READ_SET ||
+#              BITMAP_IS_SET(TABLE->READ_SET,
+#
+CREATE TABLE t1 (
+c1 int(11) DEFAULT NULL,
+c2 int(11) GENERATED ALWAYS AS ((c1 * 2)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c2'.
+INSERT into t1(c1) VALUES (1);
+ALTER TABLE t1 ADD UNIQUE INDEX i (c2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	The column 'c2' is covered by a single-part unique index.
+ALTER TABLE t1 DROP KEY i;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c2'.
+DROP TABLE t1;
+#
+# Bug#25929588 WL8943:ASSERTION `STORED_OBJECT == NULLPTR' FAILED.
+#
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+ALTER TABLE t1 DROP COLUMN foobar, CHANGE COLUMN col1 col2 INT;
+ERROR 42000: Can't DROP 'foobar'; check that column/key exists
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+DROP TABLE t1;
+#
+# Bug#25950613 WL8943:ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+#              BITMAP_IS_SET(TABLE->WRITE_SET
+#
+CREATE TABLE foo (col1 INT,
+col2 INT AS (col1 + 1) VIRTUAL,
+col3 INT AS (col2 + 1) VIRTUAL);
+INSERT INTO foo (col1) VALUES (1);
+ANALYZE TABLE foo UPDATE HISTOGRAM ON col3 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.foo	histogram	status	Histogram statistics created for column 'col3'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	foo	col3
+DROP TABLE foo;
+#
+# Bug#25985106 WL8943:ASSERTION `FLOAT_COMPARE::ALMOST_EQUAL(
+#              CUMULATIVE_FREQUENCY + GET_NULL_V
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1 LIMIT 38;
+INSERT INTO t1 SELECT NULL;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+DROP TABLE t1;
+#
+# Bug#26021907 WL8943:ASSERTION `M_SCAN_VALUE == 1' FAILED.
+#
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2, col3 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.p	histogram	status	Histogram statistics created for column 'col2'.
+test.p	histogram	status	Histogram statistics created for column 'col3'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+ALTER TABLE p PARTITION BY HASH (col1) PARTITIONS 2;
+# Histogram statistics should still be present after a re-partitioning.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	p	col2
+test	p	col3
+# Histogram statistics should remain the same now, even though the
+# partitions specification is different.
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2, col3 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.p	histogram	status	Histogram statistics created for column 'col2'.
+test.p	histogram	status	Histogram statistics created for column 'col3'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	p	col3	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+DROP TABLE p;
+#
+# Bug#26026996 WL8943:ASSERTION `MDL_CHECKER::IS_WRITE_LOCKED(M_THD,
+#              NEW_OBJECT)' FAILED.
+#
+CREATE SCHEMA foo;
+CREATE SCHEMA bar;
+CREATE TABLE foo.tbl (col1 INT);
+ANALYZE TABLE foo.tbl UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+foo.tbl	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+foo	tbl	col1
+RENAME TABLE foo.tbl TO bar.tbl2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+bar	tbl2	col1
+DROP SCHEMA foo;
+DROP SCHEMA bar;
+#
+# Bug#26035995 WL8943:HISTOGRAM NOT CREATED FOR TABLE CREATED WITH
+#              ENCRYPTION='N'
+#
+# Restart the server with keyring enabled
+CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
+CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
+CREATE TABLE encrypted1 (col1 INT) ENCRYPTION='y';
+CREATE TABLE encrypted2 (col1 INT) ENCRYPTION='Y';
+INSERT INTO not_encrypted1 VALUES (1);
+INSERT INTO not_encrypted2 VALUES (1);
+INSERT INTO encrypted1 VALUES (1);
+INSERT INTO encrypted2 VALUES (1);
+ANALYZE TABLE not_encrypted1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.not_encrypted1	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE not_encrypted2 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.not_encrypted2	histogram	status	Histogram statistics created for column 'col1'.
+ANALYZE TABLE encrypted1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.encrypted1	histogram	Error	Cannot create histogram statistics for an encrypted table.
+ANALYZE TABLE encrypted2 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.encrypted2	histogram	Error	Cannot create histogram statistics for an encrypted table.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	not_encrypted1	col1
+test	not_encrypted2	col1
+# Ensure that histogram statistics are removed if we enable encryption
+ALTER TABLE not_encrypted1 ENCRYPTION='y';
+ALTER TABLE not_encrypted2 ENCRYPTION='Y';
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+DROP TABLE encrypted1;
+DROP TABLE not_encrypted1;
+DROP TABLE encrypted2;
+DROP TABLE not_encrypted2;
+#
+# Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
+#
+# Create a non-transactional table with a trigger.
+CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=MyISAM;
+CREATE TRIGGER ai AFTER INSERT ON t1 FOR EACH ROW SET @a:= NEW.at;
+ALTER TABLE t1 ADD PRIMARY KEY (i);
+DROP TABLE t1;
+#
+# Bug#26303972 HISTOGRAM.CC:1169: BOOL HISTOGRAMS::DROP_ALL_HISTOGRAMS
+#
+CREATE TABLE ftidx_encrypted (a VARCHAR(255), FULLTEXT ftidx(a))
+ENGINE=InnoDB ENCRYPTION='N';
+ALTER TABLE ftidx_encrypted RENAME TO ftidx_encrypted_renamed, KEY_BLOCK_SIZE=0;
+DROP TABLE ftidx_encrypted_renamed;
+#
+# Bug#26388098 WL9223: ASSERTION `DISTANCE >= 0.0' FAILED.
+#
+CREATE TABLE t1 (
+ten int(11) DEFAULT NULL,
+twenty int(11) DEFAULT NULL,
+forty int(11) DEFAULT NULL,
+eighty int(11) DEFAULT NULL,
+KEY idx3 (twenty,ten),
+KEY idx (ten)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES
+(6,16,36,76), (5,15,35,35), (9,19,39,79), (1,1,1,41), (7,17,17,17),
+(3,13,33,73), (7,17,37,37), (1,1,1,1), (9,9,9,9), (0,0,20,60), (5,15,35,75),
+(0,10,10,10), (3,3,3,3), (8,8,8,48), (8,18,38,38), (8,8,28,28), (3,13,33,33),
+(7,7,7,7), (2,2,22,62), (0,0,0,40), (0,0,0,0), (2,12,12,52), (6,6,6,6),
+(9,19,19,19), (5,15,15,15), (5,5,5,5), (5,5,25,65), (4,14,14,14), (3,3,23,23),
+(4,4,4,44), (4,14,34,74), (6,6,26,26), (7,17,17,57), (7,17,17,17), (8,18,18,18),
+(1,11,11,11), (4,4,4,4), (4,4,24,24), (8,18,18,18), (1,11,11,51), (7,7,27,27),
+(8,8,8,8), (9,9,29,29), (7,7,7,47), (1,1,1,1), (5,5,25,25), (4,4,24,64),
+(9,9,29,69), (0,10,10,10), (9,9,9,49);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON eighty WITH 40 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'eighty'.
+EXPLAIN SELECT a.forty, b.twenty FROM t1 AS a, t1 AS b
+WHERE a.twenty = b.ten AND b.eighty >= (3 + 20);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	b	NULL	ALL	idx	NULL	NULL	NULL	50	60.00	Using where
+1	SIMPLE	a	NULL	ref	idx3	idx3	5	test.b.ten	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`forty` AS `forty`,`test`.`b`.`twenty` AS `twenty` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`a`.`twenty` = `test`.`b`.`ten`) and (`test`.`b`.`eighty` >= <cache>((3 + 20))))
+DROP TABLE t1;
+#
+# Bug#26389682 WL9223: ASSERTION `VALUE_CONVERTED <= UPPER_CONVERTED'
+#              FAILED.
+#
+CREATE TABLE `t1` (
+`two` blob,
+`ten` blob,
+`sixty` text,
+`eighty` blob,
+`tenPercent` text
+) DEFAULT CHARSET=utf8mb4;
+INSERT INTO `t1` VALUES
+('0','6','16','76','6'), ('1','5','35','35','5'), ('1','9','19','79','9'),
+('1','1','41','41','1'), ('1','7','37','17','7'), ('1','3','13','73','3'),
+('1','7','37','37','7'), ('1','1','1','1','1'), ('1','9','29','9','9'),
+('0','0','0','60','0'), ('1','5','15','75','5'), ('0','0','10','10','0'),
+('1','3','3','3','3'), ('0','8','48','48','8'), ('0','8','38','38','8'),
+('0','8','28','28','8'), ('1','3','33','33','3'), ('1','7','7','7','7'),
+('0','2','2','62','2'), ('0','0','40','40','0'), ('0','0','20','0','0'),
+('0','2','52','52','2'), ('0','6','26','6','6'), ('1','9','19','19','9'),
+('1','5','15','15','5'), ('1','5','25','5','5'), ('1','5','5','65','5'),
+('0','4','14','14','4'), ('1','3','23','23','3'), ('0','4','44','44','4'),
+('0','4','14','74','4'), ('0','6','26','26','6'), ('1','7','57','57','7'),
+('1','7','17','17','7'), ('0','8','18','18','8'), ('1','1','11','11','1'),
+('0','4','24','4','4'), ('0','4','24','24','4'), ('0','8','38','18','8'),
+('1','1','51','51','1'), ('1','7','27','27','7'), ('0','8','8','8','8'),
+('1','9','29','29','9'), ('1','7','47','47','7'), ('1','1','21','1','1'),
+('1','5','25','25','5'), ('0','4','4','64','4'), ('1','9','9','69','9'),
+('0','0','30','10','0'), ('1','9','49','49','9'), ('0','6','36','36','6'),
+('0','0','20','20','0'), ('0','2','2','2','2'), ('1','1','1','61','1'),
+('0','8','28','8','8'), ('0','2','42','42','2'), ('0','2','12','72','2'),
+('0','6','6','66','6'), ('1','7','7','67','7'), ('0','8','8','68','8'),
+('0','4','34','14','4'), ('0','4','4','4','4'), ('0','6','6','6','6'),
+('0','6','16','16','6'), ('1','7','17','77','7'), ('0','8','18','78','8'),
+('0','2','22','22','2'), ('0','0','0','0','0'), ('1','9','9','9','9'),
+('1','9','39','39','9'), ('1','7','27','7','7'), ('0','2','32','32','2'),
+('1','1','31','11','1'), ('0','2','12','12','2'), ('0','4','54','54','4'),
+('0','4','34','34','4'), ('1','1','21','21','1'), ('1','3','33','13','3'),
+('0','6','56','56','6'), ('1','1','11','71','1'), ('1','3','53','53','3'),
+('0','0','10','70','0'), ('0','6','36','16','6'), ('1','5','55','55','5'),
+('0','2','22','2','2'), ('1','5','45','45','5'), ('1','3','43','43','3'),
+('0','2','32','12','2'), ('1','1','31','31','1'), ('0','0','50','50','0'),
+('1','3','13','13','3'), ('1','5','35','15','5'), ('1','9','59','59','9'),
+('1','5','5','5','5'), ('0','6','46','46','6'), ('0','0','30','30','0'),
+('0','8','58','58','8'), ('1','3','23','3','3'), ('1','3','3','63','3'),
+('1','9','39','19','9'), ('1','3','44',NULL,'5'), ('1','7','38',NULL,'6'),
+('1','1','52','64','6'), ('1','6','39',NULL,'0'), ('1','7','44','48','6'),
+('0','8','42',NULL,'6'), ('0','0','7',NULL,'9'), ('1','0','45',NULL,'1'),
+('1','5','40','32','0'), ('0','3','52',NULL,'3'), ('1','1','8','48','2'),
+('0','3','20','16','2'), ('0','2','15',NULL,'6'), ('1','6','48','48','8'),
+('0','5','31',NULL,'7'), ('0','6','20','0','4'), ('0','2','12','16','6'),
+('0','4','20','64','4'), ('0','6','56','48','8'), ('0','2','40','16','4'),
+('0','2','52','48','6'), ('1','9','25',NULL,'0'), ('0','0','12',NULL,'1'),
+('0','1','0','64','8'), ('1','4','48','32','6'), ('1','2','0','0','4'),
+('0','5','52','64','8'), ('0','8','44','48','2'), ('0','8','40','0','2'),
+('0','6','8',NULL,'6'), ('1','1','24','16','6'), ('0','6','44','0','4'),
+('1','1','36','0','2'), ('1','0','39',NULL,'7'), ('0','0','8','32','8'),
+('0','2','16','32','0'), ('0','5','8','64','4'), ('0','9','38',NULL,'9'),
+('1','7','32','48','4'), ('0','3','8','48','4'), ('1','8','32',NULL,'5'),
+('1','3','12','32','0'), ('0','3','24','16','6'), ('0','3','53',NULL,'3'),
+('1','6','44','32','8'), ('1','0','4','32','2'), ('1','4','4','48','8'),
+('1','8','8',NULL,'5'), ('1','6','16',NULL,'2'), ('0','7','20','64','8'),
+('0','2','55',NULL,'6'), ('0','8','5',NULL,'1'), ('1','9','36','48','8'),
+('1','3','20','32','2'), ('0','0','56','0','6'), ('1','4','25',NULL,'2'),
+('0','3','0',NULL,'9'), ('1','1','32',NULL,'5'), ('0','4','32',NULL,'0'),
+('0','9','4','0','2'), ('1','9','36','64','8'), ('0','3','48','16','4'),
+('0','9','12','0','0'), ('1','4','39',NULL,'6'), ('0','5','16','16','6'),
+('0','2','17',NULL,'3'), ('1','9','52','0','8'), ('1','2','28',NULL,'3'),
+('1','5','28','32','8'), ('1','4','0','48','8'), ('1','4','39',NULL,'7'),
+('1','3','16',NULL,'6'), ('0','3','17',NULL,'4'), ('1','2','18',NULL,'9'),
+('0','6','52','16','2'), ('1','1','15',NULL,'7'), ('0','5','4','64','6'),
+('0','6','48','64','8'), ('0','7','56',NULL,'0'), ('1','0','28',NULL,'9'),
+('0','4','40','32','8'), ('1','9','52','0','6'), ('1','4','30',NULL,'3'),
+('0','8','8',NULL,'0'), ('0','6','0','64','8'), ('0','6','38',NULL,'9'),
+('0','0','52','64','0'), ('0','5','39',NULL,'3'), ('0','0','52','16','0'),
+('0','5','8','64','0'), ('1','1','44','16','0'), ('0','4','52',NULL,'2'),
+('0','9','0',NULL,'3'), ('0','3','36','64','2'), ('0','3','52','16','8'),
+('1','5','4','16','2'), ('0','9','58',NULL,'9');
+UPDATE mysql.innodb_table_stats SET n_rows = 197
+WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'tenPercent'.
+EXPLAIN SELECT a.two, b.eighty FROM t1 AS a,t1 AS b
+WHERE a.ten = b.sixty AND b.tenPercent < (9 + (5*10));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	197	33.33	Using where
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	197	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`two` AS `two`,`test`.`b`.`eighty` AS `eighty` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`a`.`ten` = `test`.`b`.`sixty`) and (`test`.`b`.`tenPercent` < <cache>((9 + (5 * 10)))))
+DROP TABLE t1;
+#
+# Bug#26388066 WL9223:ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F' FAILED
+#
+CREATE TABLE t1 (
+tenPercent int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES (6),(5),(9),(1),(7);
+UPDATE mysql.innodb_table_stats SET n_rows = 5
+WHERE database_name = "test" AND table_name = "t1";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON tenPercent WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'tenPercent'.
+EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent NOT BETWEEN 3 AND 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`b`.`tenPercent` AS `tenPercent` from `test`.`t1` `b` where (`test`.`b`.`tenPercent` not between 3 and 0)
+EXPLAIN SELECT b.tenPercent FROM t1 AS b WHERE  b.tenPercent BETWEEN 3 AND 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`b`.`tenPercent` AS `tenPercent` from `test`.`t1` `b` where (`test`.`b`.`tenPercent` between 3 and 0)
+DROP TABLE t1;
+#
+# Bug#26388217 WL9223: SIG 11 IN STRING::NUMCHARS |
+#              /SQL-COMMON/SQL_STRING.CC:680
+#
+CREATE TABLE k (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
+KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO k VALUES (1,
+'wrhhsy',
+'rhgpwcrafs',
+'hgpwcrafsb',
+'i',
+NULL,
+'gpwcrafsbt',
+'1000-01-01 00:00:00',
+'1000-01-01',
+'n',
+'LUWOS',
+'1000-01-01',
+NULL,
+'pwcrafsbtn',
+'2002-08-22 03:35:28');
+CREATE TABLE a (
+col_datetime_key datetime DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO a VALUES (NULL,
+'2008-10-25 07:07:49',
+'BXLIC',
+'GSDDY',
+'w',
+'crbhsozfbh',
+'s',
+1,
+'the',
+'2005-04-01',
+104529920,
+'1000-01-01',
+NULL,
+'like',
+'CGLFP');
+CREATE TABLE g (
+col_varchar_10_latin1 varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+col_varchar_255_latin1_key varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_255_latin1 varchar(255) CHARACTER SET latin1 DEFAULT NULL,
+col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
+KEY col_date_key (col_date_key),
+KEY col_int_key (col_int_key),
+KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
+KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
+KEY col_datetime_key (col_datetime_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO g VALUES ('o',
+'2009-05-15 00:00:00',
+'PFJGE',
+'ASUNU',
+'yj',
+'if',
+'1000-01-01',
+'2001-04-06',
+4,
+-1442512896,
+'m',
+'his',
+1,
+'I',
+'2007-05-11 00:00:00');
+ANALYZE TABLE g UPDATE HISTOGRAM ON col_varchar_10_utf8 WITH 250 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.g	histogram	status	Histogram statistics created for column 'col_varchar_10_utf8'.
+EXPLAIN SELECT alias1 . col_date_key AS field1  FROM   k AS alias1
+LEFT OUTER JOIN  a AS alias2
+RIGHT OUTER JOIN g AS alias3  ON  alias2 . col_varchar_255_utf8_key =  alias3 . col_varchar_10_utf8
+ON  alias1 . col_varchar_10_latin1 =  alias3 . col_varchar_255_latin1
+LEFT OUTER JOIN g AS alias4  ON  alias1 . col_varchar_255_utf8_key =  alias4 . col_varchar_255_utf8_key
+WHERE  alias2 . pk = 3   ORDER BY field1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_date_key` AS `field1` from `test`.`k` `alias1` join `test`.`g` `alias3` join `test`.`a` `alias2` left join `test`.`g` `alias4` on(multiple equal(`test`.`alias1`.`col_varchar_255_utf8_key`, `test`.`alias4`.`col_varchar_255_utf8_key`)) where ((NULL = `test`.`alias3`.`col_varchar_10_utf8`) and (`test`.`alias1`.`col_varchar_10_latin1` = `test`.`alias3`.`col_varchar_255_latin1`) and multiple equal(3, NULL)) order by `field1`
+DROP TABLE a, k, g;
+#
+# Bug#26495045 WL9223:ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F' FAILED.
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+UPDATE mysql.innodb_table_stats SET n_rows = 3
+WHERE database_name = "test" AND table_name = "t1";
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` <= 3)
+DROP TABLE t1;
+#
+# Bug#26542689 WL9223: VIRTUAL LONGLONG
+#              ITEM_TIME_WITH_REF::VAL_DATE_TEMPORAL(): ASSERTION `0'
+#
+CREATE TABLE table1 (
+col_datetime_key datetime DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_date date DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_blob_key blob,
+col_time_key time DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_blob blob,
+PRIMARY KEY (pk),
+KEY col_datetime_key (col_datetime_key),
+KEY col_int_key (col_int_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_time_key (col_time_key),
+KEY col_varchar_key (col_varchar_key),
+KEY col_date_key (col_date_key),
+KEY test_idx (col_int_key,col_int)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table1 VALUES ('2000-09-05 00:00:00',
+'2003-11-25 11:17:04',
+1,
+'2006-02-27',
+'00:20:06',
+'l',
+1,
+'uajnlnsnzyo',
+'23:18:41',
+7,
+'a',
+'2001-02-18',
+'jn');
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_varchar WITH 1 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_varchar'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_datetime WITH 20 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_datetime'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_time WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_datetime_key WITH 20 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_date_key WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_date_key'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_blob WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_blob'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_int_key WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_int_key'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_date WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_date'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE table1 UPDATE HISTOGRAM ON col_blob_key WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table1	histogram	status	Histogram statistics created for column 'col_blob_key'.
+CREATE TABLE table2 (
+col_time_key time DEFAULT NULL,
+col_blob_key blob,
+col_int int(11) DEFAULT NULL,
+col_datetime_key datetime DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_blob blob,
+col_date_key date DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_time_key (col_time_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_datetime_key (col_datetime_key),
+KEY col_date_key (col_date_key),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key),
+KEY test_idx (col_int_key,pk)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table2 VALUES ('10:39:59',
+'tymjpskqjjap',
+9,
+'2006-07-17 08:29:28',
+'y',
+'2002-10-02',
+'00:20:00',
+'mjpskqjjapldefot',
+'2008-11-12',
+3,
+1,
+NULL,
+'2009-03-19 00:00:00');
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_blob_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_blob_key'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_date WITH 40 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_date'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_blob WITH 20 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_blob'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_int WITH 1 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_datetime_key WITH 20 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_int_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_int_key'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_time WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE table2 UPDATE HISTOGRAM ON col_varchar WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table2	histogram	status	Histogram statistics created for column 'col_varchar'.
+CREATE TABLE table3 (
+col_int_key int(11) DEFAULT NULL,
+col_datetime datetime DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_datetime_key datetime DEFAULT NULL,
+col_blob blob,
+col_blob_key blob,
+col_int int(11) DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_date date DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_varchar_key (col_varchar_key),
+KEY col_time_key (col_time_key),
+KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table3 VALUES (6,
+'2003-08-27 00:00:00',
+1,
+'2002-07-10 12:41:35',
+NULL,
+'xgtmzjkhjqplanraxafy',
+5,
+'05:20:53',
+'q',
+'g',
+'00:30:27',
+'2008-11-18',
+'2008-05-26');
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_date_key'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_time_key WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_time_key'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_date WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_date'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_datetime_key WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_blob_key WITH 20 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_blob_key'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_blob WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_blob'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_time WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_varchar WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_varchar'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_varchar_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_varchar_key'.
+ANALYZE TABLE table3 UPDATE HISTOGRAM ON col_datetime WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table3	histogram	status	Histogram statistics created for column 'col_datetime'.
+CREATE TABLE table4 (
+col_datetime datetime DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_time_key time DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_date date DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+col_blob blob,
+col_blob_key blob,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_datetime_key datetime DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_time_key (col_time_key),
+KEY col_int_key (col_int_key),
+KEY col_blob_key (col_blob_key(255)),
+KEY col_varchar_key (col_varchar_key),
+KEY col_date_key (col_date_key),
+KEY col_datetime_key (col_datetime_key),
+KEY test_idx (pk,col_int_key)
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+INSERT INTO table4 VALUES ('2009-05-17 00:00:00',
+'00:20:03',
+'00:20:04',
+'u',
+6,
+'2008-02-12',
+0,
+'orecqsomotqciisj',
+'recqsomotqciisjzx',
+'e',
+'2005-03-21',
+1,
+'2009-11-16 02:30:22');
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_time_key WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_time_key'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_date WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_date'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_datetime_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_int_key WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_int_key'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_blob WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_blob'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_time WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_varchar_key WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_varchar_key'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_int WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_blob_key WITH 80 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_blob_key'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_varchar WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_varchar'.
+ANALYZE TABLE table4 UPDATE HISTOGRAM ON col_date_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.table4	histogram	status	Histogram statistics created for column 'col_date_key'.
+CREATE VIEW view_BB AS SELECT * FROM table2;
+CREATE VIEW view_A AS SELECT * FROM table1;
+WITH cte AS (
+SELECT alias2 . col_time AS field1
+FROM  view_BB AS alias1  LEFT  JOIN view_A AS alias2
+ON  alias1 . col_varchar =  alias2 . col_varchar_key
+WHERE  alias2 . col_int_key > 2 AND alias2 . col_int_key < ( 5 + 1 )
+ORDER BY field1
+LIMIT 1000 OFFSET 35)
+UPDATE table3 AS OUTR1, table4 AS OUTR2, cte AS OUTRcte, cte AS OUTRcte1
+SET OUTR1.col_varchar_key = 'hey'
+WHERE OUTRcte . field1 <> 3;
+DROP VIEW view_BB, view_A;
+DROP TABLE table1, table2, table3, table4;
+# Inverted BETWEEN predicate (lower bound is higher/greater than the
+# upper bound)
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 64 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` between 4 and 2)
+EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` not between 4 and 2)
+DROP TABLE t1;
+#
+# Bug#26555815  WL9223: ASSERTION `DISTANCE >= 0.0' FAILED.
+#
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 VALUES (-8454100925504552960), (-3300857051885862912), (0), (0),
+(0), (0), (0), (2), (2), (2), (6), (16), (56), (86), (142), (191), (7294),
+(16729), (22243), (23035), (23731), (23807), (39158), (51338),
+(762515711909167104), (1976517286462226432), (5793317970658721792),
+(6453095316068499456), (7648519542158655488), (8601593813300936704);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	30	49.57	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` <= 0)
+DROP TABLE t1;
+#
+# Bug#26570230 WL9223: ASSERTION `FILTER >= 0.0F && FILTER <= 1.0F'
+#              FAILED.
+#
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES ("c"), ("f"), ("get"), ("going"), ("look"), ("MOZVN"),
+("n"), ("NJAOC"), ("o"), ("on"), ("qnqzklkafp"), ("say"), ("sckaeiqnqz"),
+("the"), ("there"), ("VXPRU"), ("w"), ("WBQDQ"), ("your"), ("ZHZXW");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 'b' AND 'z';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	99.95	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` between 'b' and 'z')
+DROP TABLE t1;
+# Test that histogram data is updated in a multi-connection setup
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 128 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+# This should give a very low estimate, since no rows matches this
+# condition
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` > 3)
+DELETE FROM t1;
+INSERT INTO t1 VALUES (4), (5), (6);
+# This should give the same estimate as earlier, since we haven't updated
+# the histogram statistics.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` > 3)
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 128 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+# Now we should see a very high estimate, since all rows matches this
+# condition.
+EXPLAIN SELECT * FROM t1 WHERE col1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (`test`.`t1`.`col1` > 3)
+DROP TABLE t1;
+#
+# Bug#26621664 WL9223:ASSERTION `DISTANCE <= 1.0' FAILED.
+#
+SET @@SESSION.sql_mode='';
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) NOT NULL,
+col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+col_date date NOT NULL,
+col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day))
+VIRTUAL,
+col_datetime datetime NOT NULL,
+col_time time NOT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS
+(addtime(col_datetime,col_time)) VIRTUAL,
+col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time))
+VIRTUAL,
+col_varchar varchar(1) NOT NULL,
+col_varchar_key varchar(2) GENERATED ALWAYS AS
+(concat(col_varchar,col_varchar)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
+VALUES (10,8,'2006-08-19','2001-07-04
+14:30:59','23:33:39','v'),(11,8,'2006-08-13','2006-12-15
+06:22:01','11:50:10','j'),(12,9,'2008-05-12','2002-06-19
+14:43:00','07:14:03','h'),(13,0,'2003-07-05','2005-08-19
+04:46:53','18:13:22','q'),(14,1,'2003-10-21','2007-05-14
+06:19:04','00:00:00','g'),(29,1,'2008-12-24','2004-04-02
+07:16:01','16:30:10','e');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time_key WITH 1024 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_time_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_varchar_key WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_varchar_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int WITH 40 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_date_key WITH 80 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_date_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime WITH 40 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_datetime'.
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) NOT NULL,
+col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+col_date date NOT NULL,
+col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day))
+VIRTUAL,
+col_datetime datetime NOT NULL,
+col_time time NOT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS
+(addtime(col_datetime,col_time)) VIRTUAL,
+col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time))
+VIRTUAL,
+col_varchar varchar(1) NOT NULL,
+col_varchar_key varchar(2) GENERATED ALWAYS AS
+(concat(col_varchar,col_varchar)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
+VALUES (1,2,'2002-10-13','1900-01-01
+00:00:00','00:00:00','s'),(2,4,'1900-01-01','2005-08-15
+00:00:00','15:57:25','r'),(3,8,'0000-00-00','1900-01-01
+00:00:00','07:05:51','m'),(4,4,'2006-03-09','2008-05-16
+08:09:06','19:22:21','b'),(5,4,'2001-06-05','2001-01-20
+12:47:23','03:53:16','x'),(6,7,'2006-05-28','2008-07-02
+00:00:00','09:16:38','g'),(7,4,'2001-04-19','1900-01-01
+00:00:00','15:37:26','p'),(8,1,'1900-01-01','2002-12-08
+11:34:58','00:00:00','q'),(9,9,'2004-08-20','1900-01-01
+00:00:00','05:03:03','w'),(10,4,'2004-10-10','1900-01-01
+00:00:00','02:59:24','d'),(11,8,'2000-04-02','2002-08-25
+20:35:06','00:01:58','e'),(12,4,'2006-11-02','2001-10-22
+11:13:24','00:00:00','b'),(13,8,'2009-01-28','2003-03-12
+02:00:34','02:20:16','y'),(14,0,'2005-04-19','2007-04-10
+12:16:04','04:59:50','p'),(15,0,'2006-08-12','2009-11-07
+00:00:00','21:14:04','f'),(16,0,'2005-03-12','2003-12-04
+11:14:26','00:00:00','p'),(17,7,'1900-01-01','2006-09-11
+18:25:21','12:59:27','d'),(18,7,'1900-01-01','1900-01-01
+00:00:00','16:39:36','f'),(19,5,'0000-00-00','2001-07-25
+08:40:24','00:00:00','j'),(20,3,'2007-09-09','2009-06-07
+13:48:58','00:00:00','e');
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time_key WITH 1 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_time_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime_key WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_datetime'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_date_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_varchar'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_int_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_time'.
+SELECT  STD( OUTR . pk ) AS x
+FROM t2 AS OUTR2 LEFT JOIN t2 AS OUTR
+ON ( OUTR2 . col_datetime_key >= OUTR . col_datetime_key )
+WHERE OUTR . col_int IN (
+SELECT DISTINCT INNR . col_int_key AS y
+FROM t1 AS INNR2 LEFT JOIN t1 AS INNR
+ON ( INNR2 . col_varchar_key > INNR . col_varchar_key )
+WHERE INNR . col_varchar_key IS NOT NULL
+AND NOT OUTR . pk <> 7  )
+AND OUTR . col_varchar_key IS NULL
+HAVING x <= 3
+ORDER BY OUTR . pk , OUTR . pk;
+x
+DROP TABLE t1, t2;
+SET @@SESSION.sql_mode=DEFAULT;
+#
+# Bug#26634098  WL9223:ASSERTION `(*REF)->IS_TEMPORAL()' FAILED.
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+col_date date DEFAULT NULL,
+col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day)) VIRTUAL,
+col_datetime datetime DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+col_varchar varchar(1) DEFAULT NULL,
+col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key) /*!80000 INVISIBLE */
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
+(10,3,'2007-02-04','2006-02-10 18:41:38',NULL,'t'),
+(11,48,'1900-01-01','2009-02-16 14:58:58',NULL,'d'),
+(12,8,'2001-03-14','2007-08-14 00:00:00','23:28:51','h'),
+(13,9,NULL,'1900-01-01 00:00:00',NULL,NULL),
+(14,2,'2008-10-05',NULL,'20:31:20','f'),
+(15,0,'2001-11-25','2008-12-03 06:59:23','21:39:14','l'),
+(16,205,'2003-01-27','2008-10-04 00:00:00','02:10:00','g'),
+(17,NULL,'2008-08-08','2009-07-07 07:00:21','02:03:54','v'),
+(18,3,'2006-07-03','2001-04-15 00:00:00','22:37:33',NULL),
+(19,3,'2002-11-21','2007-07-08 04:01:58','12:17:48','m');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime_key WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int WITH 1000 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_int'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_time_key'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_datetime WITH 1023 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_datetime'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time WITH 80 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_int_key WITH 80 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col_int_key'.
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+col_date date DEFAULT NULL,
+col_date_key date GENERATED ALWAYS AS ((col_date + interval 30 day)) VIRTUAL,
+col_datetime datetime DEFAULT NULL,
+col_time time DEFAULT NULL,
+col_datetime_key datetime GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+col_time_key time GENERATED ALWAYS AS (addtime(col_datetime,col_time)) VIRTUAL,
+col_varchar varchar(1) DEFAULT NULL,
+col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY col_date_key (col_date_key)
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4;
+INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
+(10,7,'2006-03-07','2008-03-04 06:14:13','13:08:22','b'),
+(11,8,'2001-10-15','2001-03-17 00:00:00','12:54:48','m'),
+(12,NULL,'1900-01-01','2009-02-21 11:35:50','00:00:00','i'),
+(13,0,NULL,'1900-01-01 00:00:00','20:56:23','w'),
+(14,1,'2009-04-05','1900-01-01 00:00:00','04:25:03','m'),
+(15,NULL,'2001-03-19','2001-04-12 00:00:00','00:00:00','q'),
+(16,9,'2009-12-08','2001-12-04 20:21:01','00:00:00','k'),
+(17,9,'2005-02-09','2001-05-27 08:41:01','00:58:58','l'),
+(18,1,'2004-05-25','2004-09-18 00:00:00','18:39:28','c'),
+(19,1,'2005-01-17','2002-09-12 11:18:48','19:47:45','d'),
+(20,3,'2003-08-28','1900-01-01 00:00:00','05:20:00','k'),
+(21,7,'2006-10-11','2003-10-28 03:31:02','11:43:03','a'),
+(22,4,'1900-01-01','2001-08-22 10:20:09','02:38:39','p'),
+(23,NULL,'1900-01-01','2008-04-24 00:00:00','05:34:27','o'),
+(24,4,'2005-08-18','2006-11-10 10:08:49','11:13:16','e'),
+(25,1,'2007-03-12','2007-10-16 00:00:00','00:00:00','n'),
+(26,6,'2000-11-18','2009-05-27 12:25:07','08:56:42','t'),
+(27,5,'2001-03-03',NULL,'03:20:29','u'),
+(28,4,'2003-09-11','2001-09-10 18:10:10',NULL,'f'),
+(29,1,'2007-06-17','1900-01-01 00:00:00',NULL,'t'),
+(30,5,'2008-09-11','2004-06-07 23:17:09','10:39:48','k'),
+(31,NULL,'2008-05-03','2007-06-09 02:05:46','00:00:00','m'),
+(32,4,'2009-09-07','2000-07-03 00:00:00','10:52:33','y'),
+(33,4,'2005-12-15','2001-04-15 14:12:38','21:41:45','m'),
+(34,203,'2005-05-10','2007-04-12 13:29:59',NULL,'x'),
+(35,9,'2008-01-22','2002-03-24 01:35:46','08:33:38',NULL),
+(36,7,'2005-10-23','2001-12-27 07:56:29','19:27:01','q'),
+(37,NULL,'2005-11-01','2002-06-08 09:04:13','09:31:22','f'),
+(38,NULL,NULL,'2002-02-05 12:54:23','17:16:58','t'),
+(39,0,'2005-06-25','2009-09-19 00:00:00','16:44:24','x'),
+(40,1,'2005-12-09','2006-12-18 02:43:37','05:22:56','s'),
+(41,5,'2006-06-28','2002-10-18 00:00:00','13:32:21','i'),
+(42,NULL,'2002-03-16','2004-08-03 22:46:02','15:59:32','l'),
+(43,6,'2006-07-20','1900-01-01 00:00:00','07:19:58','t'),
+(44,7,'1900-01-01','2006-11-15 05:00:37','12:50:41','b'),
+(45,NULL,'2002-09-13','2005-01-21 07:18:44','04:38:11','h'),
+(46,6,'2002-08-17','1900-01-01 00:00:00','20:25:46',NULL),
+(47,9,NULL,'2002-09-22 01:36:27','00:00:00',NULL),
+(48,5,'2007-12-08','2003-04-22 16:42:22','10:53:24',NULL),
+(49,1,'2008-07-05','2000-10-18 08:28:55','06:16:28','x');
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime_key WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_datetime_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar WITH 60 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_varchar'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_date_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_datetime'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_varchar_key WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_varchar_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int_key WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_int_key'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_time'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_date WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_date'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_time_key WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_time_key'.
+CREATE OR REPLACE VIEW view_AA AS SELECT * FROM t1;
+CREATE OR REPLACE VIEW view_CC AS SELECT * FROM t2;
+SELECT LEFT(col_varchar_key, 1) AS field1 FROM view_AA WHERE ( pk, NULL ) IN
+(  SELECT col_int AS subfield11, pk AS subfield12 FROM view_CC WHERE ( col_datetime, col_date_key, col_varchar_key ) IN
+(  SELECT col_time_key AS subfield21, pk AS subfield22, col_time_key AS subfield23 FROM t1 WHERE col_varchar != col_varchar_key    )
+ORDER BY subfield12   ) OR col_int IS NOT NULL  ORDER BY field1 LIMIT 10 OFFSET 25;
+field1
+DROP TABLE t1, t2;
+#
+# Bug#26641404 WL9223:ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
+#
+CREATE TABLE t1 (col1 TIME, col2 DATE);
+INSERT INTO t1 VALUES ("00:00:00", "2017-01-01");
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE col1 < "";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: ''
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` < '')
+EXPLAIN SELECT * FROM t1 WHERE col2 < "";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Warning	1292	Incorrect date value: '' for column 'col2' at row 1
+Warning	1292	Incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: ''
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col2` < '')
+DROP TABLE t1;
+CREATE TABLE tbl_int (col1 INT);
+INSERT INTO tbl_int VALUES (1), (2), (2), (2), (3), (6), (8), (8), (NULL), (NULL);
+ANALYZE TABLE tbl_int;
+Table	Op	Msg_type	Msg_text
+test.tbl_int	analyze	status	OK
+ANALYZE TABLE tbl_int UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_int	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	tbl_int	col1	{"buckets": [[1, 2, 0.4, 2], [3, 8, 0.8, 3]], "data-type": "int", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 2}
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	26.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	13.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 > 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` > 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	26.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	13.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 >= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` >= 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 = 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	46.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	53.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <= 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	46.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	53.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 < 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` < 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 <> 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` <> 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 0)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 1)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 2)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	46.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 3)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	53.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 4)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 5)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 6)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	73.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 7)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 8)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 0 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 0 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 1 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 1 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 2 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 2 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 3 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 3 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 4 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 4 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 5 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	26.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 5 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 6 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 6 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 7 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	13.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 7 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 8 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 8 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 BETWEEN 9 AND 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` between 9 and 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (0,1,2,3,4,5,6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (0,1,2,3,4,5,6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,3,4,5,6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (2,3,4,5,6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (3,4,5,6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (3,4,5,6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (4,5,6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (4,5,6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (5,6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	26.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (5,6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (6,7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (6,7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	13.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (7,8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (8,9))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` = 9)
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (1,3,5,7);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (1,3,5,7))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,4,6,8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (2,4,6,8))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (2,5,6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (2,5,6))
+EXPLAIN SELECT * FROM tbl_int WHERE col1 IN (9,10,11,12,13);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` in (9,10,11,12,13))
+DROP TABLE tbl_int;
+CREATE TABLE tbl_float (col double);
+INSERT INTO tbl_float VALUES (0.1), (0.2), (0.3), (0.3), (0.4), (0.5), (0.5),
+(0.8), (NULL), (NULL);
+ANALYZE TABLE tbl_float;
+Table	Op	Msg_type	Msg_text
+test.tbl_float	analyze	status	OK
+ANALYZE TABLE tbl_float UPDATE HISTOGRAM ON col WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.tbl_float	histogram	status	Histogram statistics created for column 'col'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	tbl_float	col	{"buckets": [[0.1, 0.2, 0.2, 2], [0.3, 0.3, 0.4, 1], [0.4, 0.5, 0.7, 2], [0.8, 0.8, 0.8, 1]], "data-type": "double", "null-values": 0.2, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col > 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` > 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col >= 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` >= 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col = 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col <= 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <= 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col < 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` < 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col <> 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` <> 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.0)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.1)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.2)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.3)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.4)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.5)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.6)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.7)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.8)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.0 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.0 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.1 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.1 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.2 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.2 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.3 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.3 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.4 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.4 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.5 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.5 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.6 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.6 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.7 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.7 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.8 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.8 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col BETWEEN 0.9 AND 0.9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` between 0.9 and 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.3,0.4,0.5,0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.3,0.4,0.5,0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.4,0.5,0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.4,0.5,0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.5,0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.5,0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.6,0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.6,0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.7,0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.7,0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.8,0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.8,0.9))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` = 0.9)
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.1,0.3,0.5,0.7);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.1,0.3,0.5,0.7))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.4,0.6,0.8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.2,0.4,0.6,0.8))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.2,0.5,0.6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.2,0.5,0.6))
+EXPLAIN SELECT * FROM tbl_float WHERE col IN (0.9,1.0,1.1,1.2,1.3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tbl_float	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tbl_float`.`col` AS `col` from `test`.`tbl_float` where (`test`.`tbl_float`.`col` in (0.9,1.0,1.1,1.2,1.3))
+DROP TABLE tbl_float;
+CREATE TABLE t1 (col1 BIGINT, col2 BIGINT UNSIGNED, col3 DOUBLE);
+INSERT INTO t1 VALUES
+(-9223372036854775808, 0, -1.7976931348623157E+308),
+(9223372036854775806, 18446744073709551614, 1.7976931348623155e+308),
+(9223372036854775807, 18446744073709551615, 1.7976931348623157e+308);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+test.t1	histogram	status	Histogram statistics created for column 'col3'.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE col1 < 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`col3` AS `col3` from `test`.`t1` where (`test`.`t1`.`col1` < 100)
+EXPLAIN SELECT * FROM t1 WHERE col2 < 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`col3` AS `col3` from `test`.`t1` where (`test`.`t1`.`col2` < 100)
+EXPLAIN SELECT * FROM t1 WHERE col3 < 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`col3` AS `col3` from `test`.`t1` where (`test`.`t1`.`col3` < 100)
+DROP TABLE t1;
+#
+# Bug#27197709 TABLE ROWS ESTIMATE DURING HISTOGRAM CREATION MAY BE WAY
+#              OFF
+#
+CREATE TABLE t1 (col1 VARCHAR(255));
+# Insert 10000 rows into the table t1 with random string data
+SET cte_max_recursion_depth = 10000;
+INSERT INTO t1 (col1)
+WITH RECURSIVE cte (n, val) AS
+(
+SELECT 1, CONCAT(MD5(RAND()), MD5(RAND()))
+UNION ALL
+SELECT n + 1, CONCAT(MD5(RAND()), MD5(RAND())) FROM cte WHERE n < 10000
+)
+SELECT val FROM cte;
+# Set the amount of available memory as low as possible, so we are sure
+# that sampling will be used.
+SET histogram_generation_max_mem_size = 1000000;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT
+histogram->>'$."sampling-rate"' < 1.0 AS should_be_true
+FROM
+INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_true
+1
+SET cte_max_recursion_depth = DEFAULT;
+SET histogram_generation_max_mem_size = DEFAULT;
+DROP TABLE t1;
+#
+# Bug#27637968 PROVIDE A DEFAULT NUMBER OF BUCKETS FOR HISTOGRAM
+#              STATISTICS
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = "t1" AND column_name = "col1";
+JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
+100
+DROP TABLE t1;

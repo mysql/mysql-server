@@ -1,0 +1,269 @@
+###################################################################
+#
+# Bug#20290768 - server crash in table_share_utils::fill_partitioning_from_dd
+#
+###################################################################
+SET GLOBAL DEBUG='+d,weak_object_impl_store_fail_before_store_children';
+CREATE TABLE t1 (pk INT, col1 INT) ENGINE=InnoDB PARTITION BY KEY(pk) PARTITIONS 2;
+ERROR HY000: Unknown error
+SET GLOBAL DEBUG='-d,weak_object_impl_store_fail_before_store_children';
+# Without fix, following statement crashed.
+CREATE TABLE t1 (pk INT, col1 INT) ENGINE=InnoDB PARTITION BY KEY(pk) PARTITIONS 2;
+DROP TABLE t1;
+###################################################################
+#
+# WL#6378: New data dictionary.
+#
+# Provoke various error situations during DDL operations
+# on the dictionary objects.
+#
+# Note: Some of the error situations result in an inconsistency
+#       between the global data dictionary and the SE or the
+#       file system. These are known issues that will be
+#       addressed in WL#7743.
+#
+###################################################################
+#
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+# 1. Schemata
+# 1.1 Fail while storing dd object during create.
+SET DEBUG= '+d, fail_while_storing_dd_object';
+CREATE SCHEMA s1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_storing_dd_object';
+# Do it for real.
+CREATE SCHEMA s1;
+# 1.2a Fail while acquiring dd object during alter.
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+# 1.2b Fail while storing  dd object during alter.
+SET DEBUG= '+d, fail_while_storing_dd_object';
+ALTER SCHEMA s1 DEFAULT COLLATE 'utf8_bin';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+# 1.3a Fail while acquiring dd object during drop.
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC= 'before_acquire_in_drop_schema SIGNAL before_acquire WAIT_FOR cont';
+DROP SCHEMA s1;
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR before_acquire';
+SET GLOBAL DEBUG= '+d, fail_while_acquiring_dd_object';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Disconnect and cleanup.
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
+# 1.3b No schema found during drop.
+SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
+DROP SCHEMA s1;
+ERROR HY000: Schema 's1' does not exist, but schema directory './s1/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
+SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
+# 1.3c Fail while dropping dd object during drop.
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+DROP SCHEMA s1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+# Do it for real.
+DROP SCHEMA s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
+COUNT(*)
+0
+SET SESSION debug= '-d,skip_dd_table_access_check';
+###################################################################
+#
+# 2. Tables
+# 2.1a Fail while storing dd object during create.
+SET DEBUG= '+d, fail_while_storing_dd_object';
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_storing_dd_object';
+# 2.1b No tablespace object during create.
+CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;
+ERROR HY000: Tablespace no_such_tablespace doesn't exist.
+# 2.1c Fail while acquiring tablespace object during create.
+connect  con1, localhost, root,,;
+SET DEBUG_SYNC= 'before_acquire_in_fill_dd_tablespace_id_or_name SIGNAL before_acquire WAIT_FOR cont';
+CREATE TABLE t1 (pk INT PRIMARY KEY) TABLESPACE no_such_tablespace;;
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR before_acquire';
+SET GLOBAL DEBUG= '+d, fail_while_acquiring_dd_object';
+SET DEBUG_SYNC= 'now SIGNAL cont';
+connection con1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Disconnect and cleanup.
+disconnect con1;
+connection default;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
+# Do it for real.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+# 2.2 Fail while acquiring dd object during alter.
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+ALTER TABLE t1 ADD COLUMN c1 INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+# 2.3 Fail while dropping dd object during drop.
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+DROP TABLE t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+# Do it for real.
+DROP TABLE IF EXISTS t1;
+###################################################################
+#
+# 3. Views
+# 3.1 Fail while storing dd object during create.
+CREATE TABLE v1_base_table (pk INT PRIMARY KEY);
+SET DEBUG= '+d, fail_while_storing_dd_object';
+CREATE VIEW v1 AS SELECT * from v1_base_table;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_storing_dd_object';
+# Do it for real.
+CREATE VIEW v1 AS SELECT pk from v1_base_table;
+# 3.2 Fail while acquiring dd object during alter.
+SET DEBUG= '+d, fail_while_acquiring_dd_object';
+ALTER VIEW v1 AS SELECT pk FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_acquiring_dd_object';
+# 3.3 Fail while dropping dd object during drop.
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+DROP VIEW v1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+# Do it for real.
+DROP VIEW v1;
+DROP TABLE v1_base_table;
+###################################################################
+#
+# 4. Tablespaces
+# 4.1 Fail while storing dd object during create.
+SET DEBUG= '+d, fail_while_storing_dd_object';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_storing_dd_object';
+# There should be no trace left in the data-dictionary
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+COUNT(*)
+0
+SET SESSION debug= '-d,skip_dd_table_access_check';
+DROP TABLESPACE ts1;
+ERROR HY000: Tablespace ts1 doesn't exist.
+# Then, we can do it for real.
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+# 4.2 Fail while acquiring dd object during alter:
+#     Skipped, since InnoDB does not suppoer
+#     ALTER TABLESPACE yet.
+# 4.3 Fail while dropping dd object during drop.
+SET DEBUG= '+d, fail_while_dropping_dd_object';
+DROP TABLESPACE ts1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG= '-d, fail_while_dropping_dd_object';
+# Tablespace is still in the data-dictionary.
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+COUNT(*)
+1
+# Here, the global DD and InnoDB are out of sync. To get
+# out of this, we must do a drop, which fails since the
+# object does not exist in the SE, but which still
+# removes the tablespace from the DD.
+# Note: The statement below fails, but removes entry for
+#       ts1 from mysql.tablespaces.
+# Do it for real.
+DROP TABLESPACE ts1;
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+COUNT(*)
+0
+SET SESSION debug= '-d,skip_dd_table_access_check';
+###################################################################
+#
+# WL#8150: Dictionary cache.
+#
+# Verify that calls to Dictionary_client::drop() while executing
+# ALTER TABLE will make the dropped object disappear, and that
+# the shared cache will not be contaminated with the dropped
+# object (which will make subsequent DDL operations fail due to
+# the shared cache being out of sync with the persistent tables).
+#
+###################################################################
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP VIEW v1;
+DROP TABLE t2;
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t2;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP VIEW v1;
+DROP TABLE t2;
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, ALGORITHM= COPY;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE t2;
+DROP VIEW v1;
+#
+# Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+referenced_column_name
+pk
+SET SESSION debug= '-d,skip_dd_table_access_check';
+DROP TABLE t2, t1;
+#
+# Bug#25887335 : TEST CASE INNODB_MYSQL_SYNC CRASH ON PB2 RUN.
+#
+CREATE TABLE t1(a INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+connect  con1, localhost, root;
+SET DEBUG_SYNC= "open_and_process_table SIGNAL kill_truncate WAIT_FOR killed";
+# Sending: (not reaped since connection is killed later)
+# Default connection tries to kill con1 when it is in the kill immune mode
+# In this mode, state of the kill operation state is stored and applied
+# while exiting from the mode.
+# Without fix socket of the con1 was not closed. So the error message
+# was sent to client and cause the assertion.
+TRUNCATE t1;
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR kill_truncate";
+KILL con1_id;
+SET DEBUG_SYNC= "now SIGNAL killed";
+DROP TABLE t1;
+disconnect con1;
+SET DEBUG_SYNC= "RESET";
+###################################################################

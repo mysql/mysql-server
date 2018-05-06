@@ -1,2 +1,15 @@
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
+#
+# Verify that The log-slave-updates and slave-preserve-commit-order
+# are disabled if binary log is disabled.
+#
+SELECT @@GLOBAL.log_bin;
+@@GLOBAL.log_bin
+0
+SELECT @@GLOBAL.log_slave_updates;
+@@GLOBAL.log_slave_updates
+0
+SELECT @@GLOBAL.slave_preserve_commit_order;
+@@GLOBAL.slave_preserve_commit_order
+0

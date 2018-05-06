@@ -17,52 +17,52 @@ innodb_status_output	OFF
 show session variables like 'innodb_status_output';
 Variable_name	Value
 innodb_status_output	OFF
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
+innodb_status_output	OFF
 set global innodb_status_output='OFF';
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
+innodb_status_output	OFF
 set @@global.innodb_status_output=1;
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
+innodb_status_output	ON
 set global innodb_status_output=0;
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
+innodb_status_output	OFF
 set @@global.innodb_status_output='ON';
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
+innodb_status_output	ON
 set session innodb_status_output='OFF';
 ERROR HY000: Variable 'innodb_status_output' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_status_output='ON';
@@ -78,22 +78,22 @@ set global innodb_status_output=-3;
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 1
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	ON
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	ON
+innodb_status_output	ON
 set global innodb_status_output=DEFAULT;
 select @@global.innodb_status_output;
 @@global.innodb_status_output
 0
-select * from information_schema.global_variables where variable_name='innodb_status_output';
+select * from performance_schema.global_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
-select * from information_schema.session_variables where variable_name='innodb_status_output';
+innodb_status_output	OFF
+select * from performance_schema.session_variables where variable_name='innodb_status_output';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATUS_OUTPUT	OFF
+innodb_status_output	OFF
 set global innodb_status_output='AUTO';
 ERROR 42000: Variable 'innodb_status_output' can't be set to the value of 'AUTO'
 SET @@global.innodb_status_output = @start_global_value;

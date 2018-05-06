@@ -16,14 +16,10 @@ master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 start slave;
 Sync Slave with master
 Show that Slave has not stopped (has skipped GAP)
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_Running = 'Yes'
 Slave_SQL_Running = 'Yes'
 Last_Errno = '0'
 Last_Error = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Show that replication can continue
 insert into t1 values (1001, 1001);
 select count(*) from t1;

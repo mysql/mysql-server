@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -64,9 +72,9 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-/* Note: We cast &result to int* from yysize_t* */
+/* Note: We cast result from int to yy_size_t */
 #define YY_INPUT(buf, result, max_size) \
-	pars_get_lex_chars(buf, (int*) &result, max_size)
+	((result) = pars_get_lex_chars(buf, max_size))
 
 /* String buffer for removing quotes */
 static ulint	stringbuf_len_alloc = 0; /* Allocated length */
@@ -457,28 +465,12 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_NOTFOUND_TOKEN);
 }
 
-"TO_CHAR"	{
-			return(PARS_TO_CHAR_TOKEN);
-}
-
-"TO_NUMBER"	{
-			return(PARS_TO_NUMBER_TOKEN);
-}
-
 "TO_BINARY"	{
 			return(PARS_TO_BINARY_TOKEN);
 }
 
-"BINARY_TO_NUMBER" {
-			return(PARS_BINARY_TO_NUMBER_TOKEN);
-}
-
 "SUBSTR"	{
 			return(PARS_SUBSTR_TOKEN);
-}
-
-"REPLSTR"	{
-			return(PARS_REPLSTR_TOKEN);
 }
 
 "CONCAT"	{
@@ -491,30 +483,6 @@ In the state 'id', only two actions are possible (defined below). */
 
 "LENGTH"	{
 			return(PARS_LENGTH_TOKEN);
-}
-
-"SYSDATE"	{
-			return(PARS_SYSDATE_TOKEN);
-}
-
-"PRINTF"	{
-			return(PARS_PRINTF_TOKEN);
-}
-
-"ASSERT"	{
-			return(PARS_ASSERT_TOKEN);
-}
-
-"RND"		{
-			return(PARS_RND_TOKEN);
-}
-
-"RND_STR"	{
-			return(PARS_RND_STR_TOKEN);
-}
-
-"ROW_PRINTF"	{
-			return(PARS_ROW_PRINTF_TOKEN);
 }
 
 "COMMIT"	{

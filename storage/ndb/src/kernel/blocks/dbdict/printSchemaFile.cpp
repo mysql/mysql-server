@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,12 +25,10 @@
 
 #include <ndb_global.h>
 #include <util/version.h>
-#include <my_global.h>
-#include <my_sys.h>
-#include <my_dir.h>
-#include <my_thread_local.h>
+#include "my_sys.h"
+#include "my_dir.h"
+#include "my_thread_local.h"
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include "SchemaFile.hpp"
 #include <kernel_types.h>
@@ -88,7 +93,8 @@ print_head(const char * filename, const SchemaFile * sf)
              sf->FileSize);
   }
 
-  if (memcmp(sf->Magic, "NDBSCHMA", sizeof(sf->Magic) != 0)) {
+  if (memcmp(sf->Magic, "NDBSCHMA", sizeof(sf->Magic)) != 0)
+  {
     ndbout << filename << ": invalid header magic" << endl;
     retcode = 1;
   }
@@ -99,6 +105,12 @@ print_head(const char * filename, const SchemaFile * sf)
   }
 
   return retcode;
+}
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
 }
 
 inline
@@ -208,9 +220,9 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
   return retcode;
 }
 
-NDB_COMMAND(printSchemafile, 
-	    "printSchemafile", "printSchemafile", "Prints a schemafile", 16384)
-{ 
+
+int main(int argc, char** argv)
+{
   ndb_init();
   progname = argv[0];
   int exitcode = 0;
@@ -228,7 +240,7 @@ NDB_COMMAND(printSchemafile,
       transok = true;
     if (strchr(argv[1], 'h') != 0 || strchr(argv[1], '?') != 0) {
       usage();
-      return 0;
+      ndb_end_and_exit(0);
     }
     argc--, argv++;
   }
@@ -305,5 +317,5 @@ NDB_COMMAND(printSchemafile,
   }
 
   delete [] prevbuf;
-  return exitcode;
+  ndb_end_and_exit(exitcode);
 }

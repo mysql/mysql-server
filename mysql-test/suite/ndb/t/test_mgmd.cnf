@@ -1,8 +1,13 @@
 #
 # config to use for running testMgmd(which start
-# ndb_mgmd serves on its own)
+# ndb_mgmd server on its own)
 #
 !include include/default_my.cnf
+
+# There is only a single mysqld in this configuration
+# make it support ndbcluster
+[mysqld]
+ndbcluster
 
 [ENV]
 # The started ndb_mgmd's will be started from base + 1

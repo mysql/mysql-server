@@ -1,0 +1,395 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # WL#8688: Support ability to persist SET GLOBAL settings
+--echo #
+
+--echo # Syntax check for PERSIST option
+SET PERSIST autocommit=0;
+SET @@persist.max_execution_time=60000;
+SET PERSIST max_user_connections=10, PERSIST max_allowed_packet=8388608;
+SET @@persist.max_user_connections=10, PERSIST max_allowed_packet=8388608;
+SET @@persist.max_user_connections=10, @@persist.max_allowed_packet=8388608;
+SET PERSIST max_user_connections=10, @@persist.max_allowed_packet=8388608;
+
+--echo # Syntax check for PERSIST/GLOBAL combination
+SET PERSIST autocommit=0, GLOBAL max_user_connections=10;
+SET @@persist.autocommit=0, @@global.max_user_connections=10;
+SET GLOBAL autocommit=0, PERSIST max_user_connections=10;
+SET @@global.autocommit=0, @@persist.max_user_connections=10;
+
+--echo # Syntax check for PERSIST/SESSION combination
+SET PERSIST autocommit=0, SESSION auto_increment_offset=10;
+SET @@persist.autocommit=0, @@session.auto_increment_offset=10;
+SET SESSION auto_increment_offset=20, PERSIST max_user_connections=10;
+SET @@session.auto_increment_offset=20, @@persist.max_user_connections=10;
+SET PERSIST autocommit=0, auto_increment_offset=10;
+SET autocommit=0, PERSIST auto_increment_offset=10;
+
+--echo # Syntax check for PERSIST/SESSION/GLOBAL combination
+SET PERSIST autocommit=0, SESSION auto_increment_offset=10, GLOBAL max_error_count= 128;
+SET SESSION autocommit=0, GLOBAL auto_increment_offset=10, PERSIST max_allowed_packet=8388608;
+SET GLOBAL autocommit=0, PERSIST auto_increment_offset=10, SESSION max_error_count= 128;
+SET @@persist.autocommit=0, @@session.auto_increment_offset=10, @@global.max_allowed_packet=8388608;
+SET @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist.max_allowed_packet=8388608;
+SET @@global.autocommit=0, @@persist.auto_increment_offset=10, @@session.max_error_count= 128;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # default values
+SELECT @@global.max_connections;
+SET PERSIST max_connections=33;
+
+--echo # Restart server and check for values
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.max_connections;
+
+--echo # default values
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+
+--echo # persist few more variables
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST long_query_time= 8.3452;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.max_connections;
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.long_query_time;
+
+--echo # modify existing persisted variables
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST long_query_time= 7.8102;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.max_connections;
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.long_query_time;
+
+SELECT @@global.max_user_connections;
+SELECT @@global.max_execution_time;
+
+--echo # modify existing persisted variables and add new
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST long_query_time= 2.999999;
+SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.max_user_connections;
+SELECT @@global.max_execution_time;
+SELECT @@global.long_query_time;
+
+--echo # reset persisted variables
+RESET PERSIST sort_buffer_size;
+RESET PERSIST max_heap_table_size;
+RESET PERSIST max_execution_time;
+RESET PERSIST max_user_connections;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.max_user_connections;
+SELECT @@global.max_execution_time;
+SELECT @@global.max_connections;
+SELECT @@global.server_id;
+SELECT @@global.general_log;
+SELECT @@global.concurrent_insert;
+
+--echo # reset persisted variables and add new
+RESET PERSIST slave_net_timeout;
+SET PERSIST server_id=47, @@persist.general_log=0;
+SET PERSIST concurrent_insert=NEVER;
+RESET PERSIST max_connections;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.max_user_connections;
+SELECT @@global.max_execution_time;
+SELECT @@global.max_connections;
+SELECT @@global.server_id;
+SELECT @@global.general_log;
+SELECT @@global.concurrent_insert;
+
+--echo # check precedence with command line option
+SELECT @@global.max_connections;
+SELECT @@global.server_id;
+SET PERSIST max_connections=88;
+SET PERSIST server_id=9;
+SET PERSIST session_track_system_variables='autocommit';
+
+--echo # Restart server with command line option
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--max_connections=55 --skip-networking --server-id=12 --session_track_system_variables="*"" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # after restart must be 88,9, autocommit
+SELECT @@global.max_connections;
+SELECT @@global.server_id;
+SELECT @@global.session_track_system_variables;
+
+--echo
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+RESET PERSIST server_id;
+RESET PERSIST general_log;
+SET PERSIST max_connections=77;
+SET PERSIST session_track_system_variables='max_connections';
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo
+SET PERSIST max_connections=99;
+RESET PERSIST session_track_system_variables;
+SET PERSIST concurrent_insert=ALWAYS;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo
+RESET PERSIST max_connections;
+SET PERSIST concurrent_insert=AUTO;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # negative tests persist session only variables
+--error ER_LOCAL_VARIABLE
+SET @@persist.sql_log_bin=0;
+
+--echo # Test persisted-globals-load
+
+# default is 1
+SELECT @@global.persisted_globals_load;
+
+--echo # New read-only variable persisted_globals_load.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST persisted_globals_load=0;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL  persisted_globals_load=ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET SESSION persisted_globals_load=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL persisted_globals_load= 'abc';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL persisted_globals_load= -1;
+
+--echo # Test persisted-globals-load functionality
+
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # values must be read from persited config file
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+
+SELECT @@global.foreign_key_checks;
+SET PERSIST foreign_key_checks=0;
+SET PERSIST flush_time=2;
+
+--echo # Restart server with persisted-globals-load=0
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--persisted-globals-load=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # should have default values
+SELECT @@global.sort_buffer_size;
+SELECT @@global.max_heap_table_size;
+SELECT @@global.slave_net_timeout;
+
+--echo # Expected value 1
+SELECT @@global.foreign_key_checks;
+--echo # Expected value 0
+SELECT @@global.flush_time;
+--echo # reset some persisted values
+RESET PERSIST sort_buffer_size;
+RESET PERSIST slave_net_timeout;
+
+--echo # Restart server with persisted-globals-load=1
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--persisted_globals_load=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # should have default values
+SELECT @@global.sort_buffer_size;
+SELECT @@global.slave_net_timeout;
+SELECT @@global.max_heap_table_size;
+--echo # Expected value 0
+SELECT @@global.foreign_key_checks;
+--echo # Expected value 2
+SELECT @@global.flush_time;
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+
+--echo # Restart server with persisted-globals-load=NULL
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--persisted-globals-load=NULL" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--let $file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--echo # Should get warning in error log.
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  persisted_globals_load
+--source include/search_pattern.inc
+
+SELECT @@global.persisted_globals_load;
+
+--echo # Restart server with persisted-globals-load=1
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Bug24569624: "SET PERSIST GENERAL_LOG=1" DOES NOT RESUME ON RESTART.
+--echo #
+
+SET PERSIST general_log=ON;
+SET PERSIST autocommit= 0, innodb_deadlock_detect= OFF;
+SET PERSIST enforce_gtid_consistency=ON;
+
+SELECT @@global.general_log, @@global.autocommit,
+       @@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@global.general_log, @@global.autocommit,
+       @@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+
+--echo #
+--echo # Bug#24613005: SET PERSIST STORES PREVIOUS VALUE OF
+--echo #               INNODB_BUFFER_POOL_SIZE TO MYSQLD-AUTO.CNF
+--echo #
+
+SELECT @@global.innodb_buffer_pool_size;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+SELECT @@global.innodb_buffer_pool_size;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+SELECT @@global.innodb_buffer_pool_size;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+--echo
+
+--echo #
+--echo # Bug#26085712: SERVER FAILS TO START AFTER SET PERSIST GTID_MODE
+--echo #                = ON_PERMISSIVE OR ON
+--echo #
+
+RESET PERSIST;
+SELECT @@gtid_mode;
+SET PERSIST gtid_mode=OFF_PERMISSIVE;
+SET PERSIST gtid_mode=ON_PERMISSIVE;
+SELECT @@gtid_mode;
+
+--echo # Restart server and check for gtid_mode value
+--source include/restart_mysqld.inc
+
+SELECT @@gtid_mode;
+RESET PERSIST;
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo # Restart server with all defaults
+--source include/restart_mysqld.inc
+
+SELECT 'END OF TEST';

@@ -23,7 +23,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 ################################################################
@@ -81,7 +80,7 @@ SET @@global.sql_slave_skip_counter = -.0;
 SET @@global.sql_slave_skip_counter = 1024;
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='sql_slave_skip_counter';
 --enable_warnings
 

@@ -5,26 +5,20 @@
 CREATE DATABASE query_rewrite;
 CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
 pattern_database VARCHAR(20),
-enabled ENUM('YES', 'NO') CHARACTER SET utf8 COLLATE utf8_bin NOT NULL
+enabled ENUM('YES', 'NO') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
 DEFAULT 'YES',
-replacement VARCHAR(10000),
-message VARCHAR(1000),
-pattern VARCHAR(10000)
+replacement VARCHAR(1000),
+message VARCHAR(100),
+pattern VARCHAR(1000)
 );
 Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "rewrite me"', 'SELECT "rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT pattern, pattern_database, replacement, message
 FROM query_rewrite.rewrite_rules;
 pattern	pattern_database	replacement	message

@@ -1,17 +1,24 @@
--- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+-- GNU General Public License, version 2.0, for more details.
 --
 -- You should have received a copy of the GNU General Public License
--- along with this program; if not, write to the Free Software Foundation,
--- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 delimiter ||;
 
@@ -42,7 +49,9 @@ CREATE DEFINER=root@localhost TRIGGER ts_insert
 BEFORE INSERT ON test_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
+  SET GLOBAL regexp_time_limit = 0;
   SELECT "" REGEXP NEW.pattern INTO dummy;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 END
 */||
 SET @@character_set_client = @character_set_client_saved||
@@ -73,7 +82,9 @@ CREATE DEFINER=root@localhost TRIGGER gs_insert
 BEFORE INSERT ON global_suppressions
 FOR EACH ROW BEGIN
   DECLARE dummy INT;
+  SET GLOBAL regexp_time_limit = 0;
   SELECT "" REGEXP NEW.pattern INTO dummy;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 END
 */||
 SET @@character_set_client = @character_set_client_saved||
@@ -140,7 +151,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Table .* doesn't exist"),
  ("Slave: Table width mismatch"),
  ("Slave: The incident LOST_EVENTS occured on the master"),
- ("Slave: Unknown error.* 1105"),
+ ("Slave: Unknown error.* MY-001105"),
  ("Slave: Can't drop database.* database doesn't exist"),
  ("Sort aborted"),
  ("Time-out in NDB"),
@@ -163,6 +174,11 @@ INSERT INTO global_suppressions VALUES
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
  ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
+ /* 
+    innodb_dedicated_server warning which raised if innodb_buffer_pool_size,
+    innodb_log_file_size or innodb_flush_method is specified.
+ */
+ ("InnoDB: Option innodb_dedicated_server is ignored"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not
@@ -177,8 +193,6 @@ INSERT INTO global_suppressions VALUES
  ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
  /*It will print a warning if server is run without --explicit_defaults_for_timestamp.*/
  ("TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details)*"),
- /*It will print a warning if a server is run without NO_AUTO_CREATE_USER sql mode.*/
- ("'NO_AUTO_CREATE_USER' sql mode was not set."),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -262,6 +276,12 @@ INSERT INTO global_suppressions VALUES
  ("Insecure configuration for --secure-file-priv:*"),
 
  /*
+   Bug#26585560, warning related to --pid-file
+ */
+ ("Insecure configuration for --pid-file:*"),
+ ("Few location(s) are inaccessible while checking PID filepath"),
+
+ /*
    On slow runs (valgrind) the message may be sent twice.
   */
  ("The member with address .* has already sent the stable set. Therefore discarding the second message."),
@@ -281,6 +301,8 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
+ ("Skip re-populating collations and character sets tables in read-only mode"),
+ ("Skip updating information_schema metadata in read-only mode"),
  ("Member with address .* has become unreachable."),
  ("This server is not able to reach a majority of members in the group.*"),
  ("Member with address .* is reachable again."),
@@ -304,6 +326,7 @@ BEGIN
   --
   -- Remove mark from lines that are suppressed by global suppressions
   --
+  SET GLOBAL regexp_time_limit = 0;
   UPDATE error_log el, global_suppressions gs
     SET suspicious=0
       WHERE el.suspicious=1 AND el.line REGEXP gs.pattern;
@@ -314,6 +337,7 @@ BEGIN
   UPDATE error_log el, test_suppressions ts
     SET suspicious=0
       WHERE el.suspicious=1 AND el.line REGEXP ts.pattern;
+  SET GLOBAL regexp_time_limit = DEFAULT;
 
   --
   -- Get the number of marked lines and return result

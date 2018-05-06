@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -94,10 +101,16 @@ public:
   /**
    * DIH signals
    */
+  void sendDIH_SCAN_TAB_REQ(Signal *signal,
+                            Uint32 synPtrI,
+                            Uint32 tableId,
+                            Uint32 schemaTransId);
+  void sendDIGETNODESREQ(Signal *signal,
+                         Uint32 synPtrI,
+                         Uint32 tableId,
+                         Uint32 fragNo);
   void execDIH_SCAN_TAB_REF(Signal* signal);
   void execDIH_SCAN_TAB_CONF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECKNODEGROUPSCONF(Signal *signal);
   void execGCP_PREPARE(Signal *signal);
 
@@ -152,13 +165,19 @@ public:
     union { Uint32 nextPool; Uint32 prevList; };
   };
   typedef Ptr<Subscriber> SubscriberPtr;
+  typedef ArrayPool<Subscriber> Subscriber_pool;
+  typedef DLList<Subscriber_pool> Subscriber_list;
+  typedef LocalDLList<Subscriber_pool> Local_Subscriber_list;
 
   struct Table;
   friend struct Table;
   typedef Ptr<Table> TablePtr;
 
+  typedef ArrayPool<DataBufferSegment<15> > SyncRecordBuffer_pool;
+  typedef DataBuffer<15,SyncRecordBuffer_pool> SyncRecordBuffer;
+  typedef LocalDataBuffer<15,SyncRecordBuffer_pool> LocalSyncRecordBuffer;
   struct SyncRecord {
-    SyncRecord(Suma& s, DataBuffer<15>::DataBufferPool & p)
+    SyncRecord(Suma& s, SyncRecordBuffer_pool & p)
       : suma(s)
 #ifdef ERROR_INSERT
 	, cerrorInsert(s.cerrorInsert)
@@ -176,21 +195,22 @@ public:
 
     Uint32 m_frag_cnt; // only scan this many fragments...
     Uint32 m_frag_id;  // only scan this specific fragment...
+    Uint32 m_scan_batchsize;
     Uint32 m_tableId;  // redundant...
 
     /**
      * Fragments
      */
     Uint32 m_scan_cookie;
-    DataBuffer<15>::Head m_fragments;  // Fragment descriptors
+    SyncRecordBuffer::Head m_fragments;  // Fragment descriptors
 
     /**
      * Sync data
      */
     Uint32 m_currentFragment;       // Index in tabPtr.p->m_fragments
     Uint32 m_currentNoOfAttributes; // No of attributes for current table
-    DataBuffer<15>::Head m_attributeList; // Attribute if other than default
-    DataBuffer<15>::Head m_boundInfo;  // For range scan
+    SyncRecordBuffer::Head m_attributeList; // Attribute if other than default
+    SyncRecordBuffer::Head m_boundInfo;  // For range scan
     
     /**
      * Current row 
@@ -212,13 +232,18 @@ public:
 #endif
     BlockNumber number() const { return suma.number(); }
     EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      suma.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra,
+                   const char * check) {
+      suma.progError(line, cause, extra, check);
     }
     
     Uint32 prevList; Uint32 ptrI;
     union { Uint32 nextPool; Uint32 nextList; };
   };
+  typedef ArrayPool<SyncRecord> SyncRecord_pool;
+  typedef SLList<SyncRecord_pool> SyncRecord_sllist;
+  typedef DLList<SyncRecord_pool> SyncRecord_dllist;
+  typedef LocalDLList<SyncRecord_pool> Local_SyncRecord_dllist;
   friend struct SyncRecord;
 
   struct SubOpRecord
@@ -247,6 +272,9 @@ public:
       Uint32 nextPool;
     };
   };
+  typedef ArrayPool<SubOpRecord> SubOpRecord_pool;
+  typedef DLFifoList<SubOpRecord_pool> SubOpRecord_fifo;
+  typedef LocalDLFifoList<SubOpRecord_pool> Local_SubOpRecord_fifo;
   friend struct SubOpRecord;
 
   struct Subscription
@@ -282,11 +310,11 @@ public:
     State m_state;
     TriggerState m_trigger_state;
 
-    DLList<Subscriber>::Head m_subscribers;
-    DLFifoList<SubOpRecord>::Head m_create_req;
-    DLFifoList<SubOpRecord>::Head m_start_req;
-    DLFifoList<SubOpRecord>::Head m_stop_req;
-    DLList<SyncRecord>::Head m_syncRecords;
+    Subscriber_list::Head m_subscribers;
+    SubOpRecord_fifo::Head m_create_req;
+    SubOpRecord_fifo::Head m_start_req;
+    SubOpRecord_fifo::Head m_stop_req;
+    SyncRecord_dllist::Head m_syncRecords;
     
     Uint32 m_errorCode;
     Uint32 m_outstanding_trigger;
@@ -313,12 +341,17 @@ public:
     Uint32 m_table_ptrI;
   };
   typedef Ptr<Subscription> SubscriptionPtr;
+  typedef ArrayPool<Subscription> Subscription_pool;
+  typedef DLList<Subscription_pool> Subscription_list;
+  typedef LocalDLList<Subscription_pool> Local_Subscription_list;
+  typedef DLHashTable<Subscription_pool> Subscription_hash;
+  typedef KeyTable<Subscription_pool> Subscription_keyhash;
 
   struct Table {
     Table() { m_tableId = ~0; }
     void release(Suma&);
 
-    DLList<Subscription>::Head m_subscriptions;
+    Subscription_list::Head m_subscriptions;
 
     enum State {
       UNDEFINED,
@@ -358,7 +391,8 @@ public:
     // copy from Subscription
     Uint32 m_schemaTransId;
   };
-
+  typedef ArrayPool<Table> Table_pool;
+  typedef KeyTable<Table_pool> Table_keyhash;
   /**
    * 
    */
@@ -366,18 +400,18 @@ public:
   /**
    * Lists
    */
-  KeyTable<Table> c_tables;
-  DLHashTable<Subscription> c_subscriptions;
+  Table_keyhash c_tables;
+  Subscription_hash c_subscriptions;
   
   /**
    * Pools
    */
-  ArrayPool<Subscriber> c_subscriberPool;
-  ArrayPool<Table> c_tablePool;
-  ArrayPool<Subscription> c_subscriptionPool;
-  ArrayPool<SyncRecord> c_syncPool;
-  DataBuffer<15>::DataBufferPool c_dataBufferPool;
-  ArrayPool<SubOpRecord> c_subOpPool;
+  Subscriber_pool c_subscriberPool;
+  Table_pool c_tablePool;
+  Subscription_pool c_subscriptionPool;
+  SyncRecord_pool c_syncPool;
+  SyncRecordBuffer_pool c_dataBufferPool;
+  SubOpRecord_pool c_subOpPool;
 
   Uint32 c_maxBufferedEpochs;
 
@@ -398,7 +432,7 @@ public:
                             Ptr<SubOpRecord> subOpPtr,
                             Ptr<Subscriber> ptr,
                             bool report,
-                            LocalDLList<Subscriber>& list);
+                            Local_Subscriber_list& list);
 
   void sendSubSyncRef(Signal* signal, Uint32 errorCode);  
   void sendSubRemoveRef(Signal* signal, const SubRemoveReq& ref,
@@ -411,7 +445,7 @@ public:
                                  Ptr<Subscriber> ptr,
                                  NdbDictionary::Event::_TableEvent event,
                                  bool report,
-                                 LocalDLList<Subscriber>& list);
+                                 Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
 
@@ -491,7 +525,7 @@ public:
 
   void execSTOP_ME_REQ(Signal*);
 
-  void copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator);
+  void copySubscription(Signal* signal, Subscription_hash::Iterator);
   void sendSubCreateReq(Signal* signal, Ptr<Subscription>);
   void copySubscriber(Signal*, Ptr<Subscription>, Ptr<Subscriber>);
   void abort_start_me(Signal*, Ptr<Subscription>, bool lockowner);
@@ -647,6 +681,7 @@ private:
     Uint32 m_max_gci_lo;     //
     Uint32 m_data[DATA_WORDS];
   };
+  typedef ArrayPool<Buffer_page> Buffer_page_pool;
   
   STATIC_CONST( NO_OF_BUCKETS = 24 ); // 24 = 4*3*2*1! 
   Uint32 c_no_of_buckets;
@@ -691,8 +726,10 @@ private:
     };
     Uint32 prevList;
   };
-  ArrayPool<Gcp_record> c_gcp_pool;
-  DLCFifoList<Gcp_record> c_gcp_list;
+  typedef ArrayPool<Gcp_record> Gcp_record_pool;
+  typedef DLCFifoList<Gcp_record_pool> Gcp_record_fifo;
+  Gcp_record_pool c_gcp_pool;
+  Gcp_record_fifo c_gcp_list;
 
   struct Page_chunk
   {
@@ -708,10 +745,11 @@ private:
     };
     Uint32 prevList;
   };
+  typedef ArrayPool<Page_chunk> Page_chunk_pool;
 
   Uint32 m_first_free_page;
-  ArrayPool<Page_chunk> c_page_chunk_pool;
-  ArrayPool<Buffer_page> c_page_pool;
+  Page_chunk_pool c_page_chunk_pool;
+  Buffer_page_pool c_page_pool;
 
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;

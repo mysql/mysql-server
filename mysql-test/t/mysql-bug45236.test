@@ -8,7 +8,6 @@
 #           on debx86-b in PB
 #
 
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

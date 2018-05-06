@@ -1,0 +1,20 @@
+# Tests for PERFORMANCE_SCHEMA
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.user_defined_functions
+  add column foo integer;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+truncate table performance_schema.user_defined_functions;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.user_defined_functions
+  ADD INDEX test_index(IP);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.user_defined_functions(UDF_TYPE);
+
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.user_defined_functions;

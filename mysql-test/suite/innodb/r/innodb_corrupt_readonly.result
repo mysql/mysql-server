@@ -1,4 +1,6 @@
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR(100),
@@ -20,15 +22,16 @@ SET GLOBAL innodb_fast_shutdown=0;
 SET SESSION debug="+d,dict_set_index_corrupted";
 check table t;
 Table	Op	Msg_type	Msg_text
-test.t	check	Warning	InnoDB: The B-tree of index idx is corrupted.
 test.t	check	Warning	InnoDB: The B-tree of index idx1 is corrupted.
+test.t	check	Warning	InnoDB: The B-tree of index idx is corrupted.
 test.t	check	error	Corrupt
 SET SESSION debug="-d,dict_set_index_corrupted";
 select c from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Index idx1 is corrupted
 show warnings;
 Level	Code	Message
 Warning	180	InnoDB: Index idx1 for table `test`.`t` is marked as corrupted
+Error	1712	Index idx1 is corrupted
 Error	1712	Index t is corrupted
 select * from t use index(primary) where a = 1;
 a	b	c	z

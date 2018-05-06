@@ -1,0 +1,114 @@
+#
+--echo #
+--echo # WL#9343:  log TNG: log writers
+--echo #
+
+--echo #
+--echo # This test verifies the interaction with the 'ix syslog.
+--echo # It is disabled by default, to be run manually, so we
+--echo # won't spam the test host's syslog on a regular and concurrent
+--echo # basis. Besides, we'd have to make an unpleasant amount of
+--echo # assumptions about where the logs are located, how they're structured,
+--echo # and that we had the privileges to access them.
+--echo # This test is therefore provided for convenience, but disabled by
+--echo # default, and is not expect to pass on all platforms.
+--echo #
+
+# on systemd systems: journalctl SYSLOG_IDENTIFIER=mysqld-wl9343
+# on syslog  systems: grep mysqld-wl9343 /var/log/messages|cut -d: -f4-
+
+--source include/have_debug.inc
+--source include/linux.inc
+--source include/have_log_component.inc
+
+let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
+
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
+SET @@global.log_error_verbosity=3;
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+FLUSH LOGS;
+
+# Send parse-trace to error log; first one with a current timestamp
+# to compare against our GREP_START defined above.
+SET @@session.debug="+d,parser_stmt_to_error_log";
+# Now normalize timestamp and thread_ID on all following lines,
+# for less hassle with --regex_replace in test files.  Once
+# WL#9651 goes live, we can use that to achieve the same thing.
+SET @@session.debug="+d,log_error_normalize";
+
+# Log parser statement with System label too.
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+
+SELECT @@global.log_error_services;
+--echo
+
+SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***";
+INSTALL COMPONENT "file://component_log_sink_syseventlog";
+
+--error ER_WRONG_ARGUMENTS
+SET @@global.log_syslog_tag="wl9343";
+
+SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
+SET @@global.log_syslog_tag="wl9343";
+SELECT "logging to syslog";
+# need to unset this while service is still active.
+SET @@global.log_syslog_tag=DEFAULT;
+SET @@global.log_error_services="log_filter_internal; log_sink_internal";
+
+UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
+--echo
+
+--echo # cleanup
+SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+SET @@session.debug="-d,parser_stmt_to_error_log";
+SET @@session.debug="-d,log_error_normalize";
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
+## WL#9651
+# SET @@global.log_error_filter_rules=@save_filters;
+
+FLUSH ERROR LOGS;
+
+
+--echo
+--echo ###
+--echo ### error log file
+--echo ###
+--echo
+
+let GREP_FILE=$log_error_;
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+   my $pattern="^20";
+   my $stime= $ENV{'GREP_START'};
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     my $ts = 0;
+
+     if ($stime == 0) {
+       print "$line";
+     }
+     elsif ($line =~ /$pattern/) {
+       $line =~ /([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])T([0-9][0-9]):([0-9][0-9]):([0-9][0-9])\.([0-9][0-9][0-9][0-9][0-9][0-9])[-+Z][0-9:]* *[0-9]* *?(\[.*)/;
+       $ts=$1.$2.$3.$4.$5.$6.$7;
+       if ($ts >= $stime) {
+         $stime= 0;
+       }
+     }
+   }
+   close(FILE);
+EOF
+
+--echo
+--echo ###
+--echo ### done
+--echo ###

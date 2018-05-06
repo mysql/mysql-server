@@ -1,5 +1,5 @@
 #
-# WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+# WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
 #
 #############################################################
 #                 Save initial value                        #
@@ -103,7 +103,7 @@ ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'ONN'
 SET @@session.transaction_read_only = ONF;
 ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'ONF'
 SET @@session.transaction_read_only = OF;
-ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SET @@session.transaction_read_only = 'OFN';
 ERROR 42000: Variable 'transaction_read_only' can't be set to the value of 'OFN'
 SET @@session.transaction_read_only = -2;
@@ -121,7 +121,7 @@ SELECT @@session.transaction_read_only;
 #   Check if the value in GLOBAL Table matches value in variable   #
 ####################################################################
 SELECT IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='transaction_read_only';
 IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
 1
@@ -129,7 +129,7 @@ IF(@@global.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 SELECT IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='transaction_read_only';
 IF(@@session.transaction_read_only, "ON", "OFF") = VARIABLE_VALUE
 1

@@ -1,0 +1,179 @@
+# *********************************************************
+# The aim of this testcase is to test the functionality
+# of the multiple get functionality
+# case 1: be able to get correct value from mutliple get
+# case 2: If there is no corresponding value for a key
+#         should not affect the other values in fetching
+# case 3: No support for switch between the tables
+# *********************************************************
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+# This testcase fails sporadiaclly with these options --big,--parallel=8,--repeat=30 --retry=0
+# Due to some bug in the get_multi, variable unbale to clean up,following is the failure snippet
+# @@desc_t2.DD => DELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHIDELHI0DAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHARDAHAR
+# Tried with un-initialize variables , but still fails ,hence skipping
+#--source include/not_parallel.inc
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "0");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1", "c1", "c2,
+c21,c22,c23,c24,c25", "c3", "c4", "c5", "PRIMARY");
+
+INSERT INTO containers VALUES ("desc_t2", "test", "t2", "c1",
+"c2,c3", "c4", "c5", "c6", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+--enable_warnings
+CREATE TABLE t1 (c1 VARCHAR(32),c2 VARCHAR(40),c21 VARCHAR(40),c22 VARCHAR(40),
+c23 VARCHAR(40),c24 VARCHAR(40),c25 VARCHAR(40),c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', '4', 'hhhhhhhhhh', '4567', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('N', NULL, NULL, NULL, NULL, NULL, '2012', 0, 0, 0);
+
+CREATE TABLE t2(c1 VARCHAR(32),c2 VARCHAR(1024),c3 VARCHAR(1024),
+c4 INT, c5 BIGINT UNSIGNED, c6 INT, primary key(c1)) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES ('DD','DELHI','DAHAR', 0, 0, 0);
+INSERT INTO t2 VALUES ('BB','BOMBAY', 'BANGALORE', 0, 0, 0);
+INSERT INTO t2 VALUES ('CC','CALICUTT','CHENNAI', 0, 0 ,0);
+INSERT INTO t2 VALUES ('HH','HYDERABAD','HOSPET', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+SELECT SLEEP(2);
+
+--echo # case 1: Fetch results for all Keys
+perl;
+use DBI;
+use Cache::Memcached;
+use Data::Dumper;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11294" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+@keys = qw( D B C H D B C H N );
+print "Here the memcached results with @keys:\n";
+my $val =  $memd->get_multi(@keys);
+foreach my $item (sort keys %$val) {
+ if (defined $item && exists $val->{$item} ) {
+  print  "$item => $val->{$item}\n";
+ }
+delete $val->{$item};
+undef $val->{$item};
+}
+$memd->disconnect_all;
+EOF
+
+SELECT SLEEP(2);
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+--echo # case 2: Fetch results, when no values are exist for some keys
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11294" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+@keys = qw( D B C H I J K L M N O P NULL Q R S T U V X Y Z A D B C H );
+print "Here the memcached results with @keys:\n";
+my $val =  $memd->get_multi(@keys);
+foreach my $item (sort keys %$val) {
+ if (defined $item && exists $val->{$item} ) {
+  print  "$item => $val->{$item}\n";
+ }
+delete $val->{$item};
+undef $val->{$item};
+}
+$memd->disconnect_all;
+EOF
+
+SELECT SLEEP(2);
+
+--sorted_result
+SELECT c1,c2,c3 FROM t2;
+
+--echo # case 3: No support switch between the tables t2 and t1
+--echo # Here it shows the results of table t2 and not for t1
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11294" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+@keys = qw( @@desc_t2.DD @@desc_t2.BB @@desc_t2.CC @@desc_t1.c @@desc_t2.HH @@desc_t1.H );
+print "Here the memcached results with @keys:\n";
+my $val =  $memd->get_multi(@keys);
+foreach my $item (sort keys %$val) {
+ if (defined $item && exists $val->{$item} ) {
+  print  "$item => $val->{$item}\n";
+ }
+delete $val->{$item};
+undef $val->{$item};
+}
+$memd->disconnect_all;
+EOF
+
+SELECT SLEEP(2);
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+# Temporary quote out due to instability
+#perl;
+#use DBI;
+#use Cache::Memcached;
+#my $memd = new Cache::Memcached {
+#  'servers' => [ "127.0.0.1:11294" ],
+#  'connect_timeout' => 20,
+#  'select_timeout' => 20
+#};
+
+#print "Test No support for Multiple range get :\n";
+#$val = $memd->get('@@desc_t1');
+#if ($val) { print "$val\n"; }
+#$val = $memd->get('@1 @@ @^ @? / @=D @=C');
+#if ($val) { print "$val\n"; }
+#$val = $memd->get('@<D @>D @>=D@<=N @>D @<N');
+#if ($val) { print "$val\n"; }
+#$memd->disconnect_all;
+#EOF
+
+#SELECT SLEEP(2);
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;

@@ -1,0 +1,93 @@
+# ==== Purpose ====
+# Prove successful server recovery after simulated crash while
+# there were recoverable DDL queries in processing.
+# The recoverable DDL:s are those that are binary-logged with xid info
+# with enables the server to decide on their commit or rollback at server
+# recovery.
+#
+# ==== Implementation ====
+#
+# The test consists of two part. In the first major part
+# it verifies the server recovery for each recoverable DDL query.
+# A client connection issues a DDL query whose processing either completes
+# is interrupted by simulated crash either at time the DDL has been
+# already prepared in the engine and binary-logged, or just prepared
+# and not yet logged.
+# Upon the server restart the query execution status is checked, and
+# the check outcome must correspond to timing of the crash. The logged
+# query's result must be committed, and not-logged are to be rolled
+# back by the server recovery.
+# The 2nd minor part proves correct mysqlbinlog processing.
+#
+
+#
+# ==== References ====
+# WL#9175  Correct recovery of DDL statements/transactions by binary log
+
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_udf.inc
+
+# The part II related variable to describe a binlog file
+# with recorded CREATE USER. The file is created in the Ist part.
+--let $binlog_file_create_user=
+
+--source include/gtid_utils.inc
+
+# The *internal*  var is used by gtid_step_assert.inc
+--let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+# Instructing gtid_step_assert called by sourced file
+# to work in gtid-mode OFF as well.
+--let $gtid_step_gtid_mode_agnostic=`SELECT '$gtid_mode' != 'ON'`
+
+# sourcing event generator interrupted by the two crashes according to params:
+--let $do_pre_binlog=1
+--let $do_post_binlog=1
+--let $do_only_regular_logging=0
+--let $do_show_binlog_events= 0
+--let $table=t_1
+--eval CREATE TABLE $table (a int)
+
+--source extra/binlog_tests/binlog_ddl.inc
+
+## --source include/gtid_utils_end.inc
+
+#
+# Part II.
+# mysqlbinlog processing.
+#
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--exec $MYSQL_BINLOG --short-form --to-last-log $MYSQLD_DATADIR/$binlog_file_create_user  > $MYSQLTEST_VARDIR/tmp/wl9175.sql
+
+RESET MASTER;
+--let $gtid_step_gtid_mode_agnostic=1
+--source include/gtid_step_reset.inc
+--exec $MYSQL  < $MYSQLTEST_VARDIR/tmp/wl9175.sql
+--let $gtid_step_count=1
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/wl9175.sql
+
+# Cleanup of the above CREATE USER with manual GTID_NEXT,
+# interrupted by crashes. This use case verifies the manual gtid headed
+# DDL transaction.
+if ($gtid_mode == 'ON')
+{
+  --let $manual_gtid_next= SET @@SESSION.GTID_NEXT='$uuid0:1'
+}
+--let $ddl_query=DROP USER user1
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+--let $manual_gtid_next=
+
+#
+# Cleanup
+#
+--eval DROP TABLE $table
+--source include/gtid_utils_end.inc

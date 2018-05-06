@@ -2,10 +2,6 @@
 # Bug#20015132 ALTER TABLE FAILS TO CHECK IF TABLE IS CORRUPTED
 #
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
-SET DEBUG='+d,ib_create_table_fail_too_many_trx';
-ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
-ERROR HY000: Too many active concurrent transactions
-SET DEBUG='-d,ib_create_table_fail_too_many_trx';
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 SET DEBUG='+d,dict_set_index_corrupted';
 CHECK TABLE t1;
@@ -45,12 +41,7 @@ ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 ERROR HY000: Lost connection to MySQL server during query
 # Restart mysqld after the crash and reconnect.
 # restart
-# Manual *.frm recovery begin.
-# Manual recovery end
-FLUSH TABLES;
-# Drop the orphaned original table.
 # Files in datadir after manual recovery.
-t1.frm
 t1.ibd
 SHOW TABLES;
 Tables_in_test
@@ -59,9 +50,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
-  `f2` int(11) NOT NULL,
-  PRIMARY KEY (`f2`,`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `f2` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (5,6),(7,8);
 SELECT * FROM t1;
 f1	f2
@@ -85,12 +75,6 @@ ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
 ERROR HY000: Lost connection to MySQL server during query
 # Startup the server after the crash
 # restart
-# Read and remember the temporary table name
-# Manual *.frm recovery begin. The dictionary was not updated
-# and the files were not renamed. The rebuilt table
-# was left behind on purpose, to faciliate data recovery.
-# Manual recovery end
-# Drop the orphaned rebuilt table.
 SHOW TABLES;
 Tables_in_test
 t2
@@ -106,7 +90,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `f1` int(11) NOT NULL,
   `f2` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
 ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
@@ -115,22 +99,17 @@ DROP TABLE t2;
 # End of Testing Scenario 2
 # -------------------------
 #
-# Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
+# Bug#19330255 CRASH DURING ALTER TABLE LEADS TO
 # DATA DICTIONARY INCONSISTENCY
 #
-CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(150), c int NOT NULL);
 INSERT INTO t1 SET a=1,c=2;
 SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart mysqld after the crash and reconnect.
 # restart
-# Manual *.frm recovery begin.
-# Manual recovery end
-FLUSH TABLES;
-# Drop the orphaned original table.
 # Files in datadir after manual recovery.
-t1.frm
 t1.ibd
 SHOW TABLES;
 Tables_in_test
@@ -139,13 +118,11 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` varchar(255) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`),
-  KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-UPDATE t1 SET d=NULL;
+  `b` varchar(150) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
-a	b	d
-1	NULL	NULL
+a	b	c
+1	NULL	2
 DROP TABLE t1;

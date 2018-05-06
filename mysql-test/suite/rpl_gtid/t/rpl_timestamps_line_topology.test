@@ -1,0 +1,201 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the immediate_commit_timestamp (ICT) and the
+# original_commit_timestamp (OCT) are generated and replicated correctly in a
+# server_1 (Master) -> server_2 -> server_3 topology, all of them mysql-5.8+
+#
+# ==== Implementation ====
+#
+# Considering the previously mentioned replication chain, we make the following
+# assertions:
+# 1) original_commit_timestamp is the same across all servers
+# 2) On the original server, original_commit_timestamp = immediate_commit_timestamp.
+# 2) the immediate_commit_timestamp increases as we go down in the topology.
+# This assertions are performed in two examples of DDL statements and three
+# different DML statements.
+#
+#
+# ==== References ====
+#
+# WL#7319  Infrastructure for correct replication lag monitoring
+
+
+# Legend:
+#   OCT: original_commit_timestamp
+#   ICT: immediate_commit_timestamp
+
+--source include/have_binlog_format_row.inc
+
+# Establish the line topology.
+--let $rpl_topology=1->2, 2->3
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT);
+--source include/rpl_sync.inc
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:1
+#
+#  The GTID event is generated at the commit time. Hence the time of
+# execution of GTID event will be almost the Commit time.This test
+# checks that the  ICT value is greater than or equal to the
+# time of execution of the GTID event.
+#
+--source include/get_gtid_time.inc
+--let $readable= 1
+--let $only_time= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+
+--disable_query_log
+--replace_regex /cast(.* as time)/cast('XX:YY:ZZ' as time) >= cast('XX:YY:ZZ' as time)/
+--eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
+--enable_query_log
+
+# since these variables will not be redefined anywhere, they will only be
+# declared here
+--let $server_1= server_1
+--let $server_2= server_2
+--let $server_3= server_3
+--source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--let $OCT1=  $original_commit_timestamp
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES(1);
+--source include/rpl_sync.inc
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:2
+
+--source include/get_gtid_time.inc
+--let $readable= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+
+--disable_query_log
+--replace_regex /cast(.* as time)/cast('XX:YY:ZZ' as time) >= cast('XX:YY:ZZ' as time)/
+--eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
+--enable_query_log
+
+--source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--let $OCT2=  $original_commit_timestamp
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+UPDATE t1 SET a=2;
+--source include/rpl_sync.inc
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:3
+
+--source include/get_gtid_time.inc
+--let $readable= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+
+--disable_query_log
+--replace_regex /cast(.* as time)/cast('XX:YY:ZZ' as time) >= cast('XX:YY:ZZ' as time)/
+--eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
+--enable_query_log
+
+--source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--let $OCT3=  $original_commit_timestamp
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DELETE FROM t1 WHERE a=2;
+--source include/rpl_sync.inc
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:4
+
+--source include/get_gtid_time.inc
+--let $readable= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+
+--disable_query_log
+--replace_regex /cast(.* as time)/cast('XX:YY:ZZ' as time) >= cast('XX:YY:ZZ' as time)/
+--eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
+--enable_query_log
+
+--source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--let $OCT4=  $original_commit_timestamp
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+--let $server_uuid= query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid= $server_uuid:5
+
+--source include/get_gtid_time.inc
+--let $readable= 1
+--source include/get_immediate_commit_timestamp.inc
+--let $readable= 0
+--let $only_time= 0
+
+--disable_query_log
+--replace_regex /cast(.* as time)/cast('XX:YY:ZZ' as time) >= cast('XX:YY:ZZ' as time)/
+--eval select cast('$immediate_commit_timestamp' as time) >= cast('$gtid_time' as time)
+--enable_query_log
+
+--source extra/rpl_tests/rpl_timestamps_line_topology.inc
+--let $OCT5=  $original_commit_timestamp
+
+--echo # 2. Verify that the Original_commit_timestamps are correct.
+# Due to windows lower resolution timestamps, it may happen that the timestamps
+# are equal.
+
+# Check if the platform is windows to select the appropriate assert condition
+--let $is_windows= 0
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+  --let $is_windows= 1
+}
+
+--let $assert_text= Assert that the OCT of a transaction is higher than the earlier transaction..
+if ($is_windows)
+{
+  --let $assert_cond= $OCT1 <= $OCT2
+}
+if (!$is_windows)
+{
+  --let $assert_cond= $OCT1 < $OCT2
+}
+--source include/assert.inc
+
+--let $assert_text= Assert that the OCT of a transaction is higher than  the earlier transaction..
+if ($is_windows)
+{
+ --let $assert_cond= $OCT2 <= $OCT3
+}
+if (!$is_windows)
+{
+ --let $assert_cond= $OCT2 < $OCT3
+}
+--source include/assert.inc
+
+--let $assert_text= Assert that the OCT of a transaction is higher than the earlier transaction..
+if ($is_windows)
+{
+ --let $assert_cond= $OCT3 <= $OCT4
+}
+if (!$is_windows)
+{
+ --let $assert_cond= $OCT3 < $OCT4
+}
+--source include/assert.inc
+
+--let $assert_text= Assert that the OCT of a transaction is higher than the earlier transaction..
+if ($is_windows)
+{
+  --let $assert_cond= $OCT4 <= $OCT5
+}
+if (!$is_windows)
+{
+  --let $assert_cond= $OCT4 < $OCT5
+}
+--source include/assert.inc
+
+--source include/rpl_end.inc

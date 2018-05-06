@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -39,77 +46,159 @@ my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-
+/*
+ * Put views in alphabetical order.
+ * No view should depend on another view.
+ */
 struct view {
   const char* name;
   const char* sql;
 } views[] =
 {
-#if 0
-  { "pools",
-    "SELECT node_id, b.block_name, block_instance, pool_name, "
-    "used, total, high, entry_size, cp1.param_name AS param_name1, "
-    "cp2.param_name AS param_name2, cp3.param_name AS param_name3, "
-    "cp4.param_name AS param_name4 "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` p "
-    "LEFT JOIN `<NDBINFO_DB>`.blocks b ON p.block_number = b.block_number "
-    "LEFT JOIN `<NDBINFO_DB>`.config_params cp1 ON p.config_param1 = cp1.param_number "
-    "LEFT JOIN `<NDBINFO_DB>`.config_params cp2 ON p.config_param2 = cp2.param_number "
-    "LEFT JOIN `<NDBINFO_DB>`.config_params cp3 ON p.config_param3 = cp3.param_number "
-    "LEFT JOIN `<NDBINFO_DB>`.config_params cp4 ON p.config_param4 = cp4.param_number"
+  { "arbitrator_validity_detail",
+    "SELECT node_id, "
+    "arbitrator, "
+    "arb_ticket, "
+    "CASE arb_connected"
+    "  WHEN 1 THEN \"Yes\""
+    "  ELSE \"No\""
+    " END AS arb_connected, "
+    "CASE arb_state"
+    "  WHEN 0 THEN \"ARBIT_NULL\""
+    "  WHEN 1 THEN \"ARBIT_INIT\""
+    "  WHEN 2 THEN \"ARBIT_FIND\""
+    "  WHEN 3 THEN \"ARBIT_PREP1\""
+    "  WHEN 4 THEN \"ARBIT_PREP2\""
+    "  WHEN 5 THEN \"ARBIT_START\""
+    "  WHEN 6 THEN \"ARBIT_RUN\""
+    "  WHEN 7 THEN \"ARBIT_CHOOSE\""
+    "  WHEN 8 THEN \"ARBIT_CRASH\""
+    "  ELSE \"UNKNOWN\""
+    " END AS arb_state "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership` "
+    "ORDER BY arbitrator, arb_connected DESC"
   },
-#endif
-  { "transporters",
-    "SELECT node_id, remote_node_id, "
-    " CASE connection_status"
-    "  WHEN 0 THEN \"CONNECTED\""
-    "  WHEN 1 THEN \"CONNECTING\""
-    "  WHEN 2 THEN \"DISCONNECTED\""
-    "  WHEN 3 THEN \"DISCONNECTING\""
+  { "arbitrator_validity_summary",
+    "SELECT arbitrator, "
+    "arb_ticket, "
+    "CASE arb_connected"
+    "  WHEN 1 THEN \"Yes\""
+    "  ELSE \"No\""
+    " END AS arb_connected, "
+    "count(*) as consensus_count "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership` "
+    "GROUP BY arbitrator, arb_ticket, arb_connected"
+  },
+  // The blocks, dict_obj_types and config_params used
+  // to be stored in a different engine but have now
+  // been folded into hardcoded ndbinfo tables whose
+  // name include the special prefix.
+  // These views are defined to provide backward compatibility
+  // for code using the old names.
+  { "blocks",
+    "SELECT block_number, block_name "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks`"
+  },
+  {
+    "cluster_locks",
+    "SELECT "
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`node_id` AS `node_id`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`block_instance` AS `block_instance`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`tableid` AS `tableid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`fragmentid` AS `fragmentid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`rowid` AS `rowid`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`transid0` + "
+    "(`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`transid1` << 32) AS `transid`,"
+    /* op_flags meanings come from DbaccMain.cpp */
+    /* 'S'hared or 'X'clusive */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x10) "
+    "when 0 then \"S\" else \"X\" end) AS `mode`,"
+    /* 'W'aiting or 'H'olding */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x80) "
+    "when 0 then \"W\" else \"H\" end) AS `state`,"
+    /* '*' indicates operation 'owning' the lock - an internal detail, can help
+     * understanding
+     */
+    "(case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0x40) "
+    "when 0 then \"\" else \"*\" end) as `detail`,"
+    "case (`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0xf) "
+    "when 0 then \"READ\" when 1 then \"UPDATE\" when 2 then \"INSERT\""
+    "when 3 then \"DELETE\" when 5 then \"READ\" when 6 then \"REFRESH\""
+    "when 7 then \"UNLOCK\" when 8 then \"SCAN\" ELSE\"<unknown>\" END as `op`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`duration_millis` as `duration_millis`,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`acc_op_id` AS `lock_num`,"
+    "if(`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`op_flags` & 0xc0 = 0,"
+    "`<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`.`prev_serial_op_id`"
+    ", NULL) as `waiting_for` "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>acc_operations`"
+  },
+  { "cluster_operations",
+    "SELECT"
+    " o.node_id,"
+    " o.block_instance,"
+    " o.transid0 + (o.transid1 << 32) as transid,"
+    " case o.op "
+    " when 1 then \"READ\""
+    " when 2 then \"READ-SH\""
+    " when 3 then \"READ-EX\""
+    " when 4 then \"INSERT\""
+    " when 5 then \"UPDATE\""
+    " when 6 then \"DELETE\""
+    " when 7 then \"WRITE\""
+    " when 8 then \"UNLOCK\""
+    " when 9 then \"REFRESH\""
+    " when 257 then \"SCAN\""
+    " when 258 then \"SCAN-SH\""
+    " when 259 then \"SCAN-EX\""
+    " ELSE \"<unknown>\""
+    " END as operation_type, "
+    " s.state_friendly_name as state, "
+    " o.tableid, "
+    " o.fragmentid, "
+    " (o.apiref & 65535) as client_node_id, "
+    " (o.apiref >> 16) as client_block_ref, "
+    " (o.tcref & 65535) as tc_node_id, "
+    " ((o.tcref >> 16) & 511) as tc_block_no, "
+    " ((o.tcref >> (16 + 9)) & 127) as tc_block_instance "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>operations` o"
+    " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dblqh_tcconnect_state` s"
+    "        ON s.state_int_value = o.state"
+  },
+  { "cluster_transactions",
+    "SELECT"
+    " t.node_id,"
+    " t.block_instance,"
+    " t.transid0 + (t.transid1 << 32) as transid,"
+    " s.state_friendly_name as state, "
+    " t.c_ops as count_operations, "
+    " t.outstanding as outstanding_operations, "
+    " t.timer as inactive_seconds, "
+    " (t.apiref & 65535) as client_node_id, "
+    " (t.apiref >> 16) as client_block_ref "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transactions` t"
+    " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dbtc_apiconnect_state` s"
+    "        ON s.state_int_value = t.state"
+  },
+  { "config_nodes",
+    "SELECT distinct node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
     "  ELSE NULL "
-    " END AS status, "
-    " remote_address, bytes_sent, bytes_received, "
-    " connect_count, "
-    " overloaded, overload_count, slowdown, slowdown_count "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transporters`"
+    " END AS node_type, "
+    "node_hostname "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_nodes` "
+    "ORDER BY node_id"
   },
-  { "logspaces",
-    "SELECT node_id, "
-    " CASE log_type"
-    "  WHEN 0 THEN \"REDO\""
-    "  WHEN 1 THEN \"DD-UNDO\""
-    "  ELSE NULL "
-    " END AS log_type, "
-    "log_id, log_part, total, used "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>logspaces`"
+  { "config_params",
+    "SELECT param_number, param_name, param_description, param_type, param_default, "
+    "param_min, param_max, param_mandatory, param_status "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_params`"
   },
-  { "logbuffers",
-    "SELECT node_id, "
-    " CASE log_type"
-    "  WHEN 0 THEN \"REDO\""
-    "  WHEN 1 THEN \"DD-UNDO\""
-    "  ELSE \"<unknown>\" "
-    " END AS log_type, "
-    "log_id, log_part, total, used "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>logbuffers`"
-  },
-  { "resources",
-    "SELECT node_id, "
-    " CASE resource_id"
-    "  WHEN 0 THEN \"RESERVED\""
-    "  WHEN 1 THEN \"DISK_OPERATIONS\""
-    "  WHEN 2 THEN \"DISK_RECORDS\""
-    "  WHEN 3 THEN \"DATA_MEMORY\""
-    "  WHEN 4 THEN \"JOBBUFFER\""
-    "  WHEN 5 THEN \"FILE_BUFFERS\""
-    "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
-    "  WHEN 7 THEN \"DISK_PAGE_BUFFER\""
-    "  WHEN 8 THEN \"QUERY_MEMORY\""
-    "  WHEN 9 THEN \"SCHEMA_TRANS_MEMORY\""
-    "  ELSE \"<unknown>\" "
-    " END AS resource_name, "
-    "reserved, used, max "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>resources`"
+  { "config_values",
+    "SELECT node_id, config_param, config_value "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_values`"
   },
   { "counters",
     "SELECT node_id, b.block_name, block_instance, "
@@ -153,122 +242,92 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
     "ON c.block_number = b.block_number"
   },
-  { "nodes",
-    "SELECT node_id, "
-    "uptime, "
-    "CASE status"
-    "  WHEN 0 THEN \"NOTHING\""
-    "  WHEN 1 THEN \"CMVMI\""
-    "  WHEN 2 THEN \"STARTING\""
-    "  WHEN 3 THEN \"STARTED\""
-    "  WHEN 4 THEN \"SINGLEUSER\""
-    "  WHEN 5 THEN \"STOPPING_1\""
-    "  WHEN 6 THEN \"STOPPING_2\""
-    "  WHEN 7 THEN \"STOPPING_3\""
-    "  WHEN 8 THEN \"STOPPING_4\""
-    "  ELSE \"<unknown>\" "
-    " END AS status, "
-    "start_phase, "
-    "config_generation "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>nodes`"
+  { "cpustat",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat`"
   },
-  { "memoryusage",
-    "SELECT node_id,"
-    "  pool_name AS memory_type,"
-    "  SUM(used*entry_size) AS used,"
-    "  SUM(used) AS used_pages,"
-    "  SUM(total*entry_size) AS total,"
-    "  SUM(total) AS total_pages "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` "
-    "WHERE block_number IN (248, 254) AND "
-    "  (pool_name = \"Index memory\" OR pool_name = \"Data memory\") "
-    "GROUP BY node_id, memory_type"
+  { "cpustat_1sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_1sec`"
   },
-  { "diskpagebuffer",
-     "SELECT node_id, block_instance, "
-     "pages_written, pages_written_lcp, pages_read, log_waits, "
-     "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
-     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskpagebuffer`"
+  { "cpustat_20sec",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_20sec`"
   },
-  { "diskpagebuffer",
-     "SELECT node_id, block_instance, "
-     "pages_written, pages_written_lcp, pages_read, log_waits, "
-     "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
-     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskpagebuffer`"
+  { "cpustat_50ms",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>cpustat_50ms`"
   },
-  { "threadblocks",
-    "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadblocks` t "
-    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
-    "ON t.block_number = b.block_number"
+  {"dict_obj_info",
+   " SELECT * "
+   "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info`"
   },
-  { "threadstat",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
-  },
-  { "disk_write_speed_base",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
+  { "dict_obj_types",
+    "SELECT type_id, type_name "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types`"
   },
   { "disk_write_speed_aggregate",
-    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
   },
-  { "cluster_transactions",
+  { "disk_write_speed_aggregate_node",
     "SELECT"
-    " t.node_id,"
-    " t.block_instance,"
-    " t.transid0 + (t.transid1 << 32) as transid,"
-    " s.state_friendly_name as state, "
-    " t.c_ops as count_operations, "
-    " t.outstanding as outstanding_operations, "
-    " t.timer as inactive_seconds, "
-    " (t.apiref & 65535) as client_node_id, "
-    " (t.apiref >> 16) as client_block_ref "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transactions` t"
-    " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dbtc_apiconnect_state` s"
-    "        ON s.state_int_value = t.state"
+    " node_id,"
+    " SUM(backup_lcp_speed_last_sec) AS backup_lcp_speed_last_sec,"
+    " SUM(redo_speed_last_sec) AS redo_speed_last_sec,"
+    " SUM(backup_lcp_speed_last_10sec) AS backup_lcp_speed_last_10sec,"
+    " SUM(redo_speed_last_10sec) AS redo_speed_last_10sec,"
+    " SUM(backup_lcp_speed_last_60sec) AS backup_lcp_speed_last_60sec,"
+    " SUM(redo_speed_last_60sec) AS redo_speed_last_60sec "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate` "
+    "GROUP by node_id"
   },
-  { "server_transactions",
-    "SELECT map.mysql_connection_id, t.*"
-    "FROM information_schema.ndb_transid_mysql_connection_map map "
-    "JOIN `<NDBINFO_DB>`.cluster_transactions t "
-    "  ON (map.ndb_transid >> 32) = (t.transid >> 32)"
+  { "disk_write_speed_base",
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
   },
-  { "cluster_operations",
-    "SELECT"
-    " o.node_id,"
-    " o.block_instance,"
-    " o.transid0 + (o.transid1 << 32) as transid,"
-    " case o.op "
-    " when 1 then \"READ\""
-    " when 2 then \"READ-SH\""
-    " when 3 then \"READ-EX\""
-    " when 4 then \"INSERT\""
-    " when 5 then \"UPDATE\""
-    " when 6 then \"DELETE\""
-    " when 7 then \"WRITE\""
-    " when 8 then \"UNLOCK\""
-    " when 9 then \"REFRESH\""
-    " when 257 then \"SCAN\""
-    " when 258 then \"SCAN-SH\""
-    " when 259 then \"SCAN-EX\""
-    " ELSE \"<unknown>\""
-    " END as operation_type, "
-    " s.state_friendly_name as state, "
-    " o.tableid, "
-    " o.fragmentid, "
-    " (o.apiref & 65535) as client_node_id, "
-    " (o.apiref >> 16) as client_block_ref, "
-    " (o.tcref & 65535) as tc_node_id, "
-    " ((o.tcref >> 16) & 511) as tc_block_no, "
-    " ((o.tcref >> (16 + 9)) & 127) as tc_block_instance "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>operations` o"
-    " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dblqh_tcconnect_state` s"
-    "        ON s.state_int_value = o.state"
+  { "diskpagebuffer",
+     "SELECT node_id, block_instance, "
+     "pages_written, pages_written_lcp, pages_read, log_waits, "
+     "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
+     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>diskpagebuffer`"
   },
-  { "server_operations",
-    "SELECT map.mysql_connection_id, o.* "
-    "FROM `<NDBINFO_DB>`.cluster_operations o "
-    "JOIN information_schema.ndb_transid_mysql_connection_map map"
-    "  ON (map.ndb_transid >> 32) = (o.transid >> 32)"
+  { "error_messages",
+    "SELECT error_code, error_description, error_status, error_classification "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>error_messages`"
+  },
+  {
+    "locks_per_fragment",
+    "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
+    "types.type_name AS type, table_id, node_id, block_instance, fragment_num, "
+    "ex_req, ex_imm_ok, ex_wait_ok, ex_wait_fail, "
+    "sh_req, sh_imm_ok, sh_wait_ok, sh_wait_fail, "
+    "wait_ok_millis, wait_fail_millis "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_locks` AS locks "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS name "
+    "ON name.id=locks.table_id AND name.type<=6 "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types` AS types ON name.type=types.type_id "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
+    "ON name.parent_obj_id=parent_name.id AND "
+    "name.parent_obj_type=parent_name.type"
+  },
+  { "logbuffers",
+    "SELECT node_id, "
+    " CASE log_type"
+    "  WHEN 0 THEN \"REDO\""
+    "  WHEN 1 THEN \"DD-UNDO\""
+    "  ELSE \"<unknown>\" "
+    " END AS log_type, "
+    "log_id, log_part, total, used "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>logbuffers`"
+  },
+  { "logspaces",
+    "SELECT node_id, "
+    " CASE log_type"
+    "  WHEN 0 THEN \"REDO\""
+    "  WHEN 1 THEN \"DD-UNDO\""
+    "  ELSE NULL "
+    " END AS log_type, "
+    "log_id, log_part, total, used "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>logspaces`"
   },
   { "membership",
     "SELECT node_id, group_id, left_node, right_node, president, successor, "
@@ -295,49 +354,20 @@ struct view {
     "conn_rank2_arbs AS connected_rank2_arbs "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership`"
   },
-  { "arbitrator_validity_detail",
-    "SELECT node_id, "
-    "arbitrator, "
-    "arb_ticket, "
-    "CASE arb_connected"
-    "  WHEN 1 THEN \"Yes\""
-    "  ELSE \"No\""
-    " END AS arb_connected, "
-    "CASE arb_state"
-    "  WHEN 0 THEN \"ARBIT_NULL\""
-    "  WHEN 1 THEN \"ARBIT_INIT\""
-    "  WHEN 2 THEN \"ARBIT_FIND\""
-    "  WHEN 3 THEN \"ARBIT_PREP1\""
-    "  WHEN 4 THEN \"ARBIT_PREP2\""
-    "  WHEN 5 THEN \"ARBIT_START\""
-    "  WHEN 6 THEN \"ARBIT_RUN\""
-    "  WHEN 7 THEN \"ARBIT_CHOOSE\""
-    "  WHEN 8 THEN \"ARBIT_CRASH\""
-    "  ELSE \"UNKNOWN\""
-    " END AS arb_state "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership` "
-    "ORDER BY arbitrator, arb_connected DESC"
-  },
-  { "arbitrator_validity_summary",
-    "SELECT arbitrator, "
-    "arb_ticket, "
-    "CASE arb_connected"
-    "  WHEN 1 THEN \"Yes\""
-    "  ELSE \"No\""
-    " END AS arb_connected, "
-    "count(*) as consensus_count "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership` "
-    "GROUP BY arbitrator, arb_ticket, arb_connected"
-  },
   {
     "memory_per_fragment",
+    /*
+     * The test for name.type<=6 is there to elimiate matching non-table
+     * objects (triggers, files etc.), since the 'id' of these may collide
+     * with table ids.
+     */
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name," 
     "types.type_name AS type, table_id, node_id, block_instance, "
-    "fragment_num, fixed_elem_count, fixed_elem_size_bytes, "
-    "fixed_elem_alloc_bytes, fixed_elem_free_bytes,  "
+    "fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes, "
+    "fixed_elem_size_bytes, fixed_elem_count, "
     "FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS "
-    "fixed_elem_free_count, var_elem_count, var_elem_alloc_bytes, "
-    "var_elem_free_bytes, hash_index_alloc_bytes "
+    "fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes, "
+    "var_elem_count, hash_index_alloc_bytes "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
     "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
     "AS name ON name.id=space.table_id AND name.type<=6 JOIN "
@@ -346,8 +376,47 @@ struct view {
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
   },
+  { "memoryusage",
+    "SELECT node_id,"
+    "  pool_name AS memory_type,"
+    "  SUM(used*entry_size) AS used,"
+    "  SUM(used) AS used_pages,"
+    "  SUM(total*entry_size) AS total,"
+    "  SUM(total) AS total_pages "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` "
+    "WHERE block_number = 254 "
+    "GROUP BY node_id, memory_type"
+  },
+  { "nodes",
+    "SELECT node_id, "
+    "uptime, "
+    "CASE status"
+    "  WHEN 0 THEN \"NOTHING\""
+    "  WHEN 1 THEN \"CMVMI\""
+    "  WHEN 2 THEN \"STARTING\""
+    "  WHEN 3 THEN \"STARTED\""
+    "  WHEN 4 THEN \"SINGLEUSER\""
+    "  WHEN 5 THEN \"STOPPING_1\""
+    "  WHEN 6 THEN \"STOPPING_2\""
+    "  WHEN 7 THEN \"STOPPING_3\""
+    "  WHEN 8 THEN \"STOPPING_4\""
+    "  ELSE \"<unknown>\" "
+    " END AS status, "
+    "start_phase, "
+    "config_generation "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>nodes`"
+  },
   {
     "operations_per_fragment",
+    /*
+     * This is the end-user view of ndb$frag_operations. It adds some
+     * dictionary information such as the table name and type, and the name
+     * of the parent table, if there is any.
+     *
+     * The test for name.type<=6 is there to elimiate matching non-table
+     * objects (triggers, files etc.), since the 'id' of these may collide
+     * with table ids.
+     */
     "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
     "types.type_name AS type, table_id, node_id, block_instance, fragment_num, "
     "tot_key_reads, tot_key_inserts, tot_key_updates, tot_key_writes, "
@@ -368,23 +437,201 @@ struct view {
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
   },
-  // The blocks, dict_obj_types and config_params used
-  // to be stored in a different engine but have now
-  // been folded into hardcoded ndbinfo tables whose
-  // name include the special prefix.
-  // These views are defined to provide backward compatibility
-  // for code using the old names.
-  { "blocks",
-    "SELECT block_number, block_name "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks`"
+#if 0
+  { "pools",
+    "SELECT node_id, b.block_name, block_instance, pool_name, "
+    "used, total, high, entry_size, cp1.param_name AS param_name1, "
+    "cp2.param_name AS param_name2, cp3.param_name AS param_name3, "
+    "cp4.param_name AS param_name4 "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` p "
+    "LEFT JOIN `<NDBINFO_DB>`.blocks b ON p.block_number = b.block_number "
+    "LEFT JOIN `<NDBINFO_DB>`.config_params cp1 ON p.config_param1 = cp1.param_number "
+    "LEFT JOIN `<NDBINFO_DB>`.config_params cp2 ON p.config_param2 = cp2.param_number "
+    "LEFT JOIN `<NDBINFO_DB>`.config_params cp3 ON p.config_param3 = cp3.param_number "
+    "LEFT JOIN `<NDBINFO_DB>`.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
-  { "dict_obj_types",
-    "SELECT type_id, type_name "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types`"
+#endif
+  { "processes",
+    "SELECT DISTINCT node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    " node_version, "
+    " NULLIF(process_id, 0) AS process_id, "
+    " NULLIF(angel_process_id, 0) AS angel_process_id, "
+    " process_name, service_URI "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes` "
+    "ORDER BY node_id"
   },
-  { "config_params",
-    "SELECT param_number, param_name "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_params`"
+  { "resources",
+    "SELECT node_id, "
+    " CASE resource_id"
+    "  WHEN 0 THEN \"RESERVED\""
+    "  WHEN 1 THEN \"TRANSACTION_MEMORY\""
+    "  WHEN 2 THEN \"DISK_RECORDS\""
+    "  WHEN 3 THEN \"DATA_MEMORY\""
+    "  WHEN 4 THEN \"JOBBUFFER\""
+    "  WHEN 5 THEN \"FILE_BUFFERS\""
+    "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
+    "  WHEN 7 THEN \"DISK_PAGE_BUFFER\""
+    "  WHEN 8 THEN \"QUERY_MEMORY\""
+    "  WHEN 9 THEN \"SCHEMA_TRANS_MEMORY\""
+    "  ELSE \"<unknown>\" "
+    " END AS resource_name, "
+    "reserved, used, max, spare "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>resources`"
+  },
+  {"restart_info",
+   "SELECT * "
+   "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>restart_info`"
+  },
+  /* server_locks view, reflecting server_operations view */
+  {"server_locks",
+   "SELECT map.mysql_connection_id, l.* "
+   "FROM `<NDBINFO_DB>`.cluster_locks l "
+   "JOIN information_schema.ndb_transid_mysql_connection_map map"
+   " ON (map.ndb_transid >> 32) = (l.transid >> 32)"
+  },
+  { "server_operations",
+    "SELECT map.mysql_connection_id, o.* "
+    "FROM `<NDBINFO_DB>`.cluster_operations o "
+    "JOIN information_schema.ndb_transid_mysql_connection_map map"
+    "  ON (map.ndb_transid >> 32) = (o.transid >> 32)"
+  },
+  { "server_transactions",
+    "SELECT map.mysql_connection_id, t.*"
+    "FROM information_schema.ndb_transid_mysql_connection_map map "
+    "JOIN `<NDBINFO_DB>`.cluster_transactions t "
+    "  ON (map.ndb_transid >> 32) = (t.transid >> 32)"
+  },
+  { "table_distribution_status",
+    "SELECT node_id AS node_id, "
+    "table_id AS table_id, "
+    "CASE tab_copy_status"
+    " WHEN 0 THEN \"IDLE\""
+    " WHEN 1 THEN \"SR_PHASE1_READ_PAGES\""
+    " WHEN 2 THEN \"SR_PHASE2_READ_TABLE\""
+    " WHEN 3 THEN \"SR_PHASE3_COPY_TABLE\""
+    " WHEN 4 THEN \"REMOVE_NODE\""
+    " WHEN 5 THEN \"LCP_READ_TABLE\""
+    " WHEN 6 THEN \"COPY_TAB_REQ\""
+    " WHEN 7 THEN \"COPY_NODE_STATE\""
+    " WHEN 8 THEN \"ADD_TABLE_MASTER\""
+    " WHEN 9 THEN \"ADD_TABLE_SLAVE\""
+    " WHEN 10 THEN \"INVALIDATE_NODE_LCP\""
+    " WHEN 11 THEN \"ALTER_TABLE\""
+    " WHEN 12 THEN \"COPY_TO_SAVE\""
+    " WHEN 13 THEN \"GET_TABINFO\""
+    "  ELSE \"Invalid value\""
+    " END AS tab_copy_status, "
+    "CASE tab_update_status"
+    " WHEN 0 THEN \"IDLE\""
+    " WHEN 1 THEN \"LOCAL_CHECKPOINT\""
+    " WHEN 2 THEN \"LOCAL_CHECKPOINT_QUEUED\""
+    " WHEN 3 THEN \"REMOVE_NODE\""
+    " WHEN 4 THEN \"COPY_TAB_REQ\""
+    " WHEN 5 THEN \"ADD_TABLE_MASTER\""
+    " WHEN 6 THEN \"ADD_TABLE_SLAVE\""
+    " WHEN 7 THEN \"INVALIDATE_NODE_LCP\""
+    " WHEN 8 THEN \"CALLBACK\""
+    "  ELSE \"Invalid value\""
+    " END AS tab_update_status, "
+    "CASE tab_lcp_status"
+    " WHEN 1 THEN \"ACTIVE\""
+    " WHEN 2 THEN \"wRITING_TO_FILE\""
+    " WHEN 3 THEN \"COMPLETED\""
+    "  ELSE \"Invalid value\""
+    " END AS tab_lcp_status, "
+    "CASE tab_status"
+    " WHEN 0 THEN \"IDLE\""
+    " WHEN 1 THEN \"ACTIVE\""
+    " WHEN 2 THEN \"CREATING\""
+    " WHEN 3 THEN \"DROPPING\""
+    "  ELSE \"Invalid value\""
+    " END AS tab_status, "
+    "CASE tab_storage"
+    " WHEN 0 THEN \"NOLOGGING\""
+    " WHEN 1 THEN \"NORMAL\""
+    " WHEN 2 THEN \"TEMPORARY\""
+    "  ELSE \"Invalid value\""
+    " END AS tab_storage, "
+    "tab_partitions AS tab_partitions, "
+    "tab_fragments AS tab_fragments, "
+    "current_scan_count AS current_scan_count, "
+    "scan_count_wait AS scan_count_wait, "
+    "is_reorg_ongoing AS is_reorg_ongoing "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>table_distribution_status`"
+  },
+  { "table_fragments",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>table_fragments`"
+  },
+  { "table_info",
+    " SELECT "
+    " table_id AS table_id, "
+    " logged_table AS logged_table, "
+    " row_contains_gci AS row_contains_gci, "
+    " row_contains_checksum AS row_contains_checksum, "
+    " read_backup AS read_backup, "
+    " fully_replicated AS fully_replicated, "
+    " CASE storage_type"
+    " WHEN 0 THEN \"MEMORY\""
+    " WHEN 1 THEN \"DISK\""
+    " WHEN 2 THEN \"MEMORY\""
+    "  ELSE \"Invalid value\""
+    " END AS storage_type,"
+    " hashmap_id AS hashmap_id, "
+    " CASE partition_balance"
+    " WHEN 4294967295 THEN \"SPECIFIC\""
+    " WHEN 4294967294 THEN \"FOR_RP_BY_LDM\""
+    " WHEN 4294967293 THEN \"FOR_RA_BY_LDM\""
+    " WHEN 4294967292 THEN \"FOR_RP_BY_NODE\""
+    " WHEN 4294967291 THEN \"FOR_RA_BY_NODE\""
+    " WHEN 4294967290 THEN \"FOR_RA_BY_LDM_X_2\""
+    " WHEN 4294967289 THEN \"FOR_RA_BY_LDM_X_3\""
+    " WHEN 4294967288 THEN \"FOR_RA_BY_LDM_X_4\""
+    " ELSE \"Invalid value\""
+    " END AS partition_balance,"
+    " create_gci AS create_gci "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>stored_tables`"
+  },
+  { "table_replicas",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>table_replicas`"
+  },
+  { "tc_time_track_stats",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>tc_time_track_stats`"
+  },
+  { "threadblocks",
+    "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadblocks` t "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
+    "ON t.block_number = b.block_number"
+  },
+  { "threads",
+    "SELECT * "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threads`"
+  },
+  { "threadstat",
+    "SELECT * FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
+  },
+  { "transporters",
+    "SELECT node_id, remote_node_id, "
+    " CASE connection_status"
+    "  WHEN 0 THEN \"CONNECTED\""
+    "  WHEN 1 THEN \"CONNECTING\""
+    "  WHEN 2 THEN \"DISCONNECTED\""
+    "  WHEN 3 THEN \"DISCONNECTING\""
+    "  ELSE NULL "
+    " END AS status, "
+    " remote_address, bytes_sent, bytes_received, "
+    " connect_count, "
+    " overloaded, overload_count, slowdown, slowdown_count "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transporters`"
   },
 };
 
@@ -401,13 +648,23 @@ struct lookup {
     "block_number INT UNSIGNED, "
     "block_name VARCHAR(512)",
   },
-  { "<TABLE_PREFIX>dict_obj_types",
-    "type_id` INT UNSIGNED, "
-    "type_name VARCHAR(512)",
-  },
   { "<TABLE_PREFIX>config_params",
     "param_number INT UNSIGNED, "
-    "param_name VARCHAR(512)",
+    "param_name VARCHAR(512), "
+    "param_description VARCHAR(512), "
+    "param_type VARCHAR(512), "
+    "param_default VARCHAR(512), "
+    "param_min VARCHAR(512), "
+    "param_max VARCHAR(512), "
+    "param_mandatory INT UNSIGNED, "
+    "param_status VARCHAR(512)"
+  },
+  {
+    "<TABLE_PREFIX>dblqh_tcconnect_state",
+    "state_int_value INT UNSIGNED, "
+    "state_name VARCHAR(256), "
+    "state_friendly_name VARCHAR(256), "
+    "state_description VARCHAR(256)",
   },
   {
     "<TABLE_PREFIX>dbtc_apiconnect_state",
@@ -416,12 +673,15 @@ struct lookup {
     "state_friendly_name VARCHAR(256), "
     "state_description VARCHAR(256)",
   },
-  {
-    "<TABLE_PREFIX>dblqh_tcconnect_state",
-    "state_int_value INT UNSIGNED, "
-    "state_name VARCHAR(256), "
-    "state_friendly_name VARCHAR(256), "
-    "state_description VARCHAR(256)",
+  { "<TABLE_PREFIX>dict_obj_types",
+    "type_id INT UNSIGNED, "
+    "type_name VARCHAR(512)",
+  },
+  { "<TABLE_PREFIX>error_messages",
+    "error_code INT UNSIGNED, "
+    "error_description VARCHAR(512), "
+    "error_status VARCHAR(512), "
+    "error_classification VARCHAR(512)",
   }
 };
 
@@ -485,17 +745,30 @@ print_conditional_sql(const BaseString& sql)
   printf("DROP PREPARE stmt;\n\n");
 }
 
+static int compar_table_names(const void* px, const void* py)
+{
+  const Ndbinfo::Table* const* x = static_cast<const Ndbinfo::Table* const*>(px);
+  const Ndbinfo::Table* const* y = static_cast<const Ndbinfo::Table* const*>(py);
+  return strcmp((*x)->m.name, (*y)->m.name);
+}
+
 int main(int argc, char** argv){
 
   BaseString sql;
   if ((handle_options(&argc, &argv, my_long_options, NULL)))
     return 2;
 
+  printf("# Generated by ndbinfo_sql # DO NOT EDIT! # Begin\n");
+  printf("# TABLE definitions from src/kernel/vm/NdbinfoTables.cpp\n");
+  printf("# VIEW definitions from tools/ndbinfo_sql.cpp\n");
   printf("#\n");
   printf("# SQL commands for creating the tables in MySQL Server which\n");
   printf("# are used by the NDBINFO storage engine to access system\n");
   printf("# information and statistics from MySQL Cluster\n");
-  printf("#\n");
+  printf("#\n\n");
+
+  printf("# Use latin1 when creating ndbinfo objects\n");
+  printf("SET NAMES 'latin1' COLLATE 'latin1_swedish_ci';\n\n");
 
   printf("# Only create objects if NDBINFO is supported\n");
   printf("SELECT @have_ndbinfo:= COUNT(*) FROM "
@@ -524,10 +797,10 @@ int main(int argc, char** argv){
     const char* old_lookups[] =
     {
       "blocks",
-      "dict_obj_types",
       "config_params",
-      "ndb$dbtc_apiconnect_state",
-      "ndb$dblqh_tcconnect_state"
+      "dict_obj_types",
+      "ndb$dblqh_tcconnect_state",
+      "ndb$dbtc_apiconnect_state"
     };
     printf("# Drop obsolete lookups in %s\n", opt_ndbinfo_db);
     for (size_t i = 0; i < sizeof(old_lookups)/sizeof(old_lookups[0]); i++)
@@ -556,9 +829,16 @@ int main(int argc, char** argv){
     print_conditional_sql(sql);
   }
 
+  printf("# Recreate lookup tables in %s\n", opt_ndbinfo_db);
+  const Ndbinfo::Table** tables = new const Ndbinfo::Table*[Ndbinfo::getNumTables()];
   for (int i = 0; i < Ndbinfo::getNumTables(); i++)
   {
-    const Ndbinfo::Table& table = Ndbinfo::getTable(i);
+    tables[i] = &Ndbinfo::getTable(i);
+  }
+  qsort(tables, Ndbinfo::getNumTables(), sizeof(tables[0]), compar_table_names);
+  for (int i = 0; i < Ndbinfo::getNumTables(); i++)
+  {
+    const Ndbinfo::Table& table = *tables[i];
 
     printf("# %s.%s%s\n",
             opt_ndbinfo_db, opt_table_prefix, table.m.name);
@@ -604,15 +884,27 @@ int main(int argc, char** argv){
 
     }
 
-    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO", table.m.comment);
+    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
+               table.m.comment);
 
     print_conditional_sql(sql);
 
   }
 
+  delete [] tables;
+
+  printf("# Recreate handler local lookup tables in %s\n", opt_ndbinfo_db);
+  const char* prev_name = "";
   for (size_t i = 0; i < num_lookups; i++)
   {
     lookup l = lookups[i];
+    if (strcmp(prev_name, l.name) >= 0)
+    {
+      fprintf(stderr, "lookup definitions reordered: %s >= %s\n", prev_name, l.name);
+      exit(2);
+    }
+    prev_name = l.name;
+
     BaseString table_name = replace_tags(l.name);
     printf("# %s.%s\n", opt_ndbinfo_db, table_name.c_str());
 
@@ -622,14 +914,24 @@ int main(int argc, char** argv){
     print_conditional_sql(sql);
 
     /* Create lookup table */
-    sql.assfmt("CREATE TABLE `%s`.`%s` (%s) ENGINE=NDBINFO",
+    sql.assfmt("CREATE TABLE `%s`.`%s` (%s) "
+               "ENGINE=NDBINFO CHARACTER SET latin1",
                opt_ndbinfo_db, table_name.c_str(), l.columns);
     print_conditional_sql(sql);
   }
 
+  printf("# Recreate views in %s\n", opt_ndbinfo_db);
+  prev_name = "";
   for (size_t i = 0; i < num_views; i++)
   {
     view v = views[i];
+
+    if (strcmp(prev_name, v.name) >= 0)
+    {
+      fprintf(stderr, "view definitions reordered: %s >= %s\n", prev_name, v.name);
+      exit(3);
+    }
+    prev_name = v.name;
 
     printf("# %s.%s\n", opt_ndbinfo_db, v.name);
 
@@ -646,6 +948,7 @@ int main(int argc, char** argv){
   printf("# Finally turn off offline mode\n");
   sql.assfmt("SET @@global.ndbinfo_offline=FALSE");
   print_conditional_sql(sql);
+  printf("# Generated by ndbinfo_sql # DO NOT EDIT! # End\n");
 
   return 0;
 }

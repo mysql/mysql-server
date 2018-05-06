@@ -1,17 +1,24 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -23,14 +30,14 @@
 #include <ndb_lib_move_data.hpp>
 
 static const char* opt_dbname = "TEST_DB";
-static my_bool opt_exclude_missing_columns = false;
-static my_bool opt_promote_attributes = false;
-static my_bool opt_lossy_conversions = false;
+static bool opt_exclude_missing_columns = false;
+static bool opt_promote_attributes = false;
+static bool opt_lossy_conversions = false;
 static const char* opt_staging_tries = 0;
-static my_bool opt_drop_source = false;
-static my_bool opt_verbose = false;
-static my_bool opt_error_insert = false;
-static my_bool opt_abort_on_error = false;
+static bool opt_drop_source = false;
+static bool opt_verbose = false;
+static bool opt_error_insert = false;
+static bool opt_abort_on_error = false;
 
 static char g_staging_tries_default[100];
 static Ndb_move_data::Opts::Tries g_opts_tries;
@@ -279,10 +286,9 @@ short_usage_sub(void)
 }
 
 static void
-usage()
+usage_extra()
 {
   printf("%s: move rows from source table to target table\n", my_progname);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static void
@@ -346,20 +352,22 @@ checkopts(int argc, char** argv)
 int
 main(int argc, char** argv)
 {
-  my_progname = "ndb_move_data";
-  set_staging_tries_default();
   int ret;
 
-  ndb_init();
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
+  set_staging_tries_default();
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage_extra);
+  ret = opts.handle_options();
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-
+  {
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
   setOutputLevel(opt_verbose ? 2 : 0);
 
   ret = doall();
   if (ret == -1)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  {
+    exit(NDBT_ProgramExit(NDBT_FAILED));
+  }
+  exit(NDBT_ProgramExit(NDBT_OK));
 }

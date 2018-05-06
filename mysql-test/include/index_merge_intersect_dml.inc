@@ -125,7 +125,7 @@ create table t2 (
 INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t2;
 
---let $query = WHERE pk<2492 AND d=1
+--let $query = WHERE pk<2492 AND d<=1
 --replace_column 10 #
 --eval EXPLAIN UPDATE t2 SET a=2 $query
 --eval UPDATE t2 SET a=2 $query
@@ -188,6 +188,23 @@ ANALYZE TABLE t4;
 --eval SELECT COUNT(*), SUM(a)  FROM t4 $query
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#23855449 WL7093:INNODB: ASSERTION FAILURE:
+--echo #              PREBUILT->MYSQL_PREFIX_LEN <= RECORD_BUFFER->R
+--echo #
+# The primary key column must come after the other columns used in the
+# query in order to reproduce the bug.
+CREATE TABLE t(x INT, y INT, pk INT PRIMARY KEY, KEY(x), KEY(y));
+INSERT INTO t VALUES (1,1,1), (3,3,2), (3,3,3), (4,4,4), (3,3,5), (4,4,6),
+                     (3,3,7), (8,8,8), (1,1,9), (3,3,10), (3,3,11), (4,4,12),
+                     (3,3,13), (4,4,14), (3,3,15), (8,8,16);
+ANALYZE TABLE t;
+# An intersect index_merge reproduces the bug.
+--let $query= SELECT COUNT(*) FROM t WHERE x = 3 AND y = 4;
+--eval EXPLAIN $query
+--eval $query
+DROP TABLE t;
 
 #
 # end of test cases for intersect index_merge optimization technique

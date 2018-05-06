@@ -1,31 +1,38 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/ibuf0ibuf.ic
-Insert buffer
+/** @file include/ibuf0ibuf.ic
+ Insert buffer
 
-Created 7/19/1997 Heikki Tuuri
-*******************************************************/
+ Created 7/19/1997 Heikki Tuuri
+ *******************************************************/
 
+#include "fsp0types.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "fsp0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
 
@@ -33,135 +40,111 @@ Created 7/19/1997 Heikki Tuuri
 IBUF_PAGE_SIZE_PER_FREE_SPACE bytes of free space for ibuf to try to
 buffer inserts to this page.  If there is this much of free space, the
 corresponding bits are set in the ibuf bitmap. */
-#define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
+#define IBUF_PAGE_SIZE_PER_FREE_SPACE 32
 
-/***************************************************************//**
-Starts an insert buffer mini-transaction. */
+/** Starts an insert buffer mini-transaction. */
 UNIV_INLINE
-void
-ibuf_mtr_start(
-/*===========*/
-	mtr_t*	mtr)	/*!< out: mini-transaction */
+void ibuf_mtr_start(mtr_t *mtr) /*!< out: mini-transaction */
 {
-	mtr_start(mtr);
-	mtr->enter_ibuf();
+  mtr_start(mtr);
+  mtr->enter_ibuf();
 }
-/***************************************************************//**
-Commits an insert buffer mini-transaction. */
+/** Commits an insert buffer mini-transaction. */
 UNIV_INLINE
-void
-ibuf_mtr_commit(
-/*============*/
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+void ibuf_mtr_commit(mtr_t *mtr) /*!< in/out: mini-transaction */
 {
-	ut_ad(mtr->is_inside_ibuf());
-	ut_d(mtr->exit_ibuf());
+  ut_ad(mtr->is_inside_ibuf());
+  ut_d(mtr->exit_ibuf());
 
-	mtr_commit(mtr);
+  mtr_commit(mtr);
 }
 
 /** Insert buffer struct */
-struct ibuf_t{
-	ulint		size;		/*!< current size of the ibuf index
-					tree, in pages */
-	ulint		max_size;	/*!< recommended maximum size of the
-					ibuf index tree, in pages */
-	ulint		seg_size;	/*!< allocated pages of the file
-					segment containing ibuf header and
-					tree */
-	bool		empty;		/*!< Protected by the page
-					latch of the root page of the
-					insert buffer tree
-					(FSP_IBUF_TREE_ROOT_PAGE_NO). true
-					if and only if the insert
-					buffer tree is empty. */
-	ulint		free_list_len;	/*!< length of the free list */
-	ulint		height;		/*!< tree height */
-	dict_index_t*	index;		/*!< insert buffer index */
+struct ibuf_t {
+  ulint size;          /*!< current size of the ibuf index
+                       tree, in pages */
+  ulint max_size;      /*!< recommended maximum size of the
+                       ibuf index tree, in pages */
+  ulint seg_size;      /*!< allocated pages of the file
+                       segment containing ibuf header and
+                       tree */
+  bool empty;          /*!< Protected by the page
+                       latch of the root page of the
+                       insert buffer tree
+                       (FSP_IBUF_TREE_ROOT_PAGE_NO). true
+                       if and only if the insert
+                       buffer tree is empty. */
+  ulint free_list_len; /*!< length of the free list */
+  ulint height;        /*!< tree height */
+  dict_index_t *index; /*!< insert buffer index */
 
-	ulint		n_merges;	/*!< number of pages merged */
-	ulint		n_merged_ops[IBUF_OP_COUNT];
-					/*!< number of operations of each type
-					merged to index pages */
-	ulint		n_discarded_ops[IBUF_OP_COUNT];
-					/*!< number of operations of each type
-					discarded without merging due to the
-					tablespace being deleted or the
-					index being dropped */
+  ulint n_merges; /*!< number of pages merged */
+  ulint n_merged_ops[IBUF_OP_COUNT];
+  /*!< number of operations of each type
+  merged to index pages */
+  ulint n_discarded_ops[IBUF_OP_COUNT];
+  /*!< number of operations of each type
+  discarded without merging due to the
+  tablespace being deleted or the
+  index being dropped */
 };
 
-/************************************************************************//**
-Sets the free bit of the page in the ibuf bitmap. This is done in a separate
-mini-transaction, hence this operation does not restrict further work to only
-ibuf bitmap operations, which would result if the latch to the bitmap page
-were kept. */
-void
-ibuf_set_free_bits_func(
-/*====================*/
-	buf_block_t*	block,	/*!< in: index page of a non-clustered index;
-				free bit is reset if page level is 0 */
+/** Sets the free bit of the page in the ibuf bitmap. This is done in a separate
+ mini-transaction, hence this operation does not restrict further work to only
+ ibuf bitmap operations, which would result if the latch to the bitmap page
+ were kept. */
+void ibuf_set_free_bits_func(
+    buf_block_t *block, /*!< in: index page of a non-clustered index;
+                        free bit is reset if page level is 0 */
 #ifdef UNIV_IBUF_DEBUG
-	ulint		max_val,/*!< in: ULINT_UNDEFINED or a maximum
-				value which the bits must have before
-				setting; this is for debugging */
-#endif /* UNIV_IBUF_DEBUG */
-	ulint		val);	/*!< in: value to set: < 4 */
+    ulint max_val, /*!< in: ULINT_UNDEFINED or a maximum
+                   value which the bits must have before
+                   setting; this is for debugging */
+#endif             /* UNIV_IBUF_DEBUG */
+    ulint val);    /*!< in: value to set: < 4 */
 #ifdef UNIV_IBUF_DEBUG
-# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,max,v)
+#define ibuf_set_free_bits(b, v, max) ibuf_set_free_bits_func(b, max, v)
 #else /* UNIV_IBUF_DEBUG */
-# define ibuf_set_free_bits(b,v,max) ibuf_set_free_bits_func(b,v)
+#define ibuf_set_free_bits(b, v, max) ibuf_set_free_bits_func(b, v)
 #endif /* UNIV_IBUF_DEBUG */
 
-/**********************************************************************//**
-A basic partial test if an insert to the insert buffer could be possible and
-recommended. */
+/** A basic partial test if an insert to the insert buffer could be possible and
+ recommended. */
 UNIV_INLINE
-ibool
-ibuf_should_try(
-/*============*/
-	dict_index_t*	index,			/*!< in: index where to insert */
-	ulint		ignore_sec_unique)	/*!< in: if != 0, we should
-						ignore UNIQUE constraint on
-						a secondary index when we
-						decide */
+ibool ibuf_should_try(dict_index_t *index,     /*!< in: index where to insert */
+                      ulint ignore_sec_unique) /*!< in: if != 0, we should
+                                               ignore UNIQUE constraint on
+                                               a secondary index when we
+                                               decide */
 {
-	return(ibuf_use != IBUF_USE_NONE
-	       && ibuf->max_size != 0
-	       && !dict_index_is_clust(index)
-	       && !dict_index_is_spatial(index)
-	       && index->table->quiesce == QUIESCE_NONE
-	       && (ignore_sec_unique || !dict_index_is_unique(index))
-	       && srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);
+  return (innodb_change_buffering != IBUF_USE_NONE && ibuf->max_size != 0 &&
+          index->space != dict_sys_t::s_space_id && !index->is_clustered() &&
+          !dict_index_is_spatial(index) && !dict_index_has_desc(index) &&
+          index->table->quiesce == QUIESCE_NONE &&
+          (ignore_sec_unique || !dict_index_is_unique(index)) &&
+          srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE);
 }
 
-/******************************************************************//**
-Returns TRUE if the current OS thread is performing an insert buffer
-routine.
+/** Returns TRUE if the current OS thread is performing an insert buffer
+ routine.
 
-For instance, a read-ahead of non-ibuf pages is forbidden by threads
-that are executing an insert buffer routine.
-@return TRUE if inside an insert buffer routine */
+ For instance, a read-ahead of non-ibuf pages is forbidden by threads
+ that are executing an insert buffer routine.
+ @return true if inside an insert buffer routine */
 UNIV_INLINE
-ibool
-ibuf_inside(
-/*========*/
-	const mtr_t*	mtr)	/*!< in: mini-transaction */
+ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
 {
-	return(mtr->is_inside_ibuf());
+  return (mtr->is_inside_ibuf());
 }
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if a bitmap page */
+@return true if a bitmap page */
 UNIV_INLINE
-ibool
-ibuf_bitmap_page(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size)
-{
-	return((page_id.page_no() & (page_size.physical() - 1))
-	       == FSP_IBUF_BITMAP_OFFSET);
+ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size) {
+  return ((page_id.page_no() & (page_size.physical() - 1)) ==
+          FSP_IBUF_BITMAP_OFFSET);
 }
 
 /** Translates the free space on a page to a value in the ibuf bitmap.
@@ -170,26 +153,22 @@ ibuf_bitmap_page(
 the page
 @return value for ibuf bitmap bits */
 UNIV_INLINE
-ulint
-ibuf_index_page_calc_free_bits(
-	ulint	page_size,
-	ulint	max_ins_size)
-{
-	ulint	n;
-	ut_ad(ut_is_2pow(page_size));
-	ut_ad(page_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+ulint ibuf_index_page_calc_free_bits(ulint page_size, ulint max_ins_size) {
+  ulint n;
+  ut_ad(ut_is_2pow(page_size));
+  ut_ad(page_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
-	n = max_ins_size / (page_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+  n = max_ins_size / (page_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
-	if (n == 3) {
-		n = 2;
-	}
+  if (n == 3) {
+    n = 2;
+  }
 
-	if (n > 3) {
-		n = 3;
-	}
+  if (n > 3) {
+    n = 3;
+  }
 
-	return(n);
+  return (n);
 }
 
 /** Translates the ibuf free bits to the free space on a page in bytes.
@@ -197,147 +176,133 @@ ibuf_index_page_calc_free_bits(
 @param[in]	bits		value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
 UNIV_INLINE
-ulint
-ibuf_index_page_calc_free_from_bits(
-	const page_size_t&	page_size,
-	ulint			bits)
-{
-	ut_ad(bits < 4);
-	ut_ad(!page_size.is_compressed()
-	      || page_size.physical() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
+ulint ibuf_index_page_calc_free_from_bits(const page_size_t &page_size,
+                                          ulint bits) {
+  ut_ad(bits < 4);
+  ut_ad(!page_size.is_compressed() ||
+        page_size.physical() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
-	if (bits == 3) {
-		return(4 * page_size.physical()
-		       / IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	}
+  if (bits == 3) {
+    return (4 * page_size.physical() / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+  }
 
-	return(bits * (page_size.physical()
-		       / IBUF_PAGE_SIZE_PER_FREE_SPACE));
+  return (bits * (page_size.physical() / IBUF_PAGE_SIZE_PER_FREE_SPACE));
 }
 
-/*********************************************************************//**
-Translates the free space on a compressed page to a value in the ibuf bitmap.
-@return value for ibuf bitmap bits */
+/** Translates the free space on a compressed page to a value in the ibuf
+ bitmap.
+ @return value for ibuf bitmap bits */
 UNIV_INLINE
-ulint
-ibuf_index_page_calc_free_zip(
-/*==========================*/
-	const buf_block_t*	block)	/*!< in: buffer block */
+ulint ibuf_index_page_calc_free_zip(
+    const buf_block_t *block) /*!< in: buffer block */
 {
-	ulint			max_ins_size;
-	const page_zip_des_t*	page_zip;
-	lint			zip_max_ins;
+  ulint max_ins_size;
+  const page_zip_des_t *page_zip;
+  lint zip_max_ins;
 
-	ut_ad(block->page.size.is_compressed());
+  ut_ad(block->page.size.is_compressed());
 
-	/* Consider the maximum insert size on the uncompressed page
-	without reorganizing the page. We must not assume anything
-	about the compression ratio. If zip_max_ins > max_ins_size and
-	there is 1/4 garbage on the page, recompression after the
-	reorganize could fail, in theory. So, let us guarantee that
-	merging a buffered insert to a compressed page will always
-	succeed without reorganizing or recompressing the page, just
-	by using the page modification log. */
-	max_ins_size = page_get_max_insert_size(
-		buf_block_get_frame(block), 1);
+  /* Consider the maximum insert size on the uncompressed page
+  without reorganizing the page. We must not assume anything
+  about the compression ratio. If zip_max_ins > max_ins_size and
+  there is 1/4 garbage on the page, recompression after the
+  reorganize could fail, in theory. So, let us guarantee that
+  merging a buffered insert to a compressed page will always
+  succeed without reorganizing or recompressing the page, just
+  by using the page modification log. */
+  max_ins_size = page_get_max_insert_size(buf_block_get_frame(block), 1);
 
-	page_zip = buf_block_get_page_zip(block);
-	zip_max_ins = page_zip_max_ins_size(page_zip,
-					    FALSE/* not clustered */);
+  page_zip = buf_block_get_page_zip(block);
+  zip_max_ins = page_zip_max_ins_size(page_zip, FALSE /* not clustered */);
 
-	if (zip_max_ins < 0) {
-		return(0);
-	} else if (max_ins_size > (ulint) zip_max_ins) {
-		max_ins_size = (ulint) zip_max_ins;
-	}
+  if (zip_max_ins < 0) {
+    return (0);
+  } else if (max_ins_size > (ulint)zip_max_ins) {
+    max_ins_size = (ulint)zip_max_ins;
+  }
 
-	return(ibuf_index_page_calc_free_bits(block->page.size.physical(),
-					      max_ins_size));
+  return (ibuf_index_page_calc_free_bits(block->page.size.physical(),
+                                         max_ins_size));
 }
 
-/*********************************************************************//**
-Translates the free space on a page to a value in the ibuf bitmap.
-@return value for ibuf bitmap bits */
+/** Translates the free space on a page to a value in the ibuf bitmap.
+ @return value for ibuf bitmap bits */
 UNIV_INLINE
-ulint
-ibuf_index_page_calc_free(
-/*======================*/
-	const buf_block_t*	block)	/*!< in: buffer block */
+ulint ibuf_index_page_calc_free(
+    const buf_block_t *block) /*!< in: buffer block */
 {
-	if (!block->page.size.is_compressed()) {
-		ulint	max_ins_size;
+  if (!block->page.size.is_compressed()) {
+    ulint max_ins_size;
 
-		max_ins_size = page_get_max_insert_size_after_reorganize(
-			buf_block_get_frame(block), 1);
+    max_ins_size = page_get_max_insert_size_after_reorganize(
+        buf_block_get_frame(block), 1);
 
-		return(ibuf_index_page_calc_free_bits(
-				block->page.size.physical(), max_ins_size));
-	} else {
-		return(ibuf_index_page_calc_free_zip(block));
-	}
+    return (ibuf_index_page_calc_free_bits(block->page.size.physical(),
+                                           max_ins_size));
+  } else {
+    return (ibuf_index_page_calc_free_zip(block));
+  }
 }
 
-/************************************************************************//**
-Updates the free bits of an uncompressed page in the ibuf bitmap if
-there is not enough free on the page any more.  This is done in a
-separate mini-transaction, hence this operation does not restrict
-further work to only ibuf bitmap operations, which would result if the
-latch to the bitmap page were kept.  NOTE: The free bits in the insert
-buffer bitmap must never exceed the free space on a page.  It is
-unsafe to increment the bits in a separately committed
-mini-transaction, because in crash recovery, the free bits could
-momentarily be set too high.  It is only safe to use this function for
-decrementing the free bits.  Should more free space become available,
-we must not update the free bits here, because that would break crash
-recovery. */
+/** Updates the free bits of an uncompressed page in the ibuf bitmap if
+ there is not enough free on the page any more.  This is done in a
+ separate mini-transaction, hence this operation does not restrict
+ further work to only ibuf bitmap operations, which would result if the
+ latch to the bitmap page were kept.  NOTE: The free bits in the insert
+ buffer bitmap must never exceed the free space on a page.  It is
+ unsafe to increment the bits in a separately committed
+ mini-transaction, because in crash recovery, the free bits could
+ momentarily be set too high.  It is only safe to use this function for
+ decrementing the free bits.  Should more free space become available,
+ we must not update the free bits here, because that would break crash
+ recovery. */
 UNIV_INLINE
-void
-ibuf_update_free_bits_if_full(
-/*==========================*/
-	buf_block_t*	block,	/*!< in: index page to which we have added new
-				records; the free bits are updated if the
-				index is non-clustered and non-unique and
-				the page level is 0, and the page becomes
-				fuller */
-	ulint		max_ins_size,/*!< in: value of maximum insert size with
-				reorganize before the latest operation
-				performed to the page */
-	ulint		increase)/*!< in: upper limit for the additional space
-				used in the latest operation, if known, or
-				ULINT_UNDEFINED */
+void ibuf_update_free_bits_if_full(
+    buf_block_t *block, /*!< in: index page to which we have added new
+                        records; the free bits are updated if the
+                        index is non-clustered and non-unique and
+                        the page level is 0, and the page becomes
+                        fuller */
+    ulint max_ins_size, /*!< in: value of maximum insert size with
+                   reorganize before the latest operation
+                   performed to the page */
+    ulint increase)     /*!< in: upper limit for the additional space
+                       used in the latest operation, if known, or
+                       ULINT_UNDEFINED */
 {
-	ulint	before;
-	ulint	after;
+  ulint before;
+  ulint after;
 
-	ut_ad(buf_block_get_page_zip(block) == NULL);
+  ut_ad(buf_block_get_page_zip(block) == NULL);
 
-	before = ibuf_index_page_calc_free_bits(
-		block->page.size.physical(), max_ins_size);
+  before =
+      ibuf_index_page_calc_free_bits(block->page.size.physical(), max_ins_size);
 
-	if (max_ins_size >= increase) {
-#if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX
-# error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX"
-#endif
-		after = ibuf_index_page_calc_free_bits(
-			block->page.size.physical(), max_ins_size - increase);
+  if (max_ins_size >= increase) {
+    static_assert(ULINT32_UNDEFINED > UNIV_PAGE_SIZE_MAX,
+                  "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX");
+
+    after = ibuf_index_page_calc_free_bits(block->page.size.physical(),
+                                           max_ins_size - increase);
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(after <= ibuf_index_page_calc_free(block));
-#endif
-	} else {
-		after = ibuf_index_page_calc_free(block);
-	}
+    ut_a(after <= ibuf_index_page_calc_free(block));
+#endif /* UNIV_IBUF_DEBUG */
 
-	if (after == 0) {
-		/* We move the page to the front of the buffer pool LRU list:
-		the purpose of this is to prevent those pages to which we
-		cannot make inserts using the insert buffer from slipping
-		out of the buffer pool */
+  } else {
+    after = ibuf_index_page_calc_free(block);
+  }
 
-		buf_page_make_young(&block->page);
-	}
+  if (after == 0) {
+    /* We move the page to the front of the buffer pool LRU list:
+    the purpose of this is to prevent those pages to which we
+    cannot make inserts using the insert buffer from slipping
+    out of the buffer pool */
 
-	if (before > after) {
-		ibuf_set_free_bits(block, after, before);
-	}
+    buf_page_make_young(&block->page);
+  }
+
+  if (before > after) {
+    ibuf_set_free_bits(block, after, before);
+  }
 }
 #endif /* !UNIV_HOTBACKUP */

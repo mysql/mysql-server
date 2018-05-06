@@ -90,3 +90,8 @@ select b + interval a day from t1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #27004806: UBSAN: ITEM_DATE_ADD_INTERVAL - NEGATION OF XYZ AND SIGNED INTEGER OVERFLOW
+--echo #
+SELECT ADDDATE('8112-06-20', REPEAT('1', 32));

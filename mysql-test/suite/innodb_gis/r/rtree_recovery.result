@@ -1,5 +1,5 @@
 # restart
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 create procedure insert_t1(IN total int)
 begin
 declare i int default 1;
@@ -23,7 +23,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (c1 int, c2 point not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 point not null SRID 0, spatial index (c2))engine=innodb;
 CALL insert_t1(367);
 CALL update_t1(367);
 SET @poly1 = ST_GeomFromText('POLYGON((10000 10000, 10000 10350, 10350 10350, 10350 10000, 10000 10000))');

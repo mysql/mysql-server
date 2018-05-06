@@ -160,8 +160,7 @@ SELECT TO_BASE64(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', 'a'));
 
 --echo #### 128, 192 and 256 bit ECB
 
-
-CREATE TABLE aes_ecb(a VARCHAR(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16));
+CREATE TABLE aes_ecb(a VARBINARY(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16)) charset latin1;
 INSERT INTO aes_ecb (a) VALUES ('a'), ('Жоро'), (REPEAT('a', 10));
 
 SET SESSION block_encryption_mode='aes-128-ecb';

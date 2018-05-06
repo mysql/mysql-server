@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,17 +29,12 @@
 
 #define CFG_ACC_FRAGMENT      (PRIVATE_BASE +  3)
 #define CFG_ACC_OP_RECS       (PRIVATE_BASE +  4)
-/* TODO: remove. CFG_ACC_OVERFLOW_RECS obsoleted ... */
-#define CFG_ACC_OVERFLOW_RECS (PRIVATE_BASE +  5)
-#define CFG_ACC_PAGE8         (PRIVATE_BASE +  6)
-#define CFG_ACC_ROOT_FRAG     (PRIVATE_BASE +  7)
 #define CFG_ACC_TABLE         (PRIVATE_BASE +  8)
 #define CFG_ACC_SCAN          (PRIVATE_BASE +  9)
 
 #define CFG_DICT_ATTRIBUTE    (PRIVATE_BASE + 10)
 #define CFG_DICT_TABLE        (PRIVATE_BASE + 13)
 
-#define CFG_DIH_API_CONNECT   (PRIVATE_BASE + 15)
 #define CFG_DIH_FRAG_CONNECT  (PRIVATE_BASE + 17)
 #define CFG_DIH_REPLICAS      (PRIVATE_BASE + 19)
 #define CFG_DIH_TABLE         (PRIVATE_BASE + 20)
@@ -63,5 +65,7 @@
 #define CFG_TUX_SCAN_OP       (PRIVATE_BASE + 43)
 
 #define CFG_SPJ_TABLE         (PRIVATE_BASE + 44)
+
+#define CFG_TUP_NO_TRIGGERS   (PRIVATE_BASE + 45)
 
 #endif

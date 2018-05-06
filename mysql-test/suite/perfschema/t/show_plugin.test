@@ -19,9 +19,6 @@
 #                                                                              #
 ################################################################################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 --source include/have_debug_sync.inc
 
@@ -33,13 +30,6 @@
 --echo ================================================================================
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---echo
---echo # Save current SHOW_COMPATIBILITY_56 setting
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
---echo #
---echo # SET COMPATIBILITY MODE = OFF
---echo #
-SET @@global.show_compatibility_56 = OFF;
 --echo
 --echo # Verify EXAMPLE plugin is not loaded
 SELECT COUNT(*) = 0 AS "Expect 1" FROM information_schema.plugins WHERE plugin_name = "EXAMPLE";
@@ -298,14 +288,14 @@ END|
 --echo
 CREATE PROCEDURE show_vars()
 BEGIN
-  -- select on information_schema.global_variables
+  -- select on performance_schema.global_variables
   -- will fail, still need to cover execution of the code
   -- to verify potential dead locks.
   declare continue handler for sqlexception
   begin
   end;
 
-  SELECT COUNT(*) FROM information_schema.global_variables;
+  SELECT COUNT(*) FROM performance_schema.global_variables;
   SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
@@ -429,10 +419,6 @@ SET DEBUG_SYNC='now SIGNAL go';
 --echo          variables and deadlocks on THD::LOCK_thd_sysvar.
 --echo ================================================================================
 #
-# THD:LOCK_thd_sysvar is only used when SHOW_COMPATIBILITY_56 = OFF
-#
-SELECT @@global.show_compatibility_56;
-#
 # The deadlock occurs when plugin-defined session variables are resynced with the global
 # variables. To force a resync, change the user and update a session variable from a
 # plugin, in this case InnoDB.
@@ -467,10 +453,6 @@ SET DEBUG_SYNC='RESET';
 --disconnect con1
 --disconnect con2
 --disable_connect_log
-
---echo
---echo # Restore SHOW_COMPATIBILITY_56 setting
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;
 
 --echo
 --echo # Wait till we reached the initial number of concurrent sessions

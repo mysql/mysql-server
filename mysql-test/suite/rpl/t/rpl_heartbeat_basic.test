@@ -36,8 +36,9 @@ call mtr.add_suppression("The master's UUID has changed, although this should no
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
+
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
-let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --disable_query_log
 eval SET @restore_slave_heartbeat_timeout=$slave_heartbeat_timeout;
 --enable_query_log
@@ -60,9 +61,10 @@ SET @restore_event_scheduler=@@global.event_scheduler;
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root';
 let $slave_net_timeout= query_get_value(SHOW VARIABLES LIKE 'slave_net_timeout', Value, 1);
-let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 let $result= query_get_value(SELECT $slave_net_timeout/$slave_heartbeat_timeout AS Result, Result, 1);
 --echo slave_net_timeout/slave_heartbeat_timeout=$result
+
 RESET SLAVE;
 RESET MASTER;
 --echo
@@ -77,7 +79,8 @@ SET @@global.slave_net_timeout=30;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
 RESET SLAVE;
 RESET MASTER;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 --echo
 
 # Check default value of slave_heartbeat_timeout if slave_net_timeout is changed
@@ -88,15 +91,17 @@ SET @@global.slave_net_timeout=50;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+
 RESET SLAVE;
 RESET MASTER;
+
 --echo
 
-# Set slave_net_timeout less than current value of slave_heartbeat_period
+# Set slave_net_timeout less than current value of heartbeat_interval
 --echo *** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
-let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 eval SET @@global.slave_net_timeout=FLOOR($slave_heartbeat_timeout)-1;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
@@ -113,6 +118,7 @@ inc $slave_net_timeout;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=$slave_net_timeout;
 RESET SLAVE;
 RESET MASTER;
+
 --echo 
 
 # Changing of slave_net_timeout shouldn't affect to current value of slave_heartbeat_period
@@ -124,10 +130,10 @@ SET @@global.slave_net_timeout=20;
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
 SHOW VARIABLES LIKE 'slave_net_timeout';
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
 SHOW VARIABLES LIKE 'slave_net_timeout';
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
 RESET MASTER;
@@ -150,12 +156,13 @@ eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTE
 --connection master
 --source include/sync_slave_sql_with_master.inc
 SHOW VARIABLES LIKE 'slave_net_timeout';
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
 --connection master
+
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo
 
@@ -163,6 +170,7 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo *** Start/stop slave ***
 --connection slave
 --disable_warnings
+
 SET @@global.slave_net_timeout=100;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -171,9 +179,10 @@ eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTE
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 --source include/stop_slave.inc
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
+
 --echo
 
 # Reload slave shouldn't change slave_heartbeat_period
@@ -187,7 +196,7 @@ SET @@global.slave_net_timeout=50;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=30;
 --let $rpl_server_number= 2
 --source include/rpl_restart_server.inc
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 --echo
 
@@ -196,24 +205,24 @@ SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
-SHOW STATUS LIKE 'slave_received_heartbeats';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
+select count_received_heartbeats from performance_schema.replication_connection_status;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
 --sleep 2
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
-SHOW STATUS LIKE 'slave_received_heartbeats';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
+select count_received_heartbeats from performance_schema.replication_connection_status;
 --source include/stop_slave.inc
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
-SHOW STATUS LIKE 'slave_received_heartbeats';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
+select count_received_heartbeats from performance_schema.replication_connection_status;
+
 RESET SLAVE;
 RESET MASTER;
-let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period', Value, 1);
+let $slave_heartbeat_timeout= query_get_value(select heartbeat_interval from performance_schema.replication_connection_configuration, heartbeat_interval, 1);
 --replace_result $slave_heartbeat_timeout SLAVE_HEARTBEAT_TIMEOUT
 --eval SELECT $slave_heartbeat_timeout = 0 AS Result
 --echo 
-
 #
 # Check limits for slave_heartbeat_timeout
 #
@@ -222,13 +231,13 @@ let $slave_heartbeat_timeout= query_get_value(SHOW GLOBAL STATUS LIKE 'slave_hea
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.001;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
 RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.0009;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
 RESET MASTER;
 --echo
@@ -237,7 +246,7 @@ RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=4294967;
-SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
+select heartbeat_interval from performance_schema.replication_connection_configuration;
 RESET SLAVE;
 RESET MASTER;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -299,10 +308,11 @@ SELECT unix_timestamp() into @time_0;
 
 --connection master
 --source include/sync_slave_sql_with_master.inc
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var= slave_received_heartbeats;
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col= count_received_heartbeats;
+let $table=replication_connection_status;
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 SELECT unix_timestamp() into @time_1;
 if (`SELECT @time_1 - @time_0 < $hb_period`)
 {
@@ -319,9 +329,9 @@ if (`SELECT @time_1 - @time_0 < $hb_period`)
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD= 0.1;
 
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) AS Result, Result, 1);
 --echo Number of received heartbeat events while slave stopped: $result
 --echo
@@ -329,17 +339,17 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 # Check received heartbeat events for started slave
 --echo *** Started slave ***
 --source include/start_slave.inc
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
---source include/wait_for_status_var.inc
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
 # Check received heartbeat events for stopped IO thread
 --echo *** Stopped IO thread ***
 --source include/stop_slave_io.inc
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) AS Result, Result, 1);
 --echo Number of received heartbeat events while io thread stopped: $result
 --echo
@@ -348,17 +358,17 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 --echo *** Started IO thread ***
 START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
---source include/wait_for_status_var.inc
+let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
 # Check received heartbeat events for stopped SQL thread
 --echo *** Stopped SQL thread ***
 --source include/stop_slave_sql.inc
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
 --echo
@@ -367,8 +377,8 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 --echo *** Started SQL thread ***
 START SLAVE SQL_THREAD;
 --source include/wait_for_slave_sql_to_start.inc
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
---source include/wait_for_status_var.inc
+let $status_var_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
@@ -381,16 +391,16 @@ INSERT INTO t1 VALUES (1, 'on slave', NULL);
 --connection master
 INSERT INTO t1 VALUES (1, 'on master', NULL);
 --connection slave
-call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: MY-001062");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 let $slave_errno= ER_DUP_ENTRY
 --source include/wait_for_slave_sql_error.inc
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 sleep 2;
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
---source include/stop_slave.inc
+--source include/stop_slave_io.inc
 DELETE FROM t1;
 --source include/start_slave.inc
 --connection master
@@ -410,7 +420,7 @@ DROP TABLE t1;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.5;
 let $slave_param_comparison= =;
 --source include/start_slave.inc
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 # Flush logs every 0.1 second during 10 sec
 --disable_query_log
 let $i=100;
@@ -420,7 +430,7 @@ while ($i) {
   sleep 0.1;
 }
 --enable_query_log
---let $assert_cond= [SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > $rcvd_heartbeats_before
+--let $assert_cond= [select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1] > $rcvd_heartbeats_before
 --let $assert_text= Should receive at least one heartbeat event while running FLUSH LOGS for 10 seconds
 --source include/assert.inc
 --echo
@@ -438,16 +448,16 @@ SET @@global.slave_compressed_protocol=1;
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var= slave_received_heartbeats;
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col= count_received_heartbeats;
+let $table= replication_connection_status;
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 SET @@global.slave_compressed_protocol=0;
 --connection master
 SET @@global.slave_compressed_protocol=0;
 --echo
-
 
 # Check received heartbeat events after reset of master
 --echo *** Reset master ***
@@ -460,13 +470,13 @@ RESET MASTER;
 --replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --connection master
 RESET MASTER;
 --enable_query_log
 --source include/sync_slave_sql_with_master.inc
 --sleep 2
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received after reset of master (1 means 'yes'): $result
 --echo
@@ -482,10 +492,11 @@ RESET MASTER;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 # Wait until slave_received_heartbeats will be incremented
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var= slave_received_heartbeats;
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col= count_received_heartbeats;
+let $table=replication_connection_status;
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
@@ -494,10 +505,11 @@ let $status_var_comparsion= >;
 --let $rpl_allow_error= 1
 --source include/wait_for_slave_io_to_start.inc
 # Wait until slave_received_heartbeats will be incremented
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var= slave_received_heartbeats;
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col= count_received_heartbeats;
+let $table= replication_connection_status;
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received
 --echo
 
@@ -538,26 +550,29 @@ INSERT INTO t1 VALUES(2, 'on slave');
 --let $sync_slave_connection= master
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
-let $master_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $master_rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 --connection slave
 SELECT * FROM t1 ORDER BY a;
 
 # Wait for heartbeat event on master
 --connection master
-let $status_var= slave_received_heartbeats;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+
+let $status_col= count_received_heartbeats;
+let $table=replication_connection_status;
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received on master
 
 # Wait heartbeat events on slave
 --connection slave
-let $status_var= slave_received_heartbeats;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $status_var_comparsion= >;
---source include/wait_for_status_var.inc
+let $status_col= count_received_heartbeats;
+let $table= replication_connection_status;
+let $status_col_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
+let $status_col_comparsion= >;
+--source include/wait_for_rpl_pfs_status.inc
 --echo Heartbeat event received on slave
-let $slave_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
+let $slave_rcvd_heartbeats= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
 
 #
 # Clean up and restore system variables

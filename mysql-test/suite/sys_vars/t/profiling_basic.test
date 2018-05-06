@@ -16,8 +16,8 @@ select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='profiling';
-select * from information_schema.session_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
+select * from performance_schema.session_variables where variable_name='profiling';
 --enable_warnings
 
 #
@@ -30,8 +30,8 @@ select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='profiling';
-select * from information_schema.session_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
+select * from performance_schema.session_variables where variable_name='profiling';
 --enable_warnings
 set global profiling=0;
 set session profiling=OFF;
@@ -40,8 +40,8 @@ select @@session.profiling;
 show global variables like 'profiling';
 show session variables like 'profiling';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='profiling';
-select * from information_schema.session_variables where variable_name='profiling';
+select * from performance_schema.global_variables where variable_name='profiling';
+select * from performance_schema.session_variables where variable_name='profiling';
 --enable_warnings
 
 #

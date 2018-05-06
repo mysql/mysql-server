@@ -1,21 +1,16 @@
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#51851: Server with SBR locks mutex twice on LOAD DATA into
 #            partitioned MyISAM table
+# The test was rewritten to use InnoDB after WL#8971.
 CREATE TABLE t1
 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 name TINYBLOB NOT NULL,
 modified TIMESTAMP DEFAULT '0000-00-00 00:00:00',
-INDEX namelocs (name(255))) ENGINE = MyISAM
+INDEX namelocs (name(255))) ENGINE = InnoDB
 PARTITION BY HASH(id) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/init_file.txt'
 INTO TABLE t1 (name);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 SET sql_mode = default;

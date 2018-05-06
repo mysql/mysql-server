@@ -1,16 +1,13 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree split.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 insert into t1 values(1, Point(1,1));
@@ -85,7 +82,7 @@ insert into t1 select * from t1;
 # Connection 'a' will place predicate lock on almost all pages
 connection a;
 set session transaction isolation level serializable;
-select @@tx_isolation;
+select @@transaction_isolation;
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
 select count(*) from t1 where MBRwithin(t1.c2, @g1);
@@ -96,7 +93,7 @@ connection b;
 set session transaction isolation level serializable;
 set session innodb_lock_wait_timeout = 1;
 
-select @@tx_isolation;
+select @@transaction_isolation;
 
 insert into t1 select * from t1;
 insert into t1 select * from t1;
@@ -122,7 +119,7 @@ select count(*) from t1 where MBRwithin(t1.c2, @g1);
 
 connection b;
 select @@innodb_lock_wait_timeout;
-select @@tx_isolation;
+select @@transaction_isolation;
 
 --error ER_LOCK_WAIT_TIMEOUT
 insert into t1 select * from t1;
@@ -153,7 +150,7 @@ insert into t1 select * from t1;
 # Connection 'a' will place predicate lock on almost all pages
 connection a;
 set session transaction isolation level serializable;
-select @@tx_isolation;
+select @@transaction_isolation;
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((100 100, 100 110, 110 110, 110 100, 100 100))');
 select count(*) from t1 where MBRwithin(t1.c2, @g1);
@@ -163,7 +160,7 @@ connection b;
 set session transaction isolation level serializable;
 set session innodb_lock_wait_timeout = 1;
 
-select @@tx_isolation;
+select @@transaction_isolation;
 
 insert into t1 select * from t1;
 insert into t1 select * from t1;
@@ -188,7 +185,7 @@ select count(*) from t1 where MBRIntersects(t1.c2, @g1);
 
 connection b;
 select @@innodb_lock_wait_timeout;
-select @@tx_isolation;
+select @@transaction_isolation;
 
 # this should conflict with the "MBRIntersects" predicate lock in session "a"
 --error ER_LOCK_WAIT_TIMEOUT
@@ -240,7 +237,9 @@ INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(8 8, 210 210)'));
 # Connection default will place predicate lock on follow range
 set @g1 = ST_GeomFromText('Polygon((3 3, 3 5, 5 5, 5 3, 3 3))');
 start transaction;
+--disable_warnings
 select count(*) from t1 where MBRWithin(t1.c2, @g1) for update;
+--enable_warnings
 
 connection a;
 set session innodb_lock_wait_timeout = 1;
@@ -271,7 +270,7 @@ CALL insert_t1(0, 1000);
 # Connection 'a' will place predicate lock on root and last leaf page
 connection a;
 set session transaction isolation level serializable;
-select @@tx_isolation;
+select @@transaction_isolation;
 start transaction;
 set @g1 = ST_GeomFromText('Polygon((800 800, 800 1000, 1000 1000, 1000 800, 800 800))');
 select count(*) from t1 where MBRwithin(t1.c2, @g1);
@@ -309,7 +308,7 @@ drop table t1;
 drop procedure insert_t1;
 
 #============ Test row locks =======================
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
@@ -357,7 +356,7 @@ drop table t1;
 SET DEBUG_SYNC= 'RESET';
 
 # Test btr_discard_page adjust concurrent search path
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 start transaction;
 insert into t1 values(1, Point(1,1));
@@ -403,7 +402,7 @@ connection default;
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 delimiter |;
 create procedure insert_t1(IN total int)

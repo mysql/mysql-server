@@ -142,8 +142,12 @@ fac(5)
 SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
+TRUNCATE TABLE performance_schema.events_statements_history_long;
 # Event
-SET GLOBAL event_scheduler=ON;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE TABLE table_t(a INT);
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
@@ -175,197 +179,24 @@ OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
 performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='stored_programs' AND 
 (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
-ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
+ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT, EVENT_NAME;
 EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
 statement/scheduler/event	NULL	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/call_procedure	CALL SampleProc1(30,40,50)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/call_procedure	CALL SampleProc2("Jwalamukhi",34)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/call_procedure	CALL SampleProc3()	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/call_procedure	CALL SampleProc4()	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/create_event	CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
 INSERT INTO table_t VALUES(1);
 END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_function	CREATE FUNCTION append(s1 CHAR(8), s2 CHAR(8)) RETURNS CHAR(16)
-RETURN concat(s1, s2)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_function	CREATE FUNCTION fac(n INT UNSIGNED) RETURNS BIGINT UNSIGNED
-BEGIN
-DECLARE f BIGINT UNSIGNED DEFAULT 1;
-WHILE n > 1 DO
-SET f = f * n;
-SET n = n - 1;
-END WHILE;
-RETURN f;
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_function	CREATE FUNCTION wt_avg(n1 INT, n2 INT, n3 INT, n4 INT)
-RETURNS INT
-DETERMINISTIC
-BEGIN
-DECLARE avg INT;
-SET avg = (n1+n2+n3*2+n4*4)/8;
-RETURN avg;
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_procedure	CREATE PROCEDURE SampleProc1(x1 INT, x2 INT, y INT)
-BEGIN
-INSERT INTO t1 VALUES (x1, y);
-INSERT INTO t1 VALUES (x2, y);
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_procedure	CREATE PROCEDURE SampleProc2(x CHAR(16), y INT)
-BEGIN
-DECLARE z1, z2 INT;
-SET z1 = y;
-SET z2 = z1+2;
-INSERT INTO t2 VALUES (x, z2);
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_procedure	CREATE PROCEDURE SampleProc3()
-BEGIN
-DECLARE ld DATE;
-DECLARE li INT;
-DECLARE lf DOUBLE;
-DECLARE ls VARCHAR(32);
-SET ld = NULL, li = NULL, lf = NULL, ls = NULL;
-INSERT INTO t3 VALUES (ld, li, lf, ls);
-INSERT INTO t3 (n, f, s) VALUES ((ld IS NULL), 1,    "ld is null"),
-((li IS NULL), 1,    "li is null"),
-((li = 0),     NULL, "li = 0"),
-((lf IS NULL), 1,    "lf is null"),
-((lf = 0),     NULL, "lf = 0"),
-((ls IS NULL), 1,    "ls is null");
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_procedure	CREATE PROCEDURE SampleProc4()
-BEGIN
-DECLARE x  INT;
-SET x = 1;
-WHILE x  <= 2 DO
-INSERT INTO t4(word, mean) VALUES('a','a mean');
-SET  x = x + 1;
-END WHILE;
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_table	CREATE TABLE t1(
-i INT NOT NULL,
-j INT
-)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_table	CREATE TABLE t2(
-name   CHAR(16) NOT NULL DEFAULT '',
-id INT NOT NULL
-)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_table	CREATE TABLE t3(
-d DATE,
-n INT,
-f DOUBLE,
-s VARCHAR(32)
-)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_table	CREATE TABLE t4(
-`k` int(10) unsigned NOT NULL AUTO_INCREMENT,
-`word` varchar(100) NOT NULL,
-`mean` varchar(300) NOT NULL,
-PRIMARY KEY (`k`)
-)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/create_table	CREATE TABLE table_t(a INT)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_trigger	CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
-BEGIN
-if isnull(new.j) then
-SET new.j:= new.i * 10;
-END if;
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_trigger	CREATE TRIGGER trg2 AFTER INSERT ON t2 FOR EACH ROW
-BEGIN
-UPDATE t1 SET i=new.id+i ;
-END	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_trigger	CREATE TRIGGER trg3 AFTER UPDATE ON t2 FOR EACH ROW
-SET @change:= @change + new.id - old.id	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_trigger	CREATE TRIGGER trg4 BEFORE DELETE ON t1 FOR EACH ROW
-SET @del:= @del + 1	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/create_trigger	CREATE TRIGGER trg5 AFTER DELETE ON t1 FOR EACH ROW 
-SET @del:= @del + 8 + old.j	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/delete	DELETE FROM t1 WHERE i=76	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/insert	INSERT INTO t1 VALUES (10,20)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT * FROM table_t	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT 5 * 10	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @a	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @a	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @change	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @change	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @del	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT @del	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT append("Bolly", "wood")	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT COUNT(*) = 0 FROM information_schema.processlist
 WHERE user = 'event_scheduler'	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT fac(5)	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/select	SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/select	SELECT wt_avg(1, 12, 1990, 1121990)	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/set_option	SET @a=1	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/set_option	SET @change=1	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/set_option	SET @del=1	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sql/set_option	SET GLOBAL event_scheduler=OFF	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/set_option	SET GLOBAL event_scheduler=ON	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sql/update	UPDATE t2 SET id=22 WHERE name="Jwalamukhi"	stored_programs	NULL	NULL	NULL	NULL	0
-statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	append	STATEMENT	1
+statement/sql/truncate	TRUNCATE TABLE performance_schema.events_statements_history_long	stored_programs	NULL	NULL	NULL	NULL	0
 statement/sp/stmt	INSERT INTO table_t VALUES(1)	stored_programs	EVENT	stored_programs	e1	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	stored_programs	PROCEDURE	stored_programs	sampleproc1	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x2, y)	stored_programs	PROCEDURE	stored_programs	sampleproc1	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
-statement/sp/stmt	INSERT INTO t2 VALUES (x, z2)	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/stmt	INSERT INTO t3 (n, f, s) VALUES ((ld IS NULL), 1,    "ld is null"),
-((li IS NULL), 1,    "li is null"),
-((li = 0),     NULL, "li = 0"),
-((lf IS NULL), 1,    "lf is null"),
-((lf = 0),     NULL, "lf = 0"),
-((ls IS NULL), 1,    "ls is null")	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/stmt	INSERT INTO t3 VALUES (ld, li, lf, ls)	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	1
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
-statement/sp/stmt	UPDATE t1 SET i=new.id+i	stored_programs	TRIGGER	stored_programs	trg2	TRANSACTION	2
-statement/sp/stmt	SET @change:= @change + new.id - old.id	stored_programs	TRIGGER	stored_programs	trg3	TRANSACTION	1
-statement/sp/stmt	SET @del:= @del + 1	stored_programs	TRIGGER	stored_programs	trg4	TRANSACTION	1
-statement/sp/stmt	SET @del:= @del + 8 + old.j	stored_programs	TRIGGER	stored_programs	trg5	TRANSACTION	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1
-statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1
-statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1
 # clean -up
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
@@ -405,6 +236,7 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE table_t;
 DROP DATABASE stored_programs;
+SET GLOBAL event_scheduler=ON;
 SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
 FROM performance_schema.events_statements_summary_by_program
 WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
@@ -552,8 +384,12 @@ fac(5)
 SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
+TRUNCATE TABLE performance_schema.events_statements_history_long;
 # Event
-SET GLOBAL event_scheduler=ON;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE TABLE table_t(a INT);
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
@@ -567,64 +403,6 @@ SELECT EVENT_NAME, TIMER_START, TIMER_END, TIMER_WAIT FROM
 performance_schema.events_statements_history_long WHERE
 CURRENT_SCHEMA='stored_programs' AND EVENT_NAME like "statement/sp/%";
 EVENT_NAME	TIMER_START	TIMER_END	TIMER_WAIT
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/stmt	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/freturn	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/set	NULL	NULL	NULL
-statement/sp/jump	NULL	NULL	NULL
-statement/sp/jump_if_not	NULL	NULL	NULL
-statement/sp/freturn	NULL	NULL	NULL
-statement/sp/freturn	NULL	NULL	NULL
 statement/sp/stmt	NULL	NULL	NULL
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name like "statement/sp/%" order by name;
@@ -649,6 +427,7 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE table_t;
 DROP DATABASE stored_programs;
+SET GLOBAL event_scheduler=ON;
 # set-up
 CREATE DATABASE sp;
 USE sp;

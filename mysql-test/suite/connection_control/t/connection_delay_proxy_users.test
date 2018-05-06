@@ -1,6 +1,3 @@
-# Skip the test in embedded mode
---source include/not_embedded.inc
-
 # Make sure that connection_control plugin can be loaded
 --source ../inc/have_connection_control_plugin.inc
 --source ../inc/have_test_plugin.inc
@@ -14,6 +11,12 @@
 --source ../inc/install_connection_control_plugin.inc
 --echo # Do proxy setup
 --source ../inc/setup_proxy_accounts.inc
+
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+let CONNECTION_CONTROL_PLUGIN_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$CONNECTION_CONTROL_PLUGIN_OPT')`;
 
 # Suppress error messages from test_plugin_server
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for proxied'");

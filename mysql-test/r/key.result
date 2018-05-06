@@ -147,13 +147,16 @@ a	1
 a	2
 drop table t1;
 create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
-t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE		
-t1	0	a	1	a	A	0	NULL	NULL		BTREE		
-t1	0	e	1	e	A	0	NULL	NULL		BTREE		
-t1	0	b	1	b	A	0	NULL	NULL	YES	BTREE		
-t1	1	c	1	c	A	0	NULL	NULL	YES	BTREE		
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE			YES
+t1	0	a	1	a	A	0	NULL	NULL		BTREE			YES
+t1	0	e	1	e	A	0	NULL	NULL		BTREE			YES
+t1	0	b	1	b	A	0	NULL	NULL	YES	BTREE			YES
+t1	1	c	1	c	A	0	NULL	NULL	YES	BTREE			YES
 drop table t1;
 CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i)) ENGINE=MYISAM;
@@ -188,6 +191,8 @@ a	1
 a	2
 drop table t1;
 create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8 row_format=dynamic engine=innodb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore t1 values (1, repeat('a',210), repeat('b', 310));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
@@ -201,12 +206,18 @@ i	length(a)	length(b)	char_length(a)	char_length(b)
 select i from t1 where a=repeat(_utf8 'a',200);
 i
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select i from t1 where a=repeat(_utf8 0xD0B1,200);
 i
 2
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select i from t1 where b=repeat(_utf8 'b',310);
 i
 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 CREATE TABLE t1 (id int unsigned auto_increment, name char(50), primary key (id)) engine=myisam;
 insert into t1 (name) values ('a'), ('b'),('c'),('d'),('e'),('f'),('g');
@@ -247,15 +258,17 @@ SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
 1
 drop table t1;
-create table t1 (c varchar(30) character set utf8, t text character set utf8, unique (c(2)), unique (t(3))) engine=myisam;
+create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` varchar(30) CHARACTER SET utf8 DEFAULT NULL,
-  `t` text CHARACTER SET utf8,
+  `c` varchar(30) DEFAULT NULL,
+  `t` text,
   UNIQUE KEY `c` (`c`(2)),
   UNIQUE KEY `t` (`t`(3))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
 insert t1 values ('cccc', 'tttt'),
 (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
 (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
@@ -264,9 +277,9 @@ ERROR 23000: Duplicate entry 'cc' for key 'c'
 insert t1 (t) values ('ttt22');
 ERROR 23000: Duplicate entry 'ttt' for key 't'
 insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry '\0431!' for key 'c'
+ERROR 23000: Duplicate entry 'б!' for key 'c'
 insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry '\0431\0431!' for key 't'
+ERROR 23000: Duplicate entry 'бб!' for key 't'
 select c from t1 where c='cccc';
 c
 cccc
@@ -275,10 +288,10 @@ t
 tttt
 select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
 c
-?!"#?????
+б!"#ббббб
 select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
 t
-??!"#????
+бб!"#бббб
 drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -342,7 +355,7 @@ create table t1 (
 i1 INT NOT NULL,
 i2 INT NOT NULL,
 UNIQUE i1idx (i1),
-UNIQUE i2idx (i2));
+UNIQUE i2idx (i2)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 i1	int(11)	NO	PRI	NULL	
@@ -354,7 +367,7 @@ t1	CREATE TABLE `t1` (
   `i2` int(11) NOT NULL,
   UNIQUE KEY `i1idx` (`i1`),
   UNIQUE KEY `i2idx` (`i2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (
 c1 int,
@@ -373,14 +386,14 @@ c1	c2
 3	 
 	Test String
 drop table t1;
-create table t1 (a varchar(10), b varchar(10), key(a(10),b(10)));
+create table t1 (a varchar(10), b varchar(10), key(a(10),b(10))) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify b varchar(20);
 show create table t1;
 Table	Create Table
@@ -388,7 +401,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify a varchar(20);
 show create table t1;
 Table	Create Table
@@ -396,7 +409,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(20) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null unique);
 desc t1;
@@ -435,7 +448,7 @@ index i3 (c3),
 unique i4 (c4),
 index i5 (c1, c2, c3, c4),
 primary key (c2, c3),
-index (c2, c4));
+index (c2, c4)) charset utf8mb4;
 Warnings:
 Warning	1831	Duplicate index 'i1' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
@@ -453,7 +466,7 @@ t1	CREATE TABLE `t1` (
   KEY `i3` (`c3`),
   KEY `i5` (`c1`,`c2`,`c3`,`c4`),
   KEY `c2` (`c2`,`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop index c1;
 alter table t1 add index (c1);
 Warnings:
@@ -492,9 +505,8 @@ t1	CREATE TABLE `t1` (
   KEY `i2` (`c2`),
   KEY `i4` (`c4`),
   KEY `c2` (`c2`(4),`c3`(7))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-insert into t1 values(1, 'a', 'a', NULL);
-insert into t1 values(1, 'b', 'b', NULL);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1 values(1, 'a', 'a', NOW()), (1, 'b', 'b', NOW());
 alter table t1 drop index i3, drop index i2, drop index i1;
 alter table t1 add index i3 (c3), add index i2 (c2), add unique index i1 (c1);
 ERROR 23000: Duplicate entry '1' for key 'i1'
@@ -544,7 +556,7 @@ INSERT INTO t1 (b, c, d) VALUES
 DROP TABLE t1, t2;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)), 
-c char(4) not null, unique key cc(c));
+c char(4) not null, unique key cc(c)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	MUL	NULL	
@@ -559,11 +571,11 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)),
-c char(4) not null);
+c char(4) not null) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	MUL	NULL	
@@ -584,7 +596,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 End of 5.0 tests
 DROP TABLE IF EXISTS t1;
@@ -629,20 +641,20 @@ CREATE TABLE t1( a INT, b INT, KEY( a ) ) engine=myisam;
 INSERT INTO t1 values (1, 2), (1, 3), (2, 3), (2, 4), (3, 4), (3, 5);
 EXPLAIN SELECT a, SUM( b ) FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM( b )` from `test`.`t1` group by `test`.`t1`.`a`
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	9.212184
+Last_query_cost	1.102296
 EXPLAIN SELECT a, SUM( b ) FROM t1 USE INDEX( a ) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM( b )` from `test`.`t1` USE INDEX (`a`) group by `test`.`t1`.`a`
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	9.212184
+Last_query_cost	1.102296
 EXPLAIN SELECT a, SUM( b ) FROM t1 FORCE INDEX( a ) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a	a	5	NULL	6	100.00	NULL
@@ -650,5 +662,547 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM( b )` from `test`.`t1` FORCE INDEX (`a`) group by `test`.`t1`.`a`
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	8.199000
+Last_query_cost	2.349000
 DROP TABLE t1;
+#
+# Additional coverage for handling of key algorithm in index definition.
+#
+#
+# 1) Default case. If key algorithm was not specified explicitly and
+#    this is normal key (not spatial or fulltext) storage engine
+#    default key algorithm is used.
+#    
+create table tm (k int, index (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index (k)) charset utf8mb4 engine=heap;
+#
+# Key algorithm is not shown in SHOW CREATE TABLE output in this case
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+TABLE_NAME	INDEX_TYPE
+th	HASH
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column l int, add index (l);
+alter table ti add column l int, add index (l);
+alter table th add column l int, add index (l);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+th	HASH
+ti	BTREE
+tm	BTREE
+drop tables tm, ti, th;
+#
+# 2) For SPATIAL and FULLTEXT keys we always use special key
+#    algorithms and there is no way to specify it explicitly.
+#
+create table tm (pk int primary key, p point not null SRID 0, spatial index (p))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, p point not null SRID 0, spatial index (p))
+charset utf8mb4 engine=innodb;
+create table th (pk int primary key, p point not null, spatial index (p))
+charset utf8mb4 engine=heap;
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+#
+# Key algorithm is not shown in SHOW CREATE TABLE output in this
+# case as well.
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'p'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	SPATIAL
+tm	SPATIAL
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column q point not null SRID 0, add spatial index (q);
+alter table ti add column q point not null SRID 0, add spatial index (q);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  `q` point NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`),
+  SPATIAL KEY `q` (`q`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  `q` point NOT NULL /*!80003 SRID 0 */,
+  PRIMARY KEY (`pk`),
+  SPATIAL KEY `p` (`p`),
+  SPATIAL KEY `q` (`q`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'q'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	SPATIAL
+tm	SPATIAL
+drop tables tm, ti;
+#
+# Same applies to FULLTEXT indexes.
+#
+create table tm (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=innodb;
+create table th (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=heap;
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'v'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	FULLTEXT
+tm	FULLTEXT
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column w varchar(255), add fulltext index (w);
+alter table ti add column w varchar(255), add fulltext index (w);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  `w` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`),
+  FULLTEXT KEY `w` (`w`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `pk` int(11) NOT NULL,
+  `v` varchar(255) DEFAULT NULL,
+  `w` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  FULLTEXT KEY `v` (`v`),
+  FULLTEXT KEY `w` (`w`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'w'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	FULLTEXT
+tm	FULLTEXT
+drop tables tm, ti;
+#
+# 3) If key algorithm was specified explicitly and it is supported
+#    by the storage engine it will be used.
+#
+create table tm (k int, index using btree (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index using btree (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index using btree (k)) charset utf8mb4 engine=heap;
+#
+# In this case it is shown in SHOW CREATE TABLE output
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# Also visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+TABLE_NAME	INDEX_TYPE
+th	BTREE
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+# Note that the information that algorithm was provided explicitly is
+# preserved by ALTER TABLE.
+alter table tm add column l int, add index using btree (l);
+alter table ti add column l int, add index using btree (l);
+alter table th add column l int, add index using hash (l);
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table th;
+Table	Create Table
+th	CREATE TABLE `th` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE,
+  KEY `l` (`l`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+th	HASH
+ti	BTREE
+tm	BTREE
+drop tables tm, ti, th;
+#
+# 4) If key algorithm was specified explicitly and but it is not
+#    supported by the storage engine the default algorithm for SE
+#    will be used instead. We will emit a note in this case. We will
+#    also treat such situation as if algorithm is implicit. 
+#
+# The below statements should emit notes.
+create table tm (k int, index using hash (k)) charset utf8mb4 engine=myisam;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+create table ti (k int, index using hash (k)) charset utf8mb4 engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+#
+# In this case algorithm is not in SHOW CREATE TABLE output
+#
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# But visible in I_S.STATISTICS
+#
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	BTREE
+tm	BTREE
+#
+# Same applies when keys are added by ALTER TABLE
+#
+alter table tm add column l int, add index using hash (l);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+alter table ti add column l int, add index using hash (l);
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+show create table tm;
+Table	Create Table
+tm	CREATE TABLE `tm` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table ti;
+Table	Create Table
+ti	CREATE TABLE `ti` (
+  `k` int(11) DEFAULT NULL,
+  `l` int(11) DEFAULT NULL,
+  KEY `k` (`k`),
+  KEY `l` (`l`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'l'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+ti	BTREE
+tm	BTREE
+drop tables tm, ti;
+#
+# 5) Coverage for key algorithm handling in cross-engine ALTER TABLE.
+#
+# If algorithm was not specified explicitly cross-engine ALTER TABLE
+# will silently change it to the new SE's default.
+create table t1 (k int, index (k)) charset utf8mb4 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	BTREE
+# Change table's SE.
+alter table t1 engine= heap;
+# Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# But in I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	HASH
+drop table t1;
+#
+# If algorithm was specified explicitly and is supported by the new
+# SE we will keep it.
+#
+create table t1 (k int, index using btree (k)) charset utf8mb4 engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	BTREE
+# Change table's SE.
+alter table t1 engine= heap;
+# Key definition stays the same in SHOW CREATE TABLE output
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# In I_S.STATISTICS we also see that algorithm is the same
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	BTREE
+drop table t1;
+#
+# If algorithm was specified explicitly but is not supported by the
+# new SE, we will used new SE's default instead, emit a note, and
+# treat new algorithm as implicitly specified after that.
+#
+create table t1 (k int, index using hash (k)) charset utf8mb4 engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	HASH
+# Change table's SE. Note will be emitted.
+alter table t1 engine= innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+# New algorithm is not visible SHOW CREATE TABLE output.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# In I_S.STATISTICS we see that algorithm has changed.
+select table_name, index_type from information_schema.statistics
+where table_schema = 'test' and table_name like 't%' and index_name = 'k'
+  order by table_name;
+TABLE_NAME	INDEX_TYPE
+t1	BTREE
+drop table t1;
+#
+# 6) Key algorithms and duplicate key detection.
+#
+# When we detect duplicate keys in table definition we take
+# key algorithm into account. But we ignore if it was explicit
+# or implicit.
+create table t1 (k int, index using btree (k), index using hash (k)) engine=heap;
+drop table t1;
+create table t1 (k int, index (k), index using hash (k)) engine=heap;
+Warnings:
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+create table t1 (k int, index using btree (k), index (k)) engine=innodb;
+Warnings:
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+create table t1 (k int, index using btree (k), index using hash (k)) engine=innodb;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+Warning	1831	Duplicate index 'k_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+drop table t1;
+#
+# 7) Key algorithm and ALTER TABLE ALGORITHM=INPLACE
+#
+# Changing key algorithm from one used by default to the same one
+# but specified explicitly should be inplace/fast operation.
+create table t1 (k int, index (k)) charset utf8mb4 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 drop key k, add index (k), algorithm=inplace;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Note that below statement doesn't really change algorithm.
+alter table t1 drop key k, add index using hash (k), algorithm=inplace;
+Warnings:
+Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
+drop table t1;
+# Changing key algorithm to another one can require COPY algorithm.
+create table t1 (k int, index (k)) charset utf8mb4 engine=heap;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 drop key k, add index using btree (k), algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 drop key k, add index using btree (k), algorithm=copy;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  KEY `k` (`k`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+#
+# Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
+#               COUNT == DD_TABLE.INDEXES()".
+#
+create table t1 (b text not null, unique key(b(8)));
+drop table t1;

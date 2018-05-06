@@ -20,6 +20,9 @@
 #                                                                             #
 ###############################################################################
 
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# unsafe auto-increment column, LIMIT clause.
+--source include/not_binlog_format_statement.inc
 
 ####################################################################################################################
 #   Checking if the build is Debug build else skip the test because debug sync points are avilable in Debug build  #

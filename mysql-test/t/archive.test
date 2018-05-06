@@ -4,7 +4,6 @@
 #
 -- source include/have_archive.inc
 -- source include/force_binlog_format_statement.inc
--- source include/have_innodb_16k.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
@@ -1590,9 +1589,11 @@ DROP TABLE t1;
 # BUG#29203 - archive tables have weird values in show table status
 #
 CREATE TABLE t1(a INT, b BLOB) ENGINE=archive;
+analyze table t1;
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
   INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 INSERT INTO t1 VALUES(1, 'sampleblob1'),(2, 'sampleblob2');
+analyze table t1;
 SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
   INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
 DROP TABLE t1;
@@ -1622,23 +1623,6 @@ INSERT INTO t2 VALUES(NULL,'b'),(NULL,'b');
 SELECT t1.id, t2.id, t1.name, t2.name FROM t1,t2 WHERE t1.id = t2.id;
 DROP TABLE t1,t2;
 
-#
-# BUG#47012 archive tables are not upgradeable, and server crashes on any access
-#
-copy_file std_data/bug47012.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/bug47012.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
-copy_file std_data/bug47012.ARM $MYSQLD_DATADIR/test/t1.ARM;
-
-SHOW CREATE TABLE t1;
-
-SELECT * FROM t1;
-
-INSERT INTO t1 (col1, col2) VALUES (1, "value");
-
-REPAIR TABLE t1;
-DROP TABLE t1;
-remove_file $MYSQLD_DATADIR/test/t1.ARM;
-
 --echo #
 --echo # BUG#48757 - missing .ARZ file causes server crash
 --echo #
@@ -1647,8 +1631,7 @@ FLUSH TABLE t1;
 --remove_file $MYSQLD_DATADIR/test/t1.ARZ
 --error ER_FILE_NOT_FOUND
 SELECT * FROM t1;
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --echo #
 --echo # Ensure that TRUNCATE fails for non-empty archive tables.
@@ -1671,7 +1654,8 @@ DROP TABLE t1;
 # INSERT INTO bug46565 VALUES(2),(3);
 # FLUSH TABLE bug46565;
 # dd if=bug46565.ARZ of=std_data/bug46565.ARZ bs=1 count=8670
-copy_file std_data/bug46565.frm $MYSQLD_DATADIR/test/t1.frm;
+CREATE TABLE t1(a INT) ENGINE=archive;
+--remove_file $MYSQLD_DATADIR/test/t1.ARZ
 copy_file std_data/bug46565.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
 --error ER_CRASHED_ON_USAGE
 SELECT * FROM t1;
@@ -1682,33 +1666,6 @@ REPAIR TABLE t1 EXTENDED;
 SELECT * FROM t1;
 DROP TABLE t1;
 
-
---echo #
---echo # Bug#45377: ARCHIVE tables aren't discoverable after OPTIMIZE
---echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a int) ENGINE=ARCHIVE;
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES (1);
-OPTIMIZE TABLE t1;
-remove_file $MYSQLD_DATADIR/test/t1.frm;
-FLUSH TABLES;
-INSERT INTO t1 VALUES (2);
-SELECT * FROM t1 ORDER BY a;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-
---echo #
---echo # BUG#58205 - Valgrind failure in fn_format when called from
---echo #             archive_discover
---echo #
-CREATE TABLE `a/../`(a INT) ENGINE=ARCHIVE;
-remove_file $MYSQLD_DATADIR/test/a@002f@002e@002e@002f.frm;
-DROP TABLE `a/../`;
 
 --echo #
 --echo # BUG#57162 - valgrind errors, random data when returning
@@ -1725,36 +1682,6 @@ SELECT * FROM t1 ORDER BY f LIMIT 1;
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
 
---echo #
---echo # BUG#11756687 - 48633: ARCHIVE TABLES ARE NOT UPGRADEABLE
---echo #
-copy_file std_data/bug48633.frm $MYSQLD_DATADIR/test/t1.frm;
-copy_file std_data/bug48633.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
-copy_file std_data/bug48633.ARM $MYSQLD_DATADIR/test/t1.ARM;
-SHOW CREATE TABLE t1;
-# Test first table scan
-SELECT * FROM t1;
-# Test second table scan
-SELECT * FROM t1;
-# Test table close
-FLUSH TABLE t1;
-SELECT * FROM t1;
-# Test check
-CHECK TABLE t1;
-SELECT * FROM t1;
-# Test insert
-INSERT INTO t1 VALUES(3, 'text', 'varchar', 'blob1', 'blob2');
-SELECT * FROM t1;
-# Test table close after insert
-FLUSH TABLE t1;
-SELECT * FROM t1;
-# Test repair
-REPAIR TABLE t1;
-SELECT * FROM t1;
-# Test check table after upgrade
-CHECK TABLE t1;
-DROP TABLE t1;
-remove_file $MYSQLD_DATADIR/test/t1.ARM;
 
 --echo #
 --echo # BUG 11757503 - 49556: ERROR 1005 (HY000): CAN'T CREATE TABLE '#SQL-B7C_3' (ERRNO: -1)
@@ -1766,12 +1693,9 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c1 decimal(19,14) NOT NULL) ENGINE=ARCHIVE; 
 #Suppressing error message in server error log.
 CALL mtr.add_suppression("Found wrong key definition in #sql.* Please do \"ALTER TABLE `#sql.*` FORCE \" to fix it!");
---replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
---error ER_GET_ERRNO
+--error ER_GET_ERRNO, ER_GET_ERRNO
 CREATE INDEX i1 ON t1(c1);
---replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
-SHOW WARNINGS;
 SET sql_mode= default;
 DROP TABLE t1;
 

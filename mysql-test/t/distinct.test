@@ -562,9 +562,11 @@ INSERT INTO t2 VALUES (0xf6);
 INSERT INTO t2 VALUES ('oe');
 
 SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t2) dt;
+
+set names latin1;
 SELECT COUNT(*) FROM 
   (SELECT DISTINCT a FROM t2 WHERE a='oe' COLLATE latin1_german2_ci) dt;
-
+set names utf8mb4;
 DROP TABLE t1, t2;
 
 #
@@ -856,3 +858,31 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#22686994
 
+--echo #
+--echo # Bug #25740550: DISTINCT OPERATIONS ON TEMP TABLES ALLOCATE TOO LITTLE
+--echo #                MEMORY FOR SORT KEYS
+--echo #
+--echo # A test for remove_dup_with_hash_index() where sort keys are significantly
+--echo # longer than the row itself.
+--echo #
+
+--source include/turn_off_only_full_group_by.inc
+
+CREATE TABLE t1(c1 int, c2 VARCHAR(1) COLLATE utf8mb4_0900_as_cs);
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'A');
+SELECT DISTINCT c2 FROM t1 GROUP BY c1;
+DROP TABLE t1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
+--echo #
+--echo # Bug#20692219 INCORRECT RESULT FOR DISTINCT SELECT
+--echo #
+
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES(1,2);
+INSERT INTO t VALUES(2,4);
+SELECT  LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
+SELECT DISTINCT LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
+DROP TABLE t;

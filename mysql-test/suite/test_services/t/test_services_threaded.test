@@ -1,8 +1,10 @@
 #--source include/have_daemon_example_plugin.inc
---source include/not_embedded.inc
 
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
+
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
 
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TESTSERVICESTHREADED TESTSERVICESTHREADED
@@ -11,9 +13,9 @@ eval INSTALL PLUGIN test_services_threaded SONAME '$TESTSERVICESTHREADED';
 --echo ------ Wait until test execution in plugin is ready --------------
 --echo let wait_timeout= 60
 let $wait_timeout= 60;
---echo let wait_condition=SELECT variable_value= 1 FROM information_schema.global_status
+--echo let wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
 --echo                     WHERE variable_name LIKE 'test_services_status';
-let $wait_condition=SELECT variable_value= 1 FROM information_schema.global_status
+let $wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
                    WHERE variable_name LIKE 'test_services_status';
 --echo source include/wait_condition.inc;
 source include/wait_condition.inc;
@@ -21,18 +23,16 @@ source include/wait_condition.inc;
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_threaded;
 
+# Restore log_error_verbosity
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
+
 --disable_warnings
 
---echo ------ Service: my_snprintf --------------------------------------
-let $MYSQLD_DATADIR= `select @@datadir`;
-cat_file $MYSQLD_DATADIR/test_services.log;
-remove_file $MYSQLD_DATADIR/test_services.log;
-
---echo ------ Service: my_plugin_log_service ----------------------------
-CREATE TABLE t1 (c1 varchar(30), c2 TEXT);
+--echo ------ Service: LogPluginErr ----------------------------
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
      FIELDS TERMINATED BY ' [';
-SELECT replace(c2,'\r','') FROM t1 WHERE c2 LIKE '%test_services_threaded%';
+   SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
 DROP TABLE IF EXISTS t1;
 

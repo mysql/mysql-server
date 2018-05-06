@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -71,16 +78,72 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   Ndb_cluster_connection(const char * connectstring,
                          Ndb_cluster_connection *main_connection);
+  Ndb_cluster_connection(const char * connectstring,
+                         Ndb_cluster_connection *main_connection,
+                         int force_api_nodeid);
 #endif
   ~Ndb_cluster_connection();
 
   /**
+   * Set data node neighbour of the connection. This will be used for optimal
+   * placement of transaction coordinator.
+   *
+   * In normal cases this method, if used, is called when
+   * ndb_cluster_connection is created before query threads are started.
+   *
+   * Note that this method may change internal state of ndb_cluster_connection
+   * shared by all threads using it.  This state is not thread safe and can at
+   * the time change occur cause a non optimal node selection.
+   *
+   * Also any outstanding iterators (Ndb_cluster_connection_node_iter) may
+   * become invalid when method is called.  This may result in a non optimal
+   * node selection the next time the iterator is used.
+   */
+  void set_data_node_neighbour(Uint32 neighbour_node);
+
+  /**
    * Set a name on the connection, which will be reported in cluster log
+   * and in ndbinfo.processes.
+   * For the name to be visible, this must be called prior to connect().
    *
    * @param name
    *
    */
   void set_name(const char *name);
+
+  /**
+   * For each Ndb_cluster_connection, NDB publishes a URI in the ndbinfo
+   * processes table. A user may customize this URI using set_service_uri().
+   *
+   * By default the published URI takes the form ndb://x.x.x.x/, where x.x.x.x
+   * is the IPv4 address of the node. This default URI has scheme "ndb",
+   * port 0, host set to null, and empty path, as described below.
+   *
+   * If set_service_uri() is called prior to connect(), the URI will be
+   * published immediately upon connection. If called after the cluster
+   * connection is established, the URI will be published after a delay
+   * of up to HeartbeatIntervalDbApi msec.
+   *
+   * @param scheme The URI scheme. The scheme may contain only lowercase
+   *   letters, numbers, and the characters ".", "+", and "-".
+   *   It will be truncated to 16 characters.
+   * @param host The URI network address or hostname.
+   *   Host will be truncated to 48 characters, which is sufficient space for
+   *   an IPv6 network address, but not necessarily for a domain name.
+   *   If host is null, each data node will report the network address from
+   *   its own connection to this node. An Ndb_cluster_connection that uses
+   *   a variety of transporters or network addresses to connect to different
+   *   data nodes will appear in multiple rows of the ndbinfo.processes
+   *   table.
+   * @param port The URI port. If 0, no port component will not be published.
+   * @param path The URI path, possibly followed by a query component beginning
+   *    with the character "?". The combined path and query will be truncated
+   *    to 128 characters. It may not begin with a double slash.
+   *
+   * @return 0 on success, 1 on syntax error in scheme or path component
+   */
+  int set_service_uri(const char * scheme, const char * host, int port,
+                      const char * path);
 
   /**
    * Set timeout
@@ -142,12 +205,12 @@ public:
    * Lock creation of ndb-objects
    *   Needed to iterate over created ndb objects
    */
-  void lock_ndb_objects();
+  void lock_ndb_objects() const;
 
   /**
    * Unlock creation of ndb-objects
    */
-  void unlock_ndb_objects();
+  void unlock_ndb_objects() const;
 
   /**
    * Iterator of ndb-objects
@@ -167,6 +230,11 @@ public:
    */
   void set_auto_reconnect(int value);
   int get_auto_reconnect() const;
+
+  /**
+   *  Get system.name from cluster configuration
+   */
+  const char * get_system_name() const;
 
   /**
    * Collect client statistics for all Ndb objects in this connection
@@ -197,6 +265,14 @@ public:
    * user threads are used to receive signals. If we set the level to
    * 16 or higher we will never use receive threads as receivers.
    *
+   * Note that level 0 is a special value which will always keep the
+   * receive thread active, *and* allow it to keep the poll right
+   * for its own exclusive usage. Thus user threads will effectively
+   * be blocked from being receiver. For this setting care should be
+   * taken to ensure that the receive thread will not compete with the
+   * user thread for CPU resources. It should preferably be locked
+   * to a CPU for its own exclusive usage.
+   *
    * By default we have one receiver thread, this thread is not locked to
    * any specific CPU and the level is 8.
    * 
@@ -211,6 +287,11 @@ public:
   int set_num_recv_threads(Uint32 num_recv_threads);
   int get_num_recv_threads() const;
   int unset_recv_thread_cpu(Uint32 recv_thread_id);
+  int set_recv_thread_cpu(Uint16 cpuid)
+  {
+    Uint16 cpuid2 = cpuid;
+    return set_recv_thread_cpu(&cpuid2, 1U);
+  }
   int set_recv_thread_cpu(Uint16 *cpuid_array,
                           Uint32 array_len,
                           Uint32 recv_thread_id = 0);

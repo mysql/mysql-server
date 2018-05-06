@@ -1,17 +1,24 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is the CMakeLists for InnoDB
 
@@ -25,7 +32,7 @@ IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
 ENDIF()
 
 # OS tests
-IF(UNIX)
+IF(UNIX AND NOT IGNORE_AIO_CHECK)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
     ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
@@ -51,6 +58,11 @@ IF(INNODB_COMPILER_HINTS)
 ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
+
+# Turn off unused parameter warnings for InnoDB.
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+ENDIF()
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 # After: WL#5825 Using C++ Standard Library with MySQL code
@@ -106,7 +118,9 @@ ENDIF()
 IF(NOT MSVC)
   CHECK_C_SOURCE_RUNS(
   "
+  #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
+  #endif
   #include <fcntl.h>
   #include <linux/falloc.h>
   int main()
@@ -242,9 +256,6 @@ ENDIF()
 
 ENDIF(NOT MSVC)
 
-CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
-CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
-
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   IF(NOT CMAKE_CROSSCOMPILING)
@@ -275,7 +286,7 @@ ELSE()
 ENDIF()
 
 # Include directories under innobase
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
-
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

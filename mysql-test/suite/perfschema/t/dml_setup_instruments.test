@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # The query result are not re producible,
 # due to variations in platforms and plugins
 # We still execute the select statement, for:

@@ -1,0 +1,56 @@
+# Shut server down.
+# Create bootstrap file.
+# First start the server with --initialize.
+# Restart the server against DDIR.
+# Run the single test.
+
+Creating collection in xtest
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+Got expected error: Table 'fruit' already exists (code 1050)
+Got expected error: Table 'fruit' already exists (code 1050)
+name	type
+fruit	COLLECTION
+command ok
+
+Creating collection in xtest
+----------------------------
+Got expected error: Can't create database 'xtest'; database exists (code 1007)
+Got expected error: Table 'fruit' already exists (code 1050)
+Got expected error: Table 'fruit' already exists (code 1050)
+Got expected error: Table 'fruit' already exists (code 1050)
+name	type
+fruit	COLLECTION
+command ok
+
+Creating collection in xtest
+----------------------------
+Got expected error: Can't create database 'xtest'; database exists (code 1007)
+Got expected error: Table 'fruit' already exists (code 1050)
+Got expected error: Table 'fruit' already exists (code 1050)
+Got expected error: Table 'fruit' already exists (code 1050)
+name	type
+fruit	COLLECTION
+command ok
+
+1 rows affected
+
+0 rows affected
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Shutdown server.
+# Cleanup.
+#   Delete $DDIR.
+#   Delete sql files.
+#   Delete log files.
+#   Delete expect files.
+# Restart server without --lower-case-table-names.

@@ -4,7 +4,7 @@
 #
 # Usage:
 # --let $rpl_number_of_servers=4
-# --let $rpl_corrupt_channel_name=channel_2
+# --let $rpl_corrupt_channel_name='channel_2'
 # --source extra/rpl_tests/rpl_multi_source_corrupt_repository.inc
 #
 # $rpl_number_of_servers
@@ -31,6 +31,11 @@ if (!$rpl_number_of_servers)
   --die "Please specify number of servers in the MSR setup."
 }
 
+if (!$rpl_corrupt_channel_name)
+{
+  --die "Please specify channel name that needs to be corrupted."
+}
+
 ###############################################################################
 # Step-1: Corrupt channel '$rpl_corrupt_channel_name'
 #         1.1: Connect to the MSR slave server where we want corrupt the channel
@@ -55,6 +60,7 @@ if (!$rpl_number_of_servers)
 --source include/rpl_connection.inc
 --let $slave_datadir= `select @@datadir`
 --let $relaylog_name= `select @@relay_log_basename`
+--let $rpl_channel_name_without_single_quotes=`SELECT LTRIM(RTRIM($rpl_corrupt_channel_name))`
 
 ###############################################################################
 # Step-1.2: Stop the server
@@ -69,14 +75,14 @@ if (!$rpl_number_of_servers)
 #                                            channel)
 ###############################################################################
 
---echo ===== Remove '$rpl_corrupt_channel_name' channel's relaylog file.
-if (!$rpl_corrupt_channel_name)
+--echo ===== Remove $rpl_corrupt_channel_name channel's relaylog file.
+if ($rpl_corrupt_channel_name == "''")
 {
   --remove_file $relaylog_name.index
 }
-if ($rpl_corrupt_channel_name)
+if ($rpl_corrupt_channel_name != "''")
 {
-  --remove_file $relaylog_name-$rpl_corrupt_channel_name.index
+  --remove_file $relaylog_name-$rpl_channel_name_without_single_quotes.index
 }
 
 ###############################################################################
@@ -96,11 +102,11 @@ if ($rpl_corrupt_channel_name)
 
 --echo ===== Assert that all channels IO and SQL threads are in expected state.
 --let $assert_text= Corrupted channel's IO thread should be in OFF state.
---let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_connection_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_corrupt_channel_name"
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_connection_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
 --let $assert_text= Corrupted channel's SQL thread should be in OFF state.
---let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_corrupt_channel_name"
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
 --echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
@@ -126,6 +132,7 @@ if ($rpl_corrupt_channel_name)
 
 --echo ===== STOP SLAVE without 'FOR CHANNEL' clause.
 --let $rpl_channel_name=
+--let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_RLI_INIT_REPOSITORY)
 --source include/stop_slave.inc
 
 --echo === Assert that all channels IO and SQL threads are in OFF state ===
@@ -149,11 +156,11 @@ START SLAVE;
 
 --echo === Assert that all channels IO and SQL threads are in expected state ===
 --let $assert_text= Corrupted channel's IO thread should be in OFF state.
---let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_connection_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_corrupt_channel_name"
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_connection_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
 --let $assert_text= Corrupted channel's SQL thread should be in OFF state.
---let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_corrupt_channel_name"
+--let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
 --echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
@@ -220,10 +227,10 @@ FLUSH RELAY LOGS;
 --let $i=1
 while ($i <= $number_of_channels)
 {
-  --let $channel_name=channel_$i
+  --let $channel_name='channel_$i'
   if ($i == 1)
   {
-    --let $channel_name=
+    --let $channel_name=''
   }
 
   ##############################################################################
@@ -237,7 +244,7 @@ while ($i <= $number_of_channels)
   #                     Return value for good channel: -1
   ##############################################################################
 
-  --echo ===== Executing few basic commands on channel '$channel_name'.
+  --echo ===== Executing few basic commands on channel $channel_name.
   --echo ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
   --let $j=1
   while ($j <=2)
@@ -246,11 +253,13 @@ while ($i <= $number_of_channels)
     --source include/rpl_connection.inc
     --let $master_executed_gtid=`SELECT @@GLOBAL.gtid_executed`
     --let $position=query_get_value("SHOW MASTER STATUS", Position, 1)
+    --let $masked_position= POSITION
     --let $query_expected_result= 0
     if ($j == 2)
     {
       --let $master_executed_gtid= `SELECT concat(@@GLOBAL.gtid_executed, ':100')`
       --let $position= `SELECT $position + 1`
+      --let $masked_position= POSITION+1
       --let $query_expected_result= -1
     }
     if ($rpl_corrupt_channel_name == $channel_name)
@@ -260,15 +269,15 @@ while ($i <= $number_of_channels)
 
     --let $rpl_connection_name= server_$rpl_number_of_servers
     --source include/rpl_connection.inc
-    --let $query_result= query_get_value("SELECT MASTER_POS_WAIT('server$i-bin.000001', $position, 1, '$channel_name') AS VALUE", VALUE, 1)
-    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel '$channel_name' and position $position.
+    --let $query_result= query_get_value("SELECT MASTER_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
+    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
     --let $assert_cond= "$query_result" = "$query_expected_result"
     --source include/assert.inc
 
     if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
     {
-      --let $query_result= query_get_value("SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_executed_gtid', 1, '$channel_name') AS VALUE", VALUE, 1)
-      --let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS should return $query_expected_result for channel '$channel_name' and position $position.
+      --let $query_result= query_get_value("SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_executed_gtid', 1, $channel_name) AS VALUE", VALUE, 1)
+      --let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS should return $query_expected_result for channel $channel_name and position $masked_position.
       --let $assert_cond= "$query_result" = "$query_expected_result"
       # GTID_MODE OFF/ON, .result file should be same. Hence disabling the query
       # log for the following test.
@@ -284,25 +293,32 @@ while ($i <= $number_of_channels)
   # channel it is equal to No-op operation, no error in that case.
   #############################################################################
 
-  --echo ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel '$channel_name'.
-  --eval FLUSH RELAY LOGS FOR CHANNEL '$channel_name'
+  --echo ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel $channel_name.
+  --eval FLUSH RELAY LOGS FOR CHANNEL $channel_name
 
   #############################################################################
   # Step 4.3: SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel '$channel_name'.
+  --echo ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel $channel_name.
   --let $rpl_channel_name=$channel_name
   # It doesn't care the result, just make sure the query can be executed successfully
   --disable_result_log
-  eval SHOW RELAYLOG EVENTS FOR CHANNEL '$channel_name';
+  eval SHOW RELAYLOG EVENTS FOR CHANNEL $channel_name;
   --enable_result_log
 
   #############################################################################
   # Step 4.4: SHOW SLAVE STATUS FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel '$channel_name'.
+  --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel $channel_name.
+
+    # Wait until slave threads are synced with master
+    --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_sql" AND PROCESSLIST_STATE="Slave has read all relay log; waiting for more updates";
+  --source include/wait_condition_or_abort.inc
+  --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_io" AND PROCESSLIST_STATE="Waiting for master to send event";
+  --source include/wait_condition_or_abort.inc
+
   --let $status_items=Slave_IO_State,Slave_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc
@@ -316,7 +332,7 @@ while ($i <= $number_of_channels)
 
   if ($channel_name != $rpl_corrupt_channel_name)
   {
-    --echo ===== Check that replication is working fine on channel '$channel_name'.
+    --echo ===== Check that replication is working fine on channel $channel_name.
     --let $rpl_connection_name= server_$i
     --source include/rpl_connection.inc
     CREATE TABLE t1(i INT);
@@ -324,33 +340,24 @@ while ($i <= $number_of_channels)
     DROP TABLE t1;
     --let $rpl_channel_name=$channel_name
     --let $sync_slave_connection=server_$rpl_number_of_servers
-    if ($channel_name == '')
-    {
-      --let $force_empty_channel_name=1
-    }
     --source include/sync_slave_sql_with_master.inc
-    --let $force_empty_channel_name=
+    --dec $number_of_good_channels
   }
 
   #############################################################################
   # Step 4.5: STOP SLAVE FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing STOP SLAVE FOR CHANNEL on channel '$channel_name'.
+  --echo ===== Executing STOP SLAVE FOR CHANNEL on channel $channel_name.
   --let $rpl_channel_name=$channel_name
-  if ($channel_name == '')
-  {
-    --let $force_empty_channel_name=1
-  }
   --source include/stop_slave.inc
-  --let $force_empty_channel_name=
 
   #############################################################################
   # Step 4.6: CHANGE MASTER TO ... FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel '$channel_name'.
-  --eval CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL '$channel_name'
+  --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel $channel_name.
+  --eval CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL $channel_name
   --let $status_items=Connect_Retry, Master_Retry_Count, Slave_IO_State,Slave_SQL_Running_State, Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc
@@ -359,15 +366,15 @@ while ($i <= $number_of_channels)
   # Step 4.7: RESET SLAVE FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing RESET SLAVE FOR CHANNEL on channel '$channel_name'.
-  --eval RESET SLAVE FOR CHANNEL '$channel_name'
+  --echo ===== Executing RESET SLAVE FOR CHANNEL on channel $channel_name.
+  --eval RESET SLAVE FOR CHANNEL $channel_name
 
   #############################################################################
   # Step 4.8: RESET SLAVE ALL FOR CHANNEL 'channel_name'
   #############################################################################
 
-  --echo ===== Executing RESET SLAVE ALL FOR CHANNEL on channel '$channel_name'.
-  --eval RESET SLAVE ALL FOR CHANNEL '$channel_name'
+  --echo ===== Executing RESET SLAVE ALL FOR CHANNEL on channel $channel_name.
+  --eval RESET SLAVE ALL FOR CHANNEL $channel_name
 
   --inc $i
 }

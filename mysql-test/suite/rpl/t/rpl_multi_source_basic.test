@@ -21,6 +21,8 @@
 
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
@@ -66,7 +68,7 @@ SHOW DATABASES;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -74,7 +76,7 @@ SHOW DATABASES;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -83,10 +85,10 @@ SHOW DATABASES;
 --echo #  Slave should have databases db1 and db3 and tables.
 SHOW DATABASES;
 --let $assert_text= Slave should have 10 rows in db1.t1
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM db1.t1`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM db1.t1`
 --source include/assert.inc
 --let $assert_text= Slave should have 10 rows in db3.t1
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM db3.t1`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM db3.t1`
 --source include/assert.inc
 
 --echo #
@@ -106,7 +108,7 @@ CREATE DATABASE dbcommon;
 
 ### Make sure that this is the first create database to reach
 ### the slave.
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
@@ -116,7 +118,7 @@ CREATE DATABASE dbcommon;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -169,7 +171,7 @@ while ($i)
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -177,7 +179,7 @@ while ($i)
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -188,10 +190,10 @@ SHOW DATABASES;
 USE dbcommon;
 SHOW TABLES;
 --let $assert_text= Slave should have 10 rows in dbcommon.t11
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM dbcommon.t11`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM dbcommon.t11`
 --source include/assert.inc
 --let $assert_text= Slave should have 10 rows in dbcommon.t33
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM dbcommon.t33`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM dbcommon.t33`
 --source include/assert.inc
 
 --echo #
@@ -209,7 +211,7 @@ CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection=server_2
 --source include/sync_slave_sql_with_master.inc
 --let $rpl_channel_name=
@@ -257,7 +259,7 @@ while ($i)
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -265,7 +267,7 @@ while ($i)
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -275,7 +277,7 @@ while ($i)
 USE dbcommon;
 SHOW TABLES;
 --let $assert_text= Slave should have 20 rows in dbcommon.t101
---let $assert_cond= `SELECT COUNT(*) = 20 rows FROM dbcommon.t101`
+--let $assert_cond= `SELECT COUNT(*) = 20 `rows` FROM dbcommon.t101`
 --source include/assert.inc
 
 
@@ -288,7 +290,7 @@ SHOW TABLES;
 --source include/rpl_connection.inc
 INSERT INTO dbcommon.t101 values(1729);
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -308,7 +310,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
 
 # sync the slave with server_3
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 
@@ -337,7 +339,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 DELETE FROM dbcommon.t101 where a=1729;
 
 --disable_warnings
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/start_slave.inc
 --enable_warnings
 
@@ -354,7 +356,7 @@ DELETE FROM dbcommon.t101 where a=1729;
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -362,7 +364,7 @@ DELETE FROM dbcommon.t101 where a=1729;
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
 
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -372,7 +374,7 @@ DELETE FROM dbcommon.t101 where a=1729;
 --connection server_1
 DROP DATABASE db1;
 DROP DATABASE dbcommon;
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 
@@ -380,7 +382,7 @@ DROP DATABASE dbcommon;
 --connection server_3
 DROP DATABASE db3;
 DROP DATABASE IF EXISTS dbcommon;
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --let $sync_slave_connection= server_2
 --source include/sync_slave_sql_with_master.inc
 

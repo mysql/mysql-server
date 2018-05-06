@@ -3,18 +3,17 @@
 --echo # and showing those files.
 --echo #
 
---source include/have_innodb.inc
 
 --disable_query_log
 # This can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 # Use this coversion to make the result file consistent. This string gets printed
-# in the result file in numerous places.  Since ".ibd" or ".isl" is one of the patterns that
+# in the result file in numerous places.  Since ".ibd" is one of the patterns that
 # makes a whitespace delimited word recognized as a path, the '\' characters will
 # get converted to '/' in the result file on Windows, but not on Unix.
 # So just look for ".i".
-LET $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/;
+LET $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/;
 
 # Set up some variables
 LET $MYSQL_DATA_DIR = `select @@datadir`;
@@ -34,9 +33,9 @@ ENGINE=InnoDB $data_directory_clause;
 
 INSERT INTO t1 SET c1=1;
 
-CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE 'test/t%';
-CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 
 CREATE TABLE t1p LIKE t1;
@@ -48,10 +47,10 @@ eval CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
 ENGINE=InnoDB $data_directory_clause;
 
 CREATE TABLE sys_foreign SELECT i.*
-FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i
+FROM INFORMATION_SCHEMA.INNODB_FOREIGN i
 WHERE FOR_NAME LIKE 'test/t%';
 
-SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 
 -- source suite/innodb/include/innodb_dict.inc
@@ -115,7 +114,7 @@ ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
 --replace_regex $regexp
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
-SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 
 -- source suite/innodb/include/innodb_dict.inc
@@ -133,7 +132,7 @@ ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 SELECT st.NAME, i.NAME
-FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
 ON i.TABLE_ID=st.TABLE_ID;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -209,7 +208,7 @@ ALTER TABLE t3 RENAME TO t2;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 SELECT st.NAME, i.NAME
-FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
 ON i.TABLE_ID=st.TABLE_ID;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -218,7 +217,7 @@ SHOW CREATE TABLE t2;
 RENAME TABLE t2 TO t1;
 
 SELECT st.NAME, i.NAME
-FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
 ON i.TABLE_ID=st.TABLE_ID;
 
 --echo ### files in MYSQL_DATA_DIR/test
@@ -374,14 +373,14 @@ ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
 
 # FTS_DOC_ID is the internal row identifier for full-text search.
 # It should be of type BIGINT UNSIGNED NOT NULL.
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=COPY;
 
 --error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=INPLACE;
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
 ALGORITHM=INPLACE;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -400,9 +399,9 @@ ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
 --replace_regex $regexp
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
 --error ER_BAD_FIELD_ERROR
 ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
@@ -515,8 +514,8 @@ ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
 LOCK=NONE;
 
 # This should not show duplicates.
-SELECT sc.pos FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+SELECT sc.pos FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
 
@@ -540,12 +539,12 @@ DROP TABLE t1c, t1p, sys_tables, sys_indexes, sys_foreign;
 
 # Check the internal schemata of tt, t1o.
 
-CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME='test/t1o';
-CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 CREATE TABLE sys_foreign SELECT i.*
-FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i WHERE FOR_NAME='test/t1o';
+FROM INFORMATION_SCHEMA.INNODB_FOREIGN i WHERE FOR_NAME='test/t1o';
 
 -- source suite/innodb/include/innodb_dict.inc
 
@@ -574,7 +573,7 @@ ADD FULLTEXT INDEX(ct);
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
 
 DROP TABLE sys_indexes;
-CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 
 -- source suite/innodb/include/innodb_dict.inc

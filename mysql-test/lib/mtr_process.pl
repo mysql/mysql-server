@@ -1,18 +1,25 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -40,7 +47,7 @@ BEGIN
   eval 'sub USE_NETPING { $use_netping }';
 }
   
-sub sleep_until_file_created ($$$);
+sub sleep_until_pid_file_created ($$$);
 sub mtr_ping_port ($);
 
 sub mtr_ping_port ($) {
@@ -79,8 +86,6 @@ sub mtr_ping_port ($) {
     mtr_error("can't create socket: $!");
   }
 
-  mtr_debug("Pinging server (port: $port)...");
-
   if ( connect(SOCK, $paddr) )
   {
     close(SOCK);                        # FIXME check error?
@@ -94,42 +99,49 @@ sub mtr_ping_port ($) {
   }
 }
 
-##############################################################################
-#
-#  Wait for a file to be created
-#
-##############################################################################
 
-# FIXME check that the pidfile contains the expected pid!
-
-sub sleep_until_file_created ($$$) {
+## Wait for the PID file to be created.
+## FIXME check that the pidfile contains the expected pid!
+sub sleep_until_pid_file_created ($$$)
+{
   my $pidfile= shift;
   my $timeout= shift;
-  my $proc=     shift;
-  my $sleeptime= 100; # Milliseconds
+  my $proc   = shift;
+
+  my $sleeptime = 100; # Milliseconds
+  my $total_time= 0;   # Milliseconds
   my $loops= ($timeout * 1000) / $sleeptime;
 
-  for ( my $loop= 1; $loop <= $loops; $loop++ )
+  for (my $loop= 1; $loop <= $loops; $loop++)
   {
-    if ( -r $pidfile )
+    if (-r $pidfile)
     {
+      mtr_verbose("Waited $total_time milliseconds for '$pidfile' file to " .
+                  "be created.");
       return 1;
     }
 
     my $seconds= ($loop * $sleeptime) / 1000;
 
     # Check if it died after the fork() was successful
-    if ( defined $proc and ! $proc->wait_one(0) )
+    if (defined $proc and !$proc->wait_one(0))
     {
       mtr_warning("Process $proc died after mysql-test-run waited $seconds " .
 		  "seconds for $pidfile to be created.");
       return 0;
     }
 
-    mtr_debug("Sleep $sleeptime milliseconds waiting for $pidfile");
+    $total_time= $total_time + 100;
 
-    # Print extra message every 60 seconds
-    if ( $seconds > 1 && int($seconds * 10) % 600 == 0 && $seconds < $timeout )
+    my $message_timeout = 600; # 60 seconds wait between each message
+    if ($ENV{'VALGRIND_TEST'})
+    {
+      $message_timeout = $message_timeout * 10;
+    }
+
+    # Print extra message every $message_timeout seconds
+    if ($seconds > 1 && int($seconds * 10) % $message_timeout == 0 &&
+        $seconds < $timeout)
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
@@ -137,7 +149,6 @@ sub sleep_until_file_created ($$$) {
     }
 
     mtr_milli_sleep($sleeptime);
-
   }
 
   mtr_warning("Timeout after mysql-test-run waited $timeout seconds " .

@@ -1,18 +1,12 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 
 --echo # 1. Setup
 --echo # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $error_log
 
 let SEARCH_FILE= $error_log;
 
@@ -109,17 +103,7 @@ let error_pattern= Could not write public key file: ;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/tmp/mysqld.1.expect";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $restart_file
+--remove_file $error_log 10
 

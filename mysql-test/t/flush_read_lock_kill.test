@@ -3,14 +3,10 @@
 # This will not be a meaningful test on non-debug servers so will be
 # skipped.
 
-# This also won't work with the embedded server test
---source include/not_embedded.inc
-
 --source include/have_debug.inc
 
 # This test needs transactional engine as otherwise COMMIT
 # won't block FLUSH TABLES WITH GLOBAL READ LOCK.
---source include/have_innodb.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

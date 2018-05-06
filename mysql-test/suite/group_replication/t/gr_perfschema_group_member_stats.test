@@ -1,0 +1,235 @@
+################################################################################
+# WL#6839 - GCS Replication: P_S table to show DBSM stats
+#
+# This test checks the basic functionality of Group Replication
+# P_S for replication_group_member_stats table.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Restart the first server to erase remains of old rounds. RESET MASTER on
+#    both M1 and M2 to delete data from previous rounds.
+# 2. Check output of the replication_group_member_stats table before GR start.
+# 3. Bootstrap and start GR on M1. Add some data.
+# 4. Stop applier thread on M1 so that recovery blocks on M2.
+# 5. Start M2. Check that it is in RECOVERING state.
+# 6. Apply some transactions on M1 so that the queue of the M2 is not empty.
+# 7. Check for the transactions in the applier queue on M2. Then Start applier
+#    thread on M1 so that recovery unblocks on M2. Check M2 is ONLINE.
+# 8. Check output of the replication_group_member_stats table.
+# 9. Clean up. Stop GR on M1 and M2.
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= 8a84f397-aaa4-18df-89ab-c70aa9823561
+--source include/have_group_replication_plugin.inc
+
+--echo ###################
+--echo Cleanup and server setup
+--echo ###################
+
+#Restart the first server to erase remains of old rounds
+--connection server1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+#Reset the servers to delete data from previous rounds
+--connection server2
+--echo server2
+RESET MASTER;
+
+--connection server1
+--echo server1
+RESET MASTER;
+
+--connection server1
+--echo server1
+
+# This is a valid name being given to the group name
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--echo ###################
+--echo Test start values
+--echo ###################
+
+# Checking the performance Schema output for the replication_group_member_stats table.
+
+--let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_member_stats, Member_Id, 1)
+--let $assert_text= The value of member_id should be empty before starting group replication
+--let $assert_cond= "$member_id" = ""
+--source include/assert.inc
+
+--let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats, View_Id, 1)
+--let $assert_text= The value of view_id should be EMPTY before starting group replication
+--let $assert_cond= "$View_Id" = ""
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue from performance_schema.replication_group_member_stats, Count_Transactions_in_queue, 1)
+--let $assert_text= The value of Count_Transactions_in_queue should be 0 before starting group replication
+--let $assert_cond= "$transaction_in_queue" = 0
+--source include/assert.inc
+
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats, Count_Transactions_checked, 1)
+--let $assert_text= The value of Count_Transactions_checked should be 0 before starting group replication
+--let $assert_cond= "$certified_transactions" = 0
+--source include/assert.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $assert_text= The value of Count_conflicts_detected should be 0 before starting group replication
+--let $assert_cond= "$negatively_certified" = 0
+--source include/assert.inc
+
+--let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats, Count_Transactions_rows_validating, 1)
+--let $assert_text= The value of Count_Transactions_rows_validating should be 0 before starting group replication
+--let $assert_cond= "$certification_db_size" = 0
+--source include/assert.inc
+
+--let $stable_set= query_get_value(SELECT Transactions_Committed_all_members from performance_schema.replication_group_member_stats, Transactions_Committed_all_members, 1)
+--let $assert_text= The value of Transactions_Committed_all_members should be empty before starting group replication
+--let $assert_cond= "$stable_set" = 0
+--source include/assert.inc
+
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats, Last_conflict_free_transaction, 1)
+--let $assert_text= The value of Last_conflict_free_transaction should be 0 before starting group replication
+--let $assert_cond= "$last_certified_transaction" = ""
+--source include/assert.inc
+
+--echo ########################################################
+--echo Values being updated after executing some transactions
+--echo ########################################################
+
+# Start Group Replication
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $raw_view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), View_Id, 1)
+--let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
+--let $assert_text= The value of view_id should be a number followed by ONE at group replication start
+--let $assert_cond= "$View_Id" = 1
+--source include/assert.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 values (4);
+
+#Stop the applier on server 1 so that recovery blocks on server 2
+# View_change_log_event will be written to the binary log after the
+# transactions aaa:1-2, since local transactions can still be
+# logged. Which means that server2 will receive both transactions
+# through recovery, and then through GCS on which will be rollback
+# (discarded after certification),thence the below suppressions.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--connection server2
+--echo server2
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1' was already used, the transaction will rollback");
+call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2' was already used, the transaction will rollback");
+SET SESSION sql_log_bin= 1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo # Apply some transactions on the first member so that the queue of the second member is not empty.
+--connection server1
+--echo server1
+
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (5);
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+INSERT INTO t1 VALUES (6);
+SET GTID_NEXT= 'AUTOMATIC';
+
+--echo # Check for the transaction in the applier queue and then unblock the recovery.
+--connection server2
+--echo server2
+
+--echo [ The value of Count_Transactions_in_queue must be 3 when the applier has not processed the transaction queue ]
+--let $wait_condition= SELECT Count_Transactions_in_queue = 3 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+--source include/wait_condition.inc
+
+--connection server1
+--echo server1
+
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--connection server2
+--echo server2
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--connection server1
+--echo server1
+
+--let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Member_Id, 1)
+--let $assert_text= The value of member_id should be equal to server UUID after starting group replication
+--let $assert_cond= "$member_id" = "$server_uuid"
+--source include/assert.inc
+
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_checked, 1)
+--let $assert_text= The value of Count_Transactions_checked should be 6 after starting group replication
+--let $assert_cond= "$certified_transactions" = 6
+--source include/assert.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
+--let $assert_text= The value of Count_conflicts_detected should be 0 after starting group replication
+--let $assert_cond= "$negatively_certified" = 0
+--source include/assert.inc
+
+--let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_rows_validating, 1)
+--let $assert_text= The value of Count_Transactions_rows_validating should be 2 after starting group replication
+--let $assert_cond= "$certification_db_size" = 2
+--source include/assert.inc
+
+--let $stable_set= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
+--let $assert_text= The value of Transactions_committed_all_members should have server 1 GTIDs before server2 start
+--let $assert_cond= "$stable_set" = "8a84f397-aaa4-18df-89ab-c70aa9823561:1-5"
+--source include/assert.inc
+
+--let $last_certified_transaction= query_get_value(SELECT Last_Conflict_free_transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_Conflict_free_transaction, 1)
+--let $assert_text= The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.
+--let $assert_cond= "$last_certified_transaction" = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2"
+--source include/assert.inc
+
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+--echo [ The value of stable_set must be equal to the member GTID executed set ]
+--let $expected_gtid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2,8a84f397-aaa4-18df-89ab-c70aa9823561:1-6"
+
+--let $_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $wait_timeout= 150
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" and member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
+--let $assert_text= 'Transactions_committed_all_members must be equal to expected gtid value'
+--let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", $expected_gtid)
+--source include/assert.inc
+
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+
+--connection server1
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo ####################################
+--echo The values being checked after stop
+--echo ####################################
+
+# Stop Group Replication
+--source include/stop_group_replication.inc
+
+--connection server2
+--source include/stop_group_replication.inc
+
+--source include/gr_clear_configuration.inc

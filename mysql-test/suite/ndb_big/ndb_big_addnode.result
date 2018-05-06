@@ -185,8 +185,8 @@ drop procedure updateload;
 connection ddl;
 ## Drop nodegroup with "new" nodes
 Drop Node Group 1 done
-ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat' ENGINE NDB;
-DROP TABLESPACE ts_1 ENGINE NDB;
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
+DROP TABLESPACE ts_1;
 DROP LOGFILE GROUP lg_1 ENGINE NDB;
 disconnect ddl;
 

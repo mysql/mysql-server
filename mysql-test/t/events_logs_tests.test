@@ -1,7 +1,4 @@
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 --disable_warnings
 drop database if exists events_test;
 --enable_warnings
@@ -35,7 +32,9 @@ call select_general_log();
 --echo Check that unlike sub-statements of stored procedures,
 --echo sub-statements of events are present in the general log.
 --echo 
-set global event_scheduler=on;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 truncate mysql.general_log;
 create event ev_log_general on schedule at now() on completion not preserve do select 'events_logs_test' as inside_event;
 --let $wait_condition=select count(*)=0 from information_schema.events where event_name='ev_log_general'
@@ -78,7 +77,6 @@ select user_host, db, sql_text from mysql.slow_log
   where sql_text like 'select \'events_logs_test\'%';
 
 drop database events_test;
-set global event_scheduler=off;
 set @@global.long_query_time=default;
 set @@session.long_query_time=default;
 

@@ -7,11 +7,9 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# Request clean shutdown
-# Wait for disconect
-# Restart server.
-# Restarted
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
 SELECT COUNT(*) FROM WL6445.t1;
 COUNT(*)
 3
@@ -28,27 +26,24 @@ ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 ALTER TABLE WL6445.t1 ADD COLUMN c2 INT;
 ERROR 42S21: Duplicate column name 'c2'
 ALTER TABLE WL6445.t1 ADD UNIQUE INDEX(c1);
-ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Running in read-only mode
 ALTER TABLE WL6445.t1 DROP INDEX sec_idx;
-ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Running in read-only mode
 DROP TABLE WL6445.t1;
-ERROR 42S02: Unknown table 'WL6445.t1'
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
 TRUNCATE TABLE WL6445.t1;
 ERROR HY000: Table 't1' is read only
 RENAME TABLE WL6445.t1 TO WL6444.t2;
-ERROR HY000: Error on rename of 't1' to 't2' (errno: 165 - Table is read only)
+ERROR 42000: Unknown database 'WL6444'
 DROP DATABASE WL6445;
-ERROR 42S02: Unknown table 'WL6445.t1'
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
 SHOW CREATE TABLE WL6445.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# Request clean shutdown
-# Wait for disconect
-# Restart server.
-# Restarted
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# restart
 DROP TABLE WL6445.t1;
 DROP DATABASE WL6445;

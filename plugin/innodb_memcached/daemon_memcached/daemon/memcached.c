@@ -15,6 +15,8 @@
  *  Authors:
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
+ *
+ *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 #include "config.h"
 #include "config_static.h"
@@ -40,6 +42,8 @@
 #include "memcached_mysql.h"
 
 #define INNODB_MEMCACHED
+void my_thread_init();
+void my_thread_end();
 
 static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     settings.engine.v1->item_set_cas(settings.engine.v0, cookie, it, cas);
@@ -730,11 +734,11 @@ static void conn_cleanup(conn *c) {
     }
 
     if (c->engine_storage) {
-	settings.engine.v1->clean_engine(settings.engine.v0, c,
-					 c->engine_storage);
+	void* cleanup_data = c->engine_storage;
+	c->engine_storage = NULL;
+	settings.engine.v1->clean_engine(settings.engine.v0, c, cleanup_data);
     }
 
-    c->engine_storage = NULL;
     c->tap_iterator = NULL;
     c->thread = NULL;
     assert(c->next == NULL);
@@ -3583,7 +3587,12 @@ static size_t tokenize_command(char *command, token_t *tokens, const size_t max_
     return ntokens;
 }
 
-static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes) {
+#ifdef INNODB_MEMCACHED
+static void detokenize(token_t *tokens, size_t ntokens, char **out, int *nbytes)
+#else
+static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes)
+#endif
+{
     int i, nb;
     char *buf, *p;
 
@@ -4045,19 +4054,22 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     int i = c->ileft;
     item *it;
     token_t *key_token = &tokens[KEY_TOKEN];
+    int range = false;
     assert(c != NULL);
-
-    /* We temporarily block the mgets commands till wl6650 checked in. */
-    if ((key_token + 1)->length > 0) {
-	out_string(c, "We temporarily don't support multiple get option.");
-	return NULL;
-    }
 
     do {
         while(key_token->length != 0) {
+            /* whether there are more keys to fetch */
+            bool next_get = (key_token + 1)->value;
 
             key = key_token->value;
             nkey = key_token->length;
+
+            /* whether this is a range search */
+            if (nkey >=  2 && key[0] == '@'
+		&& (key[1] == '>' || key[1] == '<')) {
+		range = true;
+            }
 
             if(nkey > KEY_MAX_LENGTH) {
                 out_string(c, "CLIENT_ERROR bad command line format");
@@ -4068,7 +4080,8 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
             c->aiostat = ENGINE_SUCCESS;
 
             if (ret == ENGINE_SUCCESS) {
-                ret = settings.engine.v1->get(settings.engine.v0, c, &it, key, nkey, 0);
+                ret = settings.engine.v1->get(settings.engine.v0, c, &it,
+					      key, nkey, next_get);
             }
 
             switch (ret) {
@@ -4182,7 +4195,14 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
                 MEMCACHED_COMMAND_GET(c->sfd, key, nkey, -1, 0);
             }
 
-            key_token++;
+            if (!range) {
+		key_token++;
+            } else {
+		if (ret == ENGINE_KEY_ENOENT) {
+			key_token->value = NULL;
+		}
+		break;
+	    }
         }
 
         /*
@@ -7842,8 +7862,13 @@ int main (int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+#ifdef INNODB_MEMCACHED
+    my_thread_init();
+#endif
+
     if(!init_engine(engine_handle,engine_config,settings.extensions.logger)) {
 #ifdef INNODB_MEMCACHED
+	my_thread_end();
         shutdown_server();
         goto func_exit;
 #else
@@ -7929,6 +7954,7 @@ int main (int argc, char **argv) {
                                             portnumber_file)) {
 		vperror("failed to listen on TCP port %d", settings.port);
 #ifdef INNODB_MEMCACHED
+		my_thread_end();
 		shutdown_server();
 		goto func_exit;
 #else
@@ -7994,6 +8020,7 @@ func_exit:
         event_base_free(main_base);
         main_base = NULL;
     }
+    my_thread_end();
 #endif
 
     memcached_shutdown = 2;

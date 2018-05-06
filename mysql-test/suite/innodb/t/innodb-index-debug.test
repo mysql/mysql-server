@@ -1,9 +1,18 @@
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 -- source include/count_sessions.inc
 -- source include/have_debug_sync.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+
+#########################
+#  how to record this test JSON result content mismatch
+#  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
+#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc
+#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
+#  2) run the test, it will fail (this is expected). The zip files are updated
+#  3) change the line to "--let $RECORD=0" and run test
+#########################
+--let $RECORD=0
 
 #
 # Test for BUG# 12739098, check whether trx->error_status is reset on error.
@@ -59,7 +68,7 @@ insert into t480 select 0 from t480;
 # Error during file write in alter operation.
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		primary key(f1,f2,f3), key(f1))engine=innodb;
+		primary key(f1,f2,f3), key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
@@ -113,6 +122,54 @@ SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
 disconnect con1;
 connection default;
 show create table t1;
+
+SET DEBUG_SYNC='RESET';
+--source include/wait_until_count_sessions.inc
+--source include/shutdown_mysqld.inc
+
+--echo # SDI output shouldn't show new column "k4" because
+--echo # ALTER failed
+
+# Extract saved JSON to tmp dir
+--let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
+--error 0,1
+--force-rmdir $SRC_DIR
+--mkdir $SRC_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/innodb_index_debug_json.zip $SRC_DIR/innodb_index_debug_json.zip
+
+# Unzip the JSONs zip file
+--exec unzip -qo $SRC_DIR/innodb_index_debug_json.zip -d $SRC_DIR
+
+# Create a directory to store json generated
+--let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
+--error 0,1
+--force-rmdir $DEST_DIR
+--mkdir $DEST_DIR
+
+--let JSON_FILE_PATH = $DEST_DIR/t1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+if ($RECORD == 0) {
+--diff_files $SRC_DIR/t1.json $JSON_FILE_PATH
+}
+
+--force-rmdir $SRC_DIR
+
+if ($RECORD == 0) {
+--force-rmdir $DEST_DIR
+}
+
+if ($RECORD == 1) {
+--exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
+--move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/innodb_index_debug_json.zip
+--force-rmdir $DEST_DIR
+}
+
+if ($RECORD == 1) {
+--echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
+}
+
+--source include/start_mysqld.inc
 drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';

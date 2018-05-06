@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -35,7 +42,9 @@ void Dbdih::initData()
                  ZCREATE_REPLICA_FILE_SIZE);
 
   nodeGroupRecord = (NodeGroupRecord*)
-    allocRecord("NodeGroupRecord", sizeof(NodeGroupRecord), MAX_NDB_NODES);
+    allocRecord("NodeGroupRecord",
+                sizeof(NodeGroupRecord),
+                MAX_NDB_NODE_GROUPS);
 
   nodeRecord = (NodeRecord*)
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
@@ -55,7 +64,7 @@ void Dbdih::initData()
     }
     while (c_masterActiveTakeOverList.first(ptr))
     {
-      releaseTakeOver(ptr, true);
+      releaseTakeOver(ptr, true, true);
     }
   }
   
@@ -76,20 +85,14 @@ void Dbdih::initData()
   c_sr_wait_to = false;
   c_2pass_inr = false;
   c_handled_master_take_over_copy_gci = 0;
-  
+  c_start_node_lcp_req_outstanding = false;
+
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
 }//Dbdih::initData()
 
 void Dbdih::initRecords()
 {
   // Records with dynamic sizes
-  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
-  {
-    c_diverify_queue[i].apiConnectRecord = (ApiConnectRecord*)
-      allocRecord("ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
 
   connectRecord = (ConnectRecord*)allocRecord("ConnectRecord",
                                               sizeof(ConnectRecord), 
@@ -232,6 +235,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_GCICONF, &Dbdih::execCOPY_GCICONF);
   addRecSignal(GSN_COPY_TABREQ, &Dbdih::execCOPY_TABREQ);
   addRecSignal(GSN_COPY_TABCONF, &Dbdih::execCOPY_TABCONF);
+  addRecSignal(GSN_CHECK_LCP_IDLE_ORD, &Dbdih::execCHECK_LCP_IDLE_ORD);
   addRecSignal(GSN_TCGETOPSIZECONF, &Dbdih::execTCGETOPSIZECONF);
   addRecSignal(GSN_TC_CLOPSIZECONF, &Dbdih::execTC_CLOPSIZECONF);
 
@@ -239,6 +243,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_LCP_FRAG_REP, &Dbdih::execLCP_FRAG_REP);
   addRecSignal(GSN_START_LCP_REQ, &Dbdih::execSTART_LCP_REQ);
   addRecSignal(GSN_START_LCP_CONF, &Dbdih::execSTART_LCP_CONF);
+  addRecSignal(GSN_START_NODE_LCP_CONF, &Dbdih::execSTART_NODE_LCP_CONF);
   
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbdih::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_UNBLO_DICTCONF, &Dbdih::execUNBLO_DICTCONF);
@@ -251,7 +256,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DIGETNODESREQ, &Dbdih::execDIGETNODESREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
   addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);
   addRecSignal(GSN_DIH_SCAN_TAB_COMPLETE_REP,
                &Dbdih::execDIH_SCAN_TAB_COMPLETE_REP);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
@@ -260,6 +264,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DICTSTARTCONF, &Dbdih::execDICTSTARTCONF);
   addRecSignal(GSN_NDB_STARTREQ, &Dbdih::execNDB_STARTREQ);
   addRecSignal(GSN_GETGCIREQ, &Dbdih::execGETGCIREQ);
+  addRecSignal(GSN_GET_LATEST_GCI_REQ, &Dbdih::execGET_LATEST_GCI_REQ);
+  addRecSignal(GSN_SET_LATEST_LCP_ID, &Dbdih::execSET_LATEST_LCP_ID);
   addRecSignal(GSN_DIH_RESTARTREQ, &Dbdih::execDIH_RESTARTREQ);
   addRecSignal(GSN_START_RECCONF, &Dbdih::execSTART_RECCONF);
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
@@ -362,8 +368,9 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
+  memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
-  bzero(c_node_groups, sizeof(c_node_groups));
+  memset(c_node_groups, 0, sizeof(c_node_groups));
   if (globalData.ndbMtTcThreads == 0)
   {
     c_diverify_queue_cnt = 1;
@@ -376,14 +383,6 @@ Dbdih::Dbdih(Block_context& ctx):
 
 Dbdih::~Dbdih()
 {
-  for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
-  {
-    deallocRecord((void **)&c_diverify_queue[i].apiConnectRecord,
-                  "ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
-
   deallocRecord((void **)&connectRecord, "ConnectRecord",
                 sizeof(ConnectRecord), 
                 cconnectFileSize);
@@ -410,7 +409,7 @@ Dbdih::~Dbdih()
                 ZCREATE_REPLICA_FILE_SIZE);
   
   deallocRecord((void **)&nodeGroupRecord, "NodeGroupRecord", 
-                sizeof(NodeGroupRecord), MAX_NDB_NODES);
+                sizeof(NodeGroupRecord), MAX_NDB_NODE_GROUPS);
   
   deallocRecord((void **)&nodeRecord, "NodeRecord", 
                 sizeof(NodeRecord), MAX_NDB_NODES);

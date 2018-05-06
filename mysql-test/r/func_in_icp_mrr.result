@@ -133,6 +133,7 @@ select * from t1 where a in ('a');
 a	b	c
 A	B	C
 a	c	c
+set names latin1;
 select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
 a	b	c
 A	B	C
@@ -143,17 +144,21 @@ a	c	c
 select * from t1 where 'a' in (a,b,c collate latin1_bin);
 a	b	c
 a	c	c
-explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
+explain select * from t1 where 'a' in (a,b,c collate latin1_bin);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ('a' in (`test`.`t1`.`a`,`test`.`t1`.`b`,(`test`.`t1`.`c` collate latin1_bin)))
 drop table t1;
+set names utf8mb4;
 set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a char(10) character set utf8 not null);
-insert into t1 values ('bbbb'),(_koi8r'√√√√'),(_latin1'ƒƒƒƒ');
-select a from t1 where a in ('bbbb',_koi8r'√√√√',_latin1'ƒƒƒƒ') order by a;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+insert into t1 values ('bbbb'),(_koi8r x'C3C3C3C3'),(_latin1 x'C4C4C4C4');
+select a from t1 where a in ('bbbb',_koi8r x'C3C3C3C3',_latin1 x'C4C4C4C4') order by a;
 a
 √Ñ√Ñ√Ñ√Ñ
 bbbb
@@ -659,7 +664,7 @@ c_datetime DATETIME NOT NULL,
 c_timestamp TIMESTAMP NOT NULL,
 c_time TIME NOT NULL,
 c_year YEAR NOT NULL,
-c_char CHAR(10) NOT NULL,
+c_char CHAR(10) character set utf8mb4 NOT NULL,
 INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
 INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
 INDEX(c_char));
@@ -844,12 +849,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_year` in (NULL,NULL))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN ('1', '2', '3');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c_char	c_char	10	NULL	3	100.00	Using index condition; Using MRR
+1	SIMPLE	t1	NULL	range	c_char	c_char	40	NULL	3	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` in ('1','2','3'))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, '1', '2', '3');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c_char	c_char	10	NULL	3	100.00	Using index condition; Using MRR
+1	SIMPLE	t1	NULL	range	c_char	c_char	40	NULL	3	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` in (NULL,'1','2','3'))
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL);
@@ -933,11 +938,9 @@ DROP TABLE t1;
 #
 # Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
 #
-SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
-LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"")
+SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
+LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"")
 0
-Warnings:
-Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 # End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

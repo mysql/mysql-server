@@ -1,0 +1,397 @@
+'\" t
+.\"     Title: \fBmysql_secure_installation\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 04/04/2018
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 8.0
+.\"  Language: English
+.\"
+.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+mysql_secure_installation \- improve MySQL installation security
+.SH "SYNOPSIS"
+.HP \w'\fBmysql_secure_installation\fR\ 'u
+\fBmysql_secure_installation\fR
+.SH "DESCRIPTION"
+.PP
+This program enables you to improve the security of your MySQL installation in the following ways:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You can set a password for
+root
+accounts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You can remove
+root
+accounts that are accessible from outside the local host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You can remove anonymous\-user accounts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+You can remove the
+test
+database (which by default can be accessed by all users, even anonymous users), and privileges that permit anyone to access databases with names that start with
+test_\&.
+.RE
+.PP
+\fBmysql_secure_installation\fR
+helps you implement security recommendations similar to those described at
+Section\ \&2.9.4, \(lqSecuring the Initial MySQL Account\(rq\&.
+.PP
+Normal usage is to connect to the local MySQL server; invoke
+\fBmysql_secure_installation\fR
+without arguments:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_secure_installation\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+When executed,
+\fBmysql_secure_installation\fR
+prompts you to determine which actions to perform\&.
+.PP
+The
+validate_password
+component can be used for password strength checking\&. If the plugin is not installed,
+\fBmysql_secure_installation\fR
+prompts the user whether to install it\&. Any passwords entered later are checked using the plugin if it is enabled\&.
+.PP
+Most of the usual MySQL client options such as
+\fB\-\-host\fR
+and
+\fB\-\-port\fR
+can be used on the command line and in option files\&. For example, to connect to the local server over IPv6 using port 3307, use this command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql_secure_installation \-\-host=::1 \-\-port=3307\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmysql_secure_installation\fR
+supports the following options, which can be specified on the command line or in the
+[mysql_secure_installation]
+and
+[client]
+groups of an option file\&. For information about option files used by MySQL programs, see
+Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR,
+\fB\-?\fR
+.sp
+Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+\fIfile_name\fR
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+\fIfile_name\fR
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.sp
+Read not only the usual option groups, but also groups with the usual names and a suffix of
+\fIstr\fR\&. For example,
+\fBmysql_secure_installation\fR
+normally reads the
+[client]
+and
+[mysql_secure_installation]
+groups\&. If the
+\fB\-\-defaults\-group\-suffix=_other\fR
+option is given,
+\fBmysql_secure_installation\fR
+also reads the
+[client_other]
+and
+[mysql_secure_installation_other]
+groups\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+\fB\-h \fR\fB\fIhost_name\fR\fR
+.sp
+Connect to the MySQL server on the given host\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.sp
+Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
+\fB\-\-no\-defaults\fR
+can be used to prevent them from being read\&.
+.sp
+The exception is that the
+\&.mylogin\&.cnf
+file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+\fB\-\-no\-defaults\fR
+is used\&. (\&.mylogin\&.cnf
+is created by the
+\fBmysql_config_editor\fR
+utility\&. See
+\fBmysql_config_editor\fR(1)\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-password=\fR\fB\fIpassword\fR\fR,
+\fB\-p \fR\fB\fIpassword\fR\fR
+.sp
+This option is accepted but ignored\&. Whether or not this option is used,
+\fBmysql_secure_installation\fR
+always prompts the user for a password\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+\fB\-P \fR\fB\fIport_num\fR\fR
+.sp
+The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.sp
+Print the program name and all options that it gets from option files\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.sp
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+\fB\-S \fR\fB\fIpath\fR\fR
+.sp
+For connections to
+localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ssl*\fR
+.sp
+Options that begin with
+\fB\-\-ssl\fR
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.sp
+The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-use\-default\fR
+.sp
+Execute noninteractively\&. This option can be used for unattended installation operations\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+\fB\-u \fR\fB\fIuser_name\fR\fR
+.sp
+The MySQL user name to use when connecting to the server\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

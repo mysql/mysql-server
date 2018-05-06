@@ -4,7 +4,7 @@
 #                                                                             #
 # Variable Name: innodb_buffer_pool_size                                      #
 # Scope: Global                                                               #
-# Access Type: Static                                                         #
+# Access Type: Dynamic                                                         #
 # Data Type: numeric                                                          #
 #                                                                             #
 #                                                                             #
@@ -22,19 +22,10 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_innodb.inc
-
---disable_query_log
-if (`select (version() like '%debug%') > 0`)
-{
-    set @old_innodb_disable_resize = @@innodb_disable_resize_buffer_pool_debug;
-    set global innodb_disable_resize_buffer_pool_debug = OFF;
-}
---enable_query_log
 
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 
 SET @start_buffer_pool_size = @@GLOBAL.innodb_buffer_pool_size;
@@ -69,7 +60,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_buffer_pool_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 --enable_warnings
 --echo 1 Expected
@@ -79,7 +70,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_buffer_pool_size';
 --enable_warnings
 --echo 1 Expected
@@ -121,10 +112,3 @@ SELECT innodb_buffer_pool_size = @@SESSION.innodb_buffer_pool_size;
 
 SET @@GLOBAL.innodb_buffer_pool_size = @start_buffer_pool_size;
 --source include/wait_condition.inc
-
---disable_query_log
-if (`select (version() like '%debug%') > 0`)
-{
-    set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
-}
---enable_query_log

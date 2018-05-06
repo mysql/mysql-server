@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
@@ -24,6 +19,7 @@ create table t2 (i int not null, unique (i));
 insert into t2 select distinct i from t1;
 select * from t2; 
 select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+analyze table t1;
 explain select * from t1 where i=@vv1;
 select @vv1,i,v from t1 where i=@vv1;
 explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
@@ -82,7 +78,7 @@ select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 drop table t1;
 
 #
-# Bug #2244: User variables didn't copy collation and derivation
+# Bug #2244: User variables did not copy collation and derivation
 # attributes from values they were initialized to.
 #
 
@@ -261,8 +257,8 @@ set @prev_score := NULL;
 # of a statement and use the same variable in other part of the same statement,
 # so we can get unexpected results.
 --disable_result_log
-select @rownum := @rownum + 1 as row,
- @rank := IF(@prev_score!=a, @rownum, @rank) as rank,
+select @rownum := @rownum + 1 as `row`,
+ @rank := IF(@prev_score!=a, @rownum, @rank) as `rank`,
  @prev_score := a as score
 from t1 order by score desc;
 --enable_result_log
@@ -472,6 +468,8 @@ INSERT INTO t3 VALUES (1), (4), (7), (10);
 
 SET @var1 = 6;
 
+ANALYZE TABLE t1,t2,t3;
+
 let $query=
 SELECT t1.a, t2.a, t3.a, (@var1:= @var1+0) AS var
 FROM t1
@@ -521,3 +519,33 @@ SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM 
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 DROP TABLE t1; 
 
+--echo Bug#25727892: Refactor Item::const_item() as a non-virtual function
+
+--echo Coverage for cached and non-cached user variables
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,1);
+
+
+
+let $query1=SELECT a FROM t1 WHERE a = @x;
+let $query2=SELECT a FROM t1 WHERE a = @x AND (@x:= @x);
+let $query3=SELECT a FROM t1 WHERE a = @x INTO @x;
+
+ANALYZE TABLE t1;
+
+eval explain $query1;
+eval explain $query2;
+eval explain $query3;
+
+SET @x= 1;
+
+eval $query1;
+eval $query2;
+--error ER_TOO_MANY_ROWS
+eval $query3;
+
+SET @x= 2;
+eval $query3;
+
+DROP TABLE t1;

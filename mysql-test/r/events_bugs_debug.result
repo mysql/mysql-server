@@ -1,0 +1,8 @@
+#
+# Bug#21914871 : ASSERTION `! IS_SET()' FOR DIAGNOSTICS_AREA::SET_OK_STATUS
+#                  CREATE EVENT
+#
+SET SESSION DEBUG='+d,thd_killed_injection';
+CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR DO SELECT 1;
+ERROR 70100: Query execution was interrupted
+SET SESSION DEBUG='-d,thd_killed_injection';

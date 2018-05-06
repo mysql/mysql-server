@@ -1,5 +1,3 @@
--- source include/have_innodb.inc
--- source include/have_innodb_16k.inc
 
 let $per_table=`select @@innodb_file_per_table`;
 

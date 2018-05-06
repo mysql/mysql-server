@@ -1,3 +1,8 @@
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+set sql_mode=(select replace(@@sql_mode,'NO_ZERO_DATE',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 DROP TABLE IF EXISTS t1,bit1;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
@@ -135,14 +140,18 @@ Temporary table: no
 Number of attributes: 13
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -160,7 +169,7 @@ timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
-Index
+PRIMARY(i) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -174,14 +183,18 @@ Temporary table: no
 Number of attributes: 6
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -243,14 +256,18 @@ Temporary table: no
 Number of attributes: 12
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 2
 FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY
@@ -266,7 +283,7 @@ text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=ND
 timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
-Index
+PRIMARY(i) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -280,14 +297,18 @@ Temporary table: no
 Number of attributes: 6
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 2
 FragmentCount: 2
+PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY
@@ -362,14 +383,18 @@ Temporary table: no
 Number of attributes: 12
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 2
 FragmentCount: 2
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -386,7 +411,7 @@ text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=ND
 timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
-Index
+PRIMARY(i) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -453,14 +478,18 @@ Temporary table: no
 Number of attributes: 4
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -469,9 +498,9 @@ f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
 d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
-Index
-Index
-Index
+PRIMARY(i) - OrderedIndex
+t2_unique_index(j) - OrderedIndex
+t2_unique_index$unique(j) - UniqueHashIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -485,7 +514,7 @@ i	j	f	d
 * Test that online alter of default values fails
 *************************************************************
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
 DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously
@@ -505,14 +534,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -549,14 +582,18 @@ Temporary table: no
 Number of attributes: 9
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -603,14 +640,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -651,14 +692,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -698,14 +743,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -745,14 +794,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -794,14 +847,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -846,14 +903,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -893,14 +954,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -942,14 +1007,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -992,14 +1061,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1046,14 +1119,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1094,14 +1171,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1141,14 +1222,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1188,14 +1273,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1235,14 +1324,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1284,14 +1377,18 @@ Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1336,14 +1433,18 @@ Temporary table: no
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1429,14 +1530,18 @@ Temporary table: no
 Number of attributes: 13
 Number of primary keys: 1
 Length of frm data: XXX
+Max Rows: 0
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+PartitionCount: 8
 FragmentCount: 8
+PartitionBalance: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -1454,7 +1559,7 @@ newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Comme
 newTwo Bigint NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
-Index
+PRIMARY(i) - OrderedIndex
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1517,6 +1622,7 @@ Ensure that Ndb handler doesn't expect native defaults for Blobs.
 set @save_sql_mode = @@session.sql_mode;
 set sql_mode=STRICT_TRANS_TABLES;
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',
@@ -1528,6 +1634,7 @@ PRIMARY KEY (fid)
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'f03' can't have a default value
 set sql_mode=@save_sql_mode;
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',

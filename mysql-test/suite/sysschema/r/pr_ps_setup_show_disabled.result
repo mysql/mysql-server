@@ -72,6 +72,9 @@ stage/innodb/alter table (log apply table)	YES
 stage/innodb/alter table (merge sort)	YES
 stage/innodb/alter table (read PK and internal sort)	YES
 stage/innodb/buffer pool load	YES
+stage/innodb/clone (file copy)	YES
+stage/innodb/clone (page copy)	YES
+stage/innodb/clone (redo copy)	YES
 statement/com/Binlog Dump	YES
 statement/com/Binlog Dump GTID	YES
 statement/com/Change user	YES
@@ -136,6 +139,10 @@ innodb/srv_lock_timeout_thread	BACKGROUND
 innodb/srv_master_thread	BACKGROUND
 innodb/srv_monitor_thread	BACKGROUND
 innodb/srv_purge_thread	BACKGROUND
+innodb/srv_purge_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
@@ -171,6 +178,10 @@ innodb/srv_lock_timeout_thread	BACKGROUND
 innodb/srv_master_thread	BACKGROUND
 innodb/srv_monitor_thread	BACKGROUND
 innodb/srv_purge_thread	BACKGROUND
+innodb/srv_purge_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
+innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
 innodb/srv_worker_thread	BACKGROUND
@@ -184,6 +195,9 @@ stage/innodb/alter table (log apply table)	YES
 stage/innodb/alter table (merge sort)	YES
 stage/innodb/alter table (read PK and internal sort)	YES
 stage/innodb/buffer pool load	YES
+stage/innodb/clone (file copy)	YES
+stage/innodb/clone (page copy)	YES
+stage/innodb/clone (redo copy)	YES
 statement/com/Binlog Dump	YES
 statement/com/Binlog Dump GTID	YES
 statement/com/Change user	YES

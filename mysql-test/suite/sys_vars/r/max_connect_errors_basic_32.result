@@ -41,17 +41,11 @@ Warning	1292	Truncated incorrect max_connect_errors value: '-1'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 1
-SET @@global.max_connect_errors = 100000000000;
-Warnings:
-Warning	1292	Truncated incorrect max_connect_errors value: '100000000000'
-SELECT @@global.max_connect_errors;
-@@global.max_connect_errors
-4294967295
 SET @@global.max_connect_errors = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-4294967295
+1
 SET @@global.max_connect_errors = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_connect_errors value: '-1024'
@@ -64,19 +58,25 @@ Warning	1292	Truncated incorrect max_connect_errors value: '0'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 1
+SET @@global.max_connect_errors = ON;
+ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
+SELECT @@global.max_connect_errors;
+@@global.max_connect_errors
+1
+SET @@global.max_connect_errors = 'test';
+ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
+SELECT @@global.max_connect_errors;
+@@global.max_connect_errors
+1
 SET @@global.max_connect_errors = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect max_connect_errors value: '4294967296'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 4294967295
-SET @@global.max_connect_errors = ON;
-ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
-SELECT @@global.max_connect_errors;
-@@global.max_connect_errors
-4294967295
-SET @@global.max_connect_errors = 'test';
-ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
+SET @@global.max_connect_errors = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect max_connect_errors value: '42949672950'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 4294967295
@@ -87,12 +87,12 @@ SELECT @@session.max_connect_errors;
 ERROR HY000: Variable 'max_connect_errors' is a GLOBAL variable
 '#----------------------FN_DYNVARS_073_06------------------------#'
 SELECT @@global.max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 @@global.max_connect_errors = VARIABLE_VALUE
 1
 SELECT @@max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 @@max_connect_errors = VARIABLE_VALUE
 1

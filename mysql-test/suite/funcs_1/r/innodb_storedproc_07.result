@@ -2,15 +2,13 @@
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
 DROP DATABASE IF EXISTS db_storedproc;
 DROP DATABASE IF EXISTS db_storedproc_1;
-CREATE DATABASE db_storedproc;
-CREATE DATABASE db_storedproc_1;
+CREATE DATABASE db_storedproc charset utf8mb4;
+CREATE DATABASE db_storedproc_1 charset utf8mb4;
 USE db_storedproc;
 create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
@@ -65,10 +63,16 @@ create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
 SET sql_mode = default;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Section 3.1.7 - SQL mode checks:
 --------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE db_storedproc;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.1.7.1:
 -----------------
@@ -76,6 +80,8 @@ Ensure that the sql_mode setting in effect at the time a stored procedure is
 created is the same setting under which the stored procedure runs when it is
 called/executed.
 --------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE IF EXISTS sp1;
 DROP TABLE IF EXISTS temp_tbl;
 DROP TABLE IF EXISTS result;
@@ -84,7 +90,7 @@ CREATE TABLE result (f1 text(200), f2 char(20));
 set @@sql_mode='traditional';
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 CREATE PROCEDURE sp1()
 BEGIN
 declare a tinyint;
@@ -101,7 +107,7 @@ END if;
 END//
 SHOW CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp1	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
+sp1	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
 BEGIN
 declare a tinyint;
 declare count_ int default 1;
@@ -114,19 +120,17 @@ INSERT INTO result VALUES (@cur_val_sql_mode, 'value restored');
 ELSE
 INSERT INTO result VALUES (@cur_val_sql_mode, 'value not restored');
 END if;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 set @@sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	
 CALL sp1();
 Variable_name	Value
-sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SELECT * from result;
 f1	f2
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	value restored
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION	value restored
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	
@@ -134,11 +138,11 @@ SELECT @@sql_mode;
 @@sql_mode
 
 SET @@sql_mode='TRADITIONAL';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE sp1;
 DROP TABLE temp_tbl;
 DROP TABLE result;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Testcase 3.1.7.2:
 -----------------
@@ -146,41 +150,47 @@ Ensure that if the sql_mode setting is changed when a stored procedure is run,
 that the original setting is restored as soon as the stored procedure execution
 is complete.
 --------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP PROCEDURE IF EXISTS sp2;
 ... show initial value
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 CREATE PROCEDURE sp2()
 BEGIN
-SET @@sql_mode='MAXDB';
+SET @@sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE';
 SHOW VARIABLES LIKE 'sql_mode';
 END//
 SHOW CREATE PROCEDURE sp2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp2`()
+sp2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp2`()
 BEGIN
-SET @@sql_mode='MAXDB';
+SET @@sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE';
 SHOW VARIABLES LIKE 'sql_mode';
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 ... show value prior calling procedure
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 ... call procedure that changes sql_mode
 CALL sp2();
 Variable_name	Value
-sql_mode	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
+sql_mode	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE
 ... check whether old value is re-set
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 DROP PROCEDURE sp2;
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
 DROP DATABASE IF EXISTS db_storedproc;
 DROP DATABASE IF EXISTS db_storedproc_1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 .                               +++ END OF SCRIPT +++
 --------------------------------------------------------------------------------
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

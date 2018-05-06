@@ -1,0 +1,190 @@
+###############################################################################
+# This test verifies the behaviour of GR+Keyring Plugin
+#
+# Test :
+# 0. This test requires 2 servers.(M1 and M2)
+# 1. Check behavior when keyring plugin is installed in both the servers.
+#	1.1 Install keyring plugin,Generate Master Key,Bootstrap start GR on M1
+#	1.2 Execute DDL and DML on M1.
+#	1.3 Install keyring plugin and start GR on M2.
+#	1.4 Check if table exists and has same values on both the servers.
+# 2. Check behavior when keyring plugin is uninstalled in one of the servers.
+#	2.1 Uninstall keyring plugin on M2.
+#	2.2 Create table and Insert into table t3 on M1.
+#	2.3 Check that M2 is in ERROR state.
+#	2.4 Stop GR, Install keyring plugin and start GR on M2.
+#	2.5 Check that t3 exists and has same values on both the servers.
+# 3. Clean Up.
+###############################################################################
+
+--source include/big_test.inc
+# Ensure that plugin is installed.
+--source include/have_group_replication_plugin_base.inc
+
+--let plugins = KEYRING_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+set sql_log_bin=1;
+
+# Scenario 1
+
+# Check that keyring plugin is not installed
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Install keyring plugin on server1
+--disable_warnings
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server1/keyring_server1'
+--query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
+
+# Rotating master key when keyring file is empty.
+# It should generate new master key.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Start Group Replication on server1
+--source include/start_and_bootstrap_group_replication.inc
+
+# Creating table with encryption
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, "first");
+INSERT INTO t1 VALUES(2, "second");
+INSERT INTO t1 VALUES(3, "third");
+CREATE TABLE t2 (c1 INT PRIMARY KEY,c2 INT,FOREIGN KEY(c2)REFERENCES t1(c1)ON DELETE RESTRICT);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t2 VALUEs(2,2);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded*");
+call mtr.add_suppression(".*Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': Error 'Can't find master key from keyring, please check keyring plugin is loaded.' on query*");
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'To prevent errors, the server read only mode was enabled following a plugin error.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Skipping leave operation:*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
+set sql_log_bin=1;
+
+# Check that keyring plugin is not installed
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Install keyring plugin on server2
+--disable_warnings
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server2/keyring_server2'
+--query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
+
+--source include/start_group_replication.inc
+UPDATE t2 SET c1=3 WHERE c1=2;
+UPDATE t2 SET c2=NULL WHERE c2=3;
+DELETE FROM t1 WHERE c1=3;
+
+--source include/rpl_sync.inc
+--echo # check that t1 exists and has same values in both servers
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+--echo # check that t2 exists and has same values in both servers
+--let $diff_tables=server1:t2, server2:t2
+--source include/diff_tables.inc
+
+# Scenario 2
+
+# Uninstall keyring plugin on server2
+UNINSTALL PLUGIN keyring_file;
+--query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
+
+# Even when the keyring plugin is uninstalled we can do DML and SELECT statements
+# on existing tables. But, we cant CREATE new tables or generate new MASTER key
+INSERT INTO t1 VALUES(7,'seventh');
+
+# Cant create new tables with encryption
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+CREATE TABLE t3(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+# Cant generate new Master Key
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t3(c1 INT PRIMARY KEY) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t3 VALUES(1);
+UPDATE t3 SET c1=2;
+
+# Server2 cant CREATE TABLE t3 as keyring plugin is not installed.
+--let $wait_timeout= 120
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where CHANNEL_NAME="group_replication_applier" and MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where CHANNEL_NAME="group_replication_applier" and MEMBER_STATE="ERROR"
+--source include/wait_condition.inc
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+--source include/stop_group_replication.inc
+
+# Install plugin on server2 and start GR
+--disable_warnings
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
+--enable_warnings
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_server2/keyring_server2'
+--query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
+
+--source include/start_group_replication.inc
+DELETE FROM t3 WHERE c1=1;
+DELETE FROM t2 WHERE c1=1;
+DELETE FROM t1 WHERE c1=1;
+
+--source include/rpl_sync.inc
+--echo # check that t1 exists and has same values in both servers
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+--echo # check that t2 exists and has same values in both servers
+--let $diff_tables=server1:t2, server2:t2
+--source include/diff_tables.inc
+--echo # check that t3 exists and has same values in both servers
+--let $diff_tables=server1:t3, server2:t3
+
+# Clean Up
+
+# Uninstall keyring plugin on server2
+UNINSTALL PLUGIN keyring_file;
+
+# Uninstall keyring plugin on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+UNINSTALL PLUGIN keyring_file;
+
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t1;
+
+--source include/force_restart.inc
+--source include/group_replication_end.inc

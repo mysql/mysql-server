@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -39,7 +46,8 @@ public:
                 bool oneTrans = false,
 		int updateValue = 0,
 		bool abort = false,
-                bool abort_on_first_error = false);
+                bool abort_on_first_error = false,
+                int row_step = 1);
 
   int loadTableStartFrom(Ndb*, 
                          int startFrom,
@@ -50,14 +58,16 @@ public:
                          bool oneTrans = false,
                          int updateValue = 0,
                          bool abort = false,
-                         bool abort_on_first_error = false);
+                         bool abort_on_first_error = false,
+                         int row_step = 1);
 
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,
 		      int parallelism = 0,
 		      NdbOperation::LockMode = NdbOperation::LM_Read,
-                      int scan_flags = 0);
+                      int scan_flags = 0,
+                      int force_check_flag = 0);
 
   int scanReadRecords(Ndb*, 
 		      const NdbDictionary::Index*,
@@ -109,11 +119,13 @@ public:
   int pkInterpretedUpdateRecords(Ndb*, 
 				 int records,
 				 int batchsize = 1);
-  int pkDelRecords(Ndb*, 
+  int pkDelRecords(Ndb*,
 		   int records = 0,
 		   int batch = 1,
 		   bool allowConstraintViolation = true,
-		   int doSleep = 0);
+		   int doSleep = 0,
+                   int start_record = 0,
+                   int step = 1);
 
   int pkRefreshRecords(Ndb*, int startFrom, int count = 1, int batch = 1);
 
@@ -125,7 +137,9 @@ public:
   int fillTable(Ndb*,
 		int batch=512);
 
-  int fillTableStartFrom(Ndb*, int startFrom, int batch=512);
+  int fillTableStartFrom(Ndb*,
+                         int startFrom,
+                         int batch=512);
 
   /**
    * Reading using UniqHashIndex with key = pk
@@ -145,6 +159,14 @@ public:
   bool getRetryMaxReached() const { return m_retryMaxReached; }
   
   Uint64 m_latest_gci;
+  Uint32 get_high_latest_gci ()
+  {
+    return Uint32(Uint64(m_latest_gci >> 32));
+  }
+  Uint32 get_low_latest_gci()
+  {
+    return Uint32(Uint64(m_latest_gci & 0xFFFFFFFF));
+  }
 
   void setStatsLatency(NDBT_Stats* stats) { m_stats_latency = stats; }
 

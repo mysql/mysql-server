@@ -1,0 +1,1166 @@
+#
+# Setup test.
+#
+CREATE TABLE t1 (a int, k int, b VARCHAR(10)) CHARSET utf8mb4;
+INSERT INTO t1 VALUES
+(1, 1, "alfa"),
+(1, 2, null),
+(2, 3, "doi"),
+(1, 4, "unu"),
+(3, 5, "trei"),
+(4, 6, null),
+(4, 7, null),
+(1, 8, "one");
+#
+# Test JSON_ARRAYAGG.
+#
+FLUSH STATUS;
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT SQL_BIG_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+SELECT SQL_SMALL_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT JSON_ARRAYAGG(b) FROM t1;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+SELECT SQL_BIG_RESULT JSON_ARRAYAGG(b) FROM t1;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+SELECT SQL_SMALL_RESULT JSON_ARRAYAGG(b) FROM t1;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+SELECT SQL_BUFFER_RESULT JSON_ARRAYAGG(b) FROM t1;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+PREPARE p1 FROM "SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a";
+EXECUTE p1;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+EXECUTE p1;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+deallocate prepare p1;
+PREPARE p3 FROM
+"SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a";
+EXECUTE p3;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+EXECUTE p3;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+deallocate prepare p3;
+PREPARE p4 FROM "SELECT JSON_ARRAYAGG(b) FROM t1";
+EXECUTE p4;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+EXECUTE p4;
+JSON_ARRAYAGG(b)
+["alfa", null, "doi", "unu", "trei", null, null, "one"]
+deallocate prepare p4;
+SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
+["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
+PREPARE p1 FROM
+"SELECT a, JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
+EXECUTE p1;
+a	JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
+1	["alfa", null, "unu", "one", true, false]
+2	["doi", true, false]
+3	["trei", true, false]
+4	[null, null, true, false]
+EXECUTE p1;
+a	JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
+1	["alfa", null, "unu", "one", true, false]
+2	["doi", true, false]
+3	["trei", true, false]
+4	[null, null, true, false]
+deallocate prepare p1;
+PREPARE p4 FROM
+"SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
+EXECUTE p4;
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
+["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
+EXECUTE p4;
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
+["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
+deallocate prepare p4;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN SELECT JSON_ARRAYAGG(b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1`
+EXPLAIN FORMAT=json SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.05"
+    },
+    "grouping_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.05"
+    },
+    "grouping_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`a` AS `a`,json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.05"
+    },
+    "grouping_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
+        },
+        "used_columns": [
+          "a",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result `test`.`t1`.`a` AS `a`,json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.05"
+    },
+    "grouping_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
+      "buffer_result": {
+        "using_temporary_table": true,
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 8,
+          "rows_produced_per_join": 8,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.80",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "448"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a`,json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN FORMAT=json SELECT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 8,
+      "rows_produced_per_join": 8,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
+      },
+      "used_columns": [
+        "b"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1`
+EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 8,
+      "rows_produced_per_join": 8,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
+      },
+      "used_columns": [
+        "b"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1`
+EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 8,
+      "rows_produced_per_join": 8,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
+      },
+      "used_columns": [
+        "b"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_small_result json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1`
+EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "buffer_result": {
+      "using_temporary_table": true,
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
+        },
+        "used_columns": [
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_buffer_result json_arrayagg(`test`.`t1`.`b`) AS `JSON_ARRAYAGG(b)` from `test`.`t1`
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a WITH ROLLUP;
+a	JSON_ARRAYAGG(b)
+1	["alfa", null, "unu", "one"]
+2	["doi"]
+3	["trei"]
+4	[null, null]
+NULL	["alfa", null, "unu", "one", "doi", "trei", null, null]
+SELECT a, JSON_ARRAYAGG(b) as jarray
+FROM t1
+GROUP BY a
+HAVING jarray= JSON_ARRAY("trei");
+a	jarray
+3	["trei"]
+#
+# Test JSON_OBJECTAGG.
+#
+FLUSH STATUS;
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "alfa", "2": null, "4": "unu", "8": "one"}
+2	{"3": "doi"}
+3	{"5": "trei"}
+4	{"6": null, "7": null}
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT JSON_OBJECTAGG(k, b) FROM t1;
+JSON_OBJECTAGG(k, b)
+{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+PREPARE p1 FROM "SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a";
+EXECUTE p1;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "alfa", "2": null, "4": "unu", "8": "one"}
+2	{"3": "doi"}
+3	{"5": "trei"}
+4	{"6": null, "7": null}
+EXECUTE p1;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "alfa", "2": null, "4": "unu", "8": "one"}
+2	{"3": "doi"}
+3	{"5": "trei"}
+4	{"6": null, "7": null}
+deallocate prepare p1;
+PREPARE p4 FROM "SELECT JSON_OBJECTAGG(k, b) FROM t1";
+EXECUTE p4;
+JSON_OBJECTAGG(k, b)
+{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}
+EXECUTE p4;
+JSON_OBJECTAGG(k, b)
+{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}
+deallocate prepare p4;
+SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
+2	[{"3": "doi"}, true, false]
+3	[{"5": "trei"}, true, false]
+4	[{"6": null, "7": null}, true, false]
+SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+[{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
+PREPARE p1 FROM
+"SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+FROM t1
+GROUP BY a";
+EXECUTE p1;
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
+2	[{"3": "doi"}, true, false]
+3	[{"5": "trei"}, true, false]
+4	[{"6": null, "7": null}, true, false]
+EXECUTE p1;
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
+2	[{"3": "doi"}, true, false]
+3	[{"5": "trei"}, true, false]
+4	[{"6": null, "7": null}, true, false]
+deallocate prepare p1;
+PREPARE p4 FROM
+"SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
+EXECUTE p4;
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+[{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
+EXECUTE p4;
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+[{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
+deallocate prepare p4;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,json_objectagg(`test`.`t1`.`k`,`test`.`t1`.`b`) AS `JSON_OBJECTAGG(k, b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN SELECT JSON_OBJECTAGG(k, b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select json_objectagg(`test`.`t1`.`k`,`test`.`t1`.`b`) AS `JSON_OBJECTAGG(k, b)` from `test`.`t1`
+EXPLAIN FORMAT=json SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "9.05"
+    },
+    "grouping_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
+      "table": {
+        "table_name": "t1",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 8,
+        "rows_produced_per_join": 8,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.80",
+          "prefix_cost": "1.05",
+          "data_read_per_join": "448"
+        },
+        "used_columns": [
+          "a",
+          "k",
+          "b"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,json_objectagg(`test`.`t1`.`k`,`test`.`t1`.`b`) AS `JSON_OBJECTAGG(k, b)` from `test`.`t1` group by `test`.`t1`.`a`
+EXPLAIN FORMAT=json SELECT JSON_OBJECTAGG(k, b) FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.05"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 8,
+      "rows_produced_per_join": 8,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.80",
+        "prefix_cost": "1.05",
+        "data_read_per_join": "448"
+      },
+      "used_columns": [
+        "k",
+        "b"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select json_objectagg(`test`.`t1`.`k`,`test`.`t1`.`b`) AS `JSON_OBJECTAGG(k, b)` from `test`.`t1`
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a WITH ROLLUP;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "alfa", "2": null, "4": "unu", "8": "one"}
+2	{"3": "doi"}
+3	{"5": "trei"}
+4	{"6": null, "7": null}
+NULL	{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}
+SELECT a, JSON_OBJECTAGG(k, b) as jobject
+FROM t1
+GROUP BY a
+HAVING jobject = JSON_OBJECT(3, "doi");
+a	jobject
+2	{"3": "doi"}
+#
+# NULL values.
+#
+SELECT a, JSON_ARRAYAGG(null) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(null)
+1	[null, null, null, null]
+2	[null]
+3	[null]
+4	[null, null]
+SELECT JSON_ARRAYAGG(null) FROM t1;
+JSON_ARRAYAGG(null)
+[null, null, null, null, null, null, null, null]
+SELECT a, JSON_OBJECTAGG(k, null) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, null)
+1	{"1": null, "2": null, "4": null, "8": null}
+2	{"3": null}
+3	{"5": null}
+4	{"6": null, "7": null}
+SELECT JSON_OBJECTAGG(k, null) FROM t1;
+JSON_OBJECTAGG(k, null)
+{"1": null, "2": null, "3": null, "4": null, "5": null, "6": null, "7": null, "8": null}
+SELECT a, JSON_OBJECTAGG(null, b) FROM t1 GROUP BY a;
+ERROR 22032: JSON documents may not contain NULL member names.
+SELECT JSON_OBJECTAGG(null, b) FROM t1;
+ERROR 22032: JSON documents may not contain NULL member names.
+#
+# Coverage test for fix_fields: Disable_semijoin_flattening.
+#
+CREATE TABLE t(a INT);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN format=json SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "message": "No tables used",
+    "optimized_away_subqueries": [
+      {
+        "dependent": true,
+        "cacheable": false,
+        "query_block": {
+          "select_id": 2,
+          "cost_info": {
+            "query_cost": "0.35"
+          },
+          "table": {
+            "table_name": "t",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 1,
+            "rows_produced_per_join": 1,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "0.10",
+              "prefix_cost": "0.35",
+              "data_read_per_join": "8"
+            },
+            "attached_condition": "json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where 1)))"
+          },
+          "optimized_away_subqueries": [
+            {
+              "dependent": false,
+              "cacheable": true,
+              "query_block": {
+                "select_id": 3,
+                "cost_info": {
+                  "query_cost": "0.35"
+                },
+                "table": {
+                  "table_name": "t",
+                  "access_type": "ALL",
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 1,
+                  "filtered": "100.00",
+                  "cost_info": {
+                    "read_cost": "0.25",
+                    "eval_cost": "0.10",
+                    "prefix_cost": "0.35",
+                    "data_read_per_join": "8"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t` where json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where 1)))) AS `(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))`
+SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
+(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))
+NULL
+DROP TABLE t;
+#
+# Coverage test for fix_fields: check_cols.
+#
+SELECT JSON_ARRAYAGG((SELECT 1, 1));
+ERROR 21000: Operand should contain 1 column(s)
+#
+# Coverage test for fix_fields: resolve_type.
+#
+CREATE TABLE t2(gid int, a int);
+SELECT JSON_ARRAYAGG(ST_PointFromText('POINT(10 10)')) FROM t2;
+ERROR HY000: Incorrect arguments to json_arrayagg
+#
+# Coverage test for fix_fields: check_sum_func.
+#
+SELECT (SELECT JSON_ARRAYAGG(COUNT(a)) FROM t2)  FROM t1;
+ERROR HY000: Invalid use of group function
+DROP TABLE t2;
+#
+# Empty table.
+#
+TRUNCATE TABLE t1;
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+SELECT JSON_ARRAYAGG(b) FROM t1;
+JSON_ARRAYAGG(b)
+NULL
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, b)
+SELECT JSON_OBJECTAGG(k, b) FROM t1;
+JSON_OBJECTAGG(k, b)
+NULL
+#
+# Tests for max_allowed_packet.
+#
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, x INT);
+INSERT INTO t(x) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t(x) SELECT t1.x from t t1, t t2, t t3;
+SET GLOBAL net_buffer_length = 1024;
+SET GLOBAL max_allowed_packet = 1024;
+SELECT JSON_ARRAYAGG(x) FROM t;
+JSON_ARRAYAGG(x)
+NULL
+Warnings:
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
+SELECT JSON_OBJECTAGG(id, x) FROM t;
+JSON_OBJECTAGG(id, x)
+NULL
+Warnings:
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
+SELECT id % 2 AS i, JSON_ARRAYAGG(x) FROM t GROUP BY i;
+i	JSON_ARRAYAGG(x)
+0	NULL
+1	NULL
+Warnings:
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
+SELECT id % 2 AS i, JSON_OBJECTAGG(id, x) FROM t GROUP BY i;
+i	JSON_OBJECTAGG(id, x)
+0	NULL
+1	NULL
+Warnings:
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
+SET GLOBAL max_allowed_packet = default;
+SET GLOBAL net_buffer_length = default;
+DROP TABLE t;
+#
+# Cleanup test.
+#
+DROP TABLE t1;
+#
+# Bug #24368053
+# WL#7987: ASSERTION `!TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TABLE-> ...
+#
+CREATE TABLE C(col_int int);
+CREATE TABLE CC(col_int int);
+INSERT INTO CC VALUES (1),(2),(3);
+SELECT JSON_OBJECTAGG(table1.`col_int` ,table1.`col_int`) AS field2,
+(SELECT JSON_ARRAYAGG(SUBQUERY2_t1.`col_int`)
+FROM CC AS SUBQUERY2_t1
+WHERE SUBQUERY2_t1.`col_int` <> table1.`col_int`) AS field5
+FROM (CC AS table1)
+WHERE (table1.`col_int` <> ALL (SELECT SUBQUERY4_t1.`col_int`
+       FROM (CC AS SUBQUERY4_t1 STRAIGHT_JOIN C)))
+GROUP BY
+field5;
+field2	field5
+{"3": 3}	[1, 2]
+{"2": 2}	[1, 3]
+{"1": 1}	[2, 3]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE C;
+DROP TABLE CC;
+#
+# Bug #24367384
+# WL#7987: INNODB: ASSERTION FAILURE: ROW0SEL.CC:2558:FIELD->PREFIX_LEN > 0 ...
+#
+CREATE TABLE BB (pk INT AUTO_INCREMENT PRIMARY KEY, col_varchar_key VARCHAR(1));
+INSERT INTO BB VALUES(1,'a');
+SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
+WHERE t1.`col_varchar_key` <> t2.`col_varchar_key`) AS field2
+FROM BB as t2
+GROUP BY field2;
+field2
+NULL
+SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
+WHERE t1.`col_varchar_key` = t2.`col_varchar_key`) AS field2
+FROM BB as t2
+GROUP BY field2;
+field2
+[1]
+DROP TABLE BB;
+#
+# Bug #24365264
+# WL#7987: SIG 11 IN ITEM::MARK_FIELD_IN_MAP|SQL/ITEM.H
+#
+CREATE TABLE C (col_int int);
+INSERT INTO C VALUES  (1);
+SELECT *
+FROM C WHERE col_int < (SELECT JSON_ARRAYAGG(col_int) FROM C )
+ORDER BY col_int ;
+col_int
+1
+DROP TABLE C;
+#
+# Bug #24366341
+# WL#7987: SIG 6 IN JSON_WRAPPER::TYPE|SQL/JSON_DOM.CC
+#
+CREATE TABLE CC(col_varchar_key varchar(1));
+INSERT INTO CC VALUES ('a');
+SELECT JSON_ARRAYAGG(col_varchar_key) AS field1 FROM CC HAVING field1 > 9;
+field1
+["a"]
+SELECT JSON_OBJECTAGG(col_varchar_key, col_varchar_key) AS field1 FROM  CC
+HAVING (field1 <> 'a' AND field1 != 'e');
+field1
+{"a": "a"}
+DROP TABLE CC;
+#
+# with ROLLUP + two/three groups
+#
+CREATE TABLE tg (g1 int, g2 int, k int, b VARCHAR(10));
+INSERT INTO tg VALUES
+(1, 1, 1, "alfa"),
+(1, 2, 2, null),
+(2, 3, 3, "doi"),
+(1, 1, 4, "unu"),
+(3, 2, 5, "trei"),
+(4, 3, 6, null),
+(4, 1, 7, null),
+(1, 2, 8, "one");
+SELECT g1, g2, JSON_ARRAYAGG(g2) FROM tg GROUP BY g1, g2 with rollup;
+g1	g2	JSON_ARRAYAGG(g2)
+1	1	[1, 1]
+1	2	[2, 2]
+1	NULL	[1, 1, 2, 2]
+2	3	[3]
+2	NULL	[3]
+3	2	[2]
+3	NULL	[2]
+4	1	[1]
+4	3	[3]
+4	NULL	[1, 3]
+NULL	NULL	[1, 1, 2, 2, 3, 2, 1, 3]
+SELECT g1, g2, JSON_OBJECTAGG(k, g1) FROM tg GROUP BY g1, g2 with rollup;
+g1	g2	JSON_OBJECTAGG(k, g1)
+1	1	{"1": 1, "4": 1}
+1	2	{"2": 1, "8": 1}
+1	NULL	{"1": 1, "2": 1, "4": 1, "8": 1}
+2	3	{"3": 2}
+2	NULL	{"3": 2}
+3	2	{"5": 3}
+3	NULL	{"5": 3}
+4	1	{"7": 4}
+4	3	{"6": 4}
+4	NULL	{"6": 4, "7": 4}
+NULL	NULL	{"1": 1, "2": 1, "3": 2, "4": 1, "5": 3, "6": 4, "7": 4, "8": 1}
+CREATE TABLE tg3 (g1 int, g2 int, g3 int, k int, b VARCHAR(10));
+INSERT INTO tg3 VALUES
+(1, 1, 1, 1, "1.1.1"),
+(1, 1, 2, 2, "1.1.2"),
+(1, 1, 3, 3, "1.1.3"),
+(1, 2, 1, 4, "1.2.1"),
+(1, 2, 2, 5, "1.2.2"),
+(1, 2, 3, 6, "1.2.3"),
+(1, 3, 1, 7, "1.3.1"),
+(1, 3, 2, 8, "1.3.2"),
+(1, 3, 3, 9, "1.3.3"),
+(2, 1, 1, 10, "2.1.1"),
+(2, 1, 2, 11, "2.1.2"),
+(2, 1, 3, 12, "2.1.3"),
+(2, 2, 1, 13, "2.2.1"),
+(2, 2, 2, 14, "2.2.2"),
+(2, 2, 3, 15, "2.2.3"),
+(2, 3, 1, 16, "2.3.1"),
+(2, 3, 2, 17, "2.3.2"),
+(2, 3, 3, 18, "2.3.3"),
+(3, 1, 1, 19, "3.1.1"),
+(3, 1, 2, 20, "3.1.2"),
+(3, 1, 3, 21, "3.1.3"),
+(3, 2, 1, 22, "3.2.1"),
+(3, 2, 2, 23, "3.2.2"),
+(3, 2, 3, 24, "3.2.3"),
+(3, 3, 1, 25, "3.3.1"),
+(3, 3, 2, 26, "3.3.2"),
+(3, 3, 3, 27, "3.3.3");
+SELECT g1, g2, g3, JSON_ARRAYAGG(b) FROM tg3 GROUP BY g1, g2, g3 with rollup;
+g1	g2	g3	JSON_ARRAYAGG(b)
+1	1	1	["1.1.1"]
+1	1	2	["1.1.2"]
+1	1	3	["1.1.3"]
+1	1	NULL	["1.1.1", "1.1.2", "1.1.3"]
+1	2	1	["1.2.1"]
+1	2	2	["1.2.2"]
+1	2	3	["1.2.3"]
+1	2	NULL	["1.2.1", "1.2.2", "1.2.3"]
+1	3	1	["1.3.1"]
+1	3	2	["1.3.2"]
+1	3	3	["1.3.3"]
+1	3	NULL	["1.3.1", "1.3.2", "1.3.3"]
+1	NULL	NULL	["1.1.1", "1.1.2", "1.1.3", "1.2.1", "1.2.2", "1.2.3", "1.3.1", "1.3.2", "1.3.3"]
+2	1	1	["2.1.1"]
+2	1	2	["2.1.2"]
+2	1	3	["2.1.3"]
+2	1	NULL	["2.1.1", "2.1.2", "2.1.3"]
+2	2	1	["2.2.1"]
+2	2	2	["2.2.2"]
+2	2	3	["2.2.3"]
+2	2	NULL	["2.2.1", "2.2.2", "2.2.3"]
+2	3	1	["2.3.1"]
+2	3	2	["2.3.2"]
+2	3	3	["2.3.3"]
+2	3	NULL	["2.3.1", "2.3.2", "2.3.3"]
+2	NULL	NULL	["2.1.1", "2.1.2", "2.1.3", "2.2.1", "2.2.2", "2.2.3", "2.3.1", "2.3.2", "2.3.3"]
+3	1	1	["3.1.1"]
+3	1	2	["3.1.2"]
+3	1	3	["3.1.3"]
+3	1	NULL	["3.1.1", "3.1.2", "3.1.3"]
+3	2	1	["3.2.1"]
+3	2	2	["3.2.2"]
+3	2	3	["3.2.3"]
+3	2	NULL	["3.2.1", "3.2.2", "3.2.3"]
+3	3	1	["3.3.1"]
+3	3	2	["3.3.2"]
+3	3	3	["3.3.3"]
+3	3	NULL	["3.3.1", "3.3.2", "3.3.3"]
+3	NULL	NULL	["3.1.1", "3.1.2", "3.1.3", "3.2.1", "3.2.2", "3.2.3", "3.3.1", "3.3.2", "3.3.3"]
+NULL	NULL	NULL	["1.1.1", "1.1.2", "1.1.3", "1.2.1", "1.2.2", "1.2.3", "1.3.1", "1.3.2", "1.3.3", "2.1.1", "2.1.2", "2.1.3", "2.2.1", "2.2.2", "2.2.3", "2.3.1", "2.3.2", "2.3.3", "3.1.1", "3.1.2", "3.1.3", "3.2.1", "3.2.2", "3.2.3", "3.3.1", "3.3.2", "3.3.3"]
+SELECT g1, g2, g3, JSON_OBJECTAGG(k, b) FROM tg3 GROUP BY g1, g2, g3 with rollup;
+g1	g2	g3	JSON_OBJECTAGG(k, b)
+1	1	1	{"1": "1.1.1"}
+1	1	2	{"2": "1.1.2"}
+1	1	3	{"3": "1.1.3"}
+1	1	NULL	{"1": "1.1.1", "2": "1.1.2", "3": "1.1.3"}
+1	2	1	{"4": "1.2.1"}
+1	2	2	{"5": "1.2.2"}
+1	2	3	{"6": "1.2.3"}
+1	2	NULL	{"4": "1.2.1", "5": "1.2.2", "6": "1.2.3"}
+1	3	1	{"7": "1.3.1"}
+1	3	2	{"8": "1.3.2"}
+1	3	3	{"9": "1.3.3"}
+1	3	NULL	{"7": "1.3.1", "8": "1.3.2", "9": "1.3.3"}
+1	NULL	NULL	{"1": "1.1.1", "2": "1.1.2", "3": "1.1.3", "4": "1.2.1", "5": "1.2.2", "6": "1.2.3", "7": "1.3.1", "8": "1.3.2", "9": "1.3.3"}
+2	1	1	{"10": "2.1.1"}
+2	1	2	{"11": "2.1.2"}
+2	1	3	{"12": "2.1.3"}
+2	1	NULL	{"10": "2.1.1", "11": "2.1.2", "12": "2.1.3"}
+2	2	1	{"13": "2.2.1"}
+2	2	2	{"14": "2.2.2"}
+2	2	3	{"15": "2.2.3"}
+2	2	NULL	{"13": "2.2.1", "14": "2.2.2", "15": "2.2.3"}
+2	3	1	{"16": "2.3.1"}
+2	3	2	{"17": "2.3.2"}
+2	3	3	{"18": "2.3.3"}
+2	3	NULL	{"16": "2.3.1", "17": "2.3.2", "18": "2.3.3"}
+2	NULL	NULL	{"10": "2.1.1", "11": "2.1.2", "12": "2.1.3", "13": "2.2.1", "14": "2.2.2", "15": "2.2.3", "16": "2.3.1", "17": "2.3.2", "18": "2.3.3"}
+3	1	1	{"19": "3.1.1"}
+3	1	2	{"20": "3.1.2"}
+3	1	3	{"21": "3.1.3"}
+3	1	NULL	{"19": "3.1.1", "20": "3.1.2", "21": "3.1.3"}
+3	2	1	{"22": "3.2.1"}
+3	2	2	{"23": "3.2.2"}
+3	2	3	{"24": "3.2.3"}
+3	2	NULL	{"22": "3.2.1", "23": "3.2.2", "24": "3.2.3"}
+3	3	1	{"25": "3.3.1"}
+3	3	2	{"26": "3.3.2"}
+3	3	3	{"27": "3.3.3"}
+3	3	NULL	{"25": "3.3.1", "26": "3.3.2", "27": "3.3.3"}
+3	NULL	NULL	{"19": "3.1.1", "20": "3.1.2", "21": "3.1.3", "22": "3.2.1", "23": "3.2.2", "24": "3.2.3", "25": "3.3.1", "26": "3.3.2", "27": "3.3.3"}
+NULL	NULL	NULL	{"1": "1.1.1", "2": "1.1.2", "3": "1.1.3", "4": "1.2.1", "5": "1.2.2", "6": "1.2.3", "7": "1.3.1", "8": "1.3.2", "9": "1.3.3", "10": "2.1.1", "11": "2.1.2", "12": "2.1.3", "13": "2.2.1", "14": "2.2.2", "15": "2.2.3", "16": "2.3.1", "17": "2.3.2", "18": "2.3.3", "19": "3.1.1", "20": "3.1.2", "21": "3.1.3", "22": "3.2.1", "23": "3.2.2", "24": "3.2.3", "25": "3.3.1", "26": "3.3.2", "27": "3.3.3"}
+DROP TABLE tg;
+DROP TABLE tg3;
+#
+# Tests duplicates for JSON_OBJECTAGG
+#
+CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+INSERT INTO t1 VALUES
+(1, 1, "1.1"),
+(1, 1, "1.2"),
+(1, 1, "1.3"),
+(2, 2, "2.1"),
+(2, 2, "2.2"),
+(2, 2, "2.3");
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "1.3"}
+2	{"2": "2.3"}
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["1.1", "1.2", "1.3"]
+2	["2.1", "2.2", "2.3"]
+DROP TABLE t1;
+#
+# Tests with ORDER BY, DISTINCT
+#
+CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+INSERT INTO t1 VALUES
+(2, 8, "2.3"),
+(1, 7, "1.1"),
+(3, 6, "3.2"),
+(2, 5, "2.2"),
+(3, 9, "3.1"),
+(1, 4, "1.2"),
+(3, 3, "3.3"),
+(2, 2, "2.1"),
+(1, 1, "1.3");
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["1.1", "1.2", "1.3"]
+2	["2.3", "2.2", "2.1"]
+3	["3.2", "3.1", "3.3"]
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+a	JSON_ARRAYAGG(b)
+1	["1.1", "1.2", "1.3"]
+2	["2.3", "2.2", "2.1"]
+3	["3.2", "3.1", "3.3"]
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a ORDER BY a ASC;
+a	JSON_ARRAYAGG(b)
+1	["1.1", "1.2", "1.3"]
+2	["2.3", "2.2", "2.1"]
+3	["3.2", "3.1", "3.3"]
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a ORDER BY a DESC;
+a	JSON_ARRAYAGG(b)
+3	["3.2", "3.1", "3.3"]
+2	["2.3", "2.2", "2.1"]
+1	["1.1", "1.2", "1.3"]
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "1.3", "4": "1.2", "7": "1.1"}
+2	{"2": "2.1", "5": "2.2", "8": "2.3"}
+3	{"3": "3.3", "6": "3.2", "9": "3.1"}
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "1.3", "4": "1.2", "7": "1.1"}
+2	{"2": "2.1", "5": "2.2", "8": "2.3"}
+3	{"3": "3.3", "6": "3.2", "9": "3.1"}
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a ORDER BY a ASC;
+a	JSON_OBJECTAGG(k, b)
+1	{"1": "1.3", "4": "1.2", "7": "1.1"}
+2	{"2": "2.1", "5": "2.2", "8": "2.3"}
+3	{"3": "3.3", "6": "3.2", "9": "3.1"}
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a ORDER BY a DESC;
+a	JSON_OBJECTAGG(k, b)
+3	{"3": "3.3", "6": "3.2", "9": "3.1"}
+2	{"2": "2.1", "5": "2.2", "8": "2.3"}
+1	{"1": "1.3", "4": "1.2", "7": "1.1"}
+DROP TABLE t1;
+#
+# Tests with joins
+#
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, t1 INT, t2 INT);
+CREATE TABLE p(id INT PRIMARY KEY AUTO_INCREMENT, p1 INT, p2 INT);
+INSERT INTO t(t1, t2) VALUES (1, 1), (2, 1), (3,3), (1, 4);
+INSERT INTO p(p1, p2) VALUES (2, 1), (1, 1), (3,3), (2, 4);
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT JSON_ARRAYAGG(t2) FROM t join p on t.t1=p.p1;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT t1, JSON_ARRAYAGG(t2) FROM t join p on t.t1=p.p1 group by t1;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+Variable_name	Value
+Handler_update	0
+SELECT (SELECT 1 AS foo ORDER BY JSON_ARRAYAGG(t2)) AS x FROM t;
+x
+1
+SELECT t1 FROM t ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);
+t1
+1
+2
+3
+1
+SELECT JSON_ARRAYAGG(t1) FROM t
+ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);
+JSON_ARRAYAGG(t1)
+[1, 2, 3, 1]
+SELECT (SELECT JSON_ARRAYAGG(t1_outer.t1) FROM t AS t1_inner LIMIT 1) as f
+FROM t AS t1_outer GROUP BY t1_outer.t2;
+f
+[1, 2]
+[3]
+[1]
+DROP TABLE t;
+DROP TABLE p;
+#
+# Tests with JSON
+#
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, k INT, j JSON);
+INSERT INTO t(k, j) VALUES
+(1, '[1,2,3,4]'),
+(2, '{"prop1": 1}'),
+(1, '[3]'),
+(2, '{"prop2": 2, "prop10": 10}'),
+(1, '[99]');
+SELECT k, JSON_ARRAYAGG(j) FROM t GROUP BY k;
+k	JSON_ARRAYAGG(j)
+1	[[1, 2, 3, 4], [3], [99]]
+2	[{"prop1": 1}, {"prop2": 2, "prop10": 10}]
+SELECT k, JSON_OBJECTAGG(id, j) FROM t GROUP BY k;
+k	JSON_OBJECTAGG(id, j)
+1	{"1": [1, 2, 3, 4], "3": [3], "5": [99]}
+2	{"2": {"prop1": 1}, "4": {"prop2": 2, "prop10": 10}}
+DROP TABLE t;
+#
+# Coverage tests for val_* functions
+#
+CREATE TABLE t2(gid int, a int);
+INSERT INTO t2(gid, a) VALUES (1, 1), (1, 2), (2, 4), (2, 8);
+SELECT gid, 1.0 * JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
+gid	1.0 * JSON_ARRAYAGG(a)
+1	0
+2	0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 5
+SELECT gid, 0x30 << JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
+gid	0x30 << JSON_ARRAYAGG(a)
+1	48
+2	48
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 5
+SELECT gid, DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
+FROM t2 GROUP BY gid;
+gid	DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
+1	NULL
+2	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 5
+SELECT gid, ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
+FROM t2 GROUP BY gid;
+gid	ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
+1	NULL
+2	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 5
+SELECT gid, SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2 GROUP BY gid;
+gid	SEC_TO_TIME(JSON_ARRAYAGG(a))
+1	00:00:00.000000
+2	00:00:00.000000
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 5
+TRUNCATE TABLE t2;
+SELECT 1.0 * JSON_ARRAYAGG(a) FROM t2;
+1.0 * JSON_ARRAYAGG(a)
+NULL
+SELECT 0x30 << JSON_ARRAYAGG(a) FROM t2;
+0x30 << JSON_ARRAYAGG(a)
+NULL
+SELECT DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY) FROM t2;
+DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
+NULL
+SELECT ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998') FROM t2;
+ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
+NULL
+SELECT SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2;
+SEC_TO_TIME(JSON_ARRAYAGG(a))
+NULL
+DROP TABLE t2;

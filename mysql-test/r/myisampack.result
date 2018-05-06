@@ -46,6 +46,7 @@ insert into t1 select * from t1;
 flush tables;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	optimize	Error	Table 't1' is read only
 test.t1	optimize	status	Operation failed
 repair table t1;
@@ -63,6 +64,8 @@ FLUSH TABLE t1;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1024
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 DROP TABLE t1;
 #
 # Bug #43973 - backup_myisam.test fails on 6.0-bugteam
@@ -84,39 +87,8 @@ FLUSH TABLE mysql_db1.t1;
 SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
 COUNT(*)
 128
-# ===== myisampack.1 =====
-CREATE TABLE t1(a INT);
-INSERT INTO t1 VALUES(20);
-CREATE TABLE t2(a INT);
-INSERT INTO t2 VALUES(40);
-FLUSH TABLE t1,t2;
-#If the myisampack --join operation is successful, we have table t3(.frm)
-#so we should be able to query about the table from server.
-SELECT COUNT(a) FROM t3;
-COUNT(a)
-1024
-# ===== myisampack.2 =====
-FLUSH TABLE t3;
-#Tests the myisampack join operation with an existing destination .frm file, 
-#the command should return correct exit status(0) and
-#we should be able to query the table.
-SELECT COUNT(a) FROM t3;
-COUNT(a)
-1024
-# ===== myisampack.3 =====
-DROP TABLE t3;
-#Tests the myisampack join operation without frm file for the first and second table
-#No frm file is generated in this and we shouldn't  be able to access the newly 
-#created table
-SELECT COUNT(a) FROM t3;
-ERROR 42S02: Table 'test.t3' doesn't exist
-# ===== myisampack.4 =====
-#Tests the myisampack join operation with an existing destination .frm,.MYI,.MDI 
-#the command should fail with exit status 2
-myisampack: Can't create/write to file (Errcode: 17 - File exists)
-Aborted: file is not compressed
-DROP TABLE t1,t2,t3;
-DROP TABLE mysql_db1.t1;
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
 DROP DATABASE mysql_db1;
 #
 # BUG#11761180 - 53646: MYISAMPACK CORRUPTS TABLES WITH FULLTEXT INDEXES
@@ -126,6 +98,7 @@ INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
 FLUSH TABLE t1;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa' IN BOOLEAN MODE);
 a
@@ -143,6 +116,7 @@ FLUSH TABLE t1;
 # Fixing index (repair by sort)
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 202 - 'Row format changed in storage engine' from storage engine
 test.t1	check	status	OK
 FLUSH TABLE t1;
 # Fixing index (repair with keycache)
@@ -157,3 +131,72 @@ DROP TABLE t1;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(c1 INT) ENGINE=MyISAM;
 DROP DATABASE db1;
+#
+# Test coverage for myisampack/myisamchk --unpack interaction with
+# the data dictionary.
+#
+# The first DML statement which accesses table after it was
+# compressed/uncompressed triggers data-dictionary update which
+# synchronizes ROW_FORMAT for the table stored in the data dictionary
+# and in the MyISAM files.
+#
+#
+# This test assumes that the table metadata being shown by
+# INFORMATION_SCHEMA.TABLES would internally 'open' the table.
+# However with WL#6599, we do not open the under lying table for every
+# row fetch for INFORMATION_SCHEMA.TABLES by default. This
+# demands following two things,
+# 1. Use of configuration variable
+#    'information_schema_stats_expiry' to be set to '0',
+#    which would make INFORMATION_SCHEMA implementation to access
+#    storage engine to open the table and fetch dynamic statistics.
+# 2. Use a column of INFORMATION_SCHEMA.TABLES which would fetch
+#    dynamic table statistics, which would trigger 1.
+#
+SET SESSION information_schema_stats_expiry=0;
+CREATE TABLE t1(a CHAR(4)) ENGINE=MYISAM;
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Fixed	
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+# Compressing table t1.
+# ROW_FORMAT in DD is invalid/outdated here.
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Fixed	Got error 202 - 'Row format changed in storage engine' from storage engine
+Warnings:
+Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+# The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+3	Compressed	
+FLUSH TABLE t1;
+# Uncompressing table t1.
+# ROW_FORMAT in DD is invalid/outdated here.
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+0	Compressed	Got error 202 - 'Row format changed in storage engine' from storage engine
+Warnings:
+Warning	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+# The below statement should cause ROW_FORMAT update.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+Warnings:
+Error	1030	Got error 202 - 'Row format changed in storage engine' from storage engine
+SELECT table_rows, row_format, table_comment FROM information_schema.tables
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_ROWS	ROW_FORMAT	TABLE_COMMENT
+3	Fixed	
+DROP TABLE t1;
+SET SESSION information_schema_stats_expiry=default;

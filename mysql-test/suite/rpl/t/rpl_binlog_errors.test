@@ -19,11 +19,10 @@
 
 
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 -- source include/have_debug.inc
--- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/master-slave.inc
 
 -- echo #######################################################################
 -- echo ####################### PART 1: MASTER TESTS ##########################
@@ -101,8 +100,8 @@ RESET MASTER;
 ### ACTION: create some tables (t1, t2, t4) and insert some values in
 ###         table t1
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
-CREATE TABLE t4 (a VARCHAR(16384)) Engine=MyISAM;
+CREATE TABLE t2 (a VARCHAR(16383)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16383)) Engine=MyISAM;
 INSERT INTO t1 VALUES (1);
 RESET MASTER;
 
@@ -507,7 +506,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against unique log filename error
 -- let $io_thd_injection_fault_flag= error_unique_log_filename
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -516,7 +515,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against rotate failing
 -- let $io_thd_injection_fault_flag= fault_injection_new_file_rotate_event
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -525,7 +524,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log open failure
 -- let $io_thd_injection_fault_flag= fault_injection_registering_index
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -534,7 +533,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log index open failure
 -- let $io_thd_injection_fault_flag= fault_injection_openning_index
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 

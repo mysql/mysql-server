@@ -15,11 +15,6 @@ count(*)
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 0
-select count(*) from performance_schema.setup_timers;
-count(*)
-0
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -31,6 +26,8 @@ select * from performance_schema.events_stages_summary_by_thread_by_event_name;
 select * from performance_schema.events_stages_summary_by_user_by_event_name;
 select * from performance_schema.events_stages_summary_global_by_event_name;
 select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
@@ -61,6 +58,11 @@ select * from performance_schema.memory_summary_by_host_by_event_name;
 select * from performance_schema.memory_summary_by_thread_by_event_name;
 select * from performance_schema.memory_summary_by_user_by_event_name;
 select * from performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.events_errors_summary_by_account_by_error;
+select * from performance_schema.events_errors_summary_by_host_by_error;
+select * from performance_schema.events_errors_summary_by_thread_by_error;
+select * from performance_schema.events_errors_summary_by_user_by_error;
+select * from performance_schema.events_errors_summary_global_by_error;
 select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
@@ -76,13 +78,15 @@ select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
 select * from performance_schema.session_account_connect_attrs;
 select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
+select * from performance_schema.setup_threads;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -107,57 +111,13 @@ select * from performance_schema.session_status;
 select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
-show global variables like "performance_schema%";
-Variable_name	Value
-performance_schema	OFF
-performance_schema_accounts_size	0
-performance_schema_digests_size	0
-performance_schema_events_stages_history_long_size	0
-performance_schema_events_stages_history_size	0
-performance_schema_events_statements_history_long_size	0
-performance_schema_events_statements_history_size	0
-performance_schema_events_transactions_history_long_size	0
-performance_schema_events_transactions_history_size	0
-performance_schema_events_waits_history_long_size	0
-performance_schema_events_waits_history_size	0
-performance_schema_hosts_size	0
-performance_schema_max_cond_classes	0
-performance_schema_max_cond_instances	0
-performance_schema_max_digest_length	0
-performance_schema_max_file_classes	0
-performance_schema_max_file_handles	0
-performance_schema_max_file_instances	0
-performance_schema_max_index_stat	0
-performance_schema_max_memory_classes	0
-performance_schema_max_metadata_locks	0
-performance_schema_max_mutex_classes	0
-performance_schema_max_mutex_instances	0
-performance_schema_max_prepared_statements_instances	0
-performance_schema_max_program_instances	0
-performance_schema_max_rwlock_classes	0
-performance_schema_max_rwlock_instances	0
-performance_schema_max_socket_classes	0
-performance_schema_max_socket_instances	0
-performance_schema_max_sql_text_length	0
-performance_schema_max_stage_classes	0
-performance_schema_max_statement_classes	0
-performance_schema_max_statement_stack	0
-performance_schema_max_table_handles	0
-performance_schema_max_table_instances	0
-performance_schema_max_table_lock_stat	0
-performance_schema_max_thread_classes	0
-performance_schema_max_thread_instances	0
-performance_schema_session_connect_attrs_size	0
-performance_schema_setup_actors_size	0
-performance_schema_setup_objects_size	0
-performance_schema_users_size	0
 show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 select * from information_schema.engines
 where engine = "PERFORMANCE_SCHEMA";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 PERFORMANCE_SCHEMA	YES	Performance Schema	NO	NO	NO
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
@@ -192,15 +152,11 @@ Performance_schema_users_lost	0
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 select * from performance_schema.setup_instruments;
-NAME	ENABLED	TIMED
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 select * from performance_schema.setup_actors;
 HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
-select * from performance_schema.setup_timers;
-NAME	TIMER_NAME
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 insert into performance_schema.setup_objects values ('TABLE', 'myschema', 'myobject', 'YES', 'YES');
 ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole', 'YES', 'YES');
@@ -218,9 +174,7 @@ truncate performance_schema.events_statements_history_long;
 truncate performance_schema.events_waits_history_long;
 truncate performance_schema.setup_objects;
 truncate performance_schema.setup_actors;
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set global show_compatibility_56 = OFF;
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
@@ -252,7 +206,7 @@ Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-show session status like "performance_schema%";
+show session status like "performance_schema%_lost";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
@@ -284,10 +238,9 @@ Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-show global variables like "show_compatibility_56";
+show global variables like "performance_schema";
 Variable_name	Value
-show_compatibility_56	OFF
-show session variables like "show_compatibility_56";
+performance_schema	OFF
+show session variables like "performance_schema";
 Variable_name	Value
-show_compatibility_56	OFF
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
+performance_schema	OFF

@@ -3,7 +3,6 @@
 #   NDB$EPOCH_TRANS() function
 #
 #
---source include/have_utf8.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
@@ -120,13 +119,13 @@ create table test.t1$EX
   NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
   NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
   primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 
 create table test.t1 (
   a int not null,
   b int not null,
   c varchar(2000),
-  primary key (a,b)) engine=ndb;
+  primary key (a,b)) engine=ndb CHARACTER SET latin1;
 
 --let server_num=1.1
 --let $pattern=%Exceptions table %
@@ -175,7 +174,7 @@ create table test.t2$ex
   ndb$orig_transid      bigint unsigned not null,
   e                     int,
   primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
-engine=ndb;
+engine=ndb CHARACTER SET latin1;
 
 create table test.t2 (
   x int default 21,
@@ -184,7 +183,7 @@ create table test.t2 (
   c int,
   d varchar(2000),
   e int,
-  primary key(a,b)) engine=ndb;
+  primary key(a,b)) engine=ndb CHARACTER SET latin1;
 
 
 --sync_slave_with_master slave
@@ -361,7 +360,6 @@ flush logs;
 
 # Cleanup
 --connection master
-drop table mysql.ndb_replication;
 drop table test.t1$EX, test.t1, test.t2$ex, test.t2;
 SET NAMES utf8;
 drop table test.`ｱｱｱ`, test.`ｱｱｱ$ex`;
@@ -371,6 +369,8 @@ SET NAMES latin1;
 --connection slave
 flush logs;
 --sync_slave_with_master master
+
+drop table mysql.ndb_replication;
 stop slave;
 reset slave;
 #change master to master_host='';

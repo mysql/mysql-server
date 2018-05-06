@@ -21,23 +21,28 @@
 # See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts_error.test
 #
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
+# Requires debug server to simulate failure to drop table in SE
+--source include/have_debug.inc
 
 # Make sure the test is repeatable
 RESET MASTER;
 SET GTID_NEXT = 'ANONYMOUS';
-CREATE TABLE t1 (a int);
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE TABLE t2 (a int) ENGINE=InnoDB;
 
 # Check-1: DROP TABLE
 SET GTID_NEXT = 'ANONYMOUS';
 --echo #
---echo # Execute a partially failed DROP TABLE statement.
+--echo # Make DROP TABLE statement to fail partially, by injecting error
+--echo # after dropping MyISAM table.
 --echo #
---error ER_BAD_TABLE_ERROR
+SET @@debug="+d,rm_table_no_locks_abort_before_atomic_tables";
+--error ER_UNKNOWN_ERROR
 DROP TABLE t1, t2;
+SET @@debug="-d,rm_table_no_locks_abort_before_atomic_tables";
 --echo #
 --echo # The table t1 was dropped, which means DROP TABLE
 --echo # can be failed partially.
@@ -59,21 +64,11 @@ SET GTID_NEXT = 'ANONYMOUS';
 DROP USER u1@h, u2@h;
 --echo #
 --echo # When binlog is disabled, verify that we can set
---echo # GTID_NEXT to 'ANONYMOUS' after the partially failed
---echo # DROP USER statement consumed its 'ANONYMOUS' gtid.
+--echo # GTID_NEXT to 'ANONYMOUS' after the failed DROP USER
+--echo # statement  did not consumed its 'ANONYMOUS' gtid.
 --echo #
 SET GTID_NEXT = 'ANONYMOUS';
 
-CREATE VIEW v1 as SELECT 1;
-
-# Check-3: DROP VIEW
+DROP USER u1@h;
 SET GTID_NEXT = 'ANONYMOUS';
---error ER_BAD_TABLE_ERROR
-DROP VIEW v1, v2;
---echo #
---echo # When binlog is disabled, verify that we can set
---echo # GTID_NEXT to 'ANONYMOUS' after the partially failed
---echo # DROP USER statement consumed its 'ANONYMOUS' gtid.
---echo #
-SET GTID_NEXT = 'ANONYMOUS';
-
+DROP TABLE t2;

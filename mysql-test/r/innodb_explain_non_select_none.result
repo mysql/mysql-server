@@ -13,32 +13,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a < 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1     WHERE a < 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 Handler_update	3
 
@@ -55,33 +42,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a < 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -97,33 +71,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1          WHERE a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -142,34 +103,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1, t2               WHERE t1.a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = 1)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 Handler_update	1
 
@@ -189,34 +135,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` = 1)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 Handler_update	1
 
@@ -236,40 +167,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
-Handler_read_rnd_next	1
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1            WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
-Handler_read_rnd_next	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	5
 Handler_update	3
 
@@ -291,36 +201,19 @@ Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	4
+Handler_read_key	6
 Handler_read_rnd_next	11
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	4
+Handler_read_key	6
 Handler_read_rnd_next	11
 Handler_update	2
 
@@ -341,36 +234,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	15
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	6
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd_next	19
 Handler_update	2
 
@@ -390,34 +266,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = t11.a + 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	4
+Handler_read_key	6
 Handler_read_rnd_next	16
 Handler_update	3
 
@@ -438,43 +299,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT 1 FROM DUAL) t12 SET t11.a = t11.a + 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
-Handler_read_first	1
-Handler_read_rnd_next	1
-Handler_write	1
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT 1 FROM DUAL) t12;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_first	1
-Handler_read_rnd_next	1
-Handler_write	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	4
+Handler_read_key	5
 Handler_read_rnd	3
 Handler_read_rnd_next	9
 Handler_update	3
@@ -496,34 +334,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` > 1)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	12
 Handler_update	2
 
@@ -540,33 +363,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a > 1 LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > 1 LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	2
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	2
 
 DROP TABLE t1;
@@ -582,27 +392,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 
 DROP TABLE t1;
 #13
@@ -617,27 +416,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1          WHERE 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 
 DROP TABLE t1;
 #14
@@ -652,31 +440,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	a	a	5	const	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '3' AS `a`,'3' AS `b` from `test`.`t1` where 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-Handler_read_key	1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #15
@@ -691,29 +465,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	a	a	5	const	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #16
@@ -727,30 +488,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 
 INSERT INTO t1 VALUES (1), (2), (3);
 #
@@ -762,32 +510,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	3	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE t1.a > 0 ORDER BY t1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 0) order by `test`.`t1`.`a`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -803,32 +538,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 
 DROP TABLE t1;
 #18
@@ -844,27 +566,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_rnd_next	11
 Sort_rows	1
 Sort_scan	1
@@ -872,7 +581,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	5
 Handler_read_rnd	1
 Handler_read_rnd_next	11
 Sort_rows	10
@@ -897,38 +606,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	DELETE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	NULL
-1	DELETE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT *        FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	100.00	Using index
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.b2,test.t1.b1	1	100.00	Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`a3` AS `a3`,`test`.`t3`.`b3` AS `b3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	13
 Handler_read_next	3
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	8
 Handler_read_first	1
-Handler_read_key	12
+Handler_read_key	18
 Handler_read_next	3
 Handler_read_rnd	5
 Handler_read_rnd_next	4
@@ -949,34 +641,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1     WHERE a IN (SELECT a FROM t2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	4
+Handler_read_key	6
 Handler_read_rnd_next	10
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	4
-Handler_read_key	4
+Handler_read_key	6
 Handler_read_rnd_next	10
 Handler_update	3
 
@@ -984,7 +661,7 @@ DROP TABLE t1, t2;
 #21
 CREATE TABLE t1 (a1 INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
-CREATE TABLE t2 (a2 VARCHAR(10));
+CREATE TABLE t2 (a2 VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
 SET @save_optimizer_switch= @@optimizer_switch;
 #
@@ -997,35 +674,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	6
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd_next	30
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	6
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd_next	30
 
 SET @@optimizer_switch= @save_optimizer_switch;
@@ -1041,35 +703,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	6
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd_next	30
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	6
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd_next	30
 
 DROP TABLE t1, t2;
@@ -1085,32 +732,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET i = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	6
 Handler_update	5
 
@@ -1127,33 +761,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Deleting all rows
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Deleting all rows
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	6
 
 DROP TABLE t1;
@@ -1174,33 +795,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	index	NULL	a	15	NULL	X	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -1218,33 +826,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -1259,35 +853,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 JOIN t1 AS tt USING(i);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	3
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd_next	8
 Handler_write	3
 
@@ -1306,33 +884,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED REPLACE INTO t2 SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -1348,15 +912,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED INSERT INTO t1 SET i = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -1371,15 +930,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED REPLACE INTO t1 SET i = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -1397,34 +951,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #30
-CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
@@ -1440,31 +981,14 @@ Warning	1739	Cannot use range access on index 'i' due to type or collation conve
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i	NULL	NULL	NULL	26	11.11	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
@@ -1472,7 +996,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	8
@@ -1495,33 +1019,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1545,33 +1056,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	index	NULL	a	15	NULL	X	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -1580,7 +1078,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -1593,28 +1092,14 @@ Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -1622,7 +1107,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1635,7 +1120,7 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -1648,26 +1133,13 @@ Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1675,6 +1147,7 @@ Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -1698,26 +1171,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	100.00	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	X	Using sort_union(key1,key2); Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	X	Using sort_union(key1,key2); Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	6
+Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
 Sort_range	1
@@ -1725,7 +1185,7 @@ Sort_rows	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	10
+Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
 Sort_range	1
@@ -1745,33 +1205,20 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where
+1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Backward index scan
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1, t2;
 #37
@@ -1779,7 +1226,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 # query:  DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5
@@ -1790,27 +1237,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
@@ -1818,7 +1252,7 @@ Sort_scan	1
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	9
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	26
@@ -1830,7 +1264,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
@@ -1839,35 +1273,22 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	6	NULL	X	100.00	NULL
+1	DELETE	t2	NULL	index	NULL	a	18	NULL	X	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	index	NULL	a	6	NULL	X	X	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	1
 Handler_read_prev	4
 
@@ -1888,29 +1309,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_update	1
 
@@ -1920,7 +1328,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t2 (i) SELECT i FROM t1;
 #
 # query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
@@ -1934,38 +1342,21 @@ Warning	1739	Cannot use range access on index 'i' due to type or collation conve
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	i	NULL	NULL	NULL	26	11.11	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	8
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Handler_update	5
@@ -1989,32 +1380,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Handler_update	1
@@ -2039,32 +1417,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	index	NULL	a	15	NULL	X	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	10
 Handler_read_next	4
 Handler_read_rnd	5
 Handler_update	5
@@ -2075,7 +1440,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -2088,38 +1454,23 @@ Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
-Handler_update	1
 Sort_rows	1
 Sort_scan	1
 
@@ -2130,7 +1481,7 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -2143,32 +1494,20 @@ Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -2192,33 +1531,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	100.00	Using sort_union(key1,key2); Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	X	Using sort_union(key1,key2); Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2      WHERE key1 < 13 or key2 < 14 ORDER BY key1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	X	X	Using sort_union(key1,key2); Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	6
+Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
 Sort_range	1
 Sort_rows	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	10
+Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
@@ -2239,32 +1565,19 @@ INSERT INTO t2 (i) SELECT i FROM t1;
 #
 EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Using temporary
+1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where; Backward index scan; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_update	1
 
@@ -2274,7 +1587,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 #
 # query:  UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5
@@ -2285,37 +1598,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	6
+Handler_read_key	9
 Handler_read_rnd	5
 Handler_read_rnd_next	27
-Handler_update	5
+Handler_update	4
 Sort_rows	5
 Sort_scan	1
 
@@ -2325,7 +1625,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
@@ -2334,34 +1634,21 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index	NULL	a	6	NULL	X	100.00	Using temporary
+1	UPDATE	t2	NULL	index	NULL	a	18	NULL	X	100.00	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	index	NULL	a	6	NULL	X	X	Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a DESC, b DESC LIMIT 5;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	X	X	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	6
+Handler_read_key	9
 Handler_read_last	1
 Handler_read_prev	4
 Handler_read_rnd	5
@@ -2375,7 +1662,7 @@ c1_idx CHAR(1) DEFAULT 'y',
 c2 INT,
 PRIMARY KEY (pk),
 INDEX c1_idx (c1_idx)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 # query:  UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2
@@ -2383,33 +1670,20 @@ INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 #
 EXPLAIN UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
+1	UPDATE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Backward index scan; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1     WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_prev	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	6
 Handler_read_prev	1
 Handler_read_rnd	2
 Handler_update	2
@@ -2420,34 +1694,21 @@ Handler_update	2
 #
 EXPLAIN DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where
+1	DELETE	t1	NULL	range	c1_idx	c1_idx	5	const	2	100.00	Using where; Backward index scan
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	c1_idx	c1_idx	2	const	2	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	c1_idx	c1_idx	2	const	2	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_prev	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	2
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_prev	1
 
 DROP TABLE t1;
@@ -2463,30 +1724,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET a=a+10 WHERE a > 34;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1     WHERE a > 34;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 34)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
@@ -2506,34 +1754,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c1` = `test`.`t1`.`c1`)) where 1
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	7
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	3
+Handler_read_key	8
 Handler_read_rnd_next	5
 
 #
@@ -2546,34 +1779,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1                WHERE t1.c3 = 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`c1` = `test`.`t1`.`c1`)) where (`test`.`t1`.`c3` = 10)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	7
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	7
 Handler_read_rnd_next	4
 
 DROP TABLE t1, t2;
@@ -2595,37 +1813,20 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT              (SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1) FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`)) AS `(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	7
 Handler_read_next	2
 Handler_read_rnd_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	7
 Handler_read_next	2
 Handler_read_rnd_next	3
 Handler_update	2
@@ -2644,22 +1845,22 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
 DELETE FROM t1 USING t1 WHERE uknown_column = 12345;
 ERROR 42S22: Unknown column 'uknown_column' in 'where clause'
-EXPLAIN EXTENDED DELETE FROM t1 USING t1 WHERE uknown_column = 12345;
+EXPLAIN DELETE FROM t1 USING t1 WHERE uknown_column = 12345;
 ERROR 42S22: Unknown column 'uknown_column' in 'where clause'
 DROP TABLE t1;
 #57
 CREATE TABLE t1(f1 INT);
-EXPLAIN EXTENDED UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+EXPLAIN UPDATE t1 SET f2=1 ORDER BY f2;
+ERROR 42S22: Unknown column 'f2' in 'field list'
 UPDATE t1 SET f2=1 ORDER BY f2;
-ERROR 42S22: Unknown column 'f2' in 'order clause'
+ERROR 42S22: Unknown column 'f2' in 'field list'
 DROP TABLE t1;
 #59
 CREATE TABLE t1 ( a INT, KEY( a ) );
 INSERT INTO t1 VALUES (0), (1);
 CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 SET SESSION sql_safe_updates = 1;
-EXPLAIN EXTENDED UPDATE IGNORE v1 SET a = 1;
+EXPLAIN UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
 UPDATE IGNORE v1 SET a = 1;
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
@@ -2680,36 +1881,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        v1 SET a = 1 WHERE a > 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM v1           WHERE a > 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	2
+Handler_read_key	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	3
+Handler_read_key	4
 Handler_read_rnd	1
-Handler_read_rnd_next	9
+Handler_read_rnd_next	8
 Handler_write	2
 
 #
@@ -2723,38 +1909,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1, v1              WHERE t1.a = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	3
+Handler_read_key	4
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	7
+Handler_read_key	8
 Handler_read_rnd	2
-Handler_read_rnd_next	19
+Handler_read_rnd_next	18
 Handler_update	1
 Handler_write	4
 
@@ -2773,33 +1942,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	X	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM v1 WHERE a < 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	X	X	Using where
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM v1 WHERE a < 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	X	X	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 4)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -2820,35 +1976,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT *  FROM t2, v1 WHERE t2.x = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	8
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	12
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2870,35 +2011,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE v1 FROM t2, v1 WHERE t2.x = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT *  FROM t2, v1 WHERE t2.x = v1.a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.x	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	8
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	9
+Handler_read_key	12
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2916,27 +2042,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED INSERT INTO v1 VALUES (10);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT NULL;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `NULL`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -2956,33 +2070,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED INSERT INTO v1 SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
@@ -3003,31 +2103,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -3035,7 +2118,7 @@ Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_update	1
 Handler_write	1
@@ -3054,33 +2137,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -3088,7 +2152,7 @@ Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -3106,33 +2170,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-3	DEPENDENT SUBQUERY	<derived4>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1, (SELECT * FROM t2) y            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	<derived4>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
-4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -3140,7 +2185,7 @@ Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -3151,7 +2196,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (c1 INT KEY);
 CREATE TABLE t2 (c2 INT);
 CREATE TABLE t3 (c3 INT);
-EXPLAIN EXTENDED UPDATE t3 SET c3 = (
+EXPLAIN UPDATE t3 SET c3 = (
 SELECT COUNT(d1.c1)
 FROM (
 SELECT a11.c1 FROM t1 AS a11 
@@ -3165,8 +2210,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	a11	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 3	DERIVED	a21	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 3	DERIVED	a12	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a11.c1	1	100.00	Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 DROP TABLE t1, t2, t3;
 #71
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX i1(c1));
@@ -3185,7 +2228,7 @@ CREATE TABLE t2 (id INT);
 INSERT INTO t1 VALUES (1), (2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USING(id) GROUP BY t1.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where 1 group by `test`.`t1`.`id`
@@ -3203,29 +2246,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using temporary
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT a t1 FROM t1 WHERE a>10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where; Using index
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 
 # used key is modified & Using filesort
 #
@@ -3237,30 +2267,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t1 SET a=a+1 WHERE a>10 ORDER BY a+20;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-# Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT a t1 FROM t1 WHERE a>10 ORDER BY a+20;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using filesort
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10) order by (`test`.`t1`.`a` + 20)
-# Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Sort_range	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Sort_range	1
 
 DROP TABLE t1;
@@ -3282,7 +2299,11 @@ CREATE PROCEDURE p9() BEGIN EXPLAIN UPDATE t1 SET i = 10;END|
 CREATE PROCEDURE p10() BEGIN         UPDATE t1 SET i = 10;END|
 CREATE PROCEDURE p11() BEGIN EXPLAIN UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
 CREATE PROCEDURE p12() BEGIN         UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
-CREATE PROCEDURE p13() BEGIN EXPLAIN DELETE FROM t1;END|
+CREATE PROCEDURE p13() BEGIN
+# Disabling binary logging temporarily as optimized delete is not used when log-bin is enabled in row mode
+SET @save_log_bin= @@sql_log_bin;SET SQL_LOG_BIN=0;
+EXPLAIN DELETE FROM t1;
+SET SQL_LOG_BIN=@save_log_bin; END|
 CREATE PROCEDURE p14() BEGIN         DELETE FROM t1;END|
 CREATE PROCEDURE p15() BEGIN EXPLAIN DELETE FROM t1 USING t1;END|
 CREATE PROCEDURE p16() BEGIN         DELETE FROM t1 USING t1;END|

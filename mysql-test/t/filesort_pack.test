@@ -5,7 +5,7 @@ CREATE TABLE t1 (
  pad char(60) NOT NULL default '',
  PRIMARY KEY (id),
  KEY k (k)
-) engine=innodb;
+) charset latin1 engine=innodb;
 
 --disable_query_log
 let $count= 140;

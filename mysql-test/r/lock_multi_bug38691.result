@@ -1,9 +1,3 @@
-SET @odl_sync_frm = @@global.sync_frm;
-Warnings:
-Warning	1287	'@@sync_frm' is deprecated and will be removed in a future release.
-SET @@global.sync_frm = OFF;
-Warnings:
-Warning	1287	'@@sync_frm' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2,t3;
 CREATE TABLE t1 (
 a int(11) unsigned default NULL,
@@ -21,6 +15,3 @@ CREATE TABLE t3 SELECT * FROM t1;
 # normal mode
 # PS mode
 DROP TABLE t1, t2, t3;
-SET @@global.sync_frm = @odl_sync_frm;
-Warnings:
-Warning	1287	'@@sync_frm' is deprecated and will be removed in a future release.

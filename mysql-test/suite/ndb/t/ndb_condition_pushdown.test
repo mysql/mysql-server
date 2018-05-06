@@ -1,13 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4;
---enable_warnings
 
 #
 # Test of condition pushdown to storage engine
@@ -40,7 +31,8 @@ CREATE TABLE t1 (
   date_time datetime,
   time_stamp timestamp,
   PRIMARY KEY (auto)
-) engine=ndb;
+) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values 
 (NULL,"aaaa","aaaa",0xAAAA,0xAAAA,-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
@@ -60,15 +52,20 @@ insert into t1 values
  '1904-04-04','1904', 
 '04:04:04','1904-04-04 04:04:04',NULL);
 
-CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
+CREATE TABLE t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
 
-CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) ) ENGINE=ndbcluster;
+CREATE TABLE  t3 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) )
+ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t3 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 
-CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster;
+CREATE TABLE  t4 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) , KEY (attr1)) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t4 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 
@@ -1666,7 +1663,7 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 # Some tests that are currently not supported and should not push condition
 --replace_column 10 # 11 #
 explain
-select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+select auto from t1 where string = "aaaa" collate utf8mb4_general_ci order by auto;
 --replace_column 10 # 11 #
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
@@ -1676,7 +1673,8 @@ select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.a
 
 # bug#15722
 create table t5 (a int primary key auto_increment, b tinytext not null) 
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t5 where b like '%jo%' order by a;
@@ -1700,7 +1698,8 @@ select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 # bug#17421 -1
 drop table t1;
 create table t1 (a int, b varchar(3), primary key using hash(a))
-engine=ndb;
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,'a'), (2,'ab'), (3,'abc');
 # in TUP the constants 'ab' 'abc' were expected in varchar format
 # "like" returned error which became "false"
@@ -1773,7 +1772,8 @@ changed timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 PRIMARY KEY (id),
 KEY NodeAlias_identifies_1_Node (nodeId),
 KEY NodeAlias_KeyIndex (aliasKey)
-) engine=ndb;
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into NodeAlias VALUES(null, 2 , '49', '49',  0,'2008-03-07 14:54:59');
 insert into NodeAlias VALUES(null, 3 , '49' , '49' , 0 , '2008-03-07 14:55:24');
@@ -2095,7 +2095,9 @@ select a,b,d from t1
 # Bug 35413, NdbInterpretedCode buffer extension problem
 drop table t1;
 
-create table t1 (a int primary key, b varchar(5000) character set latin1) engine=ndb;
+create table t1 (a int primary key, b varchar(5000) character set latin1)
+engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (0, 'I just cant beg you, any-more');
 select * from t1 where b="value";
 
@@ -2110,9 +2112,11 @@ select * from t1 where b in ('0', '1', '2','3','4','5','6','7','8','9',
 show warnings;
 
 # Test large SCANTABREQ
-create table balerno (a int primary key, 
-                      b varchar(2000), 
-                      c varchar(2000)) engine=ndb;
+create table balerno (
+  a int primary key,
+  b varchar(2000),
+  c varchar(2000)
+) engine=ndb character set latin1;
 
 alter table balerno add index (b);
 
@@ -2241,7 +2245,8 @@ show warnings;
 drop table balerno;
 
 # bug#49459 Incorrect handling of too long string in condition pushdown
-create table t (pk int primary key, x varchar(1)) engine = ndb;
+create table t (pk int primary key, x varchar(1)) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,"a");
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t where x <> "aa";
@@ -2285,7 +2290,8 @@ select * from t where x not like concat("%", replace("a%","a","b"));
 drop table t;
 
 # Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
-create table t (pk int primary key, x int) engine = ndb;
+create table t (pk int primary key, x int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 --replace_column 10 # 11 #
@@ -2298,7 +2304,8 @@ drop table t;
 
 # Bug#53360 No result for requests using LIKE condition on ENUM fields
 set @@optimizer_switch = 'engine_condition_pushdown=on';
-create table t (x enum ('yes','yep','no')) engine = ndb;
+create table t (x enum ('yes','yep','no')) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values ('yes'),('yep'),('no');
 --replace_column 10 # 11 #
 explain select * from t where x like 'yes' order by x;
@@ -2311,20 +2318,21 @@ explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
 
-# Bug#58553 Queries with pushed conditions causes 'explain extended' to crash mysqld
+# Bug#58553 Queries with pushed conditions causes 'explain' to crash mysqld
 create table tx (
   a int not null,
   b int not null,
   c int not null,
   d int not null,
   primary key (`a`,`b`)
-) engine = ndb;
+) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 --replace_column 10 # 11 #
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join *
 from tx
  join tx as t2 on t2.a = tx.a and t2.b = tx.b
@@ -2332,7 +2340,7 @@ from tx
  join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2340,10 +2348,10 @@ where t2.a = 4
 group by t2.c;
 
 --replace_column 10 # 11 #
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2355,18 +2363,20 @@ drop table tx;
 # Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 
-create table t (pk int, i int) engine = ndb;
+create table t (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t values (1,3), (3,6), (6,9), (9,1);
-create table subq (pk int, i int) engine = ndb;
+create table subq (pk int, i int) engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into subq values (1,3), (3,6), (6,9), (9,1);
 
 # 'Explain extended' to verify that only 'subq.i=3' is pushed
 --replace_column 10 # 11 #
-explain extended 
+explain 
 select * from t where exists
   (select * from t as subq where subq.i=3 and t.i=3);
 --replace_column 10 # 11 #
-explain extended 
+explain 
   select * from t where exists
     (select * from subq where subq.i=3 and t.i=3);
 
@@ -2454,7 +2464,8 @@ drop table t;
 
 # Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
 create table escapetest ( emailaddress varchar(255) default null, id int not
-null default '0') engine=ndbcluster;
+null default '0') engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into escapetest values('test_data@test.org', 1);
 --replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test_%";
@@ -2466,14 +2477,15 @@ drop table escapetest;
 
 # Bug#15923467 LIKE FUNCTION NOT WORK.
 
-create table a(a varchar(7)) engine=ndb charset=utf8;
+create table a(a varchar(7)) engine=ndb charset=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into a values ('abcdefg');
 
 select * from a;                        
 
 --replace_column 10 # 11 #
-explain extended select * from a where a like 'abcdefg%'; 
+explain select * from a where a like 'abcdefg%'; 
 
 select * from a where a like 'abcdefg%'; 
 
@@ -2494,10 +2506,10 @@ drop table t1;
 --echo # BUG#14798022 "CHAR (0)" DATATYPE CAUSING ERROR 1296
 --echo # Verify there is no push down support for char(0)
 --echo # 
-create table t1(a int, b char(0)) engine=ndbcluster;
+create table t1(a int, b char(0)) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values(1,''), (2, NULL);
 --replace_column 10 # 11 #
 explain select * from t1 where b = '';
 select * from t1 where b = '';
 drop table t1;
-

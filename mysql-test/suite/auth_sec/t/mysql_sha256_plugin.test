@@ -15,9 +15,8 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/have_ssl.inc
---source include/have_sha256_rsa_auth.inc
+--source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
 
 # This test will intentionally generate errors in the server error log
@@ -35,12 +34,6 @@ call mtr.add_suppression(".*Password salt for user.*");
 --echo Checking the password authentication using the sha256_password plugin at the client and mysql_native_password plugin at the server side
 --echo ===========================================================================================================================================
 --echo 
-
-select @@Global.old_passwords;
---echo 0 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
 
 # Checking the password authentication with sha256_password plugin
 # Creating 2 users and encrypting the server side password with the sha256_password plugin
@@ -82,45 +75,8 @@ connect(con4,127.0.0.1,Tanjotuser2," ",,);
 
 connection default;
 
-# setting the old_passwords in sync with the sha256 plugin
-
-set @@session.old_passwords=2;
-
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-
-# Validating the old_passwords value from the created users.
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 2 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
---echo 2 Expected
-
 
 # Verifying the client connection using the  sha256_password plugin and NULL password
 
@@ -262,8 +218,6 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 
 # setting the password for the 2 users using the sha256_password plugin
 
-SET @@session.old_passwords=2;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 
@@ -353,12 +307,6 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 
 
-select @@Global.old_passwords;
---echo 2 Expected
-
-select @@session.old_passwords;
---echo 0 Expected
-
 # Checking the password authentication with sha256_password plugin
 # Creating 2 users and encrypting the server side password with the sha256_password plugin
 
@@ -399,33 +347,8 @@ connect(con92,127.0.0.1,Tanjotuser2," ",,);
 
 connection default;
 
-SET @@session.old_passwords=2;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='abc';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='abc';
-
-
-# Validating the old_passwords value from the created users.
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
-
-
---echo **** connecting Tanjotuser1 with server 
---exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser2 with server 
---exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
---echo 2 Expected
-
 
 # Verifying the client connection using the same sha256_password plugin and NULL password
 
@@ -568,8 +491,6 @@ CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
 
 # setting the password for the 2 users using the sha256_password plugin
 
-SET @@session.old_passwords=2;
-
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'='$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________';
 
@@ -695,5 +616,3 @@ connection default;
 
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
-SET @@global.old_passwords=default;
-SET @@session.old_passwords=default;

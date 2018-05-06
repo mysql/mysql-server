@@ -2,9 +2,7 @@
 # Some functional checks for the content of performance_schema.socket_instances.
 #
 
---source include/not_embedded.inc
 --source include/not_windows.inc
---source include/have_perfschema.inc
 
 # Set this to enable debugging output
 let $my_socket_debug= 0;
@@ -20,6 +18,8 @@ let $check_ipv6_just_check= 1;
 # Determine if IPV4 mapped to IPV6 supported
 let $check_ipv4_mapped_just_check= 1;
 --source include/check_ipv4_mapped.inc
+
+--source include/add_extra_root_users.inc
 
 let $my_localhost= 127.0.0.1;
 
@@ -445,3 +445,4 @@ eval
 SELECT *
 $part;
 
+--source include/remove_extra_root_users.inc

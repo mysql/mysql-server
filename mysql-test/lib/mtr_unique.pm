@@ -1,19 +1,26 @@
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 package mtr_unique;
 
@@ -29,28 +36,8 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $dir;
-
-if(!IS_WINDOWS)
-{
-  $dir= "/tmp/mysql-unique-ids";
-}
-else
-{
-  # Try to use machine-wide directory location for unique IDs,
-  # $ALLUSERSPROFILE . IF it is not available, fallback to $TEMP
-  # which is typically a per-user temporary directory
-  if (exists $ENV{'ALLUSERSPROFILE'} && -w $ENV{'ALLUSERSPROFILE'})
-  {
-    $dir= $ENV{'ALLUSERSPROFILE'}."/mysql-unique-ids";
-  }
-  else
-  {
-    $dir= $ENV{'TEMP'}."/mysql-unique-ids";
-  }
-}
-
 my @mtr_unique_fh;
+my @mtr_unique_ids;
 
 END
 {
@@ -73,40 +60,22 @@ sub mtr_get_unique_id($$$) {
     die "Can only get $build_threads_per_thread unique id(s) per process!";
   }
 
-  # Make sure our ID directory exists
-  if (! -d $dir)
-  {
-    # If there is a file with the reserved
-    # directory name, just delete the file.
-    if (-e $dir)
-    {
-      unlink($dir);
-    }
-
-    mkdir $dir;
-    chmod 0777, $dir;
-
-    if(! -d $dir)
-    {
-      die "can't make directory $dir";
-    }
-  }
-
   my $build_thread= 0;
   while ( $build_thread < $build_threads_per_thread )
   {
     for (my $id= $min; $id <= $max; $id++)
     {
       my $fh;
-      open( $fh, ">$dir/$id");
-      chmod 0666, "$dir/$id";
+      open($fh, ">$::build_thread_id_dir/$id");
+      chmod 0666, "$::build_thread_id_dir/$id";
 
       # Try to lock the file exclusively. If lock succeeds, we're done.
       if (flock($fh, LOCK_EX|LOCK_NB))
       {
         # Store file handle - we would need it to release the
         # ID (i.e to unlock the file)
-        $mtr_unique_fh[$build_thread] = $fh;
+        $mtr_unique_fh[$build_thread]= $fh;
+        $mtr_unique_ids[$build_thread]= "$::build_thread_id_dir/$id";
         $build_thread= $build_thread + 1;
       }
       else
@@ -120,6 +89,8 @@ sub mtr_get_unique_id($$$) {
           if (defined $mtr_unique_fh[$build_thread-1])
           {
             close $mtr_unique_fh[$build_thread-1];
+            unlink $mtr_unique_ids[$build_thread-1] or
+              warn "Could not unlink $mtr_unique_ids[$build_thread-1]: $!";
           }
         }
 
@@ -130,6 +101,14 @@ sub mtr_get_unique_id($$$) {
 
       if ($build_thread == $build_threads_per_thread)
       {
+        open(FH, ">>", $::build_thread_id_file) or
+          die "Can't open file $::build_thread_id_file: $!";
+        for (my $i = 0; $i <= $#mtr_unique_ids; $i++)
+        {
+          # Write the build thread id file path to 'unique_ids.log' file
+          print FH $mtr_unique_ids[$i] . "\n";
+        }
+        close(FH);
         return $id - $build_thread + 1;
       }
     }
@@ -155,6 +134,7 @@ sub mtr_release_unique_id()
       close $mtr_unique_fh[$i];
     }
   }
+
   @mtr_unique_fh= ();
 }
 

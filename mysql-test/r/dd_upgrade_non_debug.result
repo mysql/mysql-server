@@ -1,0 +1,127 @@
+#
+# Bug#26431355 : ALTER TABLE COMMENT FAILS WITH FAILED TO DROP TABLE SDI AFTER UPGRADE
+#
+# This test scripts covers upgrade of tables, views, tablespaces,
+# events, stored routines and triggers from 5.7 to 8.0.
+# Set different paths for --datadir
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Stop DB server which was created by MTR default
+# These files are added to test error scenario, delete from for upgrade testing.
+# Remove myisam partitioned tables. There are used for negative testing.
+# Create a bootstrap file in temp location
+MYSQL_TMP_DIR/bootstrap.log
+# Start the DB server. Server will create and populate Dictionary tables.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+aview.t1                                           OK
+aview.t2                                           OK
+events.event_table                                 OK
+events.event_table_2                               OK
+foreign_keys.t1                                    OK
+foreign_keys.t2                                    OK
+foreign_keys.t3                                    OK
+foreign_keys.t4                                    OK
+foreign_keys.t5                                    OK
+foreign_keys.t6                                    OK
+foreign_keys.t7                                    OK
+foreign_keys.t8                                    OK
+sakila.actor                                       OK
+sakila.address                                     OK
+sakila.category                                    OK
+sakila.city                                        OK
+sakila.country                                     OK
+sakila.customer                                    OK
+sakila.film                                        OK
+sakila.film_actor                                  OK
+sakila.film_category                               OK
+sakila.film_text                                   OK
+sakila.inventory                                   OK
+sakila.language                                    OK
+sakila.payment                                     OK
+sakila.rental                                      OK
+sakila.staff                                       OK
+sakila.store                                       OK
+sp.t                                               OK
+sys.sys_config                                     OK
+tablespace.t1                                      OK
+tablespace.t2                                      OK
+tablespace.t3                                      OK
+tablespace.t4                                      OK
+test.child                                         OK
+test.geom                                          OK
+test.jemp                                          OK
+test.jemp_myisam                                   OK
+test.opening_lines                                 OK
+test.parent                                        OK
+test.t_blackhole                                   OK
+test.t_blob                                        OK
+test.t_blob_myisam                                 OK
+test.t_compressed                                  OK
+test.t_compressed2                                 OK
+test.t_compressed3                                 OK
+test.t_dynamic                                     OK
+test.t_gen_stored                                  OK
+test.t_gen_stored_myisam                           OK
+test.t_gen_stored_myisam2                          OK
+test.t_index                                       OK
+test.t_json                                        OK
+test.t_myisam_compressed                           OK
+test.t_myisam_compressed2                          To be repaired, cause follows:
+Server issued Error    : Got error 202 - 'Row format changed in storage engine' from storage engine
+status   : OK
+test.t_myisam_compressed3                          To be repaired, cause follows:
+Server issued Error    : Got error 202 - 'Row format changed in storage engine' from storage engine
+status   : OK
+test.t_sc~!@#$%^&*(                                OK
+test.vt2                                           OK
+test_mismatch.t1_col_name                          OK
+test_mismatch.t2_col_type                          OK
+test_mismatch.t3_col_num                           OK
+test_mismatch.t4_index_name                        OK
+test_mismatch.t5_index_cols                        OK
+test_mismatch.t6_indexes_num                       OK
+test_mismatch.t7_indexes_unique                    OK
+test_mismatch.t8_col_type_nulls                    OK
+test_mismatch.t9_index_prefix_len                  OK
+triggers.t1                                        OK
+triggers.t2                                        OK
+view_with_column_names.t1                          OK
+ALTER TABLE aview.t1 comment='abcd';
+ALTER TABLE aview.t2 comment='efgh';
+# Remove copied files
+# Restart the server with default options.
+# restart

@@ -161,28 +161,28 @@ TESTF_bug11763507()
 0
 SHOW FUNCTION STATUS LIKE  'testf_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE NAME='testf_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS LIKE  'TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE NAME='TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION testf_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
 BEGIN
 RETURN 0;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION TESTF_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
 BEGIN
 RETURN 0;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 CALL testp_bug11763507();
 PROCEDURE testp_bug11763507
 PROCEDURE testp_bug11763507
@@ -191,39 +191,39 @@ PROCEDURE testp_bug11763507
 PROCEDURE testp_bug11763507
 SHOW PROCEDURE STATUS LIKE  'testp_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE NAME='testp_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS LIKE  'TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE NAME='TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE testp_bug11763507;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 testp_bug11763507		CREATE DEFINER=`root`@`localhost` PROCEDURE `testp_bug11763507`()
 BEGIN
 SELECT "PROCEDURE testp_bug11763507";
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE TESTP_bug11763507;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 testp_bug11763507		CREATE DEFINER=`root`@`localhost` PROCEDURE `testp_bug11763507`()
 BEGIN
 SELECT "PROCEDURE testp_bug11763507";
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'testf_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'TESTF_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='testf_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='TESTF_bug11763507';
-specific_name
+SPECIFIC_NAME
 testf_bug11763507
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
@@ -257,8 +257,6 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION f1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE f1(IN arg TINYINT UNSIGNED)
 BEGIN
 DECLARE arg1 TINYINT;
@@ -318,8 +316,6 @@ ERROR 22003: Out of range value for column 'arg' at row 1
 SELECT fn2();
 ERROR 22003: Out of range value for column 'v1' at row 1
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT fn1(-25);
 ERROR 22007: Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION fn1;
@@ -345,8 +341,6 @@ NULL
 Warnings:
 Warning	1365	Division by 0
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE proc_c()
 BEGIN
 DECLARE div_zero INTEGER;
@@ -360,8 +354,6 @@ Warnings:
 Warning	1365	Division by 0
 DROP PROCEDURE proc_c;
 SET sql_mode=traditional;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION fn1() RETURNS TINYINT
 BEGIN
 SET  @x=floor('1a');
@@ -372,3 +364,38 @@ fn1()
 1
 DROP FUNCTION fn1;
 SET sql_mode= default;
+#
+# Bug#24401273: PROBLEM WITH STORED FUNCTION WHICH GENERATES
+#               BIGINT UNSIGNED USED IN WHERE CLAUSE
+#
+# Note: The AND TRUE is to work around Bug #24457368.
+#
+CREATE FUNCTION crc(_text TEXT) RETURNS BIGINT(20) UNSIGNED DETERMINISTIC
+RETURN CONV(LEFT(MD5(_text),16),16,10);
+CREATE TABLE t1 (
+id bigint(20) UNSIGNED NOT NULL
+);
+INSERT INTO t1 (id) VALUES (crc('photos'));
+INSERT INTO t1 (id) VALUES (crc('photos1'));
+ALTER TABLE t1 ADD INDEX idx (id);
+SELECT * FROM t1 FORCE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+id
+15460588431078774149
+SELECT * FROM t1 IGNORE INDEX (idx) WHERE (id = crc('photos')) AND TRUE;
+id
+15460588431078774149
+DROP FUNCTION crc;
+DROP TABLE t1;
+# Bug#25398451: Segmentation fault in prepare_inner() at sql_call.cc
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+CALL proc(NEW.a,NEW.b);
+END |
+CREATE PROCEDURE proc(IN aa INTEGER)
+BEGIN
+END |
+INSERT INTO t1 VALUES (1,10);
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc; expected 1, got 2
+DROP PROCEDURE proc;
+DROP TABLE t1;

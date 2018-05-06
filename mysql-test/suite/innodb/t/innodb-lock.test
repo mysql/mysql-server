@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 #
 # Check and select innodb lock type

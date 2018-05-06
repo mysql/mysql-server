@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 set @saved_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
 

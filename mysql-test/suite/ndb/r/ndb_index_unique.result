@@ -158,7 +158,8 @@ a int unsigned NOT NULL PRIMARY KEY,
 b int unsigned not null,
 c int unsigned,
 UNIQUE (b, c) USING HASH	
-) engine=ndbcluster;
+) engine=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
@@ -682,9 +683,13 @@ id	month	year	code
 drop table t1;
 create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bdt\222Bd' for key 'b'
+ERROR 23000: Duplicate entry '∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫dt∫d' for key 'b'
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
@@ -736,8 +741,8 @@ insert into t1 values
 (15,15,repeat('B', 500));
 alter table t1 add unique(un);
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # bug#57032
 create table t1 (
@@ -889,9 +894,11 @@ a
 4
 set optimizer_switch = @old_os;
 drop table t1;
-create table t1 (pk int primary key, a int) engine=ndb;
+create table t1 (pk int primary key, a int) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (pk int primary key, uq int, a int, 
-unique key ix(uq,a) USING HASH) engine=ndb;
+unique key ix(uq,a) USING HASH) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 insert into t2 values
@@ -917,12 +924,14 @@ count(*)
 drop table t1,t2;
 CREATE TABLE t1 (
 i int
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (
 col_int_unique int,
 UNIQUE KEY ix1 (col_int_unique) USING HASH
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
 Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
 INSERT INTO t2 VALUES (42);
@@ -930,12 +939,12 @@ EXPLAIN SELECT * FROM t1 WHERE i IN
 (SELECT t2.col_int_unique FROM t2) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	ix1	ix1	5	func	2	100.00	Full scan on NULL key
+2	DEPENDENT SUBQUERY	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	ix1	ix1	5	func	2	100.00	Using where; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on ix1 checking NULL having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`col_int_unique`), true)))) is true)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on ix1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) = `test`.`t2`.`col_int_unique`) or isnull(`test`.`t2`.`col_int_unique`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`col_int_unique`), true)))) is true)
 create temporary table row_counts_at_startup 
 select * 
-from information_schema.session_status
+from performance_schema.session_status
 WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 SELECT * FROM t1 WHERE i IN
 (SELECT t2.col_int_unique FROM t2) IS TRUE;
@@ -960,14 +969,137 @@ i
 1
 create temporary table row_counts_at_end
 select * 
-from information_schema.session_status
+from performance_schema.session_status
 WHERE variable_name LIKE 'NDB_API_READ_ROW_COUNT';
 select row_counts_at_end.VARIABLE_NAME,
 row_counts_at_end.VARIABLE_VALUE - row_counts_at_startup.VARIABLE_VALUE 
 from row_counts_at_end, row_counts_at_startup 
 where row_counts_at_end.VARIABLE_NAME = row_counts_at_startup.VARIABLE_NAME;
 VARIABLE_NAME	row_counts_at_end.VARIABLE_VALUE - row_counts_at_startup.VARIABLE_VALUE
-NDB_API_READ_ROW_COUNT	6
+Ndb_api_read_row_count	6
 drop table row_counts_at_end;
 drop table row_counts_at_startup;
 drop table t1,t2;
+#
+# Bug#21777589 : UNIQUE KEY IS PARTIALLY DROPPED FROM MYSQLD EVEN WHEN A 'DROP INDEX' FAILS
+# Bug#22104597 : DROP INDEX FAILURE CORRUPTS THE INDEX METADATA IN MYSQLD
+#
+# Create table t1 with multiple keys
+create table t1(
+a int,
+b int,
+unique key uk1(a),
+unique key uk2(b) using hash
+)engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+# Create table t2 with a fk based on t1's uk
+create table t2(
+a int,
+b int,
+c int,
+foreign key fk1(a) references t1(a),
+unique key uk3(b),
+unique key uk4(c)
+)engine=ndb;
+# Try dropping uk1. should fail with correct uk constraint
+drop index uk1 on t1;
+ERROR HY000: Cannot drop index 'uk1': needed in a foreign key constraint
+# Perform a select from t1 to verify the index has not been partially dropped
+# also to ensure the ordering in m_index is intact
+select * from t1;
+a	b
+# Try dropping uk2 now. should be dropped without any problem
+drop index uk2 on t1;
+# Verify through show create table
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Make sure dropping multiple indexes together works
+alter table t2 drop index uk3, drop index uk4;
+# Verify through show create table
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# cleanup
+drop table t2,t1;
+#
+# Bug#22110051 : ASSERTION IN PROTOCOL::END_STATEMENT DURING DROP INDEX
+#
+# Create table t1 with unique key
+create table t1(
+a int not null,
+b int not null,
+unique key uk1(a),
+unique key uk2(b)
+)engine=ndb;
+# Create table t2 with a fk mapped to t1(a)
+create table t2(
+a int,
+foreign key fk1(a) references t1(a)
+)engine=ndb;
+# desc t1 to show the implicit pk
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	NO	PRI	NULL	
+b	int(11)	NO	UNI	NULL	
+# Drop index uk1 - it should fail
+drop index uk1 on t1;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint '<parent_table_id>/<child_table_id>/fk1' in the referenced table '#sql-temporary'
+# Verify table is intact
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk1` (`a`),
+  UNIQUE KEY `uk2` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Modify column on t1 - remove not null
+alter table t1 modify column a int;
+# verify that pk is now on b.
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	UNI	NULL	
+b	int(11)	NO	PRI	NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk2` (`b`),
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verify that the fk constraint is intact through inserts
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1), (2), (3);
+insert into t2 values (4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Try removing uk2. should pass.
+alter table t1 drop index uk2;
+# Verify that everything is fine.
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	UNI	NULL	
+b	int(11)	NO		NULL	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) NOT NULL,
+  UNIQUE KEY `uk1` (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verify that the fk constraint is intact through inserts
+insert into t2 values (1), (2), (3);
+insert into t2 values (4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+#cleanup
+drop table t2, t1;

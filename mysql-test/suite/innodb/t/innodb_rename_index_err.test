@@ -1,13 +1,12 @@
 #
 
--- source include/have_innodb.inc
 -- source include/have_debug.inc
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
+call mtr.add_suppression("Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
 call mtr.add_suppression("Cannot find index i1 in InnoDB index dictionary");
 call mtr.add_suppression("Build InnoDB index translation table");
-call mtr.add_suppression("InnoDB: Table test/t contains 0 indexes inside InnoDB, which is different from the number of indexes 1 defined in MySQL");
+call mtr.add_suppression("Table test/t contains 0 indexes inside InnoDB, which is different from the number of indexes 1 defined in MySQL");
 call mtr.add_suppression("Innodb could not find key no 0 with name i1 from dict cache for table test/t");
 call mtr.add_suppression("Table test/t contains fewer indexes inside InnoDB than are defined in the MySQL .frm file");
 --enable_query_log
@@ -34,27 +33,5 @@ SELECT index_name, stat_description
 FROM mysql.innodb_index_stats
 WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
 ORDER BY 1, 2;
-
-DROP TABLE t;
-
-# Test an attempt to rename a nonexistent index inside InnoDB
-
--- let $MYSQL_DATA_DIR = `SELECT @@datadir`
-
-CREATE TABLE t (a INT, INDEX i1 (a)) ENGINE=INNODB;
-
--- copy_file $MYSQL_DATA_DIR/test/t.frm $MYSQL_DATA_DIR/test/t.fr_
-
-DROP TABLE t;
-
-CREATE TABLE t (a INT) ENGINE=INNODB;
-
--- remove_file $MYSQL_DATA_DIR/test/t.frm
--- move_file $MYSQL_DATA_DIR/test/t.fr_ $MYSQL_DATA_DIR/test/t.frm
-
-SHOW CREATE TABLE t;
-
--- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t RENAME INDEX i1 TO i2;
 
 DROP TABLE t;

@@ -1,18 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ######################################################################
 # Test restoring backups with widening type conversions (promotion)
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t1_myisam,  t2, t2_myisam;
---enable_warnings
 
 #The first step is to test the int type promotion
 
@@ -65,14 +55,14 @@ alter table t1 modify column t1 smallint, modify column t2 smallint,
   modify column i1 bigint, modify column i2 bigint, 
   modify column ui1 bigint unsigned;
 
-#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
-create table t1_myisam as select * from t1;
+#Create innodb table from altered ndb table, which is to compare the data in ndb table with that of innodb table after promotion
+create table t3 as select * from t1;
 
 delete from t1;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 
 #The second group type promotion
 --echo ********************************************
@@ -82,7 +72,7 @@ select count(*) from t1 natural join t1_myisam;
 --echo * mediumint(unsigned)->bigint(unsigned),
 --echo * int(unsigned)->bigint(unsigned)
 --echo *********************************************
-drop table t1_myisam;
+drop table t3;
 
 alter table t1 modify column t1 mediumint, modify column t2 mediumint, 
   modify column ut1 mediumint unsigned, modify column s1 int, 
@@ -91,14 +81,14 @@ alter table t1 modify column t1 mediumint, modify column t2 mediumint,
   modify column um1 bigint unsigned, modify column i1 bigint, 
   modify column i2 bigint, modify column ui1 bigint unsigned;
 
-#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
-create table t1_myisam as select * from t1;
+#Create innodb table from altered ndb table, which is to compare the data in ndb table with that of innodb table after promotion
+create table t3 as select * from t1;
 
 delete from t1;
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 
 #The third group type promotion
 --echo *******************************************
@@ -108,7 +98,7 @@ select count(*) from t1 natural join t1_myisam;
 --echo * mediumint(unsigned)->bigint(unsigned),
 --echo * int(unsigned)->bigint(unsigned)
 --echo *******************************************
-drop table t1_myisam;
+drop table t3;
 
 alter table t1 modify column t1 int, modify column t2 int, 
   modify column ut1 int unsigned, modify column s1 bigint, 
@@ -117,14 +107,14 @@ alter table t1 modify column t1 int, modify column t2 int,
   modify column um1 bigint unsigned, modify column i1 bigint, 
   modify column i2 bigint, modify column ui1 bigint unsigned;
 
-#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
-create table t1_myisam as select * from t1;
+#Create innodb table from altered ndb table, which is to compare the data in ndb table with that of innodb table after promotion
+create table t3 as select * from t1;
 delete from t1;
 
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 
 #The fourth group type promotion
 --echo ********************************************
@@ -134,7 +124,7 @@ select count(*) from t1 natural join t1_myisam;
 --echo * mediumint(unsigned)->bigint(unsigned),
 --echo * int(unsigned)->bigint(unsigned)
 --echo ********************************************
-drop table t1_myisam;
+drop table t3;
 
 alter table t1 modify column t1 bigint, modify column t2 bigint, 
   modify column ut1 bigint unsigned, modify column s1 bigint, 
@@ -143,23 +133,23 @@ alter table t1 modify column t1 bigint, modify column t2 bigint,
   modify column um1 bigint unsigned, modify column i1 bigint, 
   modify column i2 bigint, modify column ui1 bigint unsigned;
 
-#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table after promotion
-create table t1_myisam as select * from t1;
+#Create innodb table from altered ndb table, which is to compare the data in ndb table with that of innodb table after promotion
+create table t3 as select * from t1;
 delete from t1;
 
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-select count(*) from t1 natural join t1_myisam;
+select count(*) from t1 natural join t3;
 
 drop table t1;
-drop table t1_myisam;
+drop table t3;
 
 #The second step is to test the char and binary type promotion
 create table t2(ch1 char(20), ch2 char(200), vch1 varchar(20), 
   vch2 varchar(200), vch3 varchar(2000), b1 binary(20), b2 binary(200), 
   vb1 varbinary(20), vb2 varbinary(200), vb3 varbinary(2000)
-)engine = ndb;
+) character set latin1 engine = ndb;
 
 insert into t2 values(repeat('a', 20), repeat('b', 200), repeat('c', 20),
   repeat('d', 200), repeat('e', 1000), repeat('f', 20), repeat('g', 200),
@@ -192,13 +182,13 @@ alter table t2 modify column ch1 char(255), modify column ch2 varchar(200),
   modify column b2 varbinary(255), modify column vb1 varbinary(100), 
   modify column vb2 varbinary(300), modify column vb3 varbinary(2100);
 
-#Create Myisam table from altered ndb table, which is to compare the data between in ndb table and in myisam table  after promotion
-create table t2_myisam as select * from t2;
-show create table t2_myisam;
+#Create innodb table from altered ndb table, which is to compare the data in ndb table with that of innodb table after promotion
+create table t4 as select * from t2;
+show create table t4;
 
-select * from t2_myisam;
+select * from t4;
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
-  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2_myisam;
+  length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t4;
 
 --echo *************************************************
 --echo * Restore data with truncating the tail spaces
@@ -213,7 +203,7 @@ select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
   length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
 
 
-select count(*) from t2 natural join t2_myisam;
+select count(*) from t2 natural join t4;
 
 --echo *************************************************
 --echo * Restore data with reserving the tail spaces
@@ -226,10 +216,10 @@ select * from t2;
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
   length(b1),length(b2),length(vb1),length(vb2),length(vb3) from t2;
 
-select count(*) from t2 natural join t2_myisam;
+select count(*) from t2 natural join t4;
 
 drop table t2;
-drop table t2_myisam;
+drop table t4;
 # End of 5.1 Test Case
 
 #

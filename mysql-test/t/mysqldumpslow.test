@@ -9,7 +9,6 @@
 # Bug#24007040 - MYSQLDUMPSLOW ON MYSQL 5.7 DOESN'T FOLLOW
 #                DATETIME FORMAT CHANGE
 #
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 # Disabling the ps-protocol for the test, as enabling it will

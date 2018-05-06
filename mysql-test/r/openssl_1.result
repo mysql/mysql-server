@@ -1,25 +1,17 @@
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1;
 create table t1(f1 int);
 insert into t1 values (5);
-grant select on test.* to ssl_user1@localhost require SSL;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant select on test.* to ssl_user2@localhost require cipher "SSL_CIPHER";
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant select on test.* to ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant select on test.* to ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant select on test.* to ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user ssl_user1@localhost, ssl_user2@localhost,
+ssl_user3@localhost, ssl_user4@localhost,
+ssl_user5@localhost;
+grant select on test.* to ssl_user1@localhost, ssl_user2@localhost,
+ssl_user3@localhost, ssl_user4@localhost,
+ssl_user5@localhost;
+alter user ssl_user2@localhost require cipher "SSL_CIPHER";
+alter user ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
+alter user ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+alter user ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";
 flush privileges;
 connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
@@ -61,19 +53,25 @@ drop table t1;
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: [ERROR] SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get private key
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: [ERROR] SSL error: Unable to get certificate from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get certificate
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 End of 5.0 tests
 DROP TABLE IF EXISTS thread_status;
 DROP EVENT IF EXISTS event_status;
-SET GLOBAL event_scheduler=1;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE EVENT event_status
 ON SCHEDULE AT NOW()
 ON COMPLETION NOT PRESERVE
@@ -81,22 +79,23 @@ DO
 BEGIN
 CREATE TABLE thread_status
 SELECT variable_name, variable_value
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'SSL_ACCEPTS' OR
 variable_name LIKE 'SSL_CALLBACK_CACHE_HITS';
 END$$
 SELECT variable_name, variable_value FROM thread_status;
 variable_name	variable_value
-SSL_ACCEPTS	#
-SSL_CALLBACK_CACHE_HITS	#
+Ssl_accepts	#
+Ssl_callback_cache_hits	#
 DROP TABLE thread_status;
-SET GLOBAL event_scheduler=0;
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	AES128-SHA
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Failed to set ciphers to use
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
@@ -104,7 +103,7 @@ INSERT INTO t1 VALUES (1), (2);
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+ SET NAMES utf8mb4 ;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -113,10 +112,10 @@ INSERT INTO t1 VALUES (1), (2);
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -138,7 +137,7 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+ SET NAMES utf8mb4 ;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -147,10 +146,10 @@ UNLOCK TABLES;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -172,7 +171,7 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
+ SET NAMES utf8mb4 ;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -181,10 +180,10 @@ UNLOCK TABLES;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
+ SET character_set_client = utf8mb4 ;
 CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 LOCK TABLES `t1` WRITE;
@@ -216,17 +215,14 @@ Ssl_cipher	DHE-RSA-AES128-SHA
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
 is still running; no cipher request crashed the server
-GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER bug42158@localhost REQUIRE X509;
+GRANT SELECT ON test.* TO bug42158@localhost;
 FLUSH PRIVILEGES;
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 DROP USER bug42158@localhost;
 set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 End of 5.1 tests
 #
 # Bug #20648276: SSL-RELATED GLOBAL STATUS INFORMATION ONLY AVAILABLE

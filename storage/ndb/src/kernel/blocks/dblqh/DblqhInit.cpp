@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,13 +32,22 @@
 #define JAM_FILE_ID 452
 
 
-#define DEBUG(x) { ndbout << "LQH::" << x << endl; }
+#define LQH_DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
 void Dblqh::initData() 
 {
 #ifdef ERROR_INSERT
   c_master_node_id = RNIL;
 #endif
+
+  c_gcp_stop_timer = 0;
+  c_is_io_lag_reported = false;
+  c_wait_lcp_surfacing = false;
+  c_executing_redo_log = 0;
+  c_start_phase_49_waiting = false;
+  c_outstanding_write_local_sysfile = false;
+  c_send_gcp_saveref_needed = false;
+  m_first_distributed_lcp_started = false;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
@@ -69,6 +85,7 @@ void Dblqh::initData()
   cLqhTimeOutCheckCount = 0;
   cpackedListIndex = 0;
   m_backup_ptr = RNIL;
+
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
   cmaxValidLogFilesInPageZero = cmaxLogFilesInPageZero - 1;
@@ -77,11 +94,15 @@ void Dblqh::initData()
   cmaxLogFilesInPageZero_DUMP = 0;
 #endif
 
-   totalLogFiles = 0;
-   logFileInitDone = 0;
-   totallogMBytes = 0;
-   logMBytesInitDone = 0;
-   m_startup_report_frequency = 0;
+#if defined ERROR_INSERT
+  delayOpenFilePtrI = 0;
+#endif
+
+  totalLogFiles = 0;
+  logFileInitDone = 0;
+  totallogMBytes = 0;
+  logMBytesInitDone = 0;
+  m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
   for (Uint32 i = 0; i < 1024; i++) {
@@ -112,8 +133,8 @@ void Dblqh::initData()
   c_fragmentsStarted = 0;
   c_fragmentsStartedWithCopy = 0;
 
-  c_fragCopyTable = 0;
-  c_fragCopyFrag = 0;
+  c_fragCopyTable = RNIL;
+  c_fragCopyFrag = RNIL;
   c_fragCopyRowsIns = 0;
   c_fragCopyRowsDel = 0;
   c_fragBytesCopied = 0;
@@ -124,6 +145,43 @@ void Dblqh::initData()
   c_totalCopyRowsDel = 0;
   c_totalBytesCopied = 0;
 
+  c_is_first_gcp_save_started = false;
+  c_max_gci_in_lcp = 0;
+
+  c_current_local_lcp_instance = 0;
+  c_local_lcp_started = false;
+  c_full_local_lcp_started = false;
+  c_current_local_lcp_table_id = 0;
+  c_copy_frag_live_node_halted = false;
+  c_copy_frag_live_node_performing_halt = false;
+  c_tc_connect_rec_copy_frag = RNIL;
+  memset(&c_halt_copy_fragreq_save,
+         0xFF,
+         sizeof(c_halt_copy_fragreq_save));
+
+  c_copy_frag_halted = false;
+  c_copy_frag_halt_process_locked = false;
+  c_undo_log_overloaded = false;
+  c_copy_fragment_in_progress = false;
+  c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
+  memset(&c_prepare_copy_fragreq_save,
+         0xFF,
+         sizeof(c_prepare_copy_fragreq_save));
+
+  m_node_restart_first_local_lcp_started = false;
+  m_node_restart_lcp_second_phase_started = false;
+  m_first_activate_fragment_ptr_i = RNIL;
+  m_second_activate_fragment_ptr_i = RNIL;
+  m_curr_lcp_id = 0;
+  m_curr_local_lcp_id = 0;
+  m_next_local_lcp_id = 0;
+  c_max_gci_in_lcp = 0;
+  c_local_lcp_sent_wait_complete_conf = false;
+  c_local_lcp_sent_wait_all_complete_lcp_req = false;
+  c_localLcpId = 0;
+  c_keep_gci_for_lcp = 0;
+  c_max_keep_gci_in_lcp = 0;
+  c_first_set_min_keep_gci = false;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -389,6 +447,12 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
   addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
   addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
+  addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
+  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
+               &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
+               &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
+  addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &Dblqh::execEMPTY_LCP_REQ);
   addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
@@ -457,6 +521,35 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
   addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
 
+  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &Dblqh::execINFO_GCP_STOP_TIMER);
+
+  addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
+               &Dblqh::execREAD_LOCAL_SYSFILE_CONF);
+  addRecSignal(GSN_WRITE_LOCAL_SYSFILE_CONF,
+               &Dblqh::execWRITE_LOCAL_SYSFILE_CONF);
+  addRecSignal(GSN_UNDO_LOG_LEVEL_REP,
+               &Dblqh::execUNDO_LOG_LEVEL_REP);
+  addRecSignal(GSN_CUT_REDO_LOG_TAIL_REQ,
+               &Dblqh::execCUT_REDO_LOG_TAIL_REQ);
+  addRecSignal(GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
+               &Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP);
+  addRecSignal(GSN_SET_LOCAL_LCP_ID_CONF,
+               &Dblqh::execSET_LOCAL_LCP_ID_CONF);
+  addRecSignal(GSN_START_NODE_LCP_REQ,
+               &Dblqh::execSTART_NODE_LCP_REQ);
+  addRecSignal(GSN_START_LOCAL_LCP_ORD,
+               &Dblqh::execSTART_LOCAL_LCP_ORD);
+  addRecSignal(GSN_START_FULL_LOCAL_LCP_ORD,
+               &Dblqh::execSTART_FULL_LOCAL_LCP_ORD);
+  addRecSignal(GSN_HALT_COPY_FRAG_REQ,
+               &Dblqh::execHALT_COPY_FRAG_REQ);
+  addRecSignal(GSN_HALT_COPY_FRAG_CONF,
+               &Dblqh::execHALT_COPY_FRAG_CONF);
+  addRecSignal(GSN_RESUME_COPY_FRAG_REQ,
+               &Dblqh::execRESUME_COPY_FRAG_REQ);
+  addRecSignal(GSN_RESUME_COPY_FRAG_CONF,
+               &Dblqh::execRESUME_COPY_FRAG_CONF);
+
   initData();
 
 #ifdef VM_TRACE
@@ -473,7 +566,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
       &pageRefPtr,
       &scanptr,
       &tabptr,
-      &tcConnectptr,
     }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }

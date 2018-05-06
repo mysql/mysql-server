@@ -6,6 +6,7 @@ JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)))
 1
 CREATE DATABASE trx;
 CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
+# Warm-up data-dictionary cache.
 USE trx;
 START TRANSACTION;
 INSERT INTO info VALUES (1, 'foo');
@@ -35,9 +36,9 @@ JSON_CONTAINS(@json_doc, '"READ WRITE"',      '$[0].mode')
 SELECT JSON_CONTAINS(@json_doc, '"NO"',              '$[0].autocommitted');
 JSON_CONTAINS(@json_doc, '"NO"',              '$[0].autocommitted')
 1
-SELECT JSON_CONTAINS(@json_doc, '"AUTOMATIC"',       '$[0].gtid');
-JSON_CONTAINS(@json_doc, '"AUTOMATIC"',       '$[0].gtid')
-1
+SELECT JSON_EXTRACT(@json_doc, '$[0].gtid');
+JSON_EXTRACT(@json_doc, '$[0].gtid')
+"GTID"
 SELECT JSON_CONTAINS(@json_doc, '"REPEATABLE READ"', '$[0].isolation');
 JSON_CONTAINS(@json_doc, '"REPEATABLE READ"', '$[0].isolation')
 1

@@ -1,9 +1,6 @@
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -14,15 +11,15 @@
 
 --echo # verify that mysql default connect with ssl channel when using TCP/IP
 --echo # connection
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo # verify that mysql --ssl=0 connect with unencrypted channel
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=DISABLED
 
 --echo # verify that mysql --ssl=1 connect with ssl channel
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl-mode=REQUIRED
 
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;

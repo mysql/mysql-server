@@ -1,4 +1,4 @@
--- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 # Dump all databases
 --exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql
@@ -18,6 +18,9 @@ DROP DATABASE sys;
 SHOW DATABASES;
 
 # Finally reload the sys schema to return to normal
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force
 SHOW DATABASES;
 
@@ -26,3 +29,4 @@ SHOW DATABASES;
 --source include/backup_tables_priv_and_users.inc
 
 FLUSH PRIVILEGES;
+--source include/force_restart.inc

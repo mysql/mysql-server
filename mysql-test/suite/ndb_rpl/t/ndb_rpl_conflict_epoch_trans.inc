@@ -15,11 +15,11 @@
 RESET MASTER;
 STOP SLAVE;
 select @secondary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
 select @secondary_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 
@@ -29,11 +29,11 @@ STOP SLAVE;
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_PORT,master_user="root"
 START SLAVE;
 select @primary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
 select @primary_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
 
@@ -833,6 +833,17 @@ delete from test.t1 where a=77;
 insert into test.t1 values (73, "A superb year");
 commit;
 
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s1_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
+
 --echo Unrelated transaction from Secondary
 begin;
 insert into test.t1 values (84, "A good vintage");
@@ -858,6 +869,16 @@ insert into test.t1 values (77, "Exceptional");
 insert into test.t1 values (80, "Poor");
 commit;
 
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s2_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
 --echo Show Secondary contents
 select * from test.t1 order by a;
 
@@ -866,30 +887,467 @@ select * from test.t1 order by a;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --echo PRIMARY:
 --echo Expect:
---echo - Delete-Delete conflict did not result in rejection of Secondary transaction
---echo   Therefore related row from Secondary Deleting transaction (73) is present
---echo - Unrelated transaction from Secondary (84) is present
---echo - Following insert on delete-delete conflict row (77) is not in conflict,
---echo   so both it and the related row from the same transaction (80) are present
+--echo - NDB\$EPOCH_TRANS :
+--echo   - Will not detect delete-delete conflict, so first
+--echo     Secondary transaction will apply row 73.
+--echo   - Unrelated transaction from Secondary (84) is present
+--echo   - Following insert on delete-delete conflict row (77) is not in conflict,
+--echo     so both it and the related row from the same transaction (80) are present
+--echo     This applies whether the following insert is in the same or a different
+--echo     epoch
+--echo   Divergence:
+--echo     - Primary will have 73,84,77,80
+--echo     - Secondary will have 73,84,80, no 77
 --echo
+--echo - NDB\$EPOCH_TRANS2 :
+--echo   - Will detect delete-delete conflict, so first 
+--echo     Secondary transaction will not apply (no row 73)
+--echo     77 and 73 will be refreshed (DEL)
+--echo   - Unrelated transaction from Secondary (84) is present and applied
+--echo     84 will be reflected (INS)
+--echo   - Following insert on delete-delete conflict row (77) will be found in 
+--echo     conflict iff this transaction is in the same epoch as the first 
+--echo     conflicting transaction.  If it is in a different epoch then it will
+--echo     not be found in conflict, as there will be no state available to 
+--echo     use.
+--echo   - If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+--echo     Result on both should be :
+--echo       84
+--echo   - If it is not in-conflict, then 77 and 80 will be reflected (INS)
+--echo     Result on both should be :
+--echo       84, 77, 80
+--echo   No divergence
 
-select * from test.t1 order by a;
+--disable_query_log
+--disable_result_log
+eval select @epochs_equal:=$S1_EPOCH=$S2_EPOCH as epochs_equal;
+let $EPOCHS_EQUAL= query_get_value('select @epochs_equal as v',v,1);
 
---source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+eval select @Epoch2:=$PRIMARY_CONFLICT_ALG LIKE "%EPOCH2%";
+let $HAVE_EPOCH2= query_get_value('select @Epoch2 as v',v,1); 
+
+select @PrimaryRow77Present:=count(1) from test.t1 where a=77;
+select @PrimaryRow73Present:=count(1) from test.t1 where a=73;
+select @PrimaryRow80Present:=count(1) from test.t1 where a=80;
+select @PrimaryRow84Present:=count(1) from test.t1 where a=84;
+
+eval select @epoch_trans:=
+  !$HAVE_EPOCH2 and
+  @PrimaryRow77Present and
+  @PrimaryRow73Present and
+  @PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+eval select @epoch_trans2_same_epoch:=
+  $HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  !@PrimaryRow77Present and
+  !@PrimaryRow73Present and
+  !@PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+eval select @epoch_trans2_diff_epoch:=
+  $HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @PrimaryRow77Present and
+  !@PrimaryRow73Present and
+  @PrimaryRow80Present and
+  @PrimaryRow84Present;
+
+
+--enable_result_log
+--enable_query_log
+
+select @primary_ok:=
+  ((@epoch_trans XOR
+    @epoch_trans2_same_epoch) XOR
+   @epoch_trans2_diff_epoch);
+
+let $primary_ok= query_get_value('select @primary_ok as v',v,1);
+
+if (!$primary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if (!$HAVE_EPOCH2)
+{
+  echo EPOCH_TRANS has stable results independent of;
+  echo epoch boundaries: ;
+
+  select * from test.t1 order by a;
+
+  source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc;
+}
+if ($HAVE_EPOCH2)
+{
+  echo EPOCH2_TRANS results are dependent on epoch boundaries;
+}
 
 --echo Now sync with Secondary to show outcomes
---echo   NDB\$EPOCH_TRANS will have divergence as the Primary delete of
---echo   row 77 took out the newly inserted row 77.
---echo   NDB\$EPOCH2_TRANS will have no divergence as the Secondary insert
---echo   is reflected after the Primary delete, and re-inserts the value.
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 start slave;
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 --source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 --echo SECONDARY:
---echo 
+--echo
+
+--disable_query_log
+--disable_result_log
+
+select @SecondaryRow77Present:=count(1) from test.t1 where a=77;
+select @SecondaryRow73Present:=count(1) from test.t1 where a=73;
+select @SecondaryRow80Present:=count(1) from test.t1 where a=80;
+select @SecondaryRow84Present:=count(1) from test.t1 where a=84;
+
+
+eval select @epoch_trans:=
+  !$HAVE_EPOCH2 and
+  !@SecondaryRow77Present and
+  @SecondaryRow73Present and
+  @SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+eval select @epoch_trans2_same_epoch:=
+  $HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  !@SecondaryRow77Present and
+  !@SecondaryRow73Present and
+  !@SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+eval select @epoch_trans2_diff_epoch:=
+  $HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @SecondaryRow77Present and
+  !@SecondaryRow73Present and
+  @SecondaryRow80Present and
+  @SecondaryRow84Present;
+
+--enable_result_log
+--enable_query_log
+
+select @secondary_ok:=
+  ((@epoch_trans XOR
+    @epoch_trans2_same_epoch) XOR
+   @epoch_trans2_diff_epoch);
+
+let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
+
+if (!$secondary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if (!$HAVE_EPOCH2)
+{
+  echo EPOCH_TRANS has stable results independent of;
+  echo epoch boundaries: ;
+  select * from test.t1 order by a;
+}
+if ($HAVE_EPOCH2)
+{
+  echo EPOCH2_TRANS results are dependent on epoch boundaries;
+}
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo PRIMARY
+--echo Cleanup
+delete from test.t1 where a != 6;
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+
+
+
+
+
+
+--echo PRIMARY
+--echo Transactional Delete testcase
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo STOP slave on SECONDARY
+stop slave;
+
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo PRIMARY
+--echo Primary updates row with pk 6
+
+update test.t1 set b="Pentland" where a=6;
+
+--echo PRIMARY content
+--echo Row 6 updated
 select * from test.t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo SECONDARY
+--echo Transaction deleting pk 6, inserting pk 7
+begin;
+  delete from test.t1 where a = 6;
+  insert into test.t1 values (7, "Mendip");
+commit;
+
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s1_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
+--enable_result_log
+--enable_query_log
+
+
+# Optionally flush logs here to mix separate-epoch and
+# same-epoch
+--echo Optionally flush logs
+let $do_flush=query_get_value(SELECT (RAND() * 10) > 5 AS y, y, 1);
+
+if ($do_flush)
+{
+  --disable_query_log
+  --disable_result_log
+  FLUSH LOGS;
+  --enable_query_log
+  --enable_result_log
+}
+
+#--echo Flushed? $do_flush
+
+--echo Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+
+# Grab commit epoch
+--disable_query_log
+--disable_result_log
+SELECT @s2_epoch:=(Variable_value + 0) 
+   FROM performance_schema.global_status
+  WHERE variable_name like 'Ndb_last_commit_epoch_session';
+let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
+eval select @epochs_equal:=$S1_EPOCH=$S2_EPOCH as epochs_equal;
+let $EPOCHS_EQUAL= query_get_value('select @epochs_equal as v',v,1);
+
+eval select @Epoch2:=$PRIMARY_CONFLICT_ALG LIKE "%EPOCH2%";
+let $HAVE_EPOCH2= query_get_value('select @Epoch2 as v',v,1); 
+--enable_result_log
+--enable_query_log
+
+--echo SECONDARY content
+--echo Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+
+--echo Sync SECONDARY -> PRIMARY
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+--echo Expected Behaviour
+--echo EPOCH_TRANS
+--echo
+--echo   1.  Conflict between Primary update to 6 + Secondary
+--echo       [Delete of 6 + Insert of 7] is detected by Primary
+--echo       and transaction is not applied at the Primary.
+--echo       Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+--echo       epoch updated.
+--echo
+--echo   2.  Following Secondary transaction, [delete of 7
+--echo       + insert of 8] behaviour depends on whether it
+--echo       arrives in the same or a different epoch.
+--echo       Same epoch : 
+--echo         Will conflict with refreshed row 7, and so will
+--echo         not be applied.  Row 8 will be refreshed (DEL)
+--echo       Different epoch :
+--echo         Will not conflict with Not-present row 7, and so
+--echo         will be applied.
+--echo
+--echo   3.  On the Secondary, the observed sequence will be :
+--echo         - Update 6 from PRIMARY : (Idempotent insert)
+--echo         - Refresh (INS) 6 from PRIMARY
+--echo         - Refresh (DEL) 7 from PRIMARY
+--echo         Same epoch :
+--echo         - Refresh (DEL) 8 from PRIMARY
+--echo         Different epoch :
+--echo         - Nothing
+--echo 
+--echo       Results (no divergence) :
+--echo         Same epoch :
+--echo           PRIMARY : 6
+--echo           SECONDARY : 6
+--echo         Diff epoch :
+--echo           PRIMARY : 6,8
+--echo           SECONDARY : 6,8
+--echo
+--echo
+--echo EPOCH_TRANS2
+--echo
+--echo   1.  Conflict between Primary update to 6 + Secondary
+--echo       [Delete of 6 + Insert of 7] is detected by Primary
+--echo       and transaction is not applied at the Primary.
+--echo       Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+--echo       epoch updated.
+--echo
+--echo   2.  Following Secondary transaction [delete of 7 + 
+--echo       insert of 8] will conflict with the first 
+--echo       transaction as EPOCH_TRANS2 does not allow
+--echo       a delete of an already deleted row.
+--echo       Row 7 will be refreshed (DEL) and row 8 will be 
+--echo       refreshed (DEL)
+--echo 
+--echo   3.  On the Secondary, the observed sequence will be :
+--echo       - Update 6 from PRIMARY : (Idempotent insert)
+--echo       - Refresh (INS) 6 from PRIMARY
+--echo       - Refresh (DEL) 7 from PRIMARY
+--echo       - [Refresh (DEL) 7 from PRIMARY] - diff epoch
+--echo       - Refresh (DEL) 8 from PRIMARY
+--echo 
+--echo       Results (no divergence) :
+--echo           PRIMARY : 6
+--echo           SECONDARY : 6
+--echo
+
+#eval select $EPOCHS_EQUAL;
+#eval select $HAVE_EPOCH2;
+
+--echo PRIMARY content 
+
+--disable_query_log
+--disable_result_log
+select @PrimaryRow6Present:=count(1) from test.t1 where a=6;
+select @PrimaryRow7Present:=count(1) from test.t1 where a=7;
+select @PrimaryRow8Present:=count(1) from test.t1 where a=8;
+
+eval select @epoch_trans_same_epoch:=
+  !$HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  !@PrimaryRow8Present;
+
+eval select @epoch_trans_diff_epoch:=
+  !$HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  @PrimaryRow8Present;
+
+eval select @epoch2_trans:=
+  $HAVE_EPOCH2 and
+  @PrimaryRow6Present and
+  !@PrimaryRow7Present and
+  !@PrimaryRow8Present;
+--enable_result_log
+--enable_query_log
+
+
+select @primary_ok:=
+  ((@epoch_trans_same_epoch XOR
+    @epoch_trans_diff_epoch) XOR
+   @epoch2_trans);
+
+let $primary_ok= query_get_value('select @primary_ok as v',v,1);
+
+if (!$primary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if ($HAVE_EPOCH2)
+{
+ select * from test.t1 order by a;
+}
+
+--echo Restart SECONDARY Slave
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+START SLAVE;
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+
+
+--echo Sync PRIMARY -> SECONDARY
+
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
+
+--echo SECONDARY content
+
+--disable_query_log
+--disable_result_log
+
+select @SecondaryRow6Present:=count(1) from test.t1 where a=6;
+select @SecondaryRow7Present:=count(1) from test.t1 where a=7;
+select @SecondaryRow8Present:=count(1) from test.t1 where a=8;
+
+eval select @epoch_trans_same_epoch:=
+  !$HAVE_EPOCH2 and
+  $EPOCHS_EQUAL and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  !@SecondaryRow8Present;
+
+eval select @epoch_trans_diff_epoch:=
+  !$HAVE_EPOCH2 and
+  !$EPOCHS_EQUAL and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  @SecondaryRow8Present;
+
+eval select @epoch2_trans:=
+  $HAVE_EPOCH2 and
+  @SecondaryRow6Present and
+  !@SecondaryRow7Present and
+  !@SecondaryRow8Present;
+
+--enable_result_log
+--enable_query_log
+
+select @secondary_ok:=
+  ((@epoch_trans_same_epoch XOR
+    @epoch_trans_diff_epoch) XOR
+   @epoch2_trans);
+
+let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
+
+if (!$secondary_ok)
+{
+  echo Problem, dumping data;
+  select * from test.t1;
+  eval select $HAVE_EPOCH2 as have_epoch2;
+  eval select $EPOCHS_EQUAL as epochs_equal;
+  die  Testcase problem;
+}
+
+if ($HAVE_EPOCH2)
+{
+ select * from test.t1 order by a;
+}
+
+--echo STABILISE
+
+--source suite/ndb_rpl/t/ndb_sync_secondary_to_primary.inc
+--source suite/ndb_rpl/t/ndb_connect_to_primary.inc
+--source suite/ndb_rpl/t/ndb_sync_primary_to_secondary.inc
 
 
 # Cleanup

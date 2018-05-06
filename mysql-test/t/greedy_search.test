@@ -1,8 +1,14 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+
 --source include/no_valgrind_without_big.inc
---source include/force_myisam_default.inc
+
+# To make sure we have stable costs, set memory io cost equal to disk io cost
+UPDATE mysql.engine_cost
+SET cost_value = 1.0
+WHERE cost_name = 'memory_block_read_cost';
+FLUSH OPTIMIZER_COSTS;
+
+# Only new connections see the new cost constants
+connect (con1, localhost, root,,);
 
 --echo #
 --echo # TEST 1
@@ -429,3 +435,9 @@ while ($i < 8)
 --echo #
 
 --source include/greedy_search_drop_tables.inc
+
+# Reset cost value to make sure it does not effect other tests
+UPDATE mysql.engine_cost
+SET cost_value = DEFAULT
+WHERE cost_name = 'memory_block_read_cost';
+FLUSH OPTIMIZER_COSTS;

@@ -1,20 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_multi_ndb.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
-drop database if exists mysqltest;
---enable_warnings
 
 connect (con1,localhost,root,,test);
 connect (con2,localhost,root,,test);
 
-connection con2;
--- sleep 2
 connection con1;
 
 #
@@ -58,7 +46,7 @@ col2 varchar(30) not null,
 col3 varchar (20) not null,
 col4 varchar(4) not null,
 col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
-col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
+col6 int not null, to_be_deleted int)  ENGINE=ndbcluster charset=latin1;
 --replace_column 6 # 7 # 8 # 10 # 12 # 13 # 14 # 18 #
 show table status;
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
@@ -328,8 +316,6 @@ on t1 (c010, c011, c012, c013);
 
 drop table t1;
 
-# End of 4.1 tests
-
 # simple test that auto incr is not lost at rename or alter
 create table t1 (a int primary key auto_increment, b int) engine=ndb;
 insert into t1 (b) values (101),(102),(103);
@@ -376,9 +362,13 @@ drop table t1;
 
 # alter .. alter
 create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+--disable_warnings
 show create table t1;
+--enable_warnings
 alter table t1 alter b set default 1;
+--disable_warnings
 show create table t1;
+--enable_warnings
 drop table t1;
 
 # alter .. order by
@@ -521,7 +511,7 @@ create table t1 (
   unique i61 (ci062),
   unique i62 (ci063),
   unique i63 (ci064)
-) engine=ndb;
+) engine=ndb charset=latin1;
 drop table t1;
 
 
@@ -547,11 +537,9 @@ ALTER TABLE t1 TABLESPACE ts1, MODIFY c CHAR(20) STORAGE DISK;
 DROP TABLE t1;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = ndb;
+DROP DATAFILE 'datafile.dat';
 
-DROP TABLESPACE ts1
-ENGINE ndb;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1
 ENGINE = ndb;
@@ -560,20 +548,44 @@ ENGINE = ndb;
 # BUG19667566 : PARTITION BY WITH COMMENT LEADS TO MYSQL SERVER REBOOT IN MYSQL CLUSTER
 #
 --echo #test alter table add column with partion by and comment clause
-CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
 ALTER TABLE t1 ADD value INT NULL, COMMENT='comment1' PARTITION BY KEY(id);
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 DROP TABLE t1;
 
 --echo #test alter table with and without ENGINE clause
-CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
 ALTER TABLE t1 ENGINE=NDB PARTITION BY KEY(id);
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 DROP TABLE t1;
 
-CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
 ALTER TABLE t1 PARTITION BY KEY(id);
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 DROP TABLE t1;
  
---echo End of 5.1 tests
+--echo bug#24577931 table comment is case sensitive
+create table tbasic(
+  id int not null,
+  name varchar(20), age int
+) engine=ndb charset=latin1;
+
+# In the output of ndb_desc we should see:
+# Table options:
+let $ndb_desc_opts= -b -i -d test tbasic;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table tbasic algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATEd=1";
+
+# In the output of ndb_desc we should see:
+# Table options: readbackup, fullyreplicated
+let $ndb_desc_opts= -b -i -d test tbasic;
+source suite/ndb/include/ndb_desc_print.inc;
+
+drop table tbasic;

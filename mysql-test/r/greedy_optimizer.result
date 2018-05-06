@@ -135,7 +135,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -143,7 +143,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -160,7 +160,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -168,7 +168,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -185,7 +185,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -193,7 +193,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -210,7 +210,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -218,54 +218,54 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t3`.`c36` = `test`.`t7`.`c73`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t7`.`c75`) and (`test`.`t3`.`c34` = `test`.`t7`.`c75`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.368863
+Last_query_cost	4.565019
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-12
+6
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t3`.`c36` = `test`.`t7`.`c73`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t7`.`c75`) and (`test`.`t3`.`c34` = `test`.`t7`.`c75`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.368863
+Last_query_cost	4.565019
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-12
+6
 set optimizer_search_depth=1;
 select @@optimizer_search_depth;
 @@optimizer_search_depth
@@ -283,7 +283,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -291,7 +291,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -308,7 +308,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -316,7 +316,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -333,7 +333,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.400259
+Last_query_cost	17.389315
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -341,7 +341,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -358,7 +358,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.400259
+Last_query_cost	17.389315
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -366,7 +366,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -383,12 +383,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	16.505078
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 6
@@ -405,12 +405,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	16.505078
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 6
@@ -431,7 +431,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -439,7 +439,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -456,7 +456,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -464,7 +464,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -481,7 +481,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -489,7 +489,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -506,7 +506,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -514,54 +514,54 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t3`.`c36` = `test`.`t7`.`c73`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t7`.`c75`) and (`test`.`t3`.`c34` = `test`.`t7`.`c75`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.368863
+Last_query_cost	4.565019
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-12
+6
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t3`.`c36` = `test`.`t7`.`c73`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t7`.`c75`) and (`test`.`t3`.`c34` = `test`.`t7`.`c75`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.368863
+Last_query_cost	4.565019
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-12
+6
 set optimizer_prune_level=1;
 select @@optimizer_prune_level;
 @@optimizer_prune_level
@@ -583,7 +583,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -591,7 +591,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -608,7 +608,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -616,7 +616,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -633,7 +633,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -641,7 +641,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -658,7 +658,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -666,54 +666,54 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.512271
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-13
+6
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.512271
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-13
+6
 set optimizer_search_depth=1;
 select @@optimizer_search_depth;
 @@optimizer_search_depth
@@ -731,7 +731,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -739,7 +739,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -756,7 +756,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -764,7 +764,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -781,7 +781,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.400259
+Last_query_cost	17.389315
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -789,7 +789,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -806,7 +806,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.400259
+Last_query_cost	17.389315
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -814,7 +814,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -831,12 +831,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	16.505078
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 6
@@ -853,12 +853,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	16.505078
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 6
@@ -879,7 +879,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -887,7 +887,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -904,7 +904,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t6`.`c62`) and (`test`.`t6`.`c61` = `test`.`t5`.`c52`) and (`test`.`t5`.`c51` = `test`.`t4`.`c42`) and (`test`.`t4`.`c41` = `test`.`t3`.`c32`) and (`test`.`t3`.`c31` = `test`.`t2`.`c22`) and (`test`.`t2`.`c21` = `test`.`t1`.`c12`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	39.215192
+Last_query_cost	16.547048
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 c11
@@ -912,7 +912,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -929,7 +929,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -937,7 +937,7 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
@@ -954,7 +954,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	43.399979
+Last_query_cost	17.389245
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 c11
@@ -962,54 +962,54 @@ c11
 2
 3
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
 46
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.512271
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-13
+6
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	11.11	Using where
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	6.67	Using where
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	100.00	NULL
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	10.00	Using where
 1	SIMPLE	t7	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	5.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t7`.`c72` = `test`.`t2`.`c26`) and (`test`.`t7`.`c76` = `test`.`t2`.`c25`) and (`test`.`t6`.`c62` = `test`.`t2`.`c25`) and (`test`.`t5`.`c52` = `test`.`t2`.`c24`) and (`test`.`t6`.`c65` = `test`.`t2`.`c24`) and (`test`.`t5`.`c54` = `test`.`t2`.`c23`) and (`test`.`t4`.`c42` = `test`.`t2`.`c23`) and (`test`.`t3`.`c32` = `test`.`t2`.`c22`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t1`.`c11` = `test`.`t2`.`c21`))
+Note	1003	/* select#1 */ select `test`.`t1`.`c11` AS `c11` from `test`.`t7` join `test`.`t6` join `test`.`t5` join `test`.`t4` join `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`c44` = `test`.`t7`.`c74`) and (`test`.`t7`.`c73` = `test`.`t3`.`c36`) and (`test`.`t6`.`c63` = `test`.`t3`.`c35`) and (`test`.`t5`.`c53` = `test`.`t3`.`c34`) and (`test`.`t7`.`c75` = `test`.`t3`.`c34`) and (`test`.`t4`.`c43` = `test`.`t3`.`c33`) and (`test`.`t6`.`c64` = `test`.`t3`.`c33`) and (`test`.`t2`.`c26` = `test`.`t7`.`c72`) and (`test`.`t2`.`c25` = `test`.`t7`.`c76`) and (`test`.`t6`.`c62` = `test`.`t7`.`c76`) and (`test`.`t2`.`c24` = `test`.`t5`.`c52`) and (`test`.`t6`.`c65` = `test`.`t5`.`c52`) and (`test`.`t2`.`c23` = `test`.`t5`.`c54`) and (`test`.`t4`.`c42` = `test`.`t5`.`c54`) and (`test`.`t2`.`c22` = `test`.`t3`.`c32`) and (`test`.`t7`.`c71` = `test`.`t1`.`c16`) and (`test`.`t6`.`c61` = `test`.`t1`.`c15`) and (`test`.`t5`.`c51` = `test`.`t1`.`c14`) and (`test`.`t4`.`c41` = `test`.`t1`.`c13`) and (`test`.`t3`.`c31` = `test`.`t1`.`c12`) and (`test`.`t2`.`c21` = `test`.`t1`.`c11`))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	15.512271
+Last_query_cost	4.617519
 FLUSH STATUS;
 select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 c11
 SELECT SUM(variable_value) AS Total_handler_reads
-FROM information_schema.session_status
+FROM performance_schema.session_status
 WHERE variable_name LIKE 'Handler_read%';
 Total_handler_reads
-13
+6
 drop table t1,t2,t3,t4,t5,t6,t7;
 CREATE TABLE t1 (a int, b int, d int, i int);
 INSERT INTO t1 VALUES (1,1,1,1);
@@ -1564,6 +1564,30 @@ COUNT(*)
 CREATE INDEX IX ON t10(I);
 CREATE INDEX IX ON t100(I);
 CREATE INDEX IX ON t10000(I);
+SHOW CREATE TABLE t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `K` int(11) NOT NULL AUTO_INCREMENT,
+  `I` int(11) DEFAULT NULL,
+  PRIMARY KEY (`K`),
+  KEY `IX` (`I`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t100;
+Table	Create Table
+t100	CREATE TABLE `t100` (
+  `K` int(11) NOT NULL AUTO_INCREMENT,
+  `I` int(11) DEFAULT NULL,
+  PRIMARY KEY (`K`),
+  KEY `IX` (`I`)
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t10000;
+Table	Create Table
+t10000	CREATE TABLE `t10000` (
+  `K` int(11) NOT NULL AUTO_INCREMENT,
+  `I` int(11) DEFAULT NULL,
+  PRIMARY KEY (`K`),
+  KEY `IX` (`I`)
+) ENGINE=MyISAM AUTO_INCREMENT=10001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 flush status;
 EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t100,t10000
 WHERE t100.K=t10.I

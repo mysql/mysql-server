@@ -1,8 +1,6 @@
 # 2014-03-16 - Added
 #
 
---source include/have_perfschema.inc
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # The default depends on whatever the server is started with.

@@ -121,6 +121,8 @@ a	c
 [1]	1
 drop table t;
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # WL#8170: Expression analyzer for GC.
 # Queries with GC and JSON_EXTRACT  compared to strings should use index
@@ -278,6 +280,8 @@ CREATE TABLE t1 (
 pk integer auto_increment key,
 col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8
 );
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, 'q') , (NULL, 'tgzvsj') ,
 (NULL, 'b') , (NULL, 'q') , (NULL, 'up') , (NULL, 'up') ;
 ALTER TABLE t1 ADD COLUMN json_varchar255_utf8_key json;
@@ -298,3 +302,22 @@ field1	count(*)
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE t1;
+#
+# Bug#26352119: WHERE JSON_EXTRACT() ON GEN KEY
+#
+SET NAMES utf8mb4 COLLATE utf8mb4_ja_0900_as_cs;
+CREATE TABLE t1 (j JSON, pk VARCHAR(10) AS (j->>'$.id') STORED PRIMARY KEY);
+INSERT INTO t1 (j) VALUES ('{"id":"a"}'), ('{"id":"b"}'), ('{"id":"c"}');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE j->>'$.id'='b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "b"}' AS `j`,'b' AS `pk` from `test`.`t1` where ('b' = 'b')
+SELECT * FROM t1 WHERE j->>'$.id'='b';
+j	pk
+{"id": "b"}	b
+DROP TABLE t1;
+SET NAMES DEFAULT;

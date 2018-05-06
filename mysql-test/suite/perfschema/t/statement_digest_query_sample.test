@@ -1,0 +1,497 @@
+--echo
+--echo ## Test Statement Digest Query Sample WL#9830
+--echo ##
+--echo ## A query sample is collected for each new maximum wait time, and is
+--echo ## displayed in events_statements_summary_by_digest.
+--echo ##
+--echo ## TEST 1 - Query sampled when max age disabled, max wait exceeded
+--echo ## TEST 2 - Query sampled when age expires, max wait not exceeded
+--echo ## TEST 3 - Query not sampled before max age expires, max wait not exceeded
+--echo ## TEST 4 - Query sampled before max age, max wait exceeded
+--echo ## TEST 5 - Verify QUERY_SAMPLE_TEXT is limited by performance_schema_max_sql_text_length
+--echo ## TEST 6 - Verify QUERY_SAMPLE_TIMER_WAIT and QUERY_SAMPLE_SEEN
+
+# A query sample is taken when:
+#   - It is the first query, or
+#   - The wait time exceeds max_timer_wait, or
+#   - The age of the previous query sample exceeds the maximum query age.
+#
+# For other than the first query, the wait time is always examined.
+# The age criteria forces a query sample refresh when the wait time remains below max_timer_wait.
+
+--source include/no_protocol.inc
+
+let $query_select = digest, max_timer_wait, last_seen, query_sample_text, query_sample_seen, query_sample_timer_wait;
+let $query_into_1 = @digest_1, @max_timer_wait_1, @last_seen_1, @query_sample_text_1, @query_sample_seen_1, @query_sample_timer_wait_1;
+let $query_into_2 = @digest_2, @max_timer_wait_2, @last_seen_2, @query_sample_text_2, @query_sample_seen_2, @query_sample_timer_wait_2;
+let $query_into_3 = @digest_3, @max_timer_wait_3, @last_seen_3, @query_sample_text_3, @query_sample_seen_3, @query_sample_timer_wait_3;
+let $query_from   = performance_schema.events_statements_summary_by_digest;
+let $query_where  = digest_text = "UPDATE `t1` SET `s1` = ?";
+
+let $query_sample_1 =
+SELECT $query_select
+  INTO $query_into_1
+FROM $query_from
+WHERE $query_where;
+
+let $query_sample_2 =
+SELECT $query_select
+  INTO $query_into_2
+FROM $query_from
+WHERE $query_where;
+
+let $query_sample_3 =
+SELECT $query_select
+  INTO $query_into_3
+FROM $query_from
+WHERE $query_where;
+
+let $query_debug_1 = SELECT $query_into_1;
+let $query_debug_2 = SELECT $query_into_2;
+let $query_debug_3 = SELECT $query_into_3;
+
+#--echo DEBUG
+#--echo $query_sample_1;
+#--echo $query_sample_2;
+#--echo $query_sample_3;
+
+--echo
+--echo ##### TEST 1 - QUERY SAMPLED WITH NEW MAX WAIT TIME
+--echo
+--echo ## 1.1 SETUP
+USE test;
+CREATE TABLE t1 (s1 INT);
+INSERT INTO t1 VALUES (100), (200), (300);
+
+--echo
+--echo ## 1.2 DISABLE MAX SAMPLE AGE
+let $max_age_save = `SELECT @@global.performance_schema_max_digest_sample_age`;
+SET @@global.performance_schema_max_digest_sample_age = 0;
+
+TRUNCATE performance_schema.events_statements_summary_by_digest;
+
+--echo
+--echo ## 1.3 QUERY_1: UPDATE 3 ROWS
+UPDATE t1 SET s1 = 400;
+
+--echo
+--echo ## 1.4 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE
+eval $query_sample_1;
+
+--echo
+--echo ## 1.5 ADD 48K ROWS
+--echo
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+FLUSH TABLE test.t1;
+
+--echo
+--echo ## 1.6 QUERY_2: UPDATE 12K ROWS
+UPDATE t1 SET s1 = 500;
+
+--echo
+--echo ## 1.7 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE
+eval $query_sample_2;
+
+--echo
+--echo ## 1.8 TRUNCATE, ADD 24 ROWS
+--echo
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+--echo
+--echo ## 1.9 QUERY_3: UPDATE 24 ROWS
+UPDATE t1 SET s1 = 600;
+
+--echo
+--echo ## 1.10 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE
+eval $query_sample_3;
+
+#--echo
+#--echo ## DEBUG
+#--echo QUERY_1
+#eval $query_debug_1;
+#--echo QUERY_2
+#eval $query_debug_2;
+#--echo QUERY_3
+#eval $query_debug_3;
+
+--echo
+--echo ## 1.11 VERIFY THAT DIGESTS MATCH
+--echo
+SELECT @digest_1 = @digest_2 AS 'Expect 1';
+--echo
+SELECT @digest_2 = @digest_3 AS 'Expect 1';
+
+--echo
+--echo ## 1.12 VERIFY MAX_TIMER_WAITS
+--echo
+--echo # Max timer wait 1 < max wait 2
+SELECT @max_timer_wait_1 < @max_timer_wait_2 AS 'Expect 1';
+
+if (`SELECT @max_timer_wait_1 >= @max_timer_wait_2`)
+{
+  --echo FAILED: Expected max_timer_wait_1 < max_timer_wait_2
+  --echo QUERY_1
+  eval $query_debug_1;
+  --echo QUERY_2
+  eval $query_debug_2;
+}
+
+--echo
+--echo # Max timer wait 3 = max wait 2, no change
+SELECT @max_timer_wait_3 = @max_timer_wait_2 AS 'Expect 1';
+
+--echo
+--echo ## 1.13. VERIFY QUERY SAMPLES
+--echo
+--echo # Query_1: Sample taken, first query
+SELECT @query_sample_text_1 AS 'Expect UPDATE t1 SET s1 = 400';
+--echo
+--echo # Query_2: Sample taken, max_timer_wait exceeded
+SELECT @query_sample_text_2 AS 'Expect UPDATE t1 SET s1 = 500';
+--echo
+--echo # Query_3: No sample taken, max_timer_wait not exceeded, no change
+SELECT @query_sample_text_3 AS 'Expect UPDATE t1 SET s1 = 500';
+
+
+--echo
+--echo ##### TEST 2 - QUERY SAMPLED WHEN MAX SAMPLE AGE EXPIRES, MAX WAIT NOT EXCEEDED
+--echo
+--echo ## 2.1 SET MAX SAMPLE AGE TO 3 SECONDS
+SET @@global.performance_schema_max_digest_sample_age = 3;
+TRUNCATE performance_schema.events_statements_summary_by_digest;
+--echo
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+--echo
+--echo ## 2.2 ADD 12K ROWS
+--echo
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+FLUSH TABLE test.t1;
+
+--echo
+--echo ## 2.3 QUERY_1: UPDATE 12K ROWS TO SET MAX_TIMER_WAIT
+UPDATE t1 SET s1 = 700;
+
+--echo
+--echo ## 2.4 WAIT 10 SECONDS
+real_sleep 10;
+
+--echo
+--echo ## 2.5 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE, QUERY SEEN
+--echo
+eval $query_sample_1;
+
+--echo
+--echo ## 2.6 QUERY_2: UPDATE 3 ROWS AGAIN, QUERY SHOULD BE SAMPLED
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+UPDATE t1 SET s1 = 800;
+
+--echo
+--echo ## 2.7 COLLECT DIGEST, MAX WAIT, QUERY SAMPLE, QUERY SEEN
+eval $query_sample_2;
+
+--echo
+--echo ## 2.8 VERIFY THAT DIGESTS MATCH
+--echo
+SELECT @digest_1 = @digest_2 AS 'Expect 1';
+
+--echo
+--echo ## 2.9 VERIFY MAX_TIMER_WAITS, QUERY_SAMPLE_TIMER_WAIT
+--echo
+--echo # Max timer wait 1 = max wait 2
+SELECT @max_timer_wait_1 = @max_timer_wait_2 AS 'Expect 1';
+SELECT @query_sample_timer_wait_1 > @query_sample_timer_wait_2 AS 'Expect 1';
+--echo
+
+if (`SELECT @query_sample_timer_wait_1 <= @query_sample_timer_wait_2`)
+{
+  --echo FAILED: Expected query_sample_timer_wait_1 > query_sample_timer_wait_2
+  --echo QUERY_1
+  eval $query_debug_1;
+  --echo QUERY_2
+  eval $query_debug_2;
+}
+
+--echo ## 2.10 VERIFY QUERY SAMPLES
+--echo
+--echo # Query_1: Sample taken, first query
+SELECT @query_sample_text_1 AS 'Expect UPDATE t1 SET s1 = 700';
+--echo
+--echo # Query_2: Sample taken, age expired
+SELECT @query_sample_text_2 AS 'Expect UPDATE t1 SET s1 = 800';
+--echo
+
+
+--echo
+--echo ##### TEST 3 - QUERY NOT SAMPLED BEFORE AGE EXPIRES, MAX WAIT NOT EXCEEDED
+--echo
+
+--echo ## 3.1 SET MAX SAMPLE AGE TO 1000 SECONDS
+SET @@global.performance_schema_max_digest_sample_age = 1000;
+
+--echo
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+--echo
+--echo ## 3.2 ADD 12K ROWS
+--echo
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+FLUSH TABLE test.t1;
+TRUNCATE performance_schema.events_statements_summary_by_digest;
+
+--echo
+--echo ## 3.2 QUERY_1: UPDATE 12K ROWS TO SET MAX_TIMER_WAIT
+UPDATE t1 SET s1 = 700;
+
+--echo
+--echo ## 3.3 COLLECT DIGEST, MAX WAIT, query_sample_timer_wait, QUERY SAMPLE, QUERY SEEN, LAST SEEN
+eval $query_sample_1;
+
+--echo
+--echo ## 3.4 WAIT 10 SECONDS
+real_sleep 10;
+
+--echo
+--echo ## 3.5 QUERY_2: UPDATE 3 ROWS, QUERY SHOULD *NOT* BE SAMPLED
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+--echo
+UPDATE t1 SET s1 = 800;
+
+--echo
+--echo ## 3.6 COLLECT DIGEST, MAX WAIT, query_sample_timer_wait, QUERY SAMPLE, QUERY SEEN, LAST SEEN
+eval $query_sample_2;
+
+#--echo
+#--echo ## DEBUG
+#--echo
+#SELECT @digest_1, @max_timer_wait_1, @query_sample_timer_wait_1, @query_sample_text_1, @query_sample_seen_1;
+#--echo
+#SELECT @digest_2, @max_timer_wait_2, @query_sample_timer_wait_2, @query_sample_text_2, @query_sample_seen_2;
+
+--echo
+--echo ## 3.7 VERIFY THAT DIGESTS MATCH
+--echo
+SELECT @digest_1 = @digest_2 AS 'Expect 1';
+
+--echo
+--echo ## 3.8 VERIFY MAX_TIMER_WAITS, QUERY_SAMPLE_TIMER_WAIT
+--echo
+--echo # Max timer wait 1 = max wait 2
+SELECT @max_timer_wait_1 = @max_timer_wait_2 AS 'Expect 1 because query is not sampled';
+--echo
+SELECT @query_sample_timer_wait_1 = @query_sample_timer_wait_2 AS 'Expect 1 because query is not sampled';
+--echo
+SELECT @last_seen_1 < @last_seen_2 AS 'Expect 1 because a more recent query with same digest was queried';
+--echo
+
+--echo
+--echo ## 3.9 VERIFY QUERY SAMPLES - Query 1 == Query 2
+--echo
+--echo # Query_1: Sampled, first query
+SELECT @query_sample_text_1 AS 'Expect UPDATE t1 SET s1 = 700';
+--echo
+--echo # Query_2: Not sampled, age not expired, max_timer_wait not exceeded, no change
+SELECT @query_sample_text_2 AS 'Expect UPDATE t1 SET s1 = 700';
+
+
+--echo
+--echo ##### TEST 4 - QUERY SAMPLED WHEN MAX SAMPLE AGE DOES NOT EXPIRE BUT MAX WAIT IS EXCEEDED
+--echo
+SET @@global.performance_schema_max_digest_sample_age = 10000;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (s1 int);
+INSERT INTO t1 values (100),(200),(300);
+TRUNCATE performance_schema.events_statements_summary_by_digest;
+
+--echo
+--echo ## 4.1 Query 1 to test
+--echo
+UPDATE t1 SET s1 = 400;
+--echo
+eval $query_sample_1;
+
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+--echo
+--echo ## 4.2 Query 2 to test
+--echo
+# It should take longer, and therefore be sampled again,
+# even when not matching the max age criteria.
+UPDATE t1 SET s1 = 500;
+--echo
+eval $query_sample_2;
+
+# --echo DEBUG
+# SELECT @digest_1, @max_timer_wait_1, @query_sample_timer_wait_1, @query_sample_text_1;
+# SELECT @digest_2, @max_timer_wait_2, @query_sample_timer_wait_2, @query_sample_text_2;
+
+--echo
+--echo ## Verify: Digests should be the same
+SELECT @digest_1 = @digest_2 AS "check_digest";
+--echo
+--echo ## The second query is expected to be slower
+SELECT @max_timer_wait_1 < @max_timer_wait_2 AS "check_wait";
+--echo
+--echo ## The sampled query should be SET s1 = 400, then SET s1 = 500
+SELECT @query_sample_text_1 AS "Expect UPDATE t1 SET s1 = 400";
+--echo
+SELECT @query_sample_text_2 AS "Expect UPDATE t1 SET s1 = 500";
+
+
+--echo
+--echo
+--echo ##### TEST 5 - VERIFY QUERY_SAMPLE_SEEN AND QUERY_SAMPLE_TIMER_WAIT
+--echo
+
+# Execute a long update to establish a large max_timer_wait.
+# Set the max age to 2 seconds, then sleep and let the age expire. The next query will be sampled.
+# Execute an update with query_sample_timer_wait < max_timer_wait.
+# Verify query_sample_seen == last_seen.
+# Verify max_timer_wait > query_sample_timer_wait.
+# Verify query_sample_timer_wait == events_statements_history.timer_wait.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (s1 int);
+
+--echo ## 5.1 SET MAX SAMPLE AGE TO 2 SECONDS
+SET @@global.performance_schema_max_digest_sample_age = 2;
+TRUNCATE performance_schema.events_statements_summary_by_digest;
+TRUNCATE performance_schema.events_statements_history;
+--echo
+INSERT INTO t1 VALUES (100), (200), (300);
+
+--echo
+--echo ## 5.2 ADD 12K ROWS
+--echo
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+FLUSH TABLE test.t1;
+
+--echo
+--echo ## 5.3 QUERY_1: UPDATE 12K ROWS
+# Set new query sample and max_timer_wait
+UPDATE t1 SET s1 = 1000;
+
+--echo
+--echo ## 5.3a COLLECT DIGEST, MAX WAIT, QUERY SAMPLE, QUERY SEEN
+eval $query_sample_1;
+
+#--echo
+#--echo DEBUG QUERY_1
+#SELECT @digest_1, @max_timer_wait_1, @last_seen_1, @query_sample_text_1, @query_sample_seen_1, @query_sample_timer_wait_1;
+
+--echo
+--echo ## 5.4. WAIT 10 SECONDS, FORCE AGE
+real_sleep 10;
+
+--echo
+--echo ## 5.5. QUERY_2: UPDATE 3 ROWS
+# Query should be sampled due to max age
+TRUNCATE t1;
+INSERT INTO t1 VALUES (100), (200), (300);
+UPDATE t1 SET s1 = 1100;
+
+--echo
+--echo ## 5.5a COLLECT DIGEST, MAX WAIT, QUERY SAMPLE, QUERY SEEN
+eval $query_sample_2;
+
+#--echo
+#--echo DEBUG QUERY_2
+#SELECT @digest_2, @max_timer_wait_2, @last_seen_2, @query_sample_text_2, @query_sample_seen_2, @query_sample_timer_wait_2;
+
+--echo
+--echo ## 5.6 VERIFY MAX_TIMER_WAIT VS QUERY_SAMPLE_TIMER_WAIT
+--echo
+--echo # Verify max_timer_wait has not changed
+SELECT @max_timer_wait_1 = @max_timer_wait_2 AS 'Expect 1';
+
+--echo
+--echo # Verify max_timer_wait > query_sample_timer_wait
+SELECT @max_timer_wait_2 > @query_sample_timer_wait_2 AS 'Expect 1';
+
+--echo
+--echo ## 5.7 VERIFY QUERY_SAMPLE_TIMER_WAIT VS. STATEMENTS HISTORY
+--echo
+# Verify that query_sample_timer_wait is the same as in the statement event
+SELECT COUNT(*) FROM performance_schema.events_statements_history
+  WHERE digest = @digest_2 AND timer_wait = @query_sample_timer_wait_2
+    AND sql_text = @query_sample_text_2;
+
+--echo
+--echo ## 5.8 VERIFY QUERY_SAMPLE_SEEN == LAST_SEEN
+--echo
+SELECT @query_sample_seen_2 = @last_seen_2 AS 'Expect 1';
+
+
+--echo
+--echo ## CLEAN UP
+--echo
+DROP TABLE t1;
+--echo
+--echo # Restore max sample age
+eval SET @@global.performance_schema_max_digest_sample_age = $max_age_save;

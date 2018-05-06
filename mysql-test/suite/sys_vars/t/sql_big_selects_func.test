@@ -29,7 +29,7 @@
 SET @session_sql_big_selects = @@SESSION.sql_big_selects;
 SET @session_max_join_size = @@SESSION.max_join_size;
 SET @global_max_join_size = @@GLOBAL.max_join_size;
-SET MAX_JOIN_SIZE=9;
+SET MAX_JOIN_SIZE=4;
 
 #
 # Create tables

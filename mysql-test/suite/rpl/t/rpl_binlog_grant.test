@@ -1,6 +1,4 @@
 source include/master-slave.inc;
--- source include/have_innodb.inc
--- source include/not_embedded.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
 
 let $VERSION=`select version()`;
@@ -16,10 +14,8 @@ create table t (s1 int) engine=innodb;
 set @@autocommit=0;
 start transaction;
 insert into t values (1);
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user x@y;
 grant select on t to x@y;
-set sql_mode= @orig_sql_mode;
 
 let $wait_binlog_event= grant select;
 source include/wait_for_binlog_event.inc;
@@ -41,38 +37,5 @@ select * from t;
 show grants for x@y;
 drop user x@y;
 drop database d1;
-
-# Bug#81424: The proxies_priv table is not replicated
---let $rpl_connection_name= master
---source include/rpl_connection.inc
-
-CREATE USER foo@localhost IDENTIFIED WITH 'mysql_native_password';
-CREATE USER bar@localhost IDENTIFIED WITH 'mysql_native_password';
-
---let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
---let $query= GRANT PROXY ON foo@localhost TO bar@localhost
---let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
---eval $query
---let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, 2)
---let $assert_cond= `SELECT "$logged_query" LIKE "%GRANT PROXY%"`
---let $assert_text= Assert that the query logged is indeed the GRANT PROXY one
---source include/assert.inc
-
-SHOW GRANTS FOR bar@localhost;
-
---source include/sync_slave_sql_with_master.inc
-
---let $rpl_connection_name= slave
---source include/rpl_connection.inc
-
-SHOW GRANTS FOR bar@localhost;
-
---let $rpl_connection_name= master
---source include/rpl_connection.inc
-
-DROP USER foo@localhost;
-DROP USER bar@localhost;
-
---source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

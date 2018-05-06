@@ -1,5 +1,3 @@
-# Can't test grants with embedded server
--- source include/not_embedded.inc
 
 let $type= 'MYISAM' ;
 
@@ -36,10 +34,9 @@ use mysqltest;
 --source include/ps_renew.inc
 --enable_query_log
 use test;
-grant usage on mysqltest.* to second_user@localhost
+create user second_user@localhost
 identified by 'looser' ;
-grant select on mysqltest.t9 to second_user@localhost
-identified by 'looser' ;
+grant select on mysqltest.t9 to second_user@localhost;
 --sorted_result
 show grants for second_user@localhost ;
 
@@ -64,8 +61,7 @@ select a as my_col from t1;
 #### give access rights to t1 and drop table t9
 ## switch back to the first session
 connection default;
-grant select on mysqltest.t1 to second_user@localhost
-identified by 'looser' ;
+grant select on mysqltest.t1 to second_user@localhost;
 --sorted_result
 show grants for second_user@localhost ;
 drop table mysqltest.t9 ;
@@ -124,10 +120,9 @@ drop database mysqltest;
 #
 # grant/revoke + drop user
 #
-prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
-identified by ''looser'' ';
-grant all on test.t1 to drop_user@localhost
-identified by 'looser' ;
+create user drop_user@localhost identified by 'looser';
+prepare stmt3 from ' grant all on test.t1 to drop_user@localhost ';
+grant all on test.t1 to drop_user@localhost;
 prepare stmt3 from ' revoke all privileges on test.t1 from 
 drop_user@localhost ';
 revoke all privileges on test.t1 from drop_user@localhost ;

@@ -49,7 +49,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "29.00"
+      "query_cost": "12.25"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -58,10 +58,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "9.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "29.00",
-        "data_read_per_join": "99K"
+        "read_cost": "2.25",
+        "eval_cost": "10.00",
+        "prefix_cost": "12.25",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -83,7 +83,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "46.63"
+      "query_cost": "34.97"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -92,10 +92,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "26.63",
-        "eval_cost": "20.00",
-        "prefix_cost": "46.63",
-        "data_read_per_join": "99K"
+        "read_cost": "24.97",
+        "eval_cost": "10.00",
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -113,13 +113,16 @@ Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisa
 UPDATE mysql.server_cost 
 SET cost_value=0.4
 WHERE cost_name="row_evaluate_cost";
-UPDATE mysql.engine_cost 
+UPDATE mysql.engine_cost
 SET cost_value=2.0
 WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=2.0
+WHERE cost_name="io_block_read_cost";
 "Restarting MySQL server"
 # restart
 "MySQL restarted"
-SELECT cost_name,cost_value FROM mysql.server_cost;
+SELECT cost_name, cost_value FROM mysql.server_cost;
 cost_name	cost_value
 disk_temptable_create_cost	NULL
 disk_temptable_row_cost	NULL
@@ -127,9 +130,9 @@ key_compare_cost	NULL
 memory_temptable_create_cost	NULL
 memory_temptable_row_cost	NULL
 row_evaluate_cost	0.4
-SELECT engine_name, cost_name,cost_value FROM mysql.engine_cost;
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 engine_name	cost_name	cost_value
-default	io_block_read_cost	NULL
+default	io_block_read_cost	2
 default	memory_block_read_cost	2
 "Explain with cost estimate against InnoDB"
 EXPLAIN FORMAT=JSON SELECT * FROM t1_innodb;
@@ -150,7 +153,7 @@ EXPLAIN
         "read_cost": "18.00",
         "eval_cost": "40.00",
         "prefix_cost": "58.00",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -172,7 +175,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "93.27"
+      "query_cost": "239.75"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -181,10 +184,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "53.27",
+        "read_cost": "199.75",
         "eval_cost": "40.00",
-        "prefix_cost": "93.27",
-        "data_read_per_join": "99K"
+        "prefix_cost": "239.75",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -204,10 +207,26 @@ SET cost_value=DEFAULT;
 UPDATE mysql.engine_cost
 SET cost_value=DEFAULT;
 INSERT INTO mysql.engine_cost VALUES
-("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
+INSERT INTO mysql.engine_cost VALUES
+("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 "Restarting MySQL server"
 # restart
 "MySQL restarted"
+SELECT cost_name, cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	NULL
+disk_temptable_row_cost	NULL
+key_compare_cost	NULL
+memory_temptable_create_cost	NULL
+memory_temptable_row_cost	NULL
+row_evaluate_cost	NULL
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
+engine_name	cost_name	cost_value
+default	io_block_read_cost	NULL
+InnoDB	io_block_read_cost	4
+default	memory_block_read_cost	NULL
+InnoDB	memory_block_read_cost	4
 "Explain with cost estimate against InnoDB"
 EXPLAIN FORMAT=JSON SELECT * FROM t1_innodb;
 EXPLAIN
@@ -215,7 +234,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "56.00"
+      "query_cost": "46.00"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -225,9 +244,9 @@ EXPLAIN
       "filtered": "100.00",
       "cost_info": {
         "read_cost": "36.00",
-        "eval_cost": "20.00",
-        "prefix_cost": "56.00",
-        "data_read_per_join": "99K"
+        "eval_cost": "10.00",
+        "prefix_cost": "46.00",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -249,7 +268,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "46.63"
+      "query_cost": "34.97"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -258,10 +277,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "26.63",
-        "eval_cost": "20.00",
-        "prefix_cost": "46.63",
-        "data_read_per_join": "99K"
+        "read_cost": "24.97",
+        "eval_cost": "10.00",
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",

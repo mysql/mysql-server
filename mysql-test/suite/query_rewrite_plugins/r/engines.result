@@ -1,16 +1,12 @@
 #
 # Tests that it works to have the rules table in different engines.
 #
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # We don't need this column for this test, and digests aren't stable.
 ALTER TABLE query_rewrite.rewrite_rules DROP COLUMN pattern_digest;
 ALTER TABLE query_rewrite.rewrite_rules ENGINE = myisam;
 SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
-engine
+ENGINE
 MyISAM
 CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
@@ -23,8 +19,6 @@ SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message	normalized_pattern
 1	SELECT ?	NULL	SELECT "literal"	YES	NULL	NULL
 CALL query_rewrite.flush_rewrite_rules();
-Warnings:
-Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message	normalized_pattern
 1	SELECT ?	NULL	SELECT "literal"	YES	NULL	select ?
@@ -224,7 +218,7 @@ Note	1105	Query 'SELECT 'The_original_query'' rewritten to 'SELECT "The_rewritte
 DELETE FROM query_rewrite.rewrite_rules;
 ALTER TABLE query_rewrite.rewrite_rules ENGINE = memory;
 SELECT engine FROM information_schema.tables WHERE table_name = 'rewrite_rules';
-engine
+ENGINE
 MEMORY
 CREATE TABLE t1 ( a VARCHAR(10), b VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );

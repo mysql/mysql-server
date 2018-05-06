@@ -1,5 +1,3 @@
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################
@@ -98,7 +96,7 @@ SET @@session.default_tmp_storage_engine = RECORD;
 
 --disable_warnings
 SELECT @@global.default_tmp_storage_engine =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='default_tmp_storage_engine';
 --enable_warnings
 
@@ -109,7 +107,7 @@ SELECT @@global.default_tmp_storage_engine =
 
 --disable_warnings
 SELECT @@session.default_tmp_storage_engine =
- VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='default_tmp_storage_engine';
 --enable_warnings
 

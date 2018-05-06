@@ -1,8 +1,6 @@
-# Can't run test of external client with embedded server
--- source include/not_embedded.inc
 -- source include/have_log_bin.inc
 -- source include/not_windows.inc
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
 
 CREATE DATABASE db_25380000;
 USE db_25380000;
@@ -10,7 +8,6 @@ CREATE TABLE t_25380000(a INT);
 INSERT INTO t_25380000 VALUES(1);
 
 --echo #MYSQLDUMP
---echo #Scenario 1
 --exec $MYSQL_DUMP --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_dump_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -19,26 +16,9 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_DUMP --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_dump_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_DUMP --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_dump_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLIMPORT
 --exec $MYSQL_DUMP --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --tab=$MYSQLTEST_VARDIR/tmp/  db_25380000
 
---echo #Scenario 1
 --exec $MYSQL_IMPORT --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  db_25380000 $MYSQLTEST_VARDIR/tmp/t_25380000.txt > $MYSQLTEST_VARDIR/tmp/25380000_import_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -47,24 +27,7 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_IMPORT --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  db_25380000 $MYSQLTEST_VARDIR/tmp/t_25380000.txt > $MYSQLTEST_VARDIR/tmp/25380000_import_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_IMPORT --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem  db_25380000 $MYSQLTEST_VARDIR/tmp/t_25380000.txt > $MYSQLTEST_VARDIR/tmp/25380000_import_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQL
---echo #Scenario 1
 --exec $MYSQL --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SELECT * from db_25380000.t_25380000;" > $MYSQLTEST_VARDIR/tmp/25380000_mysql_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -73,24 +36,7 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SELECT * from db_25380000.t_25380000;" > $MYSQLTEST_VARDIR/tmp/25380000_mysql_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SELECT * from db_25380000.t_25380000;" > $MYSQLTEST_VARDIR/tmp/25380000_mysql_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLCHECK
---echo #Scenario 1
 --exec $MYSQL_CHECK --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --analyze --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlcheck_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -99,25 +45,8 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_CHECK --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --analyze --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlcheck_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_CHECK --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --analyze --databases db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlcheck_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLBINLOG
---echo #Scenario 1
---exec $MYSQL_BINLOG --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server master-bin.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
+--exec $MYSQL_BINLOG --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server binlog.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
 # Search for warning message in the result file
@@ -125,25 +54,8 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_BINLOG --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server master-bin.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_BINLOG --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server master-bin.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLADMIN
---echo #Scenario 1
---exec $MYSQLADMIN --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
+--exec $MYSQLADMIN --no-defaults --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
 # Search for warning message in the result file
@@ -151,24 +63,7 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQLADMIN --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQLADMIN --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLSHOW
---echo #Scenario 1
 --exec $MYSQL_SHOW --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlshow_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -177,24 +72,7 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_SHOW --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlshow_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_SHOW --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem db_25380000 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlshow_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLSLAP
---echo #Scenario 1
 --exec $MYSQL_SLAP --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --query="SELECT * from db_25380000.t_25380000" --only-print > $MYSQLTEST_VARDIR/tmp/25380000_mysqlslap_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
@@ -203,47 +81,14 @@ INSERT INTO t_25380000 VALUES(1);
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
 --source include/search_pattern.inc
 
---echo #Scenario 2
---exec $MYSQL_SLAP --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --query="SELECT * from db_25380000.t_25380000" --only-print > $MYSQLTEST_VARDIR/tmp/25380000_mysqlslap_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_SLAP --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --query="SELECT * from db_25380000.t_25380000" --only-print > $MYSQLTEST_VARDIR/tmp/25380000_mysqlslap_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
---source include/search_pattern.inc
-
 --echo #MYSQLTEST
 --exec echo "SELECT * from db_25380000.t_25380000;" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---echo #Scenario 1
 --exec $MYSQL_TEST --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem < $MYSQLTEST_VARDIR/tmp/mysqltest.sql > $MYSQLTEST_VARDIR/tmp/25380000_mysqltest_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
 # Search for warning message in the result file
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/25380000_mysqltest_result
 --let SEARCH_PATTERN= WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
---source include/search_pattern.inc
-
---echo #Scenario 2
---exec $MYSQL_TEST --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem < $MYSQLTEST_VARDIR/tmp/mysqltest.sql > $MYSQLTEST_VARDIR/tmp/25380000_mysqltest_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
---source include/search_pattern.inc
-
---echo #Scenario 3
---exec $MYSQL_TEST --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem < $MYSQLTEST_VARDIR/tmp/mysqltest.sql > $MYSQLTEST_VARDIR/tmp/25380000_mysqltest_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
---cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
-
-# Search for warning message in the result file
---let SEARCH_PATTERN= WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
 --source include/search_pattern.inc
 
 --echo #Cleanup

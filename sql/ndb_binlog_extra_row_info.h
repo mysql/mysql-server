@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,10 +25,10 @@
 #ifndef NDB_BINLOG_EXTRA_ROW_INFO_H
 #define NDB_BINLOG_EXTRA_ROW_INFO_H
 
-#include <my_global.h>
-#include <ndb_types.h>
-#include <rpl_constants.h>
+#include "my_byteorder.h"
 #include "rows_event.h"
+#include "sql/rpl_constants.h"
+#include "storage/ndb/include/ndb_types.h"
 
 /*
    Helper for reading/writing Binlog extra row info
@@ -55,22 +62,16 @@ public:
 
   int loadFromBuffer(const uchar* extra_row_info_ptr);
 
-  Uint16 getFlags() const
-  {
-    return flags;
-  }
+  Uint16 getFlags() const { return flags; }
   void setFlags(Uint16 _flags);
-  
-  Uint64 getTransactionId() const
-  { return transactionId; };
+
+  Uint64 getTransactionId() const { return transactionId; }
   void setTransactionId(Uint64 _transactionId);
-  
-  Uint16 getConflictFlags() const
-  { return conflictFlags; };
+
+  Uint16 getConflictFlags() const { return conflictFlags; }
   void setConflictFlags(Uint16 _conflictFlags);
 
-  uchar* getBuffPtr()
-  { return buff; };
+  uchar* getBuffPtr() { return buff; }
   uchar* generateBuffer();
 private:
   uchar buff[MaxLen];

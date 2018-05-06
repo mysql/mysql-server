@@ -4,7 +4,9 @@
 
 #include "default_engine.h"
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* powers-of-N allocation structures */
 
@@ -81,5 +83,9 @@ void slabs_stats(struct default_engine *engine, ADD_STAT add_stats, const void *
 void add_statistics(const void *cookie, ADD_STAT add_stats,
                     const char *prefix, int num, const char *key,
                     const char *fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

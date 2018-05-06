@@ -1,1 +1,1 @@
---log-bin --innodb-locks-unsafe-for-binlog --binlog-format=mixed
+--transaction-isolation=READ-COMMITTED --binlog-format=mixed

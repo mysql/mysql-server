@@ -7,7 +7,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(1) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BIT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a BIT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -19,7 +19,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` tinyint(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYINT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TINYINT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -31,7 +31,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` smallint(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a SMALLINT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a SMALLINT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -43,7 +43,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` mediumint(9) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMINT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a MEDIUMINT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -55,7 +55,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a INT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a INT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -67,7 +67,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a INTEGER column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a INTEGER column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -79,7 +79,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BIGINT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a BIGINT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -91,7 +91,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a REAL column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a REAL column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -103,7 +103,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DOUBLE column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a DOUBLE column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -115,7 +115,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` float DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a FLOAT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a FLOAT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -127,7 +127,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DECIMAL column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a DECIMAL column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -139,7 +139,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a NUMERIC column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a NUMERIC column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -151,7 +151,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` date DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DATE column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a DATE column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -163,7 +163,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` time DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TIME column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TIME column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -175,7 +175,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DATETIME column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a DATETIME column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -187,7 +187,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NULL DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TIMESTAMP column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TIMESTAMP column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -199,7 +199,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` year(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a YEAR column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a YEAR column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -211,7 +211,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` tinyblob
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYBLOB column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TINYBLOB column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -223,7 +223,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` blob
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BLOB column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a BLOB column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -235,7 +235,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` mediumblob
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMBLOB column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a MEDIUMBLOB column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -247,7 +247,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` longblob
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a LONGBLOB column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a LONGBLOB column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -259,7 +259,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` tinytext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYTEXT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TINYTEXT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -271,7 +271,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` text
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TEXT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a TEXT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -283,7 +283,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` mediumtext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMTEXT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a MEDIUMTEXT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
@@ -295,7 +295,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` longtext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a LONGTEXT column'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a LONGTEXT column'
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test

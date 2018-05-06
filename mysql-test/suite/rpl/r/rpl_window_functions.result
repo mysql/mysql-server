@@ -1,0 +1,243 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Create table with columns of different data types and insert values
+CREATE TABLE t1 (pk INT PRIMARY KEY,a DECIMAL(5,2),
+b DOUBLE, c CHAR(10), d VARCHAR(20),
+e DATE, f DATETIME, g TEXT, h BLOB);
+INSERT INTO t1 VALUES
+(1, 258, 6.8, 'Orange', 'Australia', '2002-02-20', '2011-07-29 02:43:24', 'Cookley', 'FgaBAi419MbgSXyFgaBAi4QYYtKp4EotEr6nHrFyw'),
+(2, null, 2, 'Blue', 'Australia', '2004-07-17', '2010-06-04 21:51:57', 'Temp', '1cNnegQruhm9r6M7s96Lt8t2vDP5LLoz5'),
+(3, 72, 44.44, 'Blue', 'Madagascar', '1999-09-09', '2006-08-11 06:55:50', 'Bigtax', '199utjJtezqMHCewY'),
+(4, 9.2, 253, 'Green', 'Russia', '2004-09-16', '1996-10-22 11:59:17', 'Stim', '1JmpHmWbpyBNBJavMBt7NS48UEoWcJ7GSvJavMas'),
+(5, 6, 44.44, 'Crimson', 'Netherlands', '2003-01-27', '2017-01-02 01:43:16', 'Bytecard', '1FZaNCRe6fzyFiBVyqwfg72eHvo3hZXQXFasasf'),
+(6, 70, 83932, 'Indigo', 'India', '2011-08-09', '2008-08-12 13:18:47', 'Alpha', '1Phng2CeXWwmbmdY9qwdqwdnTqBv6ecWgZBj3BKs'),
+(7, 96, 6, 'Khaki', 'Luxembourg', '2009-10-22', '1997-11-30 15:00:16', 'Zontrax', '1Ph2ZUtAVskwebMnyKLRG5GasfasfG4RkdTQujTc'),
+(8, 8.43, 2, 'Pink', 'China', '2005-06-15', '1998-11-02 17:47:53', 'Gembucket', '14BbxEvaUK7nyCzXc9YvkxQasfdewefwefTiZrnVHVFj1'),
+(9, 221, -8.67, 'Magenta', 'Australia', '2010-09-20', '2007-08-27 14:06:53', 'Y-find', '138GWMWSZTqkkm8eQk3sdfsdfsdJDpv72i6cFuyemc'),
+(10, 430, 1.23456, 'Turquoise', 'Philippines', '2002-08-02', '2000-02-19 02:49:17', 'Tin', '1CPkZjahzzRgoqz4W1NfmHsdfsdfsdf5vueJ3irb7Ae'),
+(11, 80, 6.8, 'Orange', 'Australia', '2002-02-20', '2011-07-29 02:43:24', 'Cookley', '19MbgSXyFgaBAi4sdfsdfQYYtKp4EotEr6nHrFyw'),
+(12, 95 , 2, 'Blue', 'Australia', '2004-07-17', '2010-06-04 21:51:57', 'Temp', '1cNnegQr1234234uhm9r6M7s96Lt8t2vDP5LLoz5'),
+(13, 72, 69179, 'Blue', 'Madagascar', '1999-09-09', '2006-08-11 06:55:50', 'Bigtax', 'nmklaw9utjJtezqMHCewR9YpKtm3LaXmt5h4PY'),
+(14, 6, 2531, 'Turquoise', 'Russia', '2004-09-16', '1996-10-22 11:59:17', 'Stim', 'avMBt7NasdasdsadS48UEoWcJ7GSv'),
+(15, 9.2, 44, 'Indigo', 'Netherlands', '2003-01-27', '2017-01-02 01:43:16', 'Bytecard', '1asdfRe6fzyFiBVyqwfg72eHvo3hZXQXF'),
+(16, 72, 832, 'Green', 'India', '2011-08-09', '2008-08-12 13:18:47', 'Alpha', 'XWwmbmdY9nTqBv6ecWgZBj3BKs'),
+(17, 70, 1.23456, 'Khaki', 'Luxembourg', '2009-10-22', '1997-11-30 15:00:16', 'Zontrax', '1Ph2ZUtAVskwebMnyKwEFWEFLRG5GG4RkdTQujTc'),
+(18, 96, 2, 'Pink', 'China', '2005-06-15', '1998-11-02 17:47:53', 'Gembucket', '14BbxEvaUK7nyCzXcewaf9YvkxQTiZrnVHVFj1'),
+(19, 21, -8.67, 'Magenta', 'Australia', '2010-09-20', '2007-08-27 14:06:53', 'Y-find', '138GWMWSZTqkkm8eQk3JaweffwDpv72i6cFuyemc'),
+(20, 8.43, 253, 'Crimson', 'Philippines', '2002-08-02', '2000-02-19 02:49:17', 'Tin', '1CPkZjahzzRgoqz4W1NfmH5vueJ3irb7Ae');
+# INSERT ... SELECT ... using basic non-aggregate window functions
+CREATE TABLE  t2  (
+c1 int unsigned NOT NULL DEFAULT '0',
+c2 int unsigned NOT NULL DEFAULT '0',
+c3 int unsigned NOT NULL DEFAULT '0',
+c4 int unsigned DEFAULT NULL,
+c5 double NOT NULL DEFAULT '0',
+c6 double NOT NULL DEFAULT '0'
+);
+INSERT INTO t2 SELECT
+ROW_NUMBER() OVER w1 c1,
+RANK() OVER w1 c2,
+DENSE_RANK() OVER w1 c3,
+NTILE(3) OVER w1 c4,
+PERCENT_RANK() OVER w1 c5,
+CUME_DIST() OVER w1 c6
+FROM t1 WINDOW w1 AS (PARTITION BY c ORDER BY f);
+INSERT INTO t2 SELECT
+ROW_NUMBER() OVER (PARTITION BY b) c1,
+RANK() OVER (PARTITION BY a ORDER BY e) c2,
+DENSE_RANK() OVER (PARTITION BY a ORDER BY e) c3,
+NTILE(3) OVER (ORDER BY b) c4,
+PERCENT_RANK() OVER (ORDER BY a,b,c,d) c5,
+CUME_DIST() OVER (ORDER BY e,f,g,h) c6
+FROM t1;
+# INSERT ... SELECT with window functions having frame specification
+CREATE TABLE  t3a  (
+c1 decimal(27,2) DEFAULT NULL,
+c2 double DEFAULT NULL,
+c3 bigint(21) NOT NULL DEFAULT '0',
+c4 date DEFAULT NULL,
+c5 datetime DEFAULT NULL,
+c6 double DEFAULT NULL,
+c7 double DEFAULT NULL,
+c8 double DEFAULT NULL,
+c9 double DEFAULT NULL
+);
+INSERT INTO t3a SELECT
+SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
+AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
+COUNT(*) OVER (PARTITION BY d ORDER BY pk ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
+MIN(e) OVER (ORDER BY e ROWS BETWEEN 2 PRECEDING AND UNBOUNDED FOLLOWING) c4,
+MAX(f) OVER (ORDER BY f ROWS BETWEEN CURRENT ROW AND 3 FOLLOWING) c5,
+STDDEV_SAMP(a) OVER (ORDER BY pk ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c6,
+VAR_SAMP(a) OVER (ORDER BY pk ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c7,
+STDDEV_POP(b) OVER () c8,
+VAR_POP(a) OVER () c9
+FROM t1;
+INSERT INTO t3a SELECT
+SUM(a) OVER (RANGE UNBOUNDED PRECEDING) c1,
+AVG(b) OVER (ORDER BY pk RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
+COUNT(*) OVER (PARTITION BY d ORDER BY pk RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
+MIN(e) OVER (ORDER BY e RANGE INTERVAL 5 YEAR PRECEDING) c4,
+MAX(f) OVER (ORDER BY f RANGE BETWEEN CURRENT ROW AND INTERVAL 5 YEAR FOLLOWING) c5,
+STDDEV_SAMP(a) OVER (ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c6,
+VAR_SAMP(a) OVER (ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c7,
+STDDEV_POP(b) OVER () c8,
+VAR_POP(a) OVER () c9
+FROM t1;
+SET @master_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
+SET GLOBAL windowing_use_high_precision=0;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SET @slave_save_windowing_use_high_precision= (SELECT @@windowing_use_high_precision);
+SET GLOBAL windowing_use_high_precision=0;
+[Connection Master]
+CREATE TABLE  t3b  (
+c1  decimal(27,2) DEFAULT NULL,
+c2  double DEFAULT NULL,
+c3  bigint(21) NOT NULL DEFAULT '0',
+c4  date DEFAULT NULL,
+c5  datetime DEFAULT NULL,
+c6  double DEFAULT NULL,
+c7  double DEFAULT NULL,
+c8  double DEFAULT NULL,
+c9  double DEFAULT NULL
+);
+INSERT INTO t3b SELECT
+SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
+AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
+COUNT(*) OVER (PARTITION BY d ORDER BY pk ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
+MIN(e) OVER (ORDER BY e ROWS BETWEEN 2 PRECEDING AND UNBOUNDED FOLLOWING) c4,
+MAX(f) OVER (ORDER BY f ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) c5,
+STDDEV_SAMP(a) OVER (ORDER BY pk ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c6,
+VAR_SAMP(a) OVER (ORDER BY pk ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c7,
+STDDEV_POP(b) OVER () c8,
+VAR_POP(a) OVER () c9
+FROM t1;
+INSERT INTO t3b SELECT
+SUM(a) OVER (RANGE UNBOUNDED PRECEDING) c1,
+AVG(b) OVER (ORDER BY pk RANGE BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
+COUNT(*) OVER (PARTITION BY d ORDER BY pk RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
+MIN(e) OVER (ORDER BY e RANGE INTERVAL 5 YEAR PRECEDING) c4,
+MAX(f) OVER (ORDER BY f RANGE BETWEEN CURRENT ROW AND INTERVAL 5 YEAR FOLLOWING) c5,
+STDDEV_SAMP(a) OVER (ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c6,
+VAR_SAMP(a) OVER (ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) c7,
+STDDEV_POP(b) OVER () c8,
+VAR_POP(a) OVER () c9
+FROM t1;
+SET GLOBAL windowing_use_high_precision=@master_save_windowing_use_high_precision;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SET GLOBAL windowing_use_high_precision=@slave_save_windowing_use_high_precision;
+[Connection Master]
+# INSERT ... SELECT using window functions which return values having
+# same type as that of the column
+CREATE TABLE t4 (c1 decimal(5,2), c2 double, c3 char(10), c4 varchar(20), c5 date, c6 datetime, c7 text, c8 blob);
+INSERT INTO t4 SELECT
+FIRST_VALUE(a) OVER w1,
+FIRST_VALUE(b) OVER w1,
+FIRST_VALUE(c) OVER w1,
+FIRST_VALUE(d) OVER w1,
+FIRST_VALUE(e) OVER w1,
+FIRST_VALUE(f) OVER w1,
+FIRST_VALUE(g) OVER (PARTITION BY b ORDER BY pk ROWS 2 PRECEDING),
+FIRST_VALUE(h) OVER (PARTITION BY b ORDER BY pk RANGE UNBOUNDED PRECEDING)
+FROM t1
+WINDOW w1 AS (PARTITION BY b ORDER BY pk);
+INSERT INTO t4 SELECT
+LAST_VALUE(a) OVER w1,
+LAST_VALUE(b) OVER w1,
+LAST_VALUE(c) OVER w1,
+LAST_VALUE(d) OVER w2,
+LAST_VALUE(e) OVER w2,
+LAST_VALUE(f) OVER w1,
+LAST_VALUE(g) OVER w2,
+LAST_VALUE(h) OVER w1
+FROM t1
+WINDOW w1 AS (PARTITION BY c ORDER BY d ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING),
+w2 AS (ORDER BY c,d);
+INSERT INTO t4 SELECT
+NTH_VALUE(a,1) OVER w1,
+NTH_VALUE(b,2) OVER w1,
+NTH_VALUE(c,3) OVER w1,
+NTH_VALUE(d,1) OVER w1,
+NTH_VALUE(e,2) OVER w1,
+NTH_VALUE(f,3) OVER w1,
+NTH_VALUE(g,1) OVER (PARTITION BY b ORDER BY pk ROWS 2 PRECEDING),
+NTH_VALUE(h,2) OVER (PARTITION BY b ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING)
+FROM t1
+WINDOW w1 AS (PARTITION BY b ORDER BY pk);
+INSERT INTO t4 SELECT
+LEAD(a,1,3) OVER w1,
+LEAD(b,2) OVER w1,
+LEAD(c) OVER w1,
+LEAD(d,1) OVER w1,
+LEAD(e,2) OVER w1,
+LEAD(f,1) OVER w1,
+LEAD(g,1) OVER w1,
+LEAD(h,2) OVER w1
+FROM t1
+WINDOW w1 AS (PARTITION BY b ORDER BY pk);
+INSERT INTO t4 SELECT
+LAG(a,1,2) OVER w2,
+LAG(b,2) OVER w1,
+LAG(c) OVER w1,
+LAG(d,1) OVER w2,
+LAG(e,2) OVER w1,
+LAG(f,1) OVER w2,
+LAG(g,1) OVER w1,
+LAG(h,2) OVER w3
+FROM t1
+WINDOW w1 AS (ORDER BY pk),
+w2 AS (PARTITION BY g ORDER BY h),
+w3 AS (PARTITION BY d ORDER BY NULL);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t4, slave:t4]
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t3a, slave:t3a]
+include/diff_tables.inc [master:t3b, slave:t3b]
+[Connection Master]
+# Update with window function in subquery
+UPDATE t2 SET c1 = c1 + 1 WHERE c1 NOT IN (SELECT ROW_NUMBER() OVER () FROM DUAL);
+UPDATE t2 SET c2 = c2 + 2 WHERE c2 IN (SELECT RANK() OVER () FROM DUAL);
+UPDATE t2 SET c3 = c3 + 1 WHERE c3 IN (SELECT CUME_DIST() OVER () FROM DUAL);
+UPDATE t4 SET c1=100 WHERE c1 IN (SELECT FIRST_VALUE(221) OVER () FROM DUAL);
+UPDATE t4 SET c2=100 WHERE c2 = ANY (SELECT LAST_VALUE(2) OVER () FROM DUAL);
+UPDATE t4 SET c3='Updated' WHERE c3 = SOME (SELECT NTH_VALUE('Blue',1) OVER () FROM DUAL);
+UPDATE t4 SET c4='Updated' WHERE c4 = ALL (SELECT LEAD('Russia',0) OVER () FROM DUAL);
+UPDATE t4 SET c5='2017-01-01' WHERE c5 IN (SELECT LAG('2010-09-20',0) OVER () FROM DUAL);
+UPDATE t4 SET c6='2017-01-01 12:30:45' WHERE c6 IN (SELECT CAST(FIRST_VALUE('2007-08-27 14:06:53') OVER () AS DATETIME) FROM DUAL);
+UPDATE t4 SET c7='Updated' WHERE c7 IN (SELECT LAST_VALUE('Alpha') OVER () FROM DUAL);
+UPDATE t4 SET c8='Updated' WHERE c8 IN (SELECT NTH_VALUE('199utjJtezqMHCewY',1) OVER () FROM DUAL);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t2, slave:t2]
+[Connection Master]
+# Delete with window function in subquery
+DELETE FROM t2 WHERE c1 IN (SELECT 1 + DENSE_RANK() OVER () FROM DUAL);
+DELETE FROM t2 WHERE c2 = ANY (SELECT 2 + PERCENT_RANK() OVER () FROM DUAL);
+DELETE FROM t2 WHERE c3 > SOME (SELECT NTILE(1) OVER () FROM DUAL);
+DELETE FROM t4 WHERE c2 <= ALL (SELECT FIRST_VALUE(100) OVER () FROM DUAL);
+DELETE FROM t4 WHERE c3 = ANY (SELECT LAST_VALUE('Updated') OVER () FROM DUAL);
+DELETE FROM t4 WHERE c4 = ALL (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
+DELETE FROM t4 WHERE c5 IN (SELECT LAG('2017-01-01',0) OVER () FROM DUAL);
+DELETE FROM t4 WHERE c6 IN (SELECT CAST(FIRST_VALUE('2017-01-01 12:30:45') OVER () AS DATETIME) FROM DUAL);
+DELETE FROM t4 WHERE c7 IN (SELECT LEAD('Updated') OVER () FROM DUAL);
+DELETE FROM t4 WHERE c8 IN (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM t2 where c1 IN (SELECT ROW_NUMBER() OVER () FROM DUAL);
+c1	c2	c3	c4	c5	c6
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t4, slave:t4]
+[Connection Master]
+# Clean up
+DROP TABLE t1;
+DROP TABLE t4;
+DROP TABLE t2;
+DROP TABLE t3a;
+DROP TABLE t3b;
+include/rpl_end.inc

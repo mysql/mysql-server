@@ -1,49 +1,58 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "mysqld.h"
-#include "sql_string.h"                 // String
-
-#include <vector>
+#include <float.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
-#include <stdexcept>
-#include <cstdlib>
-#include <utility>
-#include <memory>
-#include "inplace_vector.h"
+#include <cstddef>
+#include <iterator>
 
+#include "lex_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql/gis/srid.h"
+#include "sql/inplace_vector.h"
+#include "sql_string.h"  // String
 
 class Gis_read_stream;
 
-const uint GEOM_DIM= 2;
-const uint SRID_SIZE= 4;
-const uint SIZEOF_STORED_DOUBLE= 8;
-const uint POINT_DATA_SIZE= (SIZEOF_STORED_DOUBLE * 2);
-const uint WKB_HEADER_SIZE= (1+4);
-const uint GEOM_HEADER_SIZE= (SRID_SIZE + WKB_HEADER_SIZE);
+const uint GEOM_DIM = 2;
+const uint SRID_SIZE = 4;
+const uint SIZEOF_STORED_DOUBLE = 8;
+const uint POINT_DATA_SIZE = (SIZEOF_STORED_DOUBLE * 2);
+const uint WKB_HEADER_SIZE = (1 + 4);
+const uint GEOM_HEADER_SIZE = (SRID_SIZE + WKB_HEADER_SIZE);
 
-const uint32 GET_SIZE_ERROR= 0xFFFFFFFFU;
+const uint32 GET_SIZE_ERROR = 0xFFFFFFFFU;
 
-
-inline bool is_little_endian()
-{
+inline bool is_little_endian() {
 #ifdef WORDS_BIGENDIAN
   return false;
 #else
@@ -51,136 +60,97 @@ inline bool is_little_endian()
 #endif
 }
 
-
 /**
   Point with coordinates X and Y.
 */
-class point_xy
-{
-public:
+class point_xy {
+ public:
   double x;
   double y;
-  point_xy() { }
-  point_xy(double x_arg, double y_arg): x(x_arg), y(y_arg) { }
+  point_xy() {}
+  point_xy(double x_arg, double y_arg) : x(x_arg), y(y_arg) {}
   double distance(const point_xy &p) const;
   /**
     Compare to another point.
     Return true if equal, false if not equal.
   */
-  bool eq(point_xy p) const
-  {
-    return (x == p.x) && (y == p.y);
-  }
+  bool eq(point_xy p) const { return (x == p.x) && (y == p.y); }
 };
 
-typedef struct wkb_header_st
-{
+typedef struct wkb_header_st {
   uchar byte_order;
   uint32 wkb_type;
 } wkb_header;
 
-
 /***************************** MBR *******************************/
 
-
-struct MBR
-{
+struct MBR {
   double xmin, ymin, xmax, ymax;
 
-  MBR()
-  {
-    xmin= ymin= DBL_MAX;
-    xmax= ymax= -DBL_MAX;
+  MBR() {
+    xmin = ymin = DBL_MAX;
+    xmax = ymax = -DBL_MAX;
   }
 
-  MBR(const double xmin_arg, const double ymin_arg,
-      const double xmax_arg, const double ymax_arg)
-    :xmin(xmin_arg), ymin(ymin_arg), xmax(xmax_arg), ymax(ymax_arg)
-  {}
+  MBR(const double xmin_arg, const double ymin_arg, const double xmax_arg,
+      const double ymax_arg)
+      : xmin(xmin_arg), ymin(ymin_arg), xmax(xmax_arg), ymax(ymax_arg) {}
 
   MBR(const point_xy &min, const point_xy &max)
-    :xmin(min.x), ymin(min.y), xmax(max.x), ymax(max.y)
-  {}
+      : xmin(min.x), ymin(min.y), xmax(max.x), ymax(max.y) {}
 
-  void add_xy(double x, double y)
-  {
+  void add_xy(double x, double y) {
     /* Not using "else" for proper one point MBR calculation */
-    if (x < xmin)
-      xmin= x;
-    if (x > xmax)
-      xmax= x;
-    if (y < ymin)
-      ymin= y;
-    if (y > ymax)
-      ymax= y;
+    if (x < xmin) xmin = x;
+    if (x > xmax) xmax = x;
+    if (y < ymin) ymin = y;
+    if (y > ymax) ymax = y;
   }
-  void add_xy(point_xy p)
-  {
-    add_xy(p.x, p.y);
-  }
-  void add_xy(const char *px, const char *py)
-  {
+  void add_xy(point_xy p) { add_xy(p.x, p.y); }
+  void add_xy(const char *px, const char *py) {
     double x, y;
     float8get(&x, px);
     float8get(&y, py);
-    add_xy(x,y);
+    add_xy(x, y);
   }
-  void add_mbr(const MBR *mbr)
-  {
-    if (mbr->xmin < xmin)
-      xmin= mbr->xmin;
-    if (mbr->xmax > xmax)
-      xmax= mbr->xmax;
-    if (mbr->ymin < ymin)
-      ymin= mbr->ymin;
-    if (mbr->ymax > ymax)
-      ymax= mbr->ymax;
+  void add_mbr(const MBR *mbr) {
+    if (mbr->xmin < xmin) xmin = mbr->xmin;
+    if (mbr->xmax > xmax) xmax = mbr->xmax;
+    if (mbr->ymin < ymin) ymin = mbr->ymin;
+    if (mbr->ymax > ymax) ymax = mbr->ymax;
   }
 
-  int equals(const MBR *mbr) const
-  {
+  int equals(const MBR *mbr) const {
     /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
-	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
+    return ((mbr->xmin == xmin) && (mbr->ymin == ymin) && (mbr->xmax == xmax) &&
+            (mbr->ymax == ymax));
   }
 
-  int disjoint(const MBR *mbr) const
-  {
+  int disjoint(const MBR *mbr) const {
     /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
-	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
+    return ((mbr->xmin > xmax) || (mbr->ymin > ymax) || (mbr->xmax < xmin) ||
+            (mbr->ymax < ymin));
   }
 
-  int intersects(const MBR *mbr) const
-  {
-    return !disjoint(mbr);
-  }
+  int intersects(const MBR *mbr) const { return !disjoint(mbr); }
 
   int touches(const MBR *mbr) const;
 
   int within(const MBR *mbr) const;
 
-  int contains(const MBR *mbr) const
-  {
-    return mbr->within(this);
-  }
+  int contains(const MBR *mbr) const { return mbr->within(this); }
 
-  int covered_by(const MBR *mbr) const
-  {
+  int covered_by(const MBR *mbr) const {
     /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
-            (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+    return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) && (mbr->xmax >= xmax) &&
+            (mbr->ymax >= ymax));
   }
 
-  int covers(const MBR *mbr) const
-  {
-    return mbr->covered_by(this);
-  }
+  int covers(const MBR *mbr) const { return mbr->covered_by(this); }
 
-  bool inner_point(double x, double y) const
-  {
+  bool inner_point(double x, double y) const {
     /* The following should be safe, even if we compare doubles */
-    return (xmin<x) && (xmax>x) && (ymin<y) && (ymax>y);
+    return (xmin < x) && (xmax > x) && (ymin < y) && (ymax > y);
   }
 
   /**
@@ -190,9 +160,8 @@ struct MBR
     - Point -> 0
     - Invalid MBR -> -1
   */
-  int dimension() const
-  {
-    int d= 0;
+  int dimension() const {
+    int d = 0;
 
     if (xmin > xmax)
       return -1;
@@ -207,14 +176,13 @@ struct MBR
     return d;
   }
 
-  int overlaps(const MBR *mbr) const
-  {
+  int overlaps(const MBR *mbr) const {
     /*
       overlaps() requires that some point inside *this is also inside
       *mbr, and that both geometries and their intersection are of the
       same dimension.
     */
-    int d= dimension();
+    int d = dimension();
     DBUG_ASSERT(d >= 0 && d <= 2);
 
     if (d != mbr->dimension() || d == 0 || contains(mbr) || within(mbr))
@@ -227,7 +195,6 @@ struct MBR
   }
 };
 
-
 /***************************** Geometry *******************************/
 
 struct Geometry_buffer;
@@ -236,61 +203,31 @@ struct Geometry_buffer;
   Memory management functions for BG adapter code. Allocate extra space for
   GEOMETRY header so that we can later prefix the header if needed.
  */
-inline void *gis_wkb_alloc(size_t sz)
-{
-  sz+= GEOM_HEADER_SIZE;
-  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
-                                         sz, MYF(MY_FAE)));
-  p+= GEOM_HEADER_SIZE;
-  return p;
-}
+void *gis_wkb_alloc(size_t sz);
 
+inline void *gis_wkb_fixed_alloc(size_t sz) { return gis_wkb_alloc(sz); }
 
-inline void *gis_wkb_fixed_alloc(size_t sz)
-{
-  return gis_wkb_alloc(sz);
-}
+void *gis_wkb_realloc(void *p, size_t sz);
 
-
-inline void *gis_wkb_realloc(void *p, size_t sz)
-{
-  char *cp= static_cast<char *>(p);
-  if (cp)
-    cp-= GEOM_HEADER_SIZE;
-  sz+= GEOM_HEADER_SIZE;
-
-  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
-  cp= static_cast<char *>(p);
-  return cp + GEOM_HEADER_SIZE;
-}
-
-
-inline void gis_wkb_free(void *p)
-{
-  if (p == NULL)
-    return;
-  char *cp= static_cast<char *>(p);
+inline void gis_wkb_free(void *p) {
+  if (p == NULL) return;
+  char *cp = static_cast<char *>(p);
   my_free(cp - GEOM_HEADER_SIZE);
 }
 
+inline void gis_wkb_raw_free(void *p) { my_free(p); }
 
-inline void gis_wkb_raw_free(void *p)
-{
-  my_free(p);
-}
+class Geometry {
+  friend void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms);
 
-
-class Geometry
-{
-  friend void parse_wkb_data(Geometry *g, const char *p, size_t num_geoms);
-protected:
+ protected:
   // Flag bits for m_flags.props.
 
   /*
     Whether the linestring is a polygon's outer ring, or inner ring.
    */
-  const static int POLYGON_OUTER_RING= 0x1;
-  const static int POLYGON_INNER_RING= 0x2;
+  const static int POLYGON_OUTER_RING = 0x1;
+  const static int POLYGON_INNER_RING = 0x2;
 
   /*
     Whether the Geometry object is created to be used by Boost Geometry or
@@ -298,26 +235,26 @@ protected:
     can or must be skipped otherwise. This state is transient and mutable, we
     set it even to a const geometry object.
    */
-  const static int IS_BOOST_GEOMETRY_ADAPTER= 0x4;
+  const static int IS_BOOST_GEOMETRY_ADAPTER = 0x4;
 
   /*
     Whether the geometry length is verified, so that we can return the stored
     length without having to parse the WKB again.
    */
-  const static int GEOM_LENGTH_VERIFIED= 0x8;
+  const static int GEOM_LENGTH_VERIFIED = 0x8;
 
   /*
     Whether the geometry has components stored out of line, see
     Gis_wkb_vector<>::resize for details.
    */
-  const static int HAS_OUT_OF_LINE_COMPONENTS= 0x10;
+  const static int HAS_OUT_OF_LINE_COMPONENTS = 0x10;
 
   /*
     Whether the polygon's data is in WKB form, as is so in MySQL, or it's in
     BG form, where the m_ptr points to an outer ring object, and m_inn_rings
     points to the inner rings. See Gis_polygon for more information.
    */
-  const static int POLYGON_IN_WKB_FORM= 0x20;
+  const static int POLYGON_IN_WKB_FORM = 0x20;
 
   /*
     whether the geometry's data buffer has space for a GEOMETRY header.
@@ -327,7 +264,7 @@ protected:
     such space. Those with such space we can simply prefix the GEOMETRY header
     into its buffer without copying its WKB data.
    */
-  const static int HAS_GEOM_HEADER_SPACE= 0x40;
+  const static int HAS_GEOM_HEADER_SPACE = 0x40;
 
   /*
     Whether the multi geometry has overlapped components, if false(the bit set)
@@ -336,16 +273,15 @@ protected:
     Such geometries returned by BG always has this bit set, i.e. their
     components don't overlap.
   */
-  const static int MULTIPOLYGON_NO_OVERLAPPED_COMPS= 0x80;
-public:
-  // Check user's transmitted data against these limits.
-  const static uint32 MAX_GEOM_WKB_LENGTH= 0x3fffffff;
+  const static int MULTIPOLYGON_NO_OVERLAPPED_COMPS = 0x80;
 
-  typedef uint32 srid_t;
-  const static srid_t default_srid= 0;
+ public:
+  // Check user's transmitted data against these limits.
+  const static uint32 MAX_GEOM_WKB_LENGTH = 0x3fffffff;
+
+  const static gis::srid_t default_srid = 0;
 
   virtual ~Geometry();
-
 
   /*
     We have to define a wkb_first and wkb_invalid_type and set them to 0
@@ -358,17 +294,16 @@ public:
     wkb_first and wkb_last are only intended to be used to express a valid
     range of wkbType values, other items are to be used as real type values.
    */
-  enum wkbType
-  {
-    wkb_invalid_type= 0,
-    wkb_first= 1,
-    wkb_point= 1,
-    wkb_linestring= 2,
-    wkb_polygon= 3,
-    wkb_multipoint= 4,
-    wkb_multilinestring= 5,
-    wkb_multipolygon= 6,
-    wkb_geometrycollection= 7,
+  enum wkbType {
+    wkb_invalid_type = 0,
+    wkb_first = 1,
+    wkb_point = 1,
+    wkb_linestring = 2,
+    wkb_polygon = 3,
+    wkb_multipoint = 4,
+    wkb_multilinestring = 5,
+    wkb_multipolygon = 6,
+    wkb_geometrycollection = 7,
     /*
       OGC defines 10 more basic geometry types for values 8 to 17, we don't
       support them now so don't define them. And there may be more of
@@ -377,22 +312,19 @@ public:
       to avoid potential data file format binary compatibility issues, which
       would occur if OGC defined more basic types and we would support them.
      */
-    wkb_polygon_inner_rings= 31,
-    wkb_last=31
+    wkb_polygon_inner_rings = 31,
+    wkb_last = 31
   };
-  enum wkbByteOrder
-  {
-    wkb_xdr= 0,    /* Big Endian */
-    wkb_ndr= 1,    /* Little Endian */
+  enum wkbByteOrder {
+    wkb_xdr = 0, /* Big Endian */
+    wkb_ndr = 1, /* Little Endian */
     wkb_invalid
   };
-  enum enum_coordinate_reference_system
-  {
-    coord_first= 1,
-    cartesian= 1,
-    coord_last= 1
+  enum enum_coordinate_reference_system {
+    coord_first = 1,
+    cartesian = 1,
+    coord_last = 1
   };
-
 
   static String bad_geometry_data;
 
@@ -403,34 +335,23 @@ public:
     The only allowed modification method is set(),
     which fully replaces the previous buffer.
   */
-  class wkb_container
-  {
-  protected:
+  class wkb_container {
+   protected:
     const char *m_data;
     const char *m_data_end;
-  public:
-    wkb_container() { }
-    wkb_container(const char *data, const char *data_end)
-    {
+
+   public:
+    wkb_container() {}
+    wkb_container(const char *data, const char *data_end) {
       set(data, data_end);
     }
-    void set(const char *data, const char *data_end)
-    {
-      m_data= data;
-      m_data_end= data_end;
+    void set(const char *data, const char *data_end) {
+      m_data = data;
+      m_data_end = data_end;
     }
-    const char *data() const
-    {
-      return m_data;
-    }
-    const char *data_end() const
-    {
-      return m_data_end;
-    }
-    uint32 length() const
-    {
-      return (uint32) (m_data_end - m_data);
-    }
+    const char *data() const { return m_data; }
+    const char *data_end() const { return m_data_end; }
+    uint32 length() const { return (uint32)(m_data_end - m_data); }
     /**
       Check if there's enough data remaining as requested.
 
@@ -438,8 +359,7 @@ public:
 
       @return           true if not enough data
     */
-    bool no_data(size_t data_amount) const
-    {
+    bool no_data(size_t data_amount) const {
       return (m_data + data_amount > m_data_end);
     }
 
@@ -455,8 +375,7 @@ public:
       @return               true if there are not enough points
     */
     bool not_enough_points(uint32 expected_points,
-                           uint32 extra_point_space= 0) const
-    {
+                           uint32 extra_point_space = 0) const {
       return (m_data_end < m_data ||
               expected_points > ((m_data_end - m_data) /
                                  (POINT_DATA_SIZE + extra_point_space)));
@@ -469,97 +388,75 @@ public:
     of scan_xxx(), get_xxx() and skip_xxx() routines,
     with safety tests to avoid going beyond the buffer end.
   */
-  class wkb_parser: public wkb_container
-  {
+  class wkb_parser : public wkb_container {
     /* Low level routines to get data of various types */
-    void get_uint4(uint32 *number)
-    {
-      *number= uint4korr(m_data); //GIS-TODO: byte order
+    void get_uint4(uint32 *number) {
+      *number = uint4korr(m_data);  // GIS-TODO: byte order
     }
-    void get_float8(double *x)
-    {
-      float8get(x, m_data);      //GIS-TODO: byte order
+    void get_float8(double *x) {
+      float8get(x, m_data);  // GIS-TODO: byte order
     }
-  public:
+
+   public:
     wkb_parser(const char *data, const char *data_end)
-      :wkb_container(data, data_end) { }
+        : wkb_container(data, data_end) {}
 
     /* Routines to skip non-interesting data */
-    void skip_unsafe(size_t nbytes)
-    {
+    void skip_unsafe(size_t nbytes) {
       DBUG_ASSERT(!no_data(nbytes));
-      m_data+= nbytes;
+      m_data += nbytes;
     }
-    bool skip(size_t nbytes)
-    {
-      if (no_data(nbytes))
-        return true;
-      m_data+= nbytes;
+    bool skip(size_t nbytes) {
+      if (no_data(nbytes)) return true;
+      m_data += nbytes;
       return false;
     }
-    bool skip_wkb_header()
-    {
-      return skip(WKB_HEADER_SIZE);
-    }
-    bool skip_coord()
-    {
-      return skip(SIZEOF_STORED_DOUBLE);
-    }
+    bool skip_wkb_header() { return skip(WKB_HEADER_SIZE); }
+    bool skip_coord() { return skip(SIZEOF_STORED_DOUBLE); }
 
     /* Routines to scan wkb header information */
-    bool scan_wkb_header(wkb_header *header)
-    {
-      if (no_data(WKB_HEADER_SIZE))
-        return true;
-      header->byte_order= (uchar) (*m_data);
+    bool scan_wkb_header(wkb_header *header) {
+      if (no_data(WKB_HEADER_SIZE)) return true;
+      header->byte_order = (uchar)(*m_data);
       m_data++;
       get_uint4(&header->wkb_type);
-      m_data+= 4;
+      m_data += 4;
       return false;
     }
 
     /* Routines to scan uint4 information */
-    bool scan_uint4(uint32 *number)
-    {
-      if (no_data(4))
-        return true;
+    bool scan_uint4(uint32 *number) {
+      if (no_data(4)) return true;
       get_uint4(number);
-      m_data+= 4;
+      m_data += 4;
       return false;
     }
-    bool scan_non_zero_uint4(uint32 *number)
-    {
+    bool scan_non_zero_uint4(uint32 *number) {
       return (scan_uint4(number) || 0 == *number);
     }
     bool scan_n_points_and_check_data(uint32 *n_points,
-                                      uint32 extra_point_space= 0)
-    {
+                                      uint32 extra_point_space = 0) {
       return scan_non_zero_uint4(n_points) ||
              not_enough_points(*n_points, extra_point_space);
     }
 
     /* Routines to scan coordinate information */
-    void scan_xy_unsafe(point_xy *p)
-    {
+    void scan_xy_unsafe(point_xy *p) {
       DBUG_ASSERT(!no_data(POINT_DATA_SIZE));
       get_float8(&p->x);
-      m_data+= SIZEOF_STORED_DOUBLE;
+      m_data += SIZEOF_STORED_DOUBLE;
       get_float8(&p->y);
-      m_data+= SIZEOF_STORED_DOUBLE;
+      m_data += SIZEOF_STORED_DOUBLE;
     }
-    bool scan_xy(point_xy *p)
-    {
-     if (no_data(SIZEOF_STORED_DOUBLE * 2))
-        return true;
+    bool scan_xy(point_xy *p) {
+      if (no_data(SIZEOF_STORED_DOUBLE * 2)) return true;
       scan_xy_unsafe(p);
       return false;
     }
-    bool scan_coord(double *x)
-    {
-      if (no_data(SIZEOF_STORED_DOUBLE))
-        return true;
+    bool scan_coord(double *x) {
+      if (no_data(SIZEOF_STORED_DOUBLE)) return true;
       get_float8(x);
-      m_data+= SIZEOF_STORED_DOUBLE;
+      m_data += SIZEOF_STORED_DOUBLE;
       return false;
     }
   };
@@ -567,9 +464,8 @@ public:
   /** Callback which creates Geometry objects on top of a given placement. */
   typedef Geometry *(*create_geom_t)(char *);
 
-  class Class_info
-  {
-  public:
+  class Class_info {
+   public:
     LEX_STRING m_name;
     int m_type_id;
     create_geom_t m_create_func;
@@ -581,98 +477,154 @@ public:
   virtual uint32 get_data_size() const { return -1; }
 
   /* read from trs the wkt string and write into wkb as wkb encoded data. */
-  virtual bool init_from_wkt(Gis_read_stream *trs, String *wkb) { return true;}
+  virtual bool init_from_wkt(Gis_read_stream *trs MY_ATTRIBUTE((unused)),
+                             String *wkb MY_ATTRIBUTE((unused))) {
+    return true;
+  }
 
   /* read from wkb the wkb data and write into res as wkb encoded data. */
   /* returns the length of the wkb that was read */
-  virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
-                             String *res) { return 0; }
+  virtual uint init_from_wkb(const char *wkb MY_ATTRIBUTE((unused)),
+                             uint len MY_ATTRIBUTE((unused)),
+                             wkbByteOrder bo MY_ATTRIBUTE((unused)),
+                             String *res MY_ATTRIBUTE((unused))) {
+    return 0;
+  }
 
-  virtual bool get_data_as_wkt(String *txt, wkb_parser *wkb) const
-  { return true;}
-  virtual bool get_mbr(MBR *mbr, wkb_parser *wkb) const
-  { return true;}
-  bool get_mbr(MBR *mbr)
-  {
+  virtual bool get_data_as_wkt(String *txt MY_ATTRIBUTE((unused)),
+                               wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
+    return true;
+  }
+  virtual bool get_mbr(MBR *mbr MY_ATTRIBUTE((unused)),
+                       wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
+    return true;
+  }
+  bool get_mbr(MBR *mbr) {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return get_mbr(mbr, &wkb);
   }
-  virtual bool dimension(uint32 *dim, wkb_parser *wkb) const
-  {
-    *dim= feature_dimension();
+  virtual bool dimension(uint32 *dim, wkb_parser *wkb) const {
+    *dim = feature_dimension();
     uint32 length;
-    if ((length= get_data_size()) == GET_SIZE_ERROR)
-      return true;
+    if ((length = get_data_size()) == GET_SIZE_ERROR) return true;
     wkb->skip(length);
     return false;
   }
-  bool dimension(uint32 *dim) const
-  {
+  bool dimension(uint32 *dim) const {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return dimension(dim, &wkb);
   }
-  wkbType get_type() const
-  {
+  wkbType get_type() const {
     return static_cast<Geometry::wkbType>(get_class_info()->m_type_id);
   }
-  enum_coordinate_reference_system get_coordsys() const
-  {
-    return cartesian;
-  }
-  virtual uint32 feature_dimension() const
-  {
+  enum_coordinate_reference_system get_coordsys() const { return cartesian; }
+  virtual uint32 feature_dimension() const {
     DBUG_ASSERT(false);
     return 0;
   }
 
-  virtual int get_x(double *x) const { return -1; }
-  virtual int get_y(double *y) const { return -1; }
-  virtual int geom_length(double *len) const  { return -1; }
-  virtual int is_closed(int *closed) const { return -1; }
-  virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
-  virtual int num_points(uint32 *n_points) const { return -1; }
-  virtual int num_geometries(uint32 *num) const { return -1; }
-  virtual int copy_points(String *result) const { return -1; }
+  virtual int get_x(double *x MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int get_y(double *y MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int geom_length(double *len MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int is_closed(int *closed MY_ATTRIBUTE((unused))) const { return -1; }
+  virtual int num_interior_ring(
+      uint32 *n_int_rings MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int num_points(uint32 *n_points MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int num_geometries(uint32 *num MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int copy_points(String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
   /* The following 7 functions return geometries in wkb format. */
-  virtual int start_point(String *point) const { return -1; }
-  virtual int end_point(String *point) const { return -1; }
-  virtual int exterior_ring(String *ring) const { return -1; }
-  virtual int point_n(uint32 num, String *result) const { return -1; }
-  virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
-  virtual int geometry_n(uint32 num, String *result) const { return -1; }
+  virtual int start_point(String *point MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int end_point(String *point MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int exterior_ring(String *ring MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int point_n(uint32 num MY_ATTRIBUTE((unused)),
+                      String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int interior_ring_n(uint32 num MY_ATTRIBUTE((unused)),
+                              String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
+  virtual int geometry_n(uint32 num MY_ATTRIBUTE((unused)),
+                         String *result MY_ATTRIBUTE((unused))) const {
+    return -1;
+  }
 
-public:
+  /**
+    Reverses the coordinates of a geometry.
+
+    Switches the coordinates of the wkb string pointed to by the Geometry.
+    Ex: Used on a POINT(5,2), the result would be POINT(2, 5).
+
+    @retval false coordinate reversal was successful
+    @retval true coordinate reversal was unsuccessful
+  */
+  virtual bool reverse_coordinates() = 0;
+
+  /**
+    Check that the coordinates of a geometry is within the valid range.
+
+    Checks if the coordinates in a geometry are within allowed range of a
+    geographic spatial reference system. Valid range for longitude and latitude
+    coordinates in geographic spatial reference systems are (-180, 180) and
+    [-90, 90] degrees, respectively.
+
+    @param[in] srs_angular_unit Unit to radians conversion factor.
+    @param[out] long_out_of_range Longitude is out of range.
+    @param[out] lat_out_of_range Latitude is out of range.
+    @param[out] out_of_range_value The value that is out of range.
+
+    @retval false Coordinates are within allowed range.
+    @retval true Coordinates are not within allowed range, or an error occurred
+    during range checking.
+  */
+  virtual bool validate_coordinate_range(double srs_angular_unit,
+                                         bool *long_out_of_range,
+                                         bool *lat_out_of_range,
+                                         double *out_of_range_value) = 0;
+
+ public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
 
-  static Geometry *construct(Geometry_buffer *buffer,
-                             const char *data, uint32 data_len,
-                             bool has_srid= true);
+  static Geometry *construct(Geometry_buffer *buffer, const char *data,
+                             uint32 data_len, bool has_srid = true);
   static Geometry *construct(Geometry_buffer *buffer, const String *str,
-                             bool has_srid= true)
-  {
-    return construct(buffer, str->ptr(),
-                     static_cast<uint32>(str->length()), has_srid);
+                             bool has_srid = true) {
+    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()),
+                     has_srid);
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
                                    Gis_read_stream *trs, String *wkt,
-                                   bool init_stream= true,
-                                   bool check_trailing= true);
+                                   bool init_stream = true,
+                                   bool check_trailing = true);
   static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb,
                                    uint32 len, String *res, bool init);
-  bool as_wkt(String *wkt, wkb_parser *wkb) const
-  {
-    uint32 len= (uint) get_class_info()->m_name.length;
-    if (wkt->reserve(len + 2, 512))
-      return true;
-    wkt->qs_append(get_class_info()->m_name.str, len);
-    wkt->qs_append('(');
-    if (get_data_as_wkt(wkt, wkb))
-      return true;
-    wkt->qs_append(')');
+  bool as_wkt(String *wkt, wkb_parser *wkb) const {
+    uint32 len = (uint)get_class_info()->m_name.length;
+    if (wkt->reserve(len + 2, 512)) return true;
+    if (get_type() == wkb_geometrycollection)
+      wkt->append("GEOMETRYCOLLECTION");
+    else
+      wkt->qs_append(get_class_info()->m_name.str, len);
+    if (get_data_as_wkt(wkt, wkb)) return true;
     return false;
   }
-  bool as_wkt(String *wkt) const
-  {
+  bool as_wkt(String *wkt) const {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return as_wkt(wkt, &wkb);
   }
@@ -680,106 +632,91 @@ public:
   bool as_wkb(String *wkb, bool shallow_copy) const;
   bool as_geometry(String *wkb, bool shallow_copy) const;
 
-  void set_data_ptr(const void *data, size_t data_len)
-  {
-    m_ptr= const_cast<void *>(data);
+  void set_data_ptr(const void *data, size_t data_len) {
+    m_ptr = const_cast<void *>(data);
     set_nbytes(data_len);
   }
 
-  void set_data_ptr(const wkb_container *c)
-  {
-    m_ptr= const_cast<void *>(static_cast<const void *>(c->data()));
+  void set_data_ptr(const wkb_container *c) {
+    m_ptr = const_cast<void *>(static_cast<const void *>(c->data()));
     set_nbytes(c->length());
   }
-  void *get_data_ptr() const
-  {
-    return m_ptr;
-  }
+  void *get_data_ptr() const { return m_ptr; }
 
   bool envelope(String *result) const;
   bool envelope(MBR *mbr) const;
 
-  static Class_info *ci_collection[wkb_last+1];
+  static Class_info *ci_collection[wkb_last + 1];
 
-  bool is_polygon_ring() const
-  {
+  bool is_polygon_ring() const {
     return m_flags.props & (POLYGON_OUTER_RING | POLYGON_INNER_RING);
   }
 
-  bool is_polygon_outer_ring() const
-  {
+  bool is_polygon_outer_ring() const {
     return m_flags.props & POLYGON_OUTER_RING;
   }
 
-  bool is_polygon_inner_ring() const
-  {
+  bool is_polygon_inner_ring() const {
     return m_flags.props & POLYGON_INNER_RING;
   }
 
-  bool has_geom_header_space() const
-  {
+  bool has_geom_header_space() const {
     return (m_flags.props & HAS_GEOM_HEADER_SPACE) ||
-      (m_flags.props & IS_BOOST_GEOMETRY_ADAPTER);
+           (m_flags.props & IS_BOOST_GEOMETRY_ADAPTER);
   }
 
-  void has_geom_header_space(bool b)
-  {
+  void has_geom_header_space(bool b) {
     if (b)
-      m_flags.props|= HAS_GEOM_HEADER_SPACE;
+      m_flags.props |= HAS_GEOM_HEADER_SPACE;
     else
-      m_flags.props&= ~HAS_GEOM_HEADER_SPACE;
+      m_flags.props &= ~HAS_GEOM_HEADER_SPACE;
   }
 
-  bool is_components_no_overlapped() const
-  {
+  bool is_components_no_overlapped() const {
     return (m_flags.props & MULTIPOLYGON_NO_OVERLAPPED_COMPS);
   }
 
-  void set_components_no_overlapped(bool b)
-  {
+  void set_components_no_overlapped(bool b) {
     DBUG_ASSERT(get_type() == wkb_multilinestring ||
                 get_type() == wkb_multipolygon ||
                 get_type() == wkb_geometrycollection);
     if (b)
-      m_flags.props|= MULTIPOLYGON_NO_OVERLAPPED_COMPS;
+      m_flags.props |= MULTIPOLYGON_NO_OVERLAPPED_COMPS;
     else
-      m_flags.props&= ~MULTIPOLYGON_NO_OVERLAPPED_COMPS;
+      m_flags.props &= ~MULTIPOLYGON_NO_OVERLAPPED_COMPS;
   }
 
-  void set_props(uint16 flag)
-  {
+  void set_props(uint16 flag) {
     DBUG_ASSERT(0xfff >= flag);
     m_flags.props |= flag;
   }
 
   uint16 get_props() const { return (uint16)m_flags.props; }
 
-  void set_srid(srid_t id)
-  {
-    m_srid= id;
-  }
+  void set_srid(gis::srid_t id) { m_srid = id; }
 
-  srid_t get_srid() const { return m_srid; }
+  gis::srid_t get_srid() const { return m_srid; }
 
   const void *normalize_ring_order();
-protected:
-  static Class_info *find_class(int type_id)
-  {
-    return ((type_id < wkb_first) || (type_id > wkb_last)) ?
-      NULL : ci_collection[type_id];
+
+ protected:
+  static Class_info *find_class(int type_id) {
+    return ((type_id < wkb_first) || (type_id > wkb_last))
+               ? NULL
+               : ci_collection[type_id];
   }
   static Class_info *find_class(const char *name, size_t len);
-  void append_points(String *txt, uint32 n_points,
-                     wkb_parser *wkb, uint32 offset,
-                     bool bracket_pt= false) const;
+  void append_points(String *txt, uint32 n_points, wkb_parser *wkb,
+                     uint32 offset, bool bracket_pt = false) const;
   bool create_point(String *result, wkb_parser *wkb) const;
   bool create_point(String *result, point_xy p) const;
   bool get_mbr_for_points(MBR *mbr, wkb_parser *wkb, uint offset) const;
-  bool is_length_verified() const {return m_flags.props & GEOM_LENGTH_VERIFIED;}
+  bool is_length_verified() const {
+    return m_flags.props & GEOM_LENGTH_VERIFIED;
+  }
 
   // Have to make this const because it's called in a const member function.
-  void set_length_verified(bool b) const
-  {
+  void set_length_verified(bool b) const {
     if (b)
       m_flags.props |= GEOM_LENGTH_VERIFIED;
     else
@@ -787,7 +724,7 @@ protected:
   }
 
   /***************************** Boost Geometry Adapter Interface ************/
-public:
+ public:
   /**
     Highest byte is stores byte order, dimension, nomem and geotype as follows:
     bo: byte order, 1 for little endian(ndr), 0 for big endian(xdr); Currently
@@ -810,57 +747,41 @@ public:
         they represent Z and/or M settings, 1: Z, 2: M, 3: ZM.
     unused: reserved for future use, it's unused now.
   */
-  class Flags_t
-  {
-  public:
-    Flags_t(const Flags_t &o)
-    {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
-      memcpy(this, &o, sizeof(o));
-    }
+  class Flags_t {
+   public:
+    Flags_t(const Flags_t &o) { memcpy(this, &o, sizeof(o)); }
 
-    Flags_t()
-    {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
+    Flags_t() {
       memset(this, 0, sizeof(*this));
-      bo= wkb_ndr;
-      dim= GEOM_DIM - 1;
-      nomem= 1;
+      bo = wkb_ndr;
+      dim = GEOM_DIM - 1;
+      nomem = 1;
     }
 
-    Flags_t(wkbType type, size_t len)
-    {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
+    Flags_t(wkbType type, size_t len) {
       memset(this, 0, sizeof(*this));
-      geotype= type;
-      nbytes= len;
-      bo= wkb_ndr;
-      dim= GEOM_DIM - 1;
-      nomem= 1;
+      geotype = type;
+      nbytes = len;
+      bo = wkb_ndr;
+      dim = GEOM_DIM - 1;
+      nomem = 1;
     }
 
-    Flags_t &operator=(const Flags_t &rhs)
-    {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
-      memcpy(this, &rhs, sizeof(rhs));
-      return *this;
-    }
-
-
-    uint64 bo:1;
-    uint64 dim:2;
-    uint64 nomem:1;
-    uint64 geotype:5;
-    uint64 nbytes:30;
-    uint64 props:12;
-    uint64 zm:2;
-    uint64 unused:11;
+    uint64 bo : 1;
+    uint64 dim : 2;
+    uint64 nomem : 1;
+    uint64 geotype : 5;
+    uint64 nbytes : 30;
+    uint64 props : 12;
+    uint64 zm : 2;
+    uint64 unused : 11;
   };
+  static_assert(sizeof(Flags_t) == sizeof(uint64),
+                "Flags are expected to line up exactly with an uint64.");
 
-  Geometry()
-  {
-    m_ptr= NULL;
-    m_owner= NULL;
+  Geometry() {
+    m_ptr = NULL;
+    m_owner = NULL;
     set_ownmem(false);
     set_byte_order(Geometry::wkb_ndr);
     set_srid(default_srid);
@@ -874,13 +795,13 @@ public:
     @param flags the flags to set, no field is used for now except geotype.
     @param srid srid of the geometry.
   */
-  Geometry(const void *ptr, size_t len, const Flags_t &flags, srid_t srid)
-  {
-    m_ptr= const_cast<void *>(ptr);
-    m_flags.nbytes= len;
+  Geometry(const void *ptr, size_t len, const Flags_t &flags,
+           gis::srid_t srid) {
+    m_ptr = const_cast<void *>(ptr);
+    m_flags.nbytes = len;
     set_srid(srid);
-    m_flags.geotype= flags.geotype;
-    m_owner= NULL;
+    m_flags.geotype = flags.geotype;
+    m_owner = NULL;
     set_ownmem(false);
   }
 
@@ -889,41 +810,55 @@ public:
   Geometry &operator=(const Geometry &rhs);
 
   /* Getters and setters. */
-  void *get_ptr() const
-  {
-    return m_ptr;
-  }
+  void *get_ptr() const { return m_ptr; }
 
-  char *get_cptr() const
-  {
-    return static_cast<char *>(m_ptr);
-  }
+  char *get_cptr() const { return static_cast<char *>(m_ptr); }
 
-  uchar *get_ucptr() const
-  {
-    return static_cast<uchar *>(m_ptr);
-  }
+  uchar *get_ucptr() const { return static_cast<uchar *>(m_ptr); }
 
-  Geometry *get_owner() const { return m_owner;}
+  Geometry *get_owner() const { return m_owner; }
 
-  void set_owner(Geometry *o) { m_owner= o; }
+  void set_owner(Geometry *o) { m_owner = o; }
 
-  void set_byte_order(Geometry::wkbByteOrder bo)
-  {
+  void set_byte_order(Geometry::wkbByteOrder bo) {
     DBUG_ASSERT(bo == Geometry::wkb_ndr);
-    m_flags.bo= static_cast<char>(bo);
+    m_flags.bo = static_cast<char>(bo);
   }
 
-  void set_dimension(char dim)
-  {
+  void set_dimension(char dim) {
     // Valid dim is one of [1, 2, 3, 4].
-    DBUG_ASSERT(dim >0 && dim <5);
-    m_flags.dim= dim - 1;
+    DBUG_ASSERT(dim > 0 && dim < 5);
+    m_flags.dim = dim - 1;
   }
 
-  static bool is_valid_geotype(uint32 gtype)
-  {
-    wkbType gt= static_cast<wkbType>(gtype);
+  /**
+    Check if a given geometry type is a valid geometry type according
+    to OpenGIS.
+
+    Internal geometry types of MySQL are regarded as invalid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
+  static bool is_valid_opengis_geotype(uint32 gtype) {
+    return gtype >= wkb_first && gtype <= wkb_geometrycollection;
+  }
+
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gtype geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
+  static bool is_valid_geotype(uint32 gtype) {
+    wkbType gt = static_cast<wkbType>(gtype);
 
     /*
       Stricter check, outside only checks for [wkb_first, wkb_last],
@@ -933,8 +868,18 @@ public:
             gt == wkb_polygon_inner_rings);
   }
 
-  static bool is_valid_geotype(Geometry::wkbType gt)
-  {
+  /**
+    Check if a given geometry type is a valid internal geometry type.
+
+    Both OpenGIS standard geometry types and internal geometry types
+    of MySQL are regarded as valid.
+
+    @param gt geometry type to check
+
+    @retval true valid geometry type
+    @retval false invalid geometry type
+  */
+  static bool is_valid_geotype(Geometry::wkbType gt) {
     /*
       Stricter check, outside only checks for [wkb_first, wkb_last],
       they don't have to know about the details.
@@ -945,35 +890,33 @@ public:
 
   /**
     Verify that a string is a well-formed GEOMETRY string.
-   
+
     This does not check if the geometry is geometrically valid.
 
     @see Geometry_well_formed_checker
-   
+
     @param from String to check
     @param length Length of string
     @param type Expected type of geometry, or
            Geoemtry::wkb_invalid_type if any type is allowed
 
+    @param bo
     @return True if the string is a well-formed GEOMETRY string,
             false otherwise
    */
-  static bool is_well_formed(const char *from, size_t length,
-                             wkbType type, wkbByteOrder bo);
+  static bool is_well_formed(const char *from, size_t length, wkbType type,
+                             wkbByteOrder bo);
 
-  void set_geotype(Geometry::wkbType gt)
-  {
+  void set_geotype(Geometry::wkbType gt) {
     is_valid_geotype(gt);
-    m_flags.geotype= static_cast<char>(gt);
+    m_flags.geotype = static_cast<char>(gt);
   }
 
   // Have to make this const because it's called in a const member function.
-  void set_nbytes(size_t n) const
-  {
-    if (get_nbytes() != n)
-    {
+  void set_nbytes(size_t n) const {
+    if (get_nbytes() != n) {
       set_length_verified(false);
-      m_flags.nbytes= n;
+      m_flags.nbytes = n;
     }
   }
 
@@ -983,34 +926,23 @@ public:
     @param b true if this object has its own memory, false otherwise.
 
    */
-  void set_ownmem(bool b)
-  {
-    m_flags.nomem= (b ? 0 : 1);
-  }
+  void set_ownmem(bool b) { m_flags.nomem = (b ? 0 : 1); }
 
   /**
     Returns whether this object has its own memory. If so, the memory is
     released when this object is destroyed.
     */
-  bool get_ownmem() const
-  {
-    return !m_flags.nomem;
-  }
+  bool get_ownmem() const { return !m_flags.nomem; }
 
-  Geometry::wkbByteOrder get_byte_order() const
-  {
+  Geometry::wkbByteOrder get_byte_order() const {
     DBUG_ASSERT(m_flags.bo == 1);
     return Geometry::wkb_ndr;
   }
 
-  char get_dimension() const
-  {
-    return static_cast<char>(m_flags.dim) + 1;
-  }
+  char get_dimension() const { return static_cast<char>(m_flags.dim) + 1; }
 
-  Geometry::wkbType get_geotype() const
-  {
-    char gt= static_cast<char>(m_flags.geotype);
+  Geometry::wkbType get_geotype() const {
+    char gt = static_cast<char>(m_flags.geotype);
     return static_cast<Geometry::wkbType>(gt);
   }
 
@@ -1029,25 +961,15 @@ public:
 
     @return OGC standard geometry type value.
    */
-  uint32 get_ogc_geotype() const
-  {
-    return static_cast<uint32>(get_geotype());
-  }
+  uint32 get_ogc_geotype() const { return static_cast<uint32>(get_geotype()); }
 
-
-  size_t get_nbytes() const
-  {
-    return static_cast<size_t>(m_flags.nbytes);
-  }
+  size_t get_nbytes() const { return static_cast<size_t>(m_flags.nbytes); }
 
   /*
     Only sets m_ptr, different from the overloaded one in Gis_wkb_vector<>
     which also does WKB parsing.
    */
-  void set_ptr(const void *ptr)
-  {
-    m_ptr= const_cast<void *>(ptr);
-  }
+  void set_ptr(const void *ptr) { m_ptr = const_cast<void *>(ptr); }
 
   /**
     Whether the Geometry object is created to be used by Boost Geometry or
@@ -1055,8 +977,7 @@ public:
     can or must be skipped otherwise.
     @return true if it's a BG adapter, false otherwise.
    */
-  bool is_bg_adapter() const
-  {
+  bool is_bg_adapter() const {
     return m_flags.props & IS_BOOST_GEOMETRY_ADAPTER;
   }
 
@@ -1066,8 +987,7 @@ public:
     Have to declare this as const because even when a Geometry object's const
     adapter member function is called, it's regarded as a BG adapter object.
    */
-  void set_bg_adapter(bool b) const
-  {
+  void set_bg_adapter(bool b) const {
     if (b)
       m_flags.props |= IS_BOOST_GEOMETRY_ADAPTER;
     else
@@ -1079,35 +999,33 @@ public:
     this object is destroyed, to be called when the two member is shallow
     assigned to another geometry object.
    */
-  virtual void donate_data()
-  {
+  virtual void donate_data() {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr= NULL;
+    m_ptr = NULL;
   }
-protected:
+
+ protected:
   /**
     In a polygon usable by boost geometry, the m_ptr points to the outer ring
     object, and m_inn_rings points to the inner rings, thus the polygon's data
     isn't stored in a single WKB. Users should call
-    Gis_polygon::to_wkb_unparsed() before getting the polygon's wkb data,
-    Gis_polygon::to_wkb_unparsed() will form a single WKB for the polygon
+    @c Gis_polygon::to_wkb_unparsed() before getting the polygon's wkb data,
+    @c Gis_polygon::to_wkb_unparsed() will form a single WKB for the polygon
     and refer to it with m_ptr, and release the outer ring object
     and the inner rings objects, and such an polygon isn't usable by BG any
     more, it's exactly what we got with
-    Geometry::create_from_wkt/Geometry::create_from_wkt.
+    @c Geometry::create_from_wkt / @c Geometry::create_from_wkt.
    */
-  bool polygon_is_wkb_form() const
-  {
+  bool polygon_is_wkb_form() const {
     return m_flags.props & POLYGON_IN_WKB_FORM;
   }
 
-  void polygon_is_wkb_form(bool b)
-  {
+  void polygon_is_wkb_form(bool b) {
     if (b)
-      m_flags.props|= POLYGON_IN_WKB_FORM;
+      m_flags.props |= POLYGON_IN_WKB_FORM;
     else
-      m_flags.props&= ~POLYGON_IN_WKB_FORM;
+      m_flags.props &= ~POLYGON_IN_WKB_FORM;
   }
 
   /**
@@ -1116,27 +1034,21 @@ protected:
     X has out of line component. For such an X, user should call
     Gis_wkb_vector<T>::reassemble() before fetching its WKB data.
    */
-  bool has_out_of_line_components() const
-  {
+  bool has_out_of_line_components() const {
     return m_flags.props & HAS_OUT_OF_LINE_COMPONENTS;
   }
 
-  void has_out_of_line_components(bool b)
-  {
+  void has_out_of_line_components(bool b) {
     if (b)
-      m_flags.props|= HAS_OUT_OF_LINE_COMPONENTS;
+      m_flags.props |= HAS_OUT_OF_LINE_COMPONENTS;
     else
-      m_flags.props&= ~HAS_OUT_OF_LINE_COMPONENTS;
+      m_flags.props &= ~HAS_OUT_OF_LINE_COMPONENTS;
   }
 
   void clear_wkb_data();
-  virtual void shallow_push(const Geometry *)
-  {
-    DBUG_ASSERT(false);
-  }
+  virtual void shallow_push(const Geometry *) { DBUG_ASSERT(false); }
 
-protected:
-
+ protected:
   /**
     The topmost (root) geometry object, whose m_ptr is the 1st byte of a
     wkb memory buffer. other geometry objects hold m_ptr which points
@@ -1144,7 +1056,6 @@ protected:
     need to ask m_owner to reallocate memory if needed for new data.
    */
   Geometry *m_owner;
-
 
   /**
     Pointer to the geometry's wkb data's 1st byte, right after its
@@ -1155,38 +1066,31 @@ protected:
     from the outer ring like ((Geometry*)m_ptr)->get_ptr().
    */
   void *m_ptr;
-private:
 
+ private:
   /// Flags and meta information about this object.
   /// Make it mutable to modify some flags in const member functions.
   mutable Flags_t m_flags;
 
   /// Srid of this object.
-  srid_t m_srid;
-public:
+  gis::srid_t m_srid;
 
-  Flags_t get_flags() const {return m_flags;}
+ public:
+  Flags_t get_flags() const { return m_flags; }
 
-  void set_flags(const Flags_t &flags)
-  {
-    m_flags= flags;
-  }
+  void set_flags(const Flags_t &flags) { m_flags = flags; }
 };
 
+inline Geometry::wkbByteOrder get_byte_order(const void *p0) {
+  const char *p = static_cast<const char *>(p0);
 
-inline Geometry::wkbByteOrder get_byte_order(const void *p0)
-{
-  const char *p= static_cast<const char *>(p0);
-
-  if (!(*p == 0 || *p == 1))
-    return Geometry::wkb_invalid;
+  if (!(*p == 0 || *p == 1)) return Geometry::wkb_invalid;
   return *p == 0 ? Geometry::wkb_xdr : Geometry::wkb_ndr;
 }
 
-inline void set_byte_order(void *p0, Geometry::wkbByteOrder bo)
-{
-  char *p= static_cast<char *>(p0);
-  *p= (bo == Geometry::wkb_ndr ? 1 : 0);
+inline void set_byte_order(void *p0, Geometry::wkbByteOrder bo) {
+  char *p = static_cast<char *>(p0);
+  *p = (bo == Geometry::wkb_ndr ? 1 : 0);
 }
 
 /**
@@ -1195,10 +1099,9 @@ inline void set_byte_order(void *p0, Geometry::wkbByteOrder bo)
   @param p0 WKB geometry type field address.
   @return geometry type.
  */
-inline Geometry::wkbType get_wkb_geotype(const void *p0)
-{
-  const char *p= static_cast<const char *>(p0);
-  uint32 gt= uint4korr(p);
+inline Geometry::wkbType get_wkb_geotype(const void *p0) {
+  const char *p = static_cast<const char *>(p0);
+  uint32 gt = uint4korr(p);
   DBUG_ASSERT(Geometry::is_valid_geotype(gt));
   return static_cast<Geometry::wkbType>(gt);
 }
@@ -1208,154 +1111,147 @@ inline Geometry::wkbType get_wkb_geotype(const void *p0)
   big enough raw memory or into a String object with enough reserved memory,
   and optionally append the object count right after the header.
  */
-inline char *write_wkb_header(void *p0, Geometry::wkbType geotype)
-{
-  char *p= static_cast<char *>(p0);
-  *p= static_cast<char>(Geometry::wkb_ndr);
+inline char *write_wkb_header(void *p0, Geometry::wkbType geotype) {
+  char *p = static_cast<char *>(p0);
+  *p = static_cast<char>(Geometry::wkb_ndr);
   p++;
   int4store(p, static_cast<uint32>(geotype));
   return p + 4;
 }
 
-
 inline char *write_wkb_header(void *p0, Geometry::wkbType geotype,
-                              uint32 obj_count)
-{
-  char *p= static_cast<char *>(p0);
-  p= write_wkb_header(p, geotype);
+                              uint32 obj_count) {
+  char *p = static_cast<char *>(p0);
+  p = write_wkb_header(p, geotype);
   int4store(p, obj_count);
   return p + 4;
 }
 
-
-inline char *write_geometry_header(void *p0, uint32 srid,
-                                   Geometry::wkbType geotype)
-{
-  char *p= static_cast<char *>(p0);
+inline char *write_geometry_header(void *p0, gis::srid_t srid,
+                                   Geometry::wkbType geotype) {
+  char *p = static_cast<char *>(p0);
   int4store(p, srid);
   return write_wkb_header(p + 4, geotype);
 }
 
-
-inline char *write_geometry_header(void *p0, uint32 srid,
-                                   Geometry::wkbType geotype, uint32 obj_count)
-{
-  char *p= static_cast<char *>(p0);
+inline char *write_geometry_header(void *p0, gis::srid_t srid,
+                                   Geometry::wkbType geotype,
+                                   uint32 obj_count) {
+  char *p = static_cast<char *>(p0);
   int4store(p, srid);
   return write_wkb_header(p + 4, geotype, obj_count);
 }
 
-
-inline void write_wkb_header(String *str, Geometry::wkbType geotype)
-{
+inline void write_wkb_header(String *str, Geometry::wkbType geotype) {
   str->q_append(static_cast<char>(Geometry::wkb_ndr));
   str->q_append(static_cast<uint32>(geotype));
 }
 
-
 inline void write_wkb_header(String *str, Geometry::wkbType geotype,
-                             uint32 obj_count)
-{
+                             uint32 obj_count) {
   write_wkb_header(str, geotype);
   str->q_append(obj_count);
 }
 
-
-inline void write_geometry_header(String *str, uint32 srid,
-                                  Geometry::wkbType geotype)
-{
+inline void write_geometry_header(String *str, gis::srid_t srid,
+                                  Geometry::wkbType geotype) {
   str->q_append(srid);
   write_wkb_header(str, geotype);
 }
 
-
-inline void write_geometry_header(String *str, uint32 srid,
-                                  Geometry::wkbType geotype, uint32 obj_count)
-{
+inline void write_geometry_header(String *str, gis::srid_t srid,
+                                  Geometry::wkbType geotype, uint32 obj_count) {
   write_geometry_header(str, srid, geotype);
   str->q_append(obj_count);
 }
 
-
 /***************************** Point *******************************/
 
-class Gis_point: public Geometry
-{
-public:
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
+class Gis_point : public Geometry {
+ public:
+  uint32 get_data_size() const override;
+  /**
+    Initialize from a partial WKT string (everything following "POINT").
 
-  int get_xy(point_xy *p) const
-  {
+    @param trs Input stream
+    @param wkb Output string
+    @param parens Whether parentheses are expected around the
+    coordinates.
+    @retval true Error
+    @retval false Success
+  */
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb, const bool parens);
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override {
+    return init_from_wkt(trs, wkb, true);
+  }
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+
+  int get_xy(point_xy *p) const {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return wkb.scan_xy(p);
   }
-  int get_x(double *x) const
-  {
+  int get_x(double *x) const override {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return wkb.scan_coord(x);
   }
-  int get_y(double *y) const
-  {
+  int get_y(double *y) const override {
     wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
     return wkb.skip_coord() || wkb.scan_coord(y);
   }
-  uint32 feature_dimension() const { return 0; }
-  const Class_info *get_class_info() const;
-
+  uint32 feature_dimension() const override { return 0; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /************* Boost Geometry Adapter Interface *************/
-
 
   typedef Gis_point self;
   typedef Geometry base;
 
-  explicit Gis_point(bool is_bg_adapter= true)
-    :Geometry(NULL, 0, Flags_t(wkb_point, 0), default_srid)
-  {
+  explicit Gis_point(bool is_bg_adapter = true)
+      : Geometry(NULL, 0, Flags_t(wkb_point, 0), default_srid) {
     set_ownmem(false);
     set_bg_adapter(is_bg_adapter);
   }
 
   /// @brief Default constructor, no initialization.
-  Gis_point(const void *ptr, size_t nbytes, const Flags_t &flags, srid_t srid)
-    :Geometry(ptr, nbytes, flags, srid)
-  {
+  Gis_point(const void *ptr, size_t nbytes, const Flags_t &flags,
+            gis::srid_t srid)
+      : Geometry(ptr, nbytes, flags, srid) {
     set_geotype(wkb_point);
-    DBUG_ASSERT((ptr != NULL &&
-                 get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-                (ptr == NULL && get_nbytes() == 0));
+    DBUG_ASSERT(
+        (ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+        (ptr == NULL && get_nbytes() == 0));
     set_ownmem(false);
     set_bg_adapter(true);
   }
 
   Gis_point(const self &pt);
 
-  virtual ~Gis_point()
-  {}
-
+  virtual ~Gis_point() {}
 
   Gis_point &operator=(const Gis_point &rhs);
 
   void set_ptr(void *ptr, size_t len);
 
-
   /// @brief Get a coordinate
   /// @tparam K coordinate to get
   /// @return the coordinate
   template <std::size_t K>
-  double get() const
-  {
-    DBUG_ASSERT(K < static_cast<size_t>(get_dimension()) &&
-                ((m_ptr != NULL &&
-                  get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
-                 (m_ptr == NULL && get_nbytes() == 0)));
+  double get() const {
+    DBUG_ASSERT(
+        K < static_cast<size_t>(get_dimension()) &&
+        ((m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+         (m_ptr == NULL && get_nbytes() == 0)));
 
     set_bg_adapter(true);
-    const char *p= static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
+    const char *p = static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
     double val;
 
     /*
@@ -1363,13 +1259,11 @@ public:
       has not specified with any meaningful value, and in such a case the
       default value are expected to be all zeros.
      */
-    if (m_ptr == NULL)
-      return 0;
+    if (m_ptr == NULL) return 0;
 
     float8get(&val, p);
     return val;
   }
-
 
   /// @brief Set a coordinate
   /// @tparam K coordinate to set
@@ -1377,18 +1271,15 @@ public:
   // Deep assignment, not only allow assigning to a point owning its memory,
   // but also a point not own memory, since points are of same size.
   template <std::size_t K>
-  void set(double const &value)
-  {
+  void set(double const &value) {
     /* Allow assigning to others' memory. */
     DBUG_ASSERT((m_ptr != NULL && K < static_cast<size_t>(get_dimension()) &&
                  get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
                 (!get_ownmem() && get_nbytes() == 0 && m_ptr == NULL));
     set_bg_adapter(true);
-    if (m_ptr == NULL)
-    {
-      m_ptr= gis_wkb_fixed_alloc(SIZEOF_STORED_DOUBLE * GEOM_DIM);
-      if (m_ptr == NULL)
-      {
+    if (m_ptr == NULL) {
+      m_ptr = gis_wkb_fixed_alloc(SIZEOF_STORED_DOUBLE * GEOM_DIM);
+      if (m_ptr == NULL) {
         set_ownmem(false);
         set_nbytes(0);
         return;
@@ -1397,31 +1288,23 @@ public:
       set_nbytes(SIZEOF_STORED_DOUBLE * GEOM_DIM);
     }
 
-    char *p= get_cptr() + K * SIZEOF_STORED_DOUBLE;
+    char *p = get_cptr() + K * SIZEOF_STORED_DOUBLE;
     float8store(p, value);
   }
 
-
-  bool operator<(const Gis_point &pt) const
-  {
-    bool x= get<0>(), px= pt.get<0>();
+  bool operator<(const Gis_point &pt) const {
+    bool x = get<0>(), px = pt.get<0>();
     return x == px ? get<1>() < pt.get<1>() : x < px;
   }
 
-  bool operator==(const Gis_point &pt) const
-  {
+  bool operator==(const Gis_point &pt) const {
     return (get<0>() == pt.get<0>() && get<1>() == pt.get<1>());
   }
 
-  bool operator!=(const Gis_point &pt) const
-  {
-    return !(operator==(pt));
-  }
+  bool operator!=(const Gis_point &pt) const { return !(operator==(pt)); }
 };
 
-
 /******************************** Gis_wkb_vector **************************/
-
 
 template <typename T>
 class Gis_wkb_vector;
@@ -1450,13 +1333,13 @@ class Gis_wkb_vector;
 /// Gis_wkb_vector.
 /// @tparam T Vector element type
 template <typename T>
-class Gis_wkb_vector_const_iterator
-{
-protected:
+class Gis_wkb_vector_const_iterator {
+ protected:
   typedef Gis_wkb_vector_const_iterator<T> self;
   typedef Gis_wkb_vector<T> owner_t;
   typedef ptrdiff_t index_type;
-public:
+
+ public:
   ////////////////////////////////////////////////////////////////////
   //
   // Begin public type definitions.
@@ -1467,8 +1350,8 @@ public:
   typedef typename owner_t::size_type size_type;
 
   /// This is the return type for operator[].
-  typedef value_type& reference;
-  typedef value_type* pointer;
+  typedef value_type &reference;
+  typedef value_type *pointer;
   // Use the STL tag, to ensure compatability with interal STL functions.
   //
   typedef std::random_access_iterator_tag iterator_category;
@@ -1481,30 +1364,22 @@ public:
   /// but call Gis_wkb_vector::begin() const to get an valid iterator.
   /// @sa Gis_wkb_vector::begin() const
   //@{
-  Gis_wkb_vector_const_iterator(const self &vi)
-  {
-    m_curidx= vi.m_curidx;
-    m_owner= vi.m_owner;
+  Gis_wkb_vector_const_iterator(const self &vi) {
+    m_curidx = vi.m_curidx;
+    m_owner = vi.m_owner;
   }
 
-
-  Gis_wkb_vector_const_iterator()
-  {
-    m_curidx= -1;
-    m_owner= NULL;
+  Gis_wkb_vector_const_iterator() {
+    m_curidx = -1;
+    m_owner = NULL;
   }
 
-
-  Gis_wkb_vector_const_iterator(index_type idx, const owner_t *owner)
-  {
-    m_curidx= idx;
-    m_owner= const_cast<owner_t *>(owner);
+  Gis_wkb_vector_const_iterator(index_type idx, const owner_t *owner) {
+    m_curidx = idx;
+    m_owner = const_cast<owner_t *>(owner);
   }
 
-
-  ~Gis_wkb_vector_const_iterator()
-  {
-  }
+  ~Gis_wkb_vector_const_iterator() {}
   //@}
 
   ////////////////////////////////////////////////////////////////////
@@ -1529,63 +1404,45 @@ public:
   /// sitting on the same key/data pair equal; Otherwise not equal.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator equals to itr; False otherwise.
-  bool operator==(const self &itr) const
-  {
+  bool operator==(const self &itr) const {
     DBUG_ASSERT(m_owner == itr.m_owner);
     return m_curidx == itr.m_curidx;
   }
 
-
   /// @brief Unequal compare, identical to !operator(==itr)
   /// @param itr The iterator to compare against.
   /// @return False if this iterator equals to itr; True otherwise.
-  bool operator!=(const self &itr) const
-  {
-    return !(*this == itr) ;
-  }
-
+  bool operator!=(const self &itr) const { return !(*this == itr); }
 
   // The end() iterator is largest. If both are end() iterator return false.
   /// @brief Less than comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is less than itr.
-  bool operator < (const self &itr) const
-  {
+  bool operator<(const self &itr) const {
     DBUG_ASSERT(m_owner == itr.m_owner);
     return m_curidx < itr.m_curidx;
   }
 
-
   /// @brief Less equal comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is less than or equal to itr.
-  bool operator <= (const self &itr) const
-  {
-    return !(this->operator>(itr));
-  }
-
+  bool operator<=(const self &itr) const { return !(this->operator>(itr)); }
 
   /// @brief Greater equal comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is greater than or equal to itr.
-  bool operator >= (const self &itr) const
-  {
-    return !(this->operator<(itr));
-  }
-
+  bool operator>=(const self &itr) const { return !(this->operator<(itr)); }
 
   // The end() iterator is largest. If both are end() iterator return false.
   /// @brief Greater comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is greater than itr.
-  bool operator > (const self &itr) const
-  {
+  bool operator>(const self &itr) const {
     DBUG_ASSERT(m_owner == itr.m_owner);
     return m_curidx > itr.m_curidx;
   }
   //@} // vctitr_cmp
   ////////////////////////////////////////////////////////////////////
-
 
   ////////////////////////////////////////////////////////////////////
   //
@@ -1605,12 +1462,10 @@ public:
   /// Use ++iter rather than iter++ where possible to avoid two useless
   /// iterator copy constructions.
   /// @return This iterator after incremented.
-  self &operator++()
-  {
+  self &operator++() {
     move_by(*this, 1, false);
     return *this;
   }
-
 
   /// @brief Post-increment.
   /// Move the iterator one element forward, so that
@@ -1618,14 +1473,12 @@ public:
   /// Use ++iter rather than iter++ where possible to avoid two useless
   /// iterator copy constructions.
   /// @return A new iterator not incremented.
-  self operator++(int)
-  {
+  self operator++(int) {
     self itr(*this);
     move_by(*this, 1, false);
 
     return itr;
   }
-
 
   /// @brief Pre-decrement.
   /// Move the iterator one element backward, so
@@ -1633,12 +1486,10 @@ public:
   /// Use --iter rather than iter-- where possible to avoid two useless
   /// iterator copy constructions.
   /// @return This iterator after decremented.
-  self &operator--()
-  {
+  self &operator--() {
     move_by(*this, 1, true);
     return *this;
   }
-
 
   /// @brief Post-decrement.
   ///
@@ -1647,13 +1498,11 @@ public:
   /// Use --iter rather than iter-- where possible to avoid two useless
   /// iterator copy constructions.
   /// @return A new iterator not decremented.
-  self operator--(int)
-  {
-    self itr= *this;
+  self operator--(int) {
+    self itr = *this;
     move_by(*this, 1, true);
     return itr;
   }
-
 
   /// @brief Assignment operator.
   ///
@@ -1661,13 +1510,11 @@ public:
   /// pair as itr, and have the same configurations as itr.
   /// @param itr The right value of the assignment.
   /// @return This iterator's reference.
-  const self &operator=(const self &itr)
-  {
-    m_curidx= itr.m_curidx;
-    m_owner= itr.m_owner;
+  const self &operator=(const self &itr) {
+    m_curidx = itr.m_curidx;
+    m_owner = itr.m_owner;
     return itr;
   }
-
 
   /// Iterator movement operator.
   /// Return another iterator by moving this iterator forward by n
@@ -1675,24 +1522,20 @@ public:
   /// @param n The amount and direction of movement. If negative, will
   /// move backward by |n| element.
   /// @return The new iterator at new position.
-  self operator+(difference_type n) const
-  {
+  self operator+(difference_type n) const {
     self itr(*this);
     move_by(itr, n, false);
     return itr;
   }
 
-
   /// @brief Move this iterator forward by n elements.
   /// @param n The amount and direction of movement. If negative, will
   /// move backward by |n| element.
   /// @return Reference to this iterator at new position.
-  const self &operator+=(difference_type n)
-  {
+  const self &operator+=(difference_type n) {
     move_by(*this, n, false);
     return *this;
   }
-
 
   /// @brief Iterator movement operator.
   ///
@@ -1701,26 +1544,22 @@ public:
   /// @param n The amount and direction of movement. If negative, will
   /// move forward by |n| element.
   /// @return The new iterator at new position.
-  self operator-(difference_type n) const
-  {
+  self operator-(difference_type n) const {
     self itr(*this);
     move_by(itr, n, true);
 
     return itr;
   }
 
-
   /// @brief Move this iterator backward by n elements.
   /// @param n The amount and direction of movement. If negative, will
   /// move forward by |n| element.
   /// @return Reference to this iterator at new position.
-  const self &operator-=(difference_type n)
-  {
+  const self &operator-=(difference_type n) {
     move_by(*this, n, true);
     return *this;
   }
   //@} //itr_movement
-
 
   /// @brief Iterator distance operator.
   ///
@@ -1731,12 +1570,10 @@ public:
   /// iterator after last element or before first element, their index
   /// will be regarded as last element's index + 1 and -1 respectively.
   /// @return The index difference.
-  difference_type operator-(const self &itr) const
-  {
+  difference_type operator-(const self &itr) const {
     DBUG_ASSERT(m_owner == itr.m_owner);
     return (m_curidx - itr.m_curidx);
   }
-
 
   ////////////////////////////////////////////////////////////////////
   //
@@ -1750,14 +1587,12 @@ public:
   /// The returned value can only be used to read its referenced
   /// element.
   /// @return The reference to the element this iterator points to.
-  reference operator*() const
-  {
+  reference operator*() const {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
                 this->m_curidx <
-                static_cast<index_type>(this->m_owner->size()));
+                    static_cast<index_type>(this->m_owner->size()));
     return (*m_owner)[m_curidx];
   }
-
 
   /// @brief Arrow operator.
   ///
@@ -1765,14 +1600,12 @@ public:
   /// The returned value can only be used to read its referenced
   /// element.
   /// @return The address of the referenced object.
-  pointer operator->() const
-  {
+  pointer operator->() const {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
                 this->m_curidx <
-                static_cast<index_type>(this->m_owner->size()));
+                    static_cast<index_type>(this->m_owner->size()));
     return &(*m_owner)[m_curidx];
   }
-
 
   /// @brief Iterator index operator.
   ///
@@ -1781,9 +1614,8 @@ public:
   /// position *this + offset.
   /// The returned value can only be used to read its referenced
   /// element.
-  reference operator[](difference_type offset) const
-  {
-    self itr= *this;
+  reference operator[](difference_type offset) const {
+    self itr = *this;
     move_by(itr, offset, false);
 
     DBUG_ASSERT(itr.m_owner != NULL && itr.m_curidx >= 0 &&
@@ -1793,35 +1625,30 @@ public:
   //@}
   ////////////////////////////////////////////////////////////////////
 
-
-protected:
+ protected:
   // The 'back' parameter indicates whether to decrease or
   // increase the index when moving. The default is to decrease.
   //
-  void move_by(self &itr, difference_type n, bool back) const
-  {
-    if (back)
-      n= -n;
+  void move_by(self &itr, difference_type n, bool back) const {
+    if (back) n = -n;
 
-    index_type newidx= itr.m_curidx + n;
-    size_t sz= 0;
+    index_type newidx = itr.m_curidx + n;
+    size_t sz = 0;
 
     if (newidx < 0)
-      newidx= -1;
-    else if (newidx >= static_cast<index_type>((sz= m_owner->size())))
-      newidx= sz;
+      newidx = -1;
+    else if (newidx >= static_cast<index_type>((sz = m_owner->size())))
+      newidx = sz;
 
-    itr.m_curidx= newidx;
+    itr.m_curidx = newidx;
   }
 
-
-protected:
+ protected:
   /// Current element's index, starting from 0.
   index_type m_curidx;
   /// The owner container of this iteraotr.
   owner_t *m_owner;
-}; // Gis_wkb_vector_const_iterator<>
-
+};  // Gis_wkb_vector_const_iterator<>
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
@@ -1832,22 +1659,21 @@ protected:
 /// @tparam T Vector element type
 //
 template <class T>
-class Gis_wkb_vector_iterator :public Gis_wkb_vector_const_iterator<T>
-{
-protected:
+class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
+ protected:
   typedef Gis_wkb_vector_iterator<T> self;
   typedef Gis_wkb_vector_const_iterator<T> base;
   typedef Gis_wkb_vector<T> owner_t;
-public:
+
+ public:
   typedef ptrdiff_t index_type;
   typedef T value_type;
   typedef ptrdiff_t difference_type;
   typedef difference_type distance_type;
-  typedef value_type& reference;
-  typedef value_type* pointer;
+  typedef value_type &reference;
+  typedef value_type *pointer;
   // Use the STL tag, to ensure compatability with interal STL functions.
   typedef std::random_access_iterator_tag iterator_category;
-
 
   ////////////////////////////////////////////////////////////////////
   /// Begin public constructors and destructor.
@@ -1857,34 +1683,19 @@ public:
   /// but call Gis_wkb_vector::begin to get an valid iterator.
   /// @sa Gis_wkb_vector::begin
   //@{
-  Gis_wkb_vector_iterator(const self &vi) :base(vi)
-  {
-  }
+  Gis_wkb_vector_iterator(const self &vi) : base(vi) {}
 
+  Gis_wkb_vector_iterator() : base() {}
 
-  Gis_wkb_vector_iterator() :base()
-  {
-  }
-
-
-  Gis_wkb_vector_iterator(const base &obj) :base(obj)
-  {
-  }
-
+  Gis_wkb_vector_iterator(const base &obj) : base(obj) {}
 
   Gis_wkb_vector_iterator(index_type idx, const owner_t *owner)
-    :base(idx, owner)
-  {}
+      : base(idx, owner) {}
 
-
-  ~Gis_wkb_vector_iterator()
-  {
-  }
+  ~Gis_wkb_vector_iterator() {}
   //@}
 
-
   ////////////////////////////////////////////////////////////////////
-
 
   ////////////////////////////////////////////////////////////////////
   //
@@ -1902,45 +1713,37 @@ public:
   /// @brief Pre-increment.
   /// @return This iterator after incremented.
   /// @sa Gis_wkb_vector_const_iterator::operator++()
-  self &operator++()
-  {
+  self &operator++() {
     this->move_by(*this, 1, false);
     return *this;
   }
 
-
   /// @brief Post-increment.
   /// @return A new iterator not incremented.
   /// @sa Gis_wkb_vector_const_iterator::operator++(int)
-  self operator++(int)
-  {
+  self operator++(int) {
     self itr(*this);
     this->move_by(*this, 1, false);
 
     return itr;
   }
 
-
   /// @brief Pre-decrement.
   /// @return This iterator after decremented.
   /// @sa Gis_wkb_vector_const_iterator::operator--()
-  self &operator--()
-  {
+  self &operator--() {
     this->move_by(*this, 1, true);
     return *this;
   }
 
-
   /// @brief Post-decrement.
   /// @return A new iterator not decremented.
   /// @sa Gis_wkb_vector_const_iterator::operator--(int)
-  self operator--(int)
-  {
-    self itr= *this;
+  self operator--(int) {
+    self itr = *this;
     this->move_by(*this, 1, true);
     return itr;
   }
-
 
   /// @brief Assignment operator.
   ///
@@ -1948,13 +1751,11 @@ public:
   /// pair as itr, and have the same configurations as itr.
   /// @param itr The right value of the assignment.
   /// @return This iterator's reference.
-  const self &operator=(const self &itr)
-  {
+  const self &operator=(const self &itr) {
     base::operator=(itr);
 
     return itr;
   }
-
 
   /// @brief Iterator movement operator.
   ///
@@ -1964,25 +1765,21 @@ public:
   /// move forward by |n| element.
   /// @return The new iterator at new position.
   /// @sa Gis_wkb_vector_const_iterator::operator+(difference_type n) const
-  self operator+(difference_type n) const
-  {
+  self operator+(difference_type n) const {
     self itr(*this);
     this->move_by(itr, n, false);
     return itr;
   }
-
 
   /// @brief Move this iterator backward by n elements.
   /// @param n The amount and direction of movement. If negative, will
   /// move forward by |n| element.
   /// @return Reference to this iterator at new position.
   /// @sa Gis_wkb_vector_const_iterator::operator+=(difference_type n)
-  const self &operator+=(difference_type n)
-  {
+  const self &operator+=(difference_type n) {
     this->move_by(*this, n, false);
     return *this;
   }
-
 
   /// @brief Iterator movement operator.
   ///
@@ -1992,22 +1789,19 @@ public:
   /// move backward by |n| element.
   /// @return The new iterator at new position.
   /// @sa Gis_wkb_vector_const_iterator::operator-(difference_type n) const
-  self operator-(difference_type n) const
-  {
+  self operator-(difference_type n) const {
     self itr(*this);
     this->move_by(itr, n, true);
 
     return itr;
   }
 
-
   /// @brief Move this iterator forward by n elements.
   /// @param n The amount and direction of movement. If negative, will
   /// move backward by |n| element.
   /// @return Reference to this iterator at new position.
   /// @sa Gis_wkb_vector_const_iterator::operator-=(difference_type n)
-  const self &operator-=(difference_type n)
-  {
+  const self &operator-=(difference_type n) {
     this->move_by(*this, n, true);
     return *this;
   }
@@ -2023,12 +1817,10 @@ public:
   /// will be regarded as last element's index + 1 and -1 respectively.
   /// @return The index difference.
   /// @sa Gis_wkb_vector_const_iterator::operator-(const self &itr) const
-  difference_type operator-(const self &itr) const
-  {
+  difference_type operator-(const self &itr) const {
     return base::operator-(itr);
   }
   ////////////////////////////////////////////////////////////////////
-
 
   ////////////////////////////////////////////////////////////////////
   //
@@ -2042,14 +1834,12 @@ public:
   /// The returned value can be used to read or update its referenced
   /// element.
   /// @return The reference to the element this iterator points to.
-  reference operator*() const
-  {
+  reference operator*() const {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
                 this->m_curidx <
-                static_cast<index_type>(this->m_owner->size()));
+                    static_cast<index_type>(this->m_owner->size()));
     return (*this->m_owner)[this->m_curidx];
   }
-
 
   /// @brief Arrow operator.
   ///
@@ -2057,14 +1847,12 @@ public:
   /// The returned value can be used to read or update its referenced
   /// element.
   /// @return The address of the referenced object.
-  pointer operator->() const
-  {
+  pointer operator->() const {
     DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
                 this->m_curidx <
-                static_cast<index_type>(this->m_owner->size()));
+                    static_cast<index_type>(this->m_owner->size()));
     return &(*this->m_owner)[this->m_curidx];
   }
-
 
   /// @brief Iterator index operator.
   ///
@@ -2072,9 +1860,8 @@ public:
   /// @return Return the element which is at position *this + offset.
   /// The returned value can be used to read or update its referenced
   /// element.
-  reference operator[](difference_type offset) const
-  {
-    self itr= *this;
+  reference operator[](difference_type offset) const {
+    self itr = *this;
     this->move_by(itr, offset, false);
     DBUG_ASSERT(itr.m_owner != NULL && itr.m_curidx >= 0 &&
                 itr.m_curidx < static_cast<index_type>(this->m_owner->size()));
@@ -2083,56 +1870,49 @@ public:
   //@} // funcs_val
   ////////////////////////////////////////////////////////////////////
 
-}; // Gis_wkb_vector_iterator
+};  // Gis_wkb_vector_iterator
 //@} // Gis_wkb_vector_iterators
 //@} // iterators
-
 
 // These operators make "n + itr" expressions valid. Without it, you can only
 // use "itr + n"
 template <typename T>
-Gis_wkb_vector_const_iterator<T>
-operator+(typename Gis_wkb_vector_const_iterator<T>::difference_type n,
-          const Gis_wkb_vector_const_iterator<T> &itr)
-{
-  Gis_wkb_vector_const_iterator<T> itr2= itr;
+Gis_wkb_vector_const_iterator<T> operator+(
+    typename Gis_wkb_vector_const_iterator<T>::difference_type n,
+    const Gis_wkb_vector_const_iterator<T> &itr) {
+  Gis_wkb_vector_const_iterator<T> itr2 = itr;
 
-  itr2+= n;
+  itr2 += n;
   return itr2;
 }
-
 
 template <typename T>
-Gis_wkb_vector_iterator<T>
-operator+(typename Gis_wkb_vector_iterator<T>::difference_type n,
-          const Gis_wkb_vector_iterator<T>& itr)
-{
-  Gis_wkb_vector_iterator<T> itr2= itr;
+Gis_wkb_vector_iterator<T> operator+(
+    typename Gis_wkb_vector_iterator<T>::difference_type n,
+    const Gis_wkb_vector_iterator<T> &itr) {
+  Gis_wkb_vector_iterator<T> itr2 = itr;
 
-  itr2+= n;
+  itr2 += n;
   return itr2;
 }
-
 
 void *get_packed_ptr(const Geometry *geo, size_t *pnbytes);
 const char *get_packed_ptr(Geometry *geo);
 bool polygon_is_packed(Geometry *plgn, Geometry *mplgn);
 void own_rings(Geometry *geo);
-void parse_wkb_data(Geometry *g, const char *p, size_t num_geoms= 0);
+void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms = 0);
 
 /**
    Geometry vector class.
    @tparam T Vector element type.
  */
-template<typename T>
-class Geometry_vector : public Inplace_vector<T>
-{
-typedef Inplace_vector<T> base;
-public:
-  Geometry_vector() :base(PSI_INSTRUMENT_ME)
-  {}
-};
+template <typename T>
+class Geometry_vector : public Inplace_vector<T> {
+  typedef Inplace_vector<T> base;
 
+ public:
+  Geometry_vector() : base(PSI_INSTRUMENT_ME) {}
+};
 
 /// @ingroup containers
 //@{
@@ -2143,218 +1923,175 @@ public:
 /// @tparam T Vector element type
 //
 template <typename T>
-class Gis_wkb_vector : public Geometry
-{
-private:
+class Gis_wkb_vector : public Geometry {
+ private:
   typedef Gis_wkb_vector<T> self;
   typedef ptrdiff_t index_type;
   typedef Geometry base;
-public:
+
+ public:
   typedef T value_type;
   typedef Gis_wkb_vector_const_iterator<T> const_iterator;
   typedef Gis_wkb_vector_iterator<T> iterator;
   typedef size_t size_type;
-  typedef const T* const_pointer;
-  typedef const T& const_reference;
-  typedef T* pointer;
-  typedef T& reference;
+  typedef const T *const_pointer;
+  typedef const T &const_reference;
+  typedef T *pointer;
+  typedef T &reference;
   typedef ptrdiff_t difference_type;
 
   typedef Geometry_vector<T> Geo_vector;
 
-private:
-
+ private:
   /**
     The geometry vector of this geometry object's components, each of which
     is an object of Geometry or its children classes where appropriate.
    */
   Geo_vector *m_geo_vect;
-public:
+
+ public:
   /////////////////////////////////////////////////////////////////////
   // Begin functions that create iterators.
   /// @name Iterator functions.
   //@{
-  iterator begin()
-  {
+  iterator begin() {
     set_bg_adapter(true);
     iterator itr(m_geo_vect ? 0 : -1, this);
     return itr;
   }
-
 
   /// @brief Create a const iterator.
   ///
   /// The created iterator can only be used to read its referenced
   /// data element. Can only be called when using a const reference to
   /// the contaienr object.
-  const_iterator begin()const
-  {
+  const_iterator begin() const {
     set_bg_adapter(true);
     const_iterator itr(m_geo_vect ? 0 : -1, this);
     return itr;
   }
 
-
   /// @brief Create an open boundary iterator.
   /// @return Returns an invalid iterator denoting the position after
   /// the last valid element of the container.
-  iterator end()
-  {
+  iterator end() {
     iterator itr(m_geo_vect ? m_geo_vect->size() : -1, this);
     return itr;
   }
 
-
   /// @brief Create an open boundary iterator.
   /// @return Returns an invalid const iterator denoting the position
   /// after the last valid element of the container.
-  const_iterator end() const
-  {
+  const_iterator end() const {
     const_iterator itr(m_geo_vect ? m_geo_vect->size() : -1, this);
     return itr;
   }
-
 
   //@} // iterator_funcs
   /////////////////////////////////////////////////////////////////////
 
   /// @brief Get container size.
   /// @return Return the number of elements in this container.
-  size_type size() const
-  {
+  size_type size() const {
     set_bg_adapter(true);
     return m_geo_vect ? m_geo_vect->size() : 0;
   }
 
+  bool empty() const { return size() == 0; }
 
-  bool empty() const
-  {
-    return size() == 0;
-  }
-
-
-  const_reference back() const
-  {
+  const_reference back() const {
     set_bg_adapter(true);
     /*
       Carefully crafted to avoid invoking any copy constructor using pointer
       cast. Also true for the two operator[] member functions below.
      */
-    const Geometry *p= &(get_geo_vect()->back());
-    return *((const T*)p);
+    const Geometry *p = &(get_geo_vect()->back());
+    return *((const T *)p);
   }
 
-
-  reference back()
-  {
+  reference back() {
     set_bg_adapter(true);
     /*
       Carefully crafted to avoid invoking any copy constructor using pointer
       cast. Also true for the two operator[] member functions below.
      */
-    Geometry *p= &(get_geo_vect()->back());
-    return *((T*)p);
+    Geometry *p = &(get_geo_vect()->back());
+    return *((T *)p);
   }
 
-
-  const_reference operator[](index_type i) const
-  {
+  const_reference operator[](index_type i) const {
     DBUG_ASSERT(!(i < 0 || i >= (index_type)size()));
     set_bg_adapter(true);
 
-    const Geometry *p= &((*m_geo_vect)[i]);
-    return *((const T*)p);
+    const Geometry *p = &((*m_geo_vect)[i]);
+    return *((const T *)p);
   }
 
-
-  reference operator[](index_type i)
-  {
+  reference operator[](index_type i) {
     DBUG_ASSERT(!(i < 0 || i >= (index_type)size()));
     set_bg_adapter(true);
 
-    Geometry *p= &((*m_geo_vect)[i]);
-    return *((T*)p);
+    Geometry *p = &((*m_geo_vect)[i]);
+    return *((T *)p);
   }
 
-
-  Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
-                 srid_t srid, bool is_bg_adapter= true);
+  Gis_wkb_vector(const void *ptr, size_t nbytes, const Geometry::Flags_t &flags,
+                 gis::srid_t srid, bool is_bg_adapter = true);
   Gis_wkb_vector(const self &v);
 
-  Gis_wkb_vector() :Geometry()
-  {
-    m_geo_vect= NULL;
-  }
+  Gis_wkb_vector() : Geometry() { m_geo_vect = NULL; }
 
+  ~Gis_wkb_vector() {
+  /*
+    See ~Geometry() for why we do try-catch like this.
 
-  ~Gis_wkb_vector()
-  {
-    /*
-      See ~Geometry() for why we do try-catch like this.
-
-      Note that although ~Inplace_vector() calls std::vector member functions,
-      all of them have no-throw guarantees, so this function won't throw any
-      exception now. We do so nonetheless for potential mis-use of exceptions
-      in futher code.
-    */
+    Note that although ~Inplace_vector() calls std::vector member functions,
+    all of them have no-throw guarantees, so this function won't throw any
+    exception now. We do so nonetheless for potential mis-use of exceptions
+    in futher code.
+  */
 #if !defined(DBUG_OFF)
-    try
-    {
+    try {
 #endif
-      if (!is_bg_adapter())
-        return;
-      if (m_geo_vect != NULL)
-        clear_wkb_data();
+      if (!is_bg_adapter()) return;
+      if (m_geo_vect != NULL) clear_wkb_data();
 #if !defined(DBUG_OFF)
-    }
-    catch (...)
-    {
+    } catch (...) {
       // Should never throw exceptions in destructor.
       DBUG_ASSERT(false);
     }
 #endif
   }
 
-
-  void clear_wkb_data()
-  {
+  void clear_wkb_data() {
     delete m_geo_vect;
-    m_geo_vect= NULL;
+    m_geo_vect = NULL;
   }
-
 
   self &operator=(const self &rhs);
-  virtual void shallow_push(const Geometry *g);
 
-  Geo_vector *get_geo_vect(bool create_if_null= false)
-  {
-    if (m_geo_vect == NULL && create_if_null)
-      m_geo_vect= new Geo_vector;
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  void shallow_push(const Geometry *g) override SUPPRESS_UBSAN;
+
+  Geo_vector *get_geo_vect(bool create_if_null = false) {
+    if (m_geo_vect == NULL && create_if_null) m_geo_vect = new Geo_vector;
     return m_geo_vect;
   }
 
+  Geo_vector *get_geo_vect() const { return m_geo_vect; }
 
-  Geo_vector *get_geo_vect() const
-  {
-    return m_geo_vect;
-  }
-
-  void set_geo_vect(Geo_vector *ptr)
-  {
-    m_geo_vect= ptr;
-  }
+  void set_geo_vect(Geo_vector *ptr) { m_geo_vect = ptr; }
 
   /*
     Give up ownership of m_ptr and m_geo_vect, so as not to release them when
     this object is destroyed, to be called when the two member is shallow
     assigned to another geometry object.
    */
-  virtual void donate_data()
-  {
+  void donate_data() override {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr= NULL;
-    m_geo_vect= NULL;
+    m_ptr = NULL;
+    m_geo_vect = NULL;
   }
 
   void set_ptr(void *ptr, size_t len);
@@ -2364,56 +2101,69 @@ public:
   void push_back(const T &val);
   void resize(size_t sz);
   void reassemble();
-private:
+  bool reverse_coordinates() override {
+    DBUG_ASSERT(false);
+    return true;
+  }
+  bool validate_coordinate_range(double, bool *, bool *, double *) override {
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return true;        /* purecov: inspected */
+  }
+
+ private:
   typedef Gis_wkb_vector<Gis_point> Linestring;
   typedef Gis_wkb_vector<Linestring> Multi_linestrings;
 
-}; // Gis_wkb_vector
+};  // Gis_wkb_vector
 
 //@} //
 
 /***************************** LineString *******************************/
 
-class Gis_line_string: public Gis_wkb_vector<Gis_point>
-{
+class Gis_line_string : public Gis_wkb_vector<Gis_point> {
   // Maximum number of points in LineString that can fit into String
-  static const uint32 max_n_points=
-    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
-    POINT_DATA_SIZE;
-public:
-  virtual ~Gis_line_string() {}               /* Remove gcc warning */
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int geom_length(double *len) const;
-  int is_closed(int *closed) const;
-  int num_points(uint32 *n_points) const;
-  int start_point(String *point) const;
-  int end_point(String *point) const;
-  int point_n(uint32 n, String *result) const;
-  uint32 feature_dimension() const { return 1; }
-  const Class_info *get_class_info() const;
+  static const uint32 max_n_points =
+      (uint32)(UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+      POINT_DATA_SIZE;
+
+ public:
+  virtual ~Gis_line_string() {} /* Remove gcc warning */
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int geom_length(double *len) const override;
+  int is_closed(int *closed) const override;
+  int num_points(uint32 *n_points) const override;
+  int start_point(String *point) const override;
+  int end_point(String *point) const override;
+  int point_n(uint32 n, String *result) const override;
+  uint32 feature_dimension() const override { return 1; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_line_string self;
 
-  explicit Gis_line_string(bool is_bg_adapter= true)
-    :base_type(NULL, 0, Flags_t(wkb_linestring, 0), default_srid, is_bg_adapter)
-  {}
+  explicit Gis_line_string(bool is_bg_adapter = true)
+      : base_type(NULL, 0, Flags_t(wkb_linestring, 0), default_srid,
+                  is_bg_adapter) {}
 
-  Gis_line_string(const void *wkb, size_t len,
-                  const Flags_t &flags, srid_t srid)
-    :base_type(wkb, len, flags, srid, true)
-  {
+  Gis_line_string(const void *wkb, size_t len, const Flags_t &flags,
+                  gis::srid_t srid)
+      : base_type(wkb, len, flags, srid, true) {
     set_geotype(wkb_linestring);
   }
 
-  Gis_line_string(const self &ls) :base_type(ls)
-  {}
+  Gis_line_string(const self &ls) : base_type(ls) {}
 };
 
 /*
@@ -2422,30 +2172,25 @@ public:
   ring_tag as type.
   If directly use Gis_line_string, we would have defined that tag twice.
 */
-class Gis_polygon_ring : public Gis_wkb_vector<Gis_point>
-{
-public:
+class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
+ public:
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
 
-  virtual ~Gis_polygon_ring()
-  {}
-  Gis_polygon_ring(const void *wkb, size_t nbytes,
-                   const Flags_t &flags, srid_t srid)
-    :base(wkb, nbytes, flags, srid, true)
-  {
+  virtual ~Gis_polygon_ring() {}
+  Gis_polygon_ring(const void *wkb, size_t nbytes, const Flags_t &flags,
+                   gis::srid_t srid)
+      : base(wkb, nbytes, flags, srid, true) {
     set_geotype(wkb_linestring);
   }
 
   // Coordinate data type, closed-ness and direction will never change, thus no
   // need for the template version of copy constructor.
-  Gis_polygon_ring(const self &r) :base(r)
-  {}
+  Gis_polygon_ring(const self &r) : base(r) {}
 
   Gis_polygon_ring()
-    :base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0),
-          default_srid, true)
-  {}
+      : base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0), default_srid,
+             true) {}
 
   bool set_ring_order(bool want_ccw);
 };
@@ -2453,80 +2198,74 @@ public:
 /***************************** Polygon *******************************/
 
 // For internal use only, only convert types, don't create rings.
-inline Gis_polygon_ring *outer_ring(const Geometry *g)
-{
+inline Gis_polygon_ring *outer_ring(const Geometry *g) {
   DBUG_ASSERT(g->get_geotype() == Geometry::wkb_polygon);
-  Gis_polygon_ring *out= static_cast<Gis_polygon_ring *>(g->get_ptr());
+  Gis_polygon_ring *out = static_cast<Gis_polygon_ring *>(g->get_ptr());
 
   return out;
 }
 
-
-class Gis_polygon: public Geometry
-{
-public:
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int exterior_ring(String *result) const;
-  int num_interior_ring(uint32 *n_int_rings) const;
-  int interior_ring_n(uint32 num, String *result) const;
-  uint32 feature_dimension() const { return 2; }
-  const Class_info *get_class_info() const;
-
+class Gis_polygon : public Geometry {
+ public:
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int exterior_ring(String *result) const override;
+  int num_interior_ring(uint32 *n_int_rings) const override;
+  int interior_ring_n(uint32 num, String *result) const override;
+  uint32 feature_dimension() const override { return 2; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_polygon self;
   typedef Gis_polygon_ring ring_type;
   typedef Gis_wkb_vector<ring_type> inner_container_type;
 
-  ring_type &outer() const
-  {
+  ring_type &outer() const {
     DBUG_ASSERT(!polygon_is_wkb_form());
     set_bg_adapter(true);
     // Create outer ring if none, although read only, calller may just want
     // to traverse the outer ring if any.
-    if (this->m_ptr == NULL)
-      const_cast<self *>(this)->make_rings();
+    if (this->m_ptr == NULL) const_cast<self *>(this)->make_rings();
 
     return *(outer_ring(this));
   }
 
-  inner_container_type &inners() const
-  {
+  inner_container_type &inners() const {
     DBUG_ASSERT(!polygon_is_wkb_form());
     set_bg_adapter(true);
     // Create inner rings if none, although read only, calller may just want
     // to traverse the inner rings if any.
-    if (m_inn_rings == NULL)
-      const_cast<self *>(this)->make_rings();
+    if (m_inn_rings == NULL) const_cast<self *>(this)->make_rings();
 
     return *m_inn_rings;
   }
 
   /// Clears outer and inner rings.
-  void clear()
-  {
+  void clear() {
     set_bg_adapter(true);
     outer_ring(this)->clear();
-    if (m_inn_rings)
-      m_inn_rings->clear();
+    if (m_inn_rings) m_inn_rings->clear();
   }
 
-  Gis_polygon(const void *wkb, size_t nbytes,
-              const Flags_t &flags, srid_t srid);
-
+  Gis_polygon(const void *wkb, size_t nbytes, const Flags_t &flags,
+              gis::srid_t srid);
 
   /*
     We can't require boost geometry use the 'polygon' in any particular way,
     so we have to default to true.
   */
-  explicit Gis_polygon(bool isbgadapter= true)
-    :Geometry(NULL, 0, Flags_t(Geometry::wkb_polygon, 0), default_srid)
-  {
-    m_inn_rings= NULL;
+  explicit Gis_polygon(bool isbgadapter = true)
+      : Geometry(NULL, 0, Flags_t(Geometry::wkb_polygon, 0), default_srid) {
+    m_inn_rings = NULL;
     set_bg_adapter(isbgadapter);
   }
 
@@ -2542,188 +2281,192 @@ public:
     this object is destroyed, to be called when the two member is shallow
     assigned to another geometry object.
    */
-  void donate_data()
-  {
+  void donate_data() override {
     set_ownmem(false);
     set_nbytes(0);
-    m_ptr= NULL;
-    m_inn_rings= NULL;
+    m_ptr = NULL;
+    m_inn_rings = NULL;
   }
 
   bool set_polygon_ring_order();
 
-  inner_container_type *inner_rings() const
-  {
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  inner_container_type *inner_rings() const SUPPRESS_UBSAN {
     return m_inn_rings;
   }
 
-  void set_inner_rings(inner_container_type *inns)
-  {
-    m_inn_rings= inns;
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  void set_inner_rings(inner_container_type *inns) SUPPRESS_UBSAN {
+    m_inn_rings = inns;
   }
 
-private:
+ private:
   inner_container_type *m_inn_rings;
 
   void make_rings();
 };
 
-
 /***************************** MultiPoint *******************************/
 
-class Gis_multi_point: public Gis_wkb_vector<Gis_point>
-{
+class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
   // Maximum number of points in MultiPoint that can fit into String
-  static const uint32 max_n_points=
-    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
-    (WKB_HEADER_SIZE + POINT_DATA_SIZE);
-public:
-  virtual ~Gis_multi_point() {}               /* Remove gcc warning */
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int num_geometries(uint32 *num) const;
-  int geometry_n(uint32 num, String *result) const;
-  uint32 feature_dimension() const { return 0; }
-  const Class_info *get_class_info() const;
+  static const uint32 max_n_points =
+      (uint32)(UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+      (WKB_HEADER_SIZE + POINT_DATA_SIZE);
 
+ public:
+  virtual ~Gis_multi_point() {} /* Remove gcc warning */
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int num_geometries(uint32 *num) const override;
+  int geometry_n(uint32 num, String *result) const override;
+  uint32 feature_dimension() const override { return 0; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_multi_point self;
 
-  explicit Gis_multi_point(bool is_bg_adapter= true)
-    :base_type(NULL, 0, Flags_t(wkb_multipoint, 0),
-               default_srid, is_bg_adapter)
-  {}
+  explicit Gis_multi_point(bool is_bg_adapter = true)
+      : base_type(NULL, 0, Flags_t(wkb_multipoint, 0), default_srid,
+                  is_bg_adapter) {}
 
-  Gis_multi_point(const void *ptr, size_t nbytes,
-                  const Flags_t &flags, srid_t srid)
-    :base_type(ptr, nbytes, flags, srid, true)
-  {
+  Gis_multi_point(const void *ptr, size_t nbytes, const Flags_t &flags,
+                  gis::srid_t srid)
+      : base_type(ptr, nbytes, flags, srid, true) {
     set_geotype(wkb_multipoint);
   }
 
-  Gis_multi_point(const self &mpts) :base_type(mpts)
-  {}
+  Gis_multi_point(const self &mpts) : base_type(mpts) {}
 };
-
 
 /***************************** MultiLineString *******************************/
 
-class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string>
-{
-public:
-  virtual ~Gis_multi_line_string() {}         /* Remove gcc warning */
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int num_geometries(uint32 *num) const;
-  int geometry_n(uint32 num, String *result) const;
-  int geom_length(double *len) const;
-  int is_closed(int *closed) const;
-  uint32 feature_dimension() const { return 1; }
-  const Class_info *get_class_info() const;
+class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
+ public:
+  virtual ~Gis_multi_line_string() {} /* Remove gcc warning */
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int num_geometries(uint32 *num) const override;
+  int geometry_n(uint32 num, String *result) const override;
+  int geom_length(double *len) const override;
+  int is_closed(int *closed) const override;
+  uint32 feature_dimension() const override { return 1; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
   typedef Gis_wkb_vector<Gis_line_string> base;
   typedef Gis_multi_line_string self;
 
-  explicit Gis_multi_line_string(bool is_bg_adapter= true)
-    :base(NULL, 0, Flags_t(wkb_multilinestring, 0),
-          default_srid, is_bg_adapter)
-  {}
+  explicit Gis_multi_line_string(bool is_bg_adapter = true)
+      : base(NULL, 0, Flags_t(wkb_multilinestring, 0), default_srid,
+             is_bg_adapter) {}
 
-  Gis_multi_line_string(const void *ptr, size_t nbytes,
-                        const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, Flags_t(wkb_multilinestring, nbytes), srid, true)
-  {
+  Gis_multi_line_string(const void *ptr, size_t nbytes, const Flags_t &,
+                        gis::srid_t srid)
+      : base(ptr, nbytes, Flags_t(wkb_multilinestring, nbytes), srid, true) {
     set_geotype(wkb_multilinestring);
   }
 
-  Gis_multi_line_string(const self &mls) :base(mls)
-  {}
+  Gis_multi_line_string(const self &mls) : base(mls) {}
 };
-
 
 /***************************** MultiPolygon *******************************/
 
-class Gis_multi_polygon: public Gis_wkb_vector<Gis_polygon>
-{
-public:
-  virtual ~Gis_multi_polygon() {}             /* Remove gcc warning */
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int num_geometries(uint32 *num) const;
-  int geometry_n(uint32 num, String *result) const;
-  uint32 feature_dimension() const { return 2; }
-  const Class_info *get_class_info() const;
-
+class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
+ public:
+  virtual ~Gis_multi_polygon() {} /* Remove gcc warning */
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int num_geometries(uint32 *num) const override;
+  int geometry_n(uint32 num, String *result) const override;
+  uint32 feature_dimension() const override { return 2; }
+  const Class_info *get_class_info() const override;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_multi_polygon self;
   typedef Gis_wkb_vector<Gis_polygon> base;
 
-  explicit Gis_multi_polygon(bool is_bg_adapter= true)
-    :base(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid, is_bg_adapter)
-  {}
+  explicit Gis_multi_polygon(bool is_bg_adapter = true)
+      : base(NULL, 0, Flags_t(wkb_multipolygon, 0), default_srid,
+             is_bg_adapter) {}
 
-  Gis_multi_polygon(const void *ptr, size_t nbytes,
-                    const Flags_t &flags, srid_t srid)
-    :base(ptr, nbytes, flags, srid, true)
-  {
+  Gis_multi_polygon(const void *ptr, size_t nbytes, const Flags_t &flags,
+                    gis::srid_t srid)
+      : base(ptr, nbytes, flags, srid, true) {
     set_geotype(wkb_multipolygon);
   }
 
-  Gis_multi_polygon(const self &mpl) :base(mpl)
-  {}
+  Gis_multi_polygon(const self &mpl) : base(mpl) {}
 };
 
-
 /*********************** GeometryCollection *******************************/
-class Gis_geometry_collection: public Geometry
-{
-private:
+class Gis_geometry_collection : public Geometry {
+ private:
   static Geometry *scan_header_and_create(wkb_parser *wkb,
                                           Geometry_buffer *buffer);
-public:
+
+ public:
   Gis_geometry_collection()
-    :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)
-  {
+      : Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid) {
     set_bg_adapter(false);
   }
   Gis_geometry_collection(Geometry *geo, String *gcbuf);
-  Gis_geometry_collection(srid_t srid, wkbType gtype, const String *gbuf,
+  Gis_geometry_collection(gis::srid_t srid, wkbType gtype, const String *gbuf,
                           String *gcbuf);
-  virtual ~Gis_geometry_collection() {}       /* Remove gcc warning */
+  virtual ~Gis_geometry_collection() {} /* Remove gcc warning */
   bool append_geometry(const Geometry *geo, String *gcbuf);
-  bool append_geometry(srid_t srid, wkbType gtype,
-                       const String *gbuf, String *gcbuf);
-  uint32 get_data_size() const;
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
-  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
-  int num_geometries(uint32 *num) const;
-  int geometry_n(uint32 num, String *result) const;
-  bool dimension(uint32 *dim, wkb_parser *wkb) const;
-  uint32 feature_dimension() const
-  {
+  bool append_geometry(gis::srid_t srid, wkbType gtype, const String *gbuf,
+                       String *gcbuf);
+  uint32 get_data_size() const override;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+                     String *res) override;
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
+  int num_geometries(uint32 *num) const override;
+  int geometry_n(uint32 num, String *result) const override;
+  bool dimension(uint32 *dim, wkb_parser *wkb) const override;
+  uint32 feature_dimension() const override {
     DBUG_ASSERT(0);
     return 0;
   }
-  const Class_info *get_class_info() const;
+  bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
+  const Class_info *get_class_info() const override;
 };
-
 
 /**
   Gis_polygon objects and Gis_wkb_vector<> objects are of same size, and
@@ -2731,13 +2474,12 @@ public:
   inside a Geometry_buffer object, unless used as boost geometry adapter,
   in which case the object may simply placed on stack or new'ed on heap.
  */
-struct Geometry_buffer : public
-  my_aligned_storage<sizeof(Gis_polygon), MY_ALIGNOF(Gis_polygon)> {};
+struct Geometry_buffer
+    : public my_aligned_storage<sizeof(Gis_polygon), MY_ALIGNOF(Gis_polygon)> {
+};
 
-
-class WKB_scanner_event_handler
-{
-public:
+class WKB_scanner_event_handler {
+ public:
   virtual ~WKB_scanner_event_handler() {}
 
   /**
@@ -2751,28 +2493,23 @@ public:
                    byte string.
    */
   virtual void on_wkb_start(Geometry::wkbByteOrder bo,
-                            Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)= 0;
+                            Geometry::wkbType geotype, const void *wkb,
+                            uint32 len, bool has_hdr) = 0;
 
   /**
     Notified when scanner sees the end of a geometry WKB.
     @param wkb the position of the first byte after the WKB byte string which
                the scanner just scanned.
    */
-  virtual void on_wkb_end(const void *wkb)= 0;
+  virtual void on_wkb_end(const void *wkb) = 0;
 
   /*
     Called after each on_wkb_start/end call, if returns false, wkb_scanner
     will stop scanning.
    */
-  virtual bool continue_scan() const
-  {
-    return true;
-  }
+  virtual bool continue_scan() const { return true; }
 };
 
-
-const char*
-wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
-            WKB_scanner_event_handler *handler);
+const char *wkb_scanner(const char *wkb, uint32 *len, uint32 geotype,
+                        bool has_hdr, WKB_scanner_event_handler *handler);
 #endif

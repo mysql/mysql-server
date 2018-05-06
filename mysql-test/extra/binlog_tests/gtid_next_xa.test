@@ -36,9 +36,9 @@
 #     This is GTID setting related error.
 #     Normally, this script expects all statements to succeed.  For
 #     those cases, the caller must set $error=0. But if $gtid1 is a
-#     GTID and $gtid2 is none, ER_GTID_NEXT_TYPE_UNDEFINED_GROUP is
+#     GTID and $gtid2 is none, ER_GTID_NEXT_TYPE_UNDEFINED_GTID is
 #     expected for the second transaction.  Then the caller must set
-#     $error= ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+#     $error= ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 #
 #   $one_phase
 #     Option to commit XA in one phase

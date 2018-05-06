@@ -3,11 +3,17 @@
 # (see corresponding cnf file)
 #
 # Check if ipv6 is available. If not, server is crashing (see BUG#48915).
+
+--let $extra_root_users_for_slave= 1
+--source include/add_extra_root_users.inc
+
+--connection default
 --disable_query_log
 --disable_abort_on_error
 connect (checkcon123456789,::1,root,,test,$SLAVE_MYPORT);
 if($mysql_errno)
 {
+--source include/remove_extra_root_users.inc
 skip wrong IP for slave;
 }
 connection default;
@@ -62,3 +68,6 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 # clean up
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
+
+--connection master
+--source include/remove_extra_root_users.inc

@@ -1,8 +1,6 @@
 # We currently only have shm support on windows, so in order
 # to optimize things we skip this test on all other platforms
 --source include/windows.inc
---source include/not_embedded.inc
---source include/have_shm.inc
 
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
 

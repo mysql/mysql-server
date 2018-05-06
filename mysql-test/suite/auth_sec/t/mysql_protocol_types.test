@@ -7,10 +7,9 @@
 # Author  : Lalit Choudhary                                                           #
 #######################################################################################
 
-# Embedded server doesn't support external clients.
---source include/not_embedded.inc
 # Windows does not have SOCKET connection protocol support.
 --source include/not_windows.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

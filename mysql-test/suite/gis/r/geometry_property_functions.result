@@ -15,17 +15,11 @@ INSERT INTO gis_point VALUES
 (104, ST_POINTFROMTEXT('POINT(1 1)')),
 (105, ST_POINTFROMTEXT('POINT(-1 1)'));
 INSERT INTO gis_point VALUES
-(106, ST_POINTFROMWKB(POINT(0,0))),
-(107, ST_POINTFROMWKB(POINT(10,0))),
-(108, ST_POINTFROMWKB(POINT(0,10))),
-(109, ST_POINTFROMWKB(POINT(-10,0))),
-(110, ST_POINTFROMWKB(POINT(0,-10)));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(106, ST_POINTFROMWKB(ST_ASWKB(POINT(0,0)))),
+(107, ST_POINTFROMWKB(ST_ASWKB(POINT(10,0)))),
+(108, ST_POINTFROMWKB(ST_ASWKB(POINT(0,10)))),
+(109, ST_POINTFROMWKB(ST_ASWKB(POINT(-10,0)))),
+(110, ST_POINTFROMWKB(ST_ASWKB(POINT(0,-10))));
 INSERT INTO gis_point VALUES
 (111, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1 1)')))),
 (112, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 1e308)')))),
@@ -73,21 +67,13 @@ INSERT INTO gis_linestring VALUES
 (205, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,12 12,24 24)')),
 (206, ST_LINESTRINGFROMTEXT('LINESTRING(0 0,50 50,100 100)'));
 INSERT INTO gis_linestring VALUES
-(207, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5)))),
-(208, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,10)))),
-(209, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(207, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+(208, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,10))))),
+(209, ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)))));
 INSERT INTO gis_linestring VALUES
-(210, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(5,5)))),
-(211, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(-50,-50), POINT(10,-10)))),
-(212, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(1e308,1e308), POINT(1e308,-1e308))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(210, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5))))),
+(211, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(-50,-50), POINT(10,-10))))),
+(212, ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(1e308,1e308), POINT(1e308,-1e308)))));
 INSERT INTO gis_linestring VALUES
 (213, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1e308 1e308,1e308 -1e308)')))),
 (214, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9)')))),
@@ -133,23 +119,15 @@ INSERT INTO gis_polygon VALUES
 (305, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))')),
 (306, ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'));
 INSERT INTO gis_polygon VALUES
-(307, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))),
-(308, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0))))),
-(309, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(307, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))),
+(308, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)))))),
+(309, ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
 INSERT INTO gis_polygon VALUES
-(310, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))),
-(311, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,15), POINT(15,15), POINT(15,10), POINT(10,10))))),
-(312, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
-LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14)))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(310, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))),
+(311, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,15), POINT(15,15), POINT(15,10), POINT(10,10)))))),
+(312, ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
+LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))));
 INSERT INTO gis_polygon VALUES
 (313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))')))),
 (314, ST_POLYFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 10,10 -10,10 0))')))),
@@ -195,21 +173,13 @@ INSERT INTO gis_multi_point VALUES
 (405, ST_MULTIPOINTFROMTEXT('MULTIPOINT(0 0,1e308 1e308)')),
 (406, ST_MULTIPOINTFROMTEXT('MULTIPOINT(1e308 1e308,1e308 -1e308,-1e308 1e308,-1e308 -1e308)'));
 INSERT INTO gis_multi_point VALUES
-(407, ST_MPOINTFROMWKB(MULTIPOINT(POINT(0,0)))),
-(408, ST_MPOINTFROMWKB(MULTIPOINT(POINT(0,0), POINT(10,10)))),
-(409, ST_MPOINTFROMWKB(MULTIPOINT(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(407, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0))))),
+(408, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(10,10))))),
+(409, ST_MPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)))));
 INSERT INTO gis_multi_point VALUES
-(410, ST_MULTIPOINTFROMWKB(MULTIPOINT(POINT(0,0)))),
-(411, ST_MULTIPOINTFROMWKB(MULTIPOINT(POINT(0,0), POINT(1e308,1e308)))),
-(412, ST_MULTIPOINTFROMWKB(MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308), POINT(-1e308,-1e308))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(410, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0))))),
+(411, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(0,0), POINT(1e308,1e308))))),
+(412, ST_MULTIPOINTFROMWKB(ST_ASWKB(MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308), POINT(-1e308,-1e308)))));
 INSERT INTO gis_multi_point VALUES
 (413, ST_MPOINTFROMWKB(ST_ASWKB(ST_MPOINTFROMTEXT('MULTIPOINT(0 0)')))),
 (414, ST_MPOINTFROMWKB(ST_ASWKB(ST_MPOINTFROMTEXT('MULTIPOINT(0 0,1e308 1e308,-1e308 -1e308)')))),
@@ -255,23 +225,15 @@ INSERT INTO gis_multi_linestring VALUES
 (505, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1e308 1e308,-1e308 -1e308))')),
 (506, ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1e308 1e308,-1e308 -1e308),(1e308 -1e308,-1e308 1e308))'));
 INSERT INTO gis_multi_linestring VALUES
-(507, ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2))))),
-(508, ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24))))),
-(509, ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)),
-LINESTRING(POINT(6,6), POINT(8,8), POINT(10,10)))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(507, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2)))))),
+(508, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)))))),
+(509, ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)),
+LINESTRING(POINT(6,6), POINT(8,8), POINT(10,10))))));
 INSERT INTO gis_multi_linestring VALUES
-(510, ST_MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4))))),
-(511, ST_MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1,1), POINT(2,2))))),
-(512, ST_MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)),
-LINESTRING(POINT(36,36), POINT(48,48), POINT(50,50)))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(510, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)))))),
+(511, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1,1), POINT(2,2)))))),
+(512, ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)),
+LINESTRING(POINT(36,36), POINT(48,48), POINT(50,50))))));
 INSERT INTO gis_multi_linestring VALUES
 (513, ST_MLINEFROMWKB(ST_ASWKB(ST_MLINEFROMTEXT('MULTILINESTRING((0 0,10 10),(0 10,10 0))')))),
 (514, ST_MLINEFROMWKB(ST_ASWKB(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,10 10,-10 10,0 0),(0 0,-10 -10,10 -10,0 0))')))),
@@ -317,26 +279,18 @@ INSERT INTO gis_multi_polygon VALUES
 (605, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,0 -2,-2 -2, 0 0)))')),
 (606, ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,5 5,-5 5,0 0)),((0 0,-5 -5,5 -5,0 0)))'));
 INSERT INTO gis_multi_polygon VALUES
-(607, ST_MPOLYFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0)))))),
-(608, ST_MPOLYFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))),
-(609, ST_MPOLYFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))),
-POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+(607, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))))))),
+(608, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+(609, ST_MPOLYFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))),
+POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
 INSERT INTO gis_multi_polygon VALUES
-(610, ST_MULTIPOLYGONFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))),
-(611, ST_MULTIPOLYGONFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(10,10), POINT(20,10), POINT(20,20), POINT(10,20), POINT(10,10)),
-LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14)))))),
-(612, ST_MULTIPOLYGONFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
+(610, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))))),
+(611, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(10,10), POINT(20,10), POINT(20,20), POINT(10,20), POINT(10,10)),
+LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))))))),
+(612, ST_MULTIPOLYGONFROMWKB(ST_ASWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
-POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))));
 INSERT INTO gis_multi_polygon VALUES
 (613, ST_MPOLYFROMWKB(ST_ASWKB(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,5 5,5 -5,0 0)),((0 0,-5 5,-5 -5,0 0)))')))),
 (614, ST_MPOLYFROMWKB(ST_ASWKB(ST_MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((0 0,10 10,-10 10,0 0)),((0 0,-10 -10,10 -10,0 0)))')))),
@@ -387,38 +341,30 @@ INSERT INTO gis_geometrycollection VALUES
                                                            'MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),'
                                                                         '((0 0,-10 0,-10 -10,0 -10,0 0))))'));
 INSERT INTO gis_geometrycollection VALUES
-(707, ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(POINT(0,0)))),
-(708, ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(POINT(0,0),
+(707, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0))))),
+(708, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))),
-(709, ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(0,0), POINT(5,5), POINT(10,10)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+(709, ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(0,0), POINT(5,5), POINT(10,10)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
-POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0)))))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
 INSERT INTO gis_geometrycollection VALUES
-(710, ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,0),
-LINESTRING(POINT(0,0), POINT(100,100))))),
-(711, ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(10,10),
+(710, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0),
+LINESTRING(POINT(0,0), POINT(100,100)))))),
+(711, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(10,10),
 LINESTRING(POINT(10,10), POINT(12,12), POINT(14,14), POINT(16,16), POINT(18,18)),
 POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))),
-(712, ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(10,10), POINT(15,15), POINT(20,20)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))),
+(712, ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(MULTIPOINT(POINT(10,10), POINT(15,15), POINT(20,20)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
-POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0)))))));
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0))))))));
 INSERT INTO gis_geometrycollection VALUES
 (713, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
                                                                 'POINT(0 0),'
@@ -471,7 +417,7 @@ fid	ST_ASTEXT(g)
 712	GEOMETRYCOLLECTION(MULTIPOINT((10 10),(15 15),(20 20)),MULTILINESTRING((0 0,2 2,4 4,6 6,8 8),(10 10,5 5,0 10)),MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-10 0,-10 -10,0 0))))
 713	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),MULTILINESTRING((0 0,10 10),(0 10,10 0)),MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))
 714	GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)),GEOMETRYCOLLECTION(LINESTRING(0 0,10 10)),GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0))),GEOMETRYCOLLECTION(MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10))),GEOMETRYCOLLECTION(MULTILINESTRING((0 0,10 10),(0 10,10 0))),GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))))
-715	GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POINT(0 0),GEOMETRYCOLLECTION(LINESTRING(0 0,10 10),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())),GEOMETRYCOLLECTION(),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),MULTILINESTRING((0 0,10 10),(0 10,10 0)),MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))
+715	GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY,POINT(0 0),GEOMETRYCOLLECTION(LINESTRING(0 0,10 10),GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)),GEOMETRYCOLLECTION EMPTY,GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOINT((0 0),(2 2),(4 4),(6 6),(8 8),(10 10)),MULTILINESTRING((0 0,10 10),(0 10,10 0)),MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))
 # Checking the integrity of the above insert statements 
 SELECT COUNT(g) FROM gis_geometrycollection;
 COUNT(g)
@@ -497,21 +443,15 @@ ST_X(ST_POINTFROMTEXT('POINT(10 10)'))
 SELECT ST_X(ST_POINTFROMTEXT('POINT(1e308 1e308)'));
 ST_X(ST_POINTFROMTEXT('POINT(1e308 1e308)'))
 1e308
-SELECT ST_X(ST_POINTFROMWKB(POINT(1.1111,-1.1111)));
-ST_X(ST_POINTFROMWKB(POINT(1.1111,-1.1111)))
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))));
+ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))))
 1.1111
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_X(ST_POINTFROMWKB(POINT(10.0000,10.0000)));
-ST_X(ST_POINTFROMWKB(POINT(10.0000,10.0000)))
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))));
+ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))))
 10
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_X(ST_POINTFROMWKB(POINT(-1e308,-1e308)));
-ST_X(ST_POINTFROMWKB(POINT(-1e308,-1e308)))
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))));
+ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))))
 -1e308
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_Y(point)
 #====================================================================================
@@ -524,21 +464,15 @@ ST_Y(ST_POINTFROMTEXT('POINT(10 10)'))
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(1e308 1e308)'));
 ST_Y(ST_POINTFROMTEXT('POINT(1e308 1e308)'))
 1e308
-SELECT ST_Y(ST_POINTFROMWKB(POINT(1.1111,-1.1111)));
-ST_Y(ST_POINTFROMWKB(POINT(1.1111,-1.1111)))
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))));
+ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1.1111,-1.1111))))
 -1.1111
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_Y(ST_POINTFROMWKB(POINT(10.0000,10.0000)));
-ST_Y(ST_POINTFROMWKB(POINT(10.0000,10.0000)))
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))));
+ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(10.0000,10.0000))))
 10
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_Y(ST_POINTFROMWKB(POINT(-1e308,-1e308)));
-ST_Y(ST_POINTFROMWKB(POINT(-1e308,-1e308)))
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))));
+ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(-1e308,-1e308))))
 -1e308
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_ISCLOSED(linestring)
 #====================================================================================
@@ -554,61 +488,51 @@ ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0)'))
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
 ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
 1
-SELECT ST_ISCLOSED(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10))));
-ST_ISCLOSED(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10))))
+SELECT ST_ISCLOSED(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)))));
+ST_ISCLOSED(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10), POINT(0,0))));
-ST_ISCLOSED(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10), POINT(0,0))))
+SELECT ST_ISCLOSED(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10), POINT(0,0)))));
+ST_ISCLOSED(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10), POINT(0,0)))))
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))));
-ST_ISCLOSED(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))
+SELECT ST_ISCLOSED(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))));
+ST_ISCLOSED(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))));
-ST_ISCLOSED(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))
+SELECT ST_ISCLOSED(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
+ST_ISCLOSED(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_LENGTH(linestring)
 #====================================================================================
 SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,2 2)'));
 ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,2 2)'))
 2.8284271247461903
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,1e308 1e308)'));
-ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0 0,1e308 1e308)'))
-NULL
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1e308 1e308,-1e308 -1e308)'));
-ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1e308 1e308,-1e308 -1e308)'))
-NULL
 SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
 ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
 20
-SELECT ST_LENGTH(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))));
-ST_LENGTH(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))
+SELECT ST_LENGTH(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))));
+ST_LENGTH(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))))
 28.284271247461902
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))));
-ST_LENGTH(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))
+SELECT ST_LENGTH(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))));
+ST_LENGTH(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))))
 24.14213562373095
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))));
-ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))
+SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))));
+ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))))
 38.2842712474619
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))));
-ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))
+SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
+ST_LENGTH(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
 48.2842712474619
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+# Cartesian SRS
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 2000));
+ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 2000))
+14.142135623730951
+# Geographic SRS
+# Different result on Windows and Linux, need to use ROUND
+SELECT ROUND(ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 4326)),7);
+ROUND(ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10, 10 10)', 4326)),7)
+1565127.2549243
+# Infinite Linestring
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('LINESTRING(1e-300 0,1e300 0,1e-300 0,1e300 0,1e-300 0, 1e300 0, 1e-300 0)', 0));
+ERROR 22003: Length value is out of range in 'st_length'
 #====================================================================================
 # ST_NUMPOINTS(linestring)
 #====================================================================================
@@ -624,26 +548,18 @@ ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(1e308 1e308,-1e308 -1e308)'))
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
 ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'))
 5
-SELECT ST_NUMPOINTS(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))));
-ST_NUMPOINTS(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))
+SELECT ST_NUMPOINTS(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))));
+ST_NUMPOINTS(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))))
 3
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMPOINTS(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))));
-ST_NUMPOINTS(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))
+SELECT ST_NUMPOINTS(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))));
+ST_NUMPOINTS(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))))
 4
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))));
-ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))
+SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))));
+ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))))
 4
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))));
-ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))
+SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
+ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
 5
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_STARTPOINT(linestring)
 #====================================================================================
@@ -659,26 +575,18 @@ POINT(1e308 1e308)
 SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
 ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
 POINT(0 0)
-SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))));
-ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))))
+SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))));
+ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))));
-ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))))
+SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))));
+ST_ASTEXT(ST_STARTPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))));
-ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))))
+SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))));
+ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
-ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
+SELECT ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))));
+ST_ASTEXT(ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_ENDPOINT(linestring)
 #====================================================================================
@@ -694,26 +602,18 @@ POINT(-1e308 -1e308)
 SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')));
 ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)')))
 POINT(0 0)
-SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))));
-ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))))
+SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))));
+ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))))))
 POINT(-10 -10)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))));
-ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))))
+SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))));
+ST_ASTEXT(ST_ENDPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))));
-ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))))
+SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))));
+ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))))))
 POINT(0 10)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))));
-ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))))
+SELECT ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))));
+ST_ASTEXT(ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))))))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_POINTN(linestring, number)
 #====================================================================================
@@ -729,26 +629,18 @@ POINT(-1e308 -1e308)
 SELECT ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'), 3));
 ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'), 3))
 POINT(5 5)
-SELECT ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))), 3));
-ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10))), 3))
+SELECT ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))), 3));
+ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-10,-10)))), 3))
 POINT(-10 -10)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))), 4));
-ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0))), 4))
+SELECT ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))), 4));
+ST_ASTEXT(ST_POINTN(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(5,5), POINT(-5,5), POINT(0,0)))), 4))
 POINT(0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))), 4));
-ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10))), 4))
+SELECT ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))), 4));
+ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10)))), 4))
 POINT(0 10)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))), 4));
-ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0))), 4))
+SELECT ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))), 4));
+ST_ASTEXT(ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(10,10), POINT(10,0), POINT(0,10), POINT(0,0)))), 4))
 POINT(0 10)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_NUMINTERIORRINGS(polygon)
 #====================================================================================
@@ -764,32 +656,24 @@ ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))'));
 ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))'))
 0
-SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))));
-ST_NUMINTERIORRINGS(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))
+SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))));
+ST_NUMINTERIORRINGS(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))));
-ST_NUMINTERIORRINGS(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))
+SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
+ST_NUMINTERIORRINGS(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8)))));
-ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8))))));
+ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8)
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), PO
 2
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))));
-ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))))
+SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))));
+ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_EXTERIORRING(polygon)
 #====================================================================================
@@ -805,32 +689,24 @@ LINESTRING(0 0,0 10,10 10,10 0,0 0)
 SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))')));
 ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))')))
 LINESTRING(0 0,0 -115,-115 -115,-115 0,0 0)
-SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))));
-ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))))
+SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))));
+ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))))))
 LINESTRING(0 0,0 5,5 5,0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
-ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))
+SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))));
+ST_ASTEXT(ST_EXTERIORRING(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))))
 LINESTRING(0 0,0 15,15 15,15 0,0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8))))));
-ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8)))))));
+ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,1
 LINESTRING(0 0,0 15,15 15,15 0,0 0)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))));
-ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))))
+SELECT ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))))));
+ST_ASTEXT(ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))))))
 LINESTRING(110 110,110 5,5 5,110 110)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_INTERIORRINGN(polygon, number)
 #====================================================================================
@@ -846,32 +722,24 @@ LINESTRING(6 6,6 8,8 8,8 6,6 6)
 SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))'), 1));
 ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 -115,-115 -115,-115 0,0 0))'), 1))
 NULL
-SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))), 1));
-ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0)))), 1))
+SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))), 1));
+ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))), 1))
 NULL
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))), 1));
-ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))), 1))
+SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))), 1));
+ST_ASTEXT(ST_INTERIORRINGN(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))), 1))
 LINESTRING(4 4,4 6,6 6,6 4,4 4)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8)))), 2));
-ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POINT(10,8), POINT(8,8))))), 2));
+ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)),
-LINESTRING(POINT(8,8), POINT(8,10), POINT(10,10), POIN
+LINESTRING(POINT(8,8), POINT(8,10), POINT(10,
 LINESTRING(8 8,8 10,10 10,10 8,8 8)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))), 2));
-ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110)))), 2))
+SELECT ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))), 2));
+ST_ASTEXT(ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(110,110), POINT(110,5), POINT(5,5), POINT(110,110))))), 2))
 NULL
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_ISCLOSED(multilinestring)
 #====================================================================================
@@ -887,28 +755,20 @@ ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,10 10,0 0),(0 0,-10
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0,0 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))'));
 ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0,0 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))'))
 0
-SELECT ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0)))));
-ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0)))))
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))));
+ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))))
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308)))));
-ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308)))))
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308))))));
+ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308))))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10), POINT(0,0)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308), POINT(1e308,1e308)))));
-ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10), POINT(0,0)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308), POINT(1e308,1e308)))))
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10), POINT(0,0)),
+LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308), POINT(1e308,1e308))))));
+ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10), POINT(0,0)),
+LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308), POINT(1e308,1e308))))))
 1
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10)))));
-ST_ISCLOSED(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10)))))
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))));
+ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_LENGTH(multilinestring)
 #====================================================================================
@@ -924,28 +784,20 @@ ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,10 10,0 0),(0 0,-10 -
 SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))'));
 ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))'))
 20
-SELECT ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0)))));
-ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0)))))
+SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))));
+ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(0,0))))))
 0
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308)))));
-ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e308,1e308)))))
-NULL
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308)))));
-ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(10,10)),
-LINESTRING(POINT(1e308,1e308), POINT(-1e308,-1e308)))))
-NULL
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10)))));
-ST_LENGTH(ST_MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10)))))
+SELECT ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))));
+ST_LENGTH(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1e10,1e10))))))
 14142135623.730951
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+# Cartesian SRS
+SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 2000));
+ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 2000))
+20
+# Geographic SRS
+SELECT ROUND(ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 4326)), 7);
+ROUND(ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((0 0,5 0),(0 0,0 5),(0 0,-5 0),(0 0,0 -5))', 4326)), 7)
+2218953.5324189
 #====================================================================================
 # ST_NUMGEOMETRIES(geometrycollection)
 #====================================================================================
@@ -983,35 +835,30 @@ ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION('
                                                             'GEOMETRYCOLLECTION(),'
                             
 4
-SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(10,10),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))));
-ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))));
+ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(10,10),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(
+LINESTRING(POINT(4,4
 3
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
 POLYGON(LINESTRING(POINT(2,2), POINT(2,13), POINT(13,13), POINT(13,2), POINT(2,2)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))));
-ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))));
+ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
-LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
-MULT
+LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10
 3
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
@@ -1020,15 +867,13 @@ MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
-POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2)))))));
-ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2))))))));
+ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6)
+LINESTRING(POINT(4,4), P
 6
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_GEOMETRYN(geometrycollection, number)
 #====================================================================================
@@ -1065,35 +910,31 @@ ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION('
                                                             'POINT(0 0),'
                                                             'GEOMETRYCOLLECTION(),'
                       
-GEOMETRYCOLLECTION()
-SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(10,10),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))), 2));
-ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))), 2));
+ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(10,10),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), 
+LINESTRING(POI
 LINESTRING(0 0,2 2,4 4,6 6,8 8)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
 POLYGON(LINESTRING(POINT(2,2), POINT(2,13), POINT(13,13), POINT(13,2), POINT(2,2)),
-LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))), 3));
-ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(
+LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))))))), 3));
+ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
-LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10)))
+LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-
 MULTIPOLYGON(((0 0,0 1,1 1,1 0,0 0)),((2 2,2 13,13 13,13 2,2 2),(4 4,4 6,6 6,6 4,4 4)))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
@@ -1102,16 +943,14 @@ MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
-POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2)))))), 2));
-ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2))))))), 2));
+ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POIN
+LINESTRING(POINT(4
 LINESTRING(0 0,2 2,4 4,6 6)
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
@@ -1120,16 +959,14 @@ MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
-POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2)))))), 5));
-ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2))))))), 5));
+ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POIN
+LINESTRING(POINT(4
 MULTILINESTRING((0 0,5 5,10 10),(0 0,-5 -5,-10 -10))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
-SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+SELECT ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
@@ -1138,15 +975,13 @@ MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308)),
 MULTILINESTRING(LINESTRING(POINT(0,0), POINT(5,5), POINT(10,10)),
 LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,-10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(1,0), POINT(0,0))),
-POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2)))))), 6));
-ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(
+POLYGON(LINESTRING(POINT(2,2), POINT(2,3), POINT(3,3), POINT(3,2), POINT(2,2))))))), 6));
+ST_ASTEXT(ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(
 POINT(0,0),
 LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6)),
 POLYGON(LINESTRING(POINT(0,0), POINT(10,0), POINT(10,10), POINT(0,10), POINT(0,0)),
-LINESTRING(POINT(4,4), POIN
+LINESTRING(POINT(4
 MULTIPOLYGON(((0 0,0 1,1 1,1 0,0 0)),((2 2,2 3,3 3,3 2,2 2)))
-Warnings:
-Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 #====================================================================================
 # ST_X(point)
 #====================================================================================
@@ -1157,29 +992,27 @@ ST_X(NULL)
 NULL
 SELECT ST_X(ST_POINTFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMWKB'
-SELECT ST_X(ST_POINTFROMWKB(POINT(0,0)), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_X'
 SELECT ST_X(ST_POINTFROMWKB(NULL));
 ST_X(ST_POINTFROMWKB(NULL))
 NULL
-SELECT ST_X(ST_POINTFROMWKB(POINT(1)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')))' at line 1
-SELECT ST_X(ST_POINTFROMWKB(POINT(1,a)));
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1))));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))))' at line 1
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(1,a))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_X(ST_POINTFROMWKB(POINT(a,b)));
+SELECT ST_X(ST_POINTFROMWKB(ST_ASWKB(POINT(a,b))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_X(ST_POINTFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMTEXT'
 SELECT ST_X(ST_POINTFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(a 1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT(1 1,2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_X(ST_POINTFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 #====================================================================================
@@ -1192,29 +1025,27 @@ ST_Y(NULL)
 NULL
 SELECT ST_Y(ST_POINTFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMWKB'
-SELECT ST_Y(ST_POINTFROMWKB(POINT(0,0)), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_Y'
 SELECT ST_Y(ST_POINTFROMWKB(NULL));
 ST_Y(ST_POINTFROMWKB(NULL))
 NULL
-SELECT ST_Y(ST_POINTFROMWKB(POINT(1)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')))' at line 1
-SELECT ST_Y(ST_POINTFROMWKB(POINT(1,a)));
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1))));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))))' at line 1
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(1,a))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_Y(ST_POINTFROMWKB(POINT(a,b)));
+SELECT ST_Y(ST_POINTFROMWKB(ST_ASWKB(POINT(a,b))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_Y(ST_POINTFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTFROMTEXT'
 SELECT ST_Y(ST_POINTFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(a 1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT(1 1,2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_pointfromtext.
 SELECT ST_Y(ST_POINTFROMTEXT('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 #====================================================================================
@@ -1236,46 +1067,16 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ISCLOSED(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
-#====================================================================================
-# ST_LENGTH(linestring)
-#====================================================================================
-SELECT ST_LENGTH();
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(NULL);
-ST_LENGTH(NULL)
-NULL
-SELECT ST_LENGTH(ST_LINEFROMWKB());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMWKB'
-SELECT ST_LENGTH(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2))), 2);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,2))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,b))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_LINEFROMTEXT());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
-SELECT ST_LENGTH(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
 # ST_NUMPOINTS(linestring)
@@ -1287,24 +1088,24 @@ ST_NUMPOINTS(NULL)
 NULL
 SELECT ST_NUMPOINTS(ST_LINEFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMWKB'
-SELECT ST_NUMPOINTS(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2))), 2);
+SELECT ST_NUMPOINTS(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2)))), 2);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_NUMPOINTS'
-SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,2))));
+SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,2)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,b))));
+SELECT ST_NUMPOINTS(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,b)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_NUMPOINTS(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1317,24 +1118,24 @@ ST_STARTPOINT(NULL)
 NULL
 SELECT ST_STARTPOINT(ST_LINEFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMWKB'
-SELECT ST_STARTPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2))), 2);
+SELECT ST_STARTPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2)))), 2);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_STARTPOINT'
-SELECT ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,2))));
+SELECT ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,2)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_STARTPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,b))));
+SELECT ST_STARTPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,b)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_STARTPOINT(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1347,24 +1148,24 @@ ST_ENDPOINT(NULL)
 NULL
 SELECT ST_ENDPOINT(ST_LINEFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMWKB'
-SELECT ST_ENDPOINT(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2))), 2);
+SELECT ST_ENDPOINT(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2)))), 2);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_ENDPOINT'
-SELECT ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,2))));
+SELECT ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,2)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_ENDPOINT(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,b))));
+SELECT ST_ENDPOINT(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,b)))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_LINEFROMTEXT'
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('LINESTRING()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINEFROMTEXT('LINESTRING(0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_ENDPOINT(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'))' at line 1
 #====================================================================================
@@ -1379,28 +1180,28 @@ ST_POINTN(NULL, 1)
 NULL
 SELECT ST_POINTN(ST_LINEFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN'
-SELECT ST_POINTN(ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2))));
+SELECT ST_POINTN(ST_LINEFROMWKB(ST_ASWKB(LINESTRING(POINT(0,0), POINT(2,2)))));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN'
-SELECT ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,2))), 1);
+SELECT ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,2)))), 1);
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(a,1), POINT(2,b))), 1);
+SELECT ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(a,1), POINT(2,b)))), 1);
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_POINTN(ST_LINESTRINGFROMWKB(LINESTRING(POINT(1,1), POINT(2,2))), a);
+SELECT ST_POINTN(ST_LINESTRINGFROMWKB(ST_ASWKB(LINESTRING(POINT(1,1), POINT(2,2)))), a);
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_POINTN(ST_LINEFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN'
 SELECT ST_POINTN(ST_LINEFROMTEXT('NULL'));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POINTN'
 SELECT ST_POINTN(ST_LINEFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINEFROMTEXT('LINESTRING()'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINEFROMTEXT('LINESTRING(0)'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linefromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(1 2,1'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(1 1,2 2,a 3)'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_linestringfromtext.
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING('!' 0,1 1,2 2)'), 6);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,1 1,2 2)'), 6)' at line 1
 SELECT ST_POINTN(ST_LINESTRINGFROMTEXT('LINESTRING(0 0,1 1,2 2)'), 0);
@@ -1433,26 +1234,26 @@ ST_NUMINTERIORRINGS(NULL)
 NULL
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMWKB'
-SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0)))), 1);
+SELECT ST_NUMINTERIORRINGS(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0))))), 1);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_NUMINTERIORRINGS'
-SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0)))));
+SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0)))));
+SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYFROMTEXT('POLYGON((0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_NUMINTERIORRINGS(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'))' at line 1
 #====================================================================================
@@ -1465,26 +1266,26 @@ ST_EXTERIORRING(NULL)
 NULL
 SELECT ST_EXTERIORRING(ST_POLYFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMWKB'
-SELECT ST_EXTERIORRING(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0)))), 1);
+SELECT ST_EXTERIORRING(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0))))), 1);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_EXTERIORRING'
-SELECT ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0)))));
+SELECT ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_EXTERIORRING(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0)))));
+SELECT ST_EXTERIORRING(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('POLYGON(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYFROMTEXT('POLYGON((0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_EXTERIORRING(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'))' at line 1
 #====================================================================================
@@ -1499,28 +1300,28 @@ ST_INTERIORRINGN(NULL, 1)
 NULL
 SELECT ST_INTERIORRINGN(ST_POLYFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_INTERIORRINGN'
-SELECT ST_INTERIORRINGN(ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0)))));
+SELECT ST_INTERIORRINGN(ST_POLYFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0))))));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_INTERIORRINGN'
-SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0)))), 1);
+SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(0,1), POINT(1,1), POINT(0,0))))), 1);
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0)))), 1);
+SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(a,0), POINT(b,1), POINT(1,1), POINT(0,0))))), 1);
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0)))), a);
+SELECT ST_INTERIORRINGN(ST_POLYGONFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,1), POINT(1,1), POINT(0,0))))), a);
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_INTERIORRINGN'
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('POLYGON(())'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYFROMTEXT('POLYGON((0))'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polyfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 4,4 4,0 0)'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,2 0,2))'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 5,5 a,0 0))'), 6);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_polygonfromtext.
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON(('!' 0,2 0,2 4,0 0))'), 7);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,2 0,2 4,0 0))'), 7)' at line 1
 SELECT ST_INTERIORRINGN(ST_POLYGONFROMTEXT('POLYGON((0 0,0 2,2 2,0 0))'), 0);
@@ -1546,28 +1347,28 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_ISCLOS
 SELECT ST_ISCLOSED(NULL);
 ST_ISCLOSED(NULL)
 NULL
-SELECT ST_ISCLOSED(MLINEFROMWKB());
-ERROR 42000: Incorrect parameter count in the call to native function 'MLINEFROMWKB'
-SELECT ST_ISCLOSED(MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)))), 1);
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB());
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_MLINEFROMWKB'
+SELECT ST_ISCLOSED(ST_MLINEFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2))))), 1);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_ISCLOSED'
-SELECT ST_ISCLOSED(MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(a,4)))));
+SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(a,4))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_ISCLOSED(MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)), LINESTRING(POINT(3,3), POINT(a,4)))));
+SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMWKB(ST_ASWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)), LINESTRING(POINT(3,3), POINT(a,4))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT ST_ISCLOSED(ST_POLYFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2),()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2,3 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_mlinefromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 3,3 3,4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 2,3 3,4 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_multilinestringfromtext.
 SELECT ST_ISCLOSED(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING(('!' 1,2 2,3 3,4 4'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 1,2 2,3 3,4 4'))' at line 1
 #====================================================================================
@@ -1578,30 +1379,6 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH
 SELECT ST_LENGTH(NULL);
 ST_LENGTH(NULL)
 NULL
-SELECT ST_LENGTH(MLINEFROMWKB());
-ERROR 42000: Incorrect parameter count in the call to native function 'MLINEFROMWKB'
-SELECT ST_LENGTH(MLINEFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)))), 1);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_LENGTH'
-SELECT ST_LENGTH(MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(a,4)))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(MULTILINESTRINGFROMWKB(MULTILINESTRING(LINESTRING(POINT(1,1), POINT(2,2)), LINESTRING(POINT(3,3), POINT(a,4)))));
-ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_LENGTH(ST_POLYFROMTEXT());
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_POLYFROMTEXT'
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING(())'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2),()'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MLINEFROMTEXT('MULTILINESTRING((1 1,2 2,3 3)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 3,3 3,4))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING((1 1,2 2,3 3,4 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT ST_LENGTH(ST_MULTILINESTRINGFROMTEXT('MULTILINESTRING(('!' 1,2 2,3 3,4 4'));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 1,2 2,3 3,4 4'))' at line 1
 #====================================================================================
 # ST_NUMGEOMETRIES(geometrycollection)
 #====================================================================================
@@ -1612,26 +1389,26 @@ ST_NUMGEOMETRIES(NULL)
 NULL
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMCOLLFROMWKB'
-SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2)))), 1);
+SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2))))), 1);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_NUMGEOMETRIES'
-SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(a,1), POINT(2,2)))));
+SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(a,1), POINT(2,2))))));
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,b), LINESTRING(POINT(a,1), POINT(2,2)))));
+SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,b), LINESTRING(POINT(a,1), POINT(2,2))))));
 ERROR 42S22: Unknown column 'b' in 'field list'
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMCOLLFROMTEXT'
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('NULL'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(1)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2)'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometrycollectionfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 a))'));
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometrycollectionfromtext.
 SELECT ST_NUMGEOMETRIES(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 '!'))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!'))'))' at line 1
 #====================================================================================
@@ -1646,28 +1423,28 @@ ST_GEOMETRYN(NULL, 1)
 NULL
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMWKB());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMETRYN'
-SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2)))));
+SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2))))));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMETRYN'
-SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(a,1), POINT(2,2)))), 1);
+SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(a,1), POINT(2,2))))), 1);
 ERROR 42S22: Unknown column 'a' in 'field list'
-SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,b), LINESTRING(POINT(a,1), POINT(2,2)))), 1);
+SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,b), LINESTRING(POINT(a,1), POINT(2,2))))), 1);
 ERROR 42S22: Unknown column 'b' in 'field list'
-SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2)))), A);
+SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(0,0), LINESTRING(POINT(1,1), POINT(2,2))))), A);
 ERROR 42S22: Unknown column 'A' in 'field list'
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_GEOMETRYN'
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('NULL'), 1);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(1)'), 2);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0))'), 3);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2)'), 4);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2))'), 5);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 a))'), 6);
-ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geomcollfromtext.
 SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 '!'))'), 7);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!'))'), 7)' at line 1
 SELECT ST_GEOMETRYN(ST_GEOMETRYCOLLECTIONFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(1 1,2 2))'), 0);
@@ -1812,7 +1589,7 @@ ST_ASTEXT(ST_GEOMETRYN(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
                                                             'POINT(0 0),'
                                                             'LINESTRING(0 0,2 2,4 4,6 6,8 8,10 10),'
                
-GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION EMPTY)
 # Dropping the created procedure
 DROP PROCEDURE geom_coll_attri;
 # Checking Point and MultiPoint attributes within a trigger
@@ -2009,3 +1786,101 @@ DROP TABLE gis_multi_point;
 DROP TABLE gis_multi_linestring;
 DROP TABLE gis_multi_polygon;
 DROP TABLE gis_geometrycollection;
+#
+# WL#8579 Spatial Reference Systems
+#
+# SRID 0 (should pass)
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 0));
+ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 0))
+NULL
+# Projected SRS (should pass)
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
+ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
+NULL
+# Geographic SRS (should pass)
+SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
+ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
+NULL
+#
+# WL#8579 Spatial Reference Systems
+# GIS functions that do not depend on any SRS
+#
+CREATE PROCEDURE geom_prop_func(IN srid INT)
+BEGIN
+SET @pt_geom = ST_GEOMFROMTEXT('POINT(10 20)', srid);
+SET @ln_geom = ST_GEOMFROMTEXT('LINESTRING(0 0,2 2,4 4,6 6,8 8, 10 10)', srid);
+SET @py_geom = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))', srid);
+SET @gc_geom = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                       'POINT(0 0),'
+                                       'LINESTRING(0 0,10 10),'
+                                       'POLYGON((0 0,0 10,10 10,10 0, 0 0)),'
+                                       'MULTIPOINT(0 0,2 2,4 4,6 6,8 8,10 10),'
+                                       'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
+                                       'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))', srid);
+# GIS geometry property functions that do not depend on any SRS
+DO ST_SRID(@pt_geom);
+DO ST_ISEMPTY(@pt_geom);
+DO ST_DIMENSION(@pt_geom);
+DO ST_GEOMETRYTYPE(@pt_geom);
+DO ST_X(@pt_geom);
+DO ST_Y(@pt_geom);
+DO ST_ISCLOSED(@ln_geom);
+DO ST_NUMPOINTS(@ln_geom);
+DO ST_ENDPOINT(@ln_geom);
+DO ST_POINTN(@ln_geom, 2);
+DO ST_STARTPOINT(@ln_geom);
+DO ST_NUMINTERIORRING(@py_geom);
+DO ST_NUMINTERIORRINGS(@py_geom);
+DO ST_EXTERIORRING(@py_geom);
+DO ST_INTERIORRINGN(@py_geom, 1);
+DO ST_NUMGEOMETRIES(@gc_geom);
+DO ST_GEOMETRYN(@gc_geom, 1);
+END |
+# SRID 0 (should pass)
+CALL geom_prop_func(0);
+# Projected SRS (should pass)
+CALL geom_prop_func(2000);
+# Geographic SRS (should fail)
+CALL geom_prop_func(4326);
+ERROR 22S00: st_isclosed(LINESTRING) has not been implemented for geographic spatial reference systems.
+DROP PROCEDURE geom_prop_func;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_ISCLOSED(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_LENGTH(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_SRID(ST_GEOMFROMTEXT('LINESTRING(0 0, 10 10)'), 10);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_DIMENSION(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_ENDPOINT(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_EXTERIORRING(x'0A0000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_GEOMETRYN(x'0A000000010700000001000000010100000000000000000000000000000000000000', 1);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_INTERIORRINGN(x'0A0000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000', 1);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_ISEMPTY(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_NUMGEOMETRIES(x'0A000000010700000001000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_NUMINTERIORRING(x'0A0000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_NUMINTERIORRINGS(x'0A0000000103000000010000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_NUMPOINTS(x'0A000000010400000001000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_NUMPOINTS(x'0A000000010400000001000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_POINTN(x'0A000000010400000001000000010100000000000000000000000000000000000000', 1);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_STARTPOINT(x'0A0000000102000000020000000000000000000000000000000000000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_X(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_Y(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

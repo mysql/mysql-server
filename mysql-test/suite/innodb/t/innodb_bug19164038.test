@@ -1,12 +1,11 @@
 # BUG#19164038 - INNODB: CLUSTER INDEX BUILD BY BULK LOAD WHEN SKIP SORT SHOULD RELEASE LATCHES
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 # Create table with geometry column
 CREATE TABLE t1 (
 	c1 INT AUTO_INCREMENT,
-	c2 GEOMETRY NOT NULL,
+	c2 GEOMETRY NOT NULL SRID 0,
 	PRIMARY KEY(c1),
 	SPATIAL INDEX(c2)
 ) ENGINE=INNODB;

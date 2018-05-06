@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -98,12 +105,11 @@ bool NdbInfo::load_hardcoded_tables(void)
 
 bool NdbInfo::addColumn(Uint32 tableId, Column aCol)
 {
-  Table * table = NULL;
-
   // Find the table with correct id
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  Table * table = nullptr;
+  for (auto &key_and_value : m_tables)
   {
-    table = m_tables.value(i);
+    table = key_and_value.second.get();
     if (table->m_table_id == tableId)
       break;
   }
@@ -279,9 +285,9 @@ bool NdbInfo::load_tables()
   // Consistency check the loaded table list
   {
     Vector<Uint32> m_table_ids;
-    for (size_t i = 0; i < m_tables.entries(); i++)
+    for (auto &key_and_value : m_tables)
     {
-      Table* const tab = m_tables.value(i);
+      Table* const tab = key_and_value.second.get();
       // Table id should be valid
       assert(tab->m_table_id != Table::InvalidTableId);
       // Save the table id at position "table id" in
@@ -381,17 +387,13 @@ void NdbInfo::releaseScanOperation(NdbInfoScanOperation* scan_op) const
 void NdbInfo::flush_tables()
 {
   // Delete all but the hardcoded tables
-  while (m_tables.entries() > NUM_HARDCODED_TABLES)
+  for (auto it = m_tables.begin(); it != m_tables.end(); )
   {
-    for (size_t i = 0; i<m_tables.entries(); i++)
-    {
-      Table * tab = m_tables.value(i);
-      if (! (tab == m_tables_table || tab == m_columns_table))
-      {
-        m_tables.remove(i);
-        break;
-      }
-    }
+    Table * tab = it->second.get();
+    if (! (tab == m_tables_table || tab == m_columns_table))
+      it = m_tables.erase(it);
+    else
+      ++it;
   }
   assert(m_tables.entries() == NUM_HARDCODED_TABLES);
 }
@@ -460,9 +462,9 @@ NdbInfo::openTable(Uint32 tableId,
 
   // Find the table with correct id
   const Table* table = NULL;
-  for (size_t i = 0; i < m_tables.entries(); i++)
+  for (auto &key_and_value : m_tables)
   {
-    const Table* tmp = m_tables.value(i);
+    const Table* tmp = key_and_value.second.get();
     if (tmp->m_table_id == tableId)
     {
       table = tmp;

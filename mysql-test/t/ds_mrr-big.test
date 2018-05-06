@@ -6,6 +6,8 @@
 --source include/big_test.inc
 # As per discussion with Olav, skipping this test from valgrind runs
 --source include/not_valgrind.inc
+# Times out with ubsan
+--source include/not_ubsan.inc
 
 --echo #
 --echo # Bug 12365385 STRAIGHT_JOIN QUERY QUICKLY EXHAUSTS SYSTEM+VIRT. 
@@ -32,7 +34,7 @@ CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t1
   SELECT a, 1, 'MySQL' FROM thousand;
@@ -42,7 +44,7 @@ CREATE TABLE t2 (
   c1 VARCHAR(10) NOT NULL,
   c2 varchar(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t2
   SELECT a, 'MySQL', 'MySQL' FROM ten;
@@ -51,7 +53,7 @@ CREATE TABLE t3 (
   pk INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t3
   SELECT a, 'MySQL' FROM hundred;
@@ -63,7 +65,7 @@ CREATE TABLE t4 (
   c3 varchar(10) NOT NULL,
   PRIMARY KEY (pk),
   KEY k1 (c1_key)
-);
+) charset latin1;
 
 # t4 is empty
 
@@ -71,7 +73,7 @@ CREATE TABLE t5 (
   pk INTEGER NOT NULL,
   c1 VARCHAR(10) NOT NULL,
   PRIMARY KEY (pk)
-);
+) charset latin1;
 
 INSERT INTO t5
   SELECT a, 'MySQL' FROM ten;

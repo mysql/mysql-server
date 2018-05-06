@@ -7,8 +7,6 @@ SET default_storage_engine=ndb;
 
 === NDB -> NDB ===
 
---- Doing pre test cleanup --- 
-DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, 
 b1 INT, 
@@ -34,7 +32,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -49,7 +47,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -126,7 +124,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -141,12 +139,24 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
 START SLAVE;
 --- Populate t1 with data ---
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
 --- Select from t1 on master --- 
 select *
 from t1 
@@ -234,7 +244,7 @@ t1	CREATE TABLE `t1` (
   `u` int(11) DEFAULT NULL,
   `v` char(16) DEFAULT 'default',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 SELECT * 
 FROM t1
 ORDER BY id;
@@ -333,7 +343,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -396,5 +406,5 @@ COUNT(*)
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t1;
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 include/rpl_end.inc

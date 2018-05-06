@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo # Setting general_log to initial state empty
 TRUNCATE TABLE mysql.general_log;
@@ -21,11 +20,15 @@ SET GLOBAL general_log = 'ON';
 --replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
 eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
 --sleep 5
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
 
 --echo ##########################################
 --echo # Stop plugin
 --echo ##########################################
 UNINSTALL PLUGIN test_session_in_thd;
+let $wait_condition=SELECT count(*)=0 FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+--source include/wait_condition.inc
+
 
 --echo ##########################################
 --echo # Plugin log
@@ -43,9 +46,9 @@ CREATE TABLE t1 (c1 TEXT, c2 TEXT);
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_session_general.log' INTO TABLE t1;
 --enable_warnings
 
-SELECT count(c1) FROM t1 WHERE c2 LIKE '%Connect%';
-SELECT count(c1) FROM t1 WHERE c2 LIKE '%Quit%';
-SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
+SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
 
 --echo ##########################################
 --echo # Cleanup
@@ -63,3 +66,4 @@ TRUNCATE TABLE mysql.general_log;
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log = @old_general_log;
 SET GLOBAL general_log_file = @old_general_log_file;
+

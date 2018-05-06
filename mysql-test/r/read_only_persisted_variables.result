@@ -1,0 +1,382 @@
+#
+# WL#9787: Allow SET PERSIST to set read-only variables too
+#
+# Syntax check for PERSIST_ONLY option
+SET PERSIST_ONLY autocommit=0;
+SET @@persist_only.max_execution_time=60000;
+SET PERSIST_ONLY max_user_connections=10, PERSIST_ONLY max_allowed_packet=8388608;
+SET @@persist_only.max_user_connections=10, PERSIST_ONLY max_allowed_packet=8388608;
+SET @@persist_only.max_user_connections=10, @@persist_only.max_allowed_packet=8388608;
+SET PERSIST_ONLY max_user_connections=10, @@persist_only.max_allowed_packet=8388608;
+# Syntax check for PERSIST_ONLY/GLOBAL combination
+SET PERSIST_ONLY autocommit=0, GLOBAL max_user_connections=10;
+SET @@persist_only.autocommit=0, @@global.max_user_connections=10;
+SET GLOBAL autocommit=0, PERSIST_ONLY max_user_connections=10;
+SET @@global.autocommit=0, @@persist_only.max_user_connections=10;
+# Syntax check for PERSIST_ONLY/SESSION combination
+SET PERSIST_ONLY autocommit=0, SESSION auto_increment_offset=10;
+SET @@persist_only.autocommit=0, @@session.auto_increment_offset=10;
+SET SESSION auto_increment_offset=20, PERSIST_ONLY max_user_connections=10;
+SET @@session.auto_increment_offset=20, @@persist_only.max_user_connections=10;
+SET PERSIST_ONLY autocommit=0, auto_increment_offset=10;
+SET autocommit=0, PERSIST_ONLY auto_increment_offset=10;
+# Syntax check for PERSIST_ONLY/SESSION/GLOBAL combination
+SET PERSIST_ONLY autocommit=0, SESSION auto_increment_offset=10, GLOBAL max_error_count= 128;
+SET SESSION autocommit=0, GLOBAL auto_increment_offset=10, PERSIST_ONLY max_allowed_packet=8388608;
+SET GLOBAL autocommit=0, PERSIST_ONLY auto_increment_offset=10, SESSION max_error_count= 128;
+SET @@persist_only.autocommit=0, @@session.auto_increment_offset=10, @@global.max_allowed_packet=8388608;
+SET @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist_only.max_allowed_packet=8388608;
+SET @@global.autocommit=0, @@persist_only.auto_increment_offset=10, @@session.max_error_count= 128;
+# Syntax check for PERSIST_ONLY/SESSION/GLOBAL/PERSIST combination
+SET PERSIST_ONLY autocommit=0, SESSION auto_increment_offset=10, GLOBAL max_error_count= 128, PERSIST sort_buffer_size=256000;
+SET SESSION autocommit=0, GLOBAL auto_increment_offset=10, PERSIST_ONLY max_allowed_packet=8388608, PERSIST max_heap_table_size=999424;
+SET GLOBAL autocommit=0, PERSIST long_query_time= 8.3452, PERSIST_ONLY auto_increment_offset=10, SESSION max_error_count= 128;
+SET @@persist_only.autocommit=0, @@session.auto_increment_offset=10, @@persist.max_execution_time=44000, @@global.max_allowed_packet=8388608;
+SET @@persist.concurrent_insert=ALWAYS, @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist_only.max_allowed_packet=8388608;
+SET @@global.autocommit=0, @@persist_only.auto_increment_offset=10, @@persist.autocommit=0, @@session.max_error_count= 128;
+# Restart server
+CALL mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+# default values
+SELECT @@global.binlog_gtid_simple_recovery;
+@@global.binlog_gtid_simple_recovery
+1
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+SET PERSIST_ONLY binlog_gtid_simple_recovery=0;
+# Restart server and check for values
+# after restart
+SELECT @@global.binlog_gtid_simple_recovery;
+@@global.binlog_gtid_simple_recovery
+0
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+binlog_gtid_simple_recovery
+# default values
+SELECT @@global.ft_query_expansion_limit;
+@@global.ft_query_expansion_limit
+20
+SELECT @@global.innodb_api_enable_mdl;
+@@global.innodb_api_enable_mdl
+0
+# persist few more static variables
+SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+binlog_gtid_simple_recovery
+# Restart server
+# after restart
+SELECT @@global.ft_query_expansion_limit;
+@@global.ft_query_expansion_limit
+80
+SELECT @@global.innodb_api_enable_mdl;
+@@global.innodb_api_enable_mdl
+1
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+binlog_gtid_simple_recovery
+ft_query_expansion_limit
+innodb_api_enable_mdl
+# modify existing persisted variables
+SET PERSIST_ONLY ft_query_expansion_limit=200, innodb_api_enable_mdl=0;
+# Restart server
+# after restart
+SELECT @@global.ft_query_expansion_limit;
+@@global.ft_query_expansion_limit
+200
+SELECT @@global.innodb_api_enable_mdl;
+@@global.innodb_api_enable_mdl
+0
+SELECT @@global.innodb_read_io_threads;
+@@global.innodb_read_io_threads
+4
+SELECT @@global.innodb_log_file_size;
+@@global.innodb_log_file_size
+5242880
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
+1
+# modify existing persisted variables and add new
+SET PERSIST_ONLY innodb_read_io_threads= 16;
+SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
+# Restart server
+# after restart
+SELECT @@global.ft_query_expansion_limit;
+@@global.ft_query_expansion_limit
+200
+SELECT @@global.innodb_api_enable_mdl;
+@@global.innodb_api_enable_mdl
+0
+SELECT @@global.innodb_read_io_threads;
+@@global.innodb_read_io_threads
+16
+SELECT @@global.innodb_log_file_size;
+@@global.innodb_log_file_size
+4194304
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
+1
+# check contents of persistent config file
+
+SET @@persist_only.max_connections=99;
+SET PERSIST_ONLY table_open_cache_instances= 8;
+# try persist_only for dynamic variables
+SELECT @@global.max_connections, @@global.session_track_system_variables;
+@@global.max_connections	@@global.session_track_system_variables
+151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@persist_only.max_connections=99;
+SET PERSIST_ONLY session_track_system_variables= 'max_connections';
+SET @@persist_only.transaction_isolation= 'READ-COMMITTED';
+# should not change the values.
+SELECT @@global.max_connections, @@global.session_track_system_variables;
+@@global.max_connections	@@global.session_track_system_variables
+151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+# Restart server
+# after restart
+SELECT @@global.max_connections, @@global.session_track_system_variables;
+@@global.max_connections	@@global.session_track_system_variables
+99	max_connections
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-COMMITTED
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+binlog_gtid_simple_recovery
+ft_query_expansion_limit
+innodb_api_enable_mdl
+innodb_log_file_size
+innodb_read_io_threads
+log_slave_updates
+max_connections
+session_track_system_variables
+table_open_cache_instances
+transaction_isolation
+# Restart server with persisted_globals_load disabled.
+# should have values different from persistent config file
+SELECT @@global.max_connections, @@global.session_track_system_variables;
+@@global.max_connections	@@global.session_track_system_variables
+151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+# check when persisted_globals_load is disabled.
+# should return 0 rows.
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+SET PERSIST_ONLY slave_type_conversions= ALL_UNSIGNED;
+SET @@persist_only.relay_log_space_limit=4096;
+# Restart server with persisted_globals_load disabled.
+# should return 0 rows.
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+# Restart server
+SELECT @@global.relay_log_space_limit, @@global.slave_type_conversions;
+@@global.relay_log_space_limit	@@global.slave_type_conversions
+4096	ALL_UNSIGNED
+SELECT VARIABLE_NAME FROM performance_schema.variables_info
+WHERE VARIABLE_SOURCE = 'PERSISTED';
+VARIABLE_NAME
+binlog_gtid_simple_recovery
+ft_query_expansion_limit
+innodb_api_enable_mdl
+innodb_log_file_size
+innodb_read_io_threads
+log_slave_updates
+max_connections
+relay_log_space_limit
+session_track_system_variables
+slave_type_conversions
+table_open_cache_instances
+transaction_isolation
+# check for PERSIST_RO_VARIABLES_ADMIN privilege
+CREATE USER wl9787;
+SET GLOBAL sort_buffer_size=256000;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET PERSIST max_heap_table_size=999424;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET PERSIST_ONLY ft_query_expansion_limit=80;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl9787;
+SET GLOBAL sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424;
+SET PERSIST_ONLY ft_query_expansion_limit=80;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO wl9787;
+SET PERSIST_ONLY ft_query_expansion_limit=80;
+# revoke SYSTEM_VARIABLES_ADMIN
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM wl9787;
+# persisting static variables needs both SYSTEM_VARIABLES_ADMIN
+SET PERSIST_ONLY ft_query_expansion_limit=80;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+REVOKE PERSIST_RO_VARIABLES_ADMIN  ON *.* FROM wl9787;
+GRANT SUPER ON *.* TO wl9787;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# persisting static variables does not need SUPER access
+SET PERSIST_ONLY ft_query_expansion_limit=80;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+# reset persisted variables
+RESET PERSIST;
+# test reset on readonly persisted variables
+SET @@persist_only.innodb_log_file_size= 4194304;
+SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_log_file_size	4194304
+slave_type_conversions	ALL_UNSIGNED
+SET PERSIST auto_increment_increment=10;
+SET PERSIST innodb_checksum_algorithm=strict_crc32;
+SET @@persist_only.innodb_log_file_size= DEFAULT;
+SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+auto_increment_increment	10
+ft_query_expansion_limit	200
+innodb_checksum_algorithm	strict_crc32
+innodb_log_file_size	4194304
+slave_type_conversions	ALL_UNSIGNED
+# reset slave_type_conversions
+RESET PERSIST slave_type_conversions;
+# return 0 rows.
+SELECT * FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME = 'slave_type_conversions';
+VARIABLE_NAME	VARIABLE_VALUE
+RESET PERSIST auto_increment_increment;
+RESET PERSIST innodb_log_file_size;
+SELECT * FROM performance_schema.persisted_variables
+WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+RESET PERSIST;
+# return 0 rows.
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+# Restart server
+# test non persistent read only variables
+SET @@persist_only.basedir= "/";
+ERROR HY000: Variable 'basedir' is a non persistent read only variable
+SET @@persist_only.character_sets_dir= "/";
+ERROR HY000: Variable 'character_sets_dir' is a non persistent read only variable
+SET @@persist_only.ft_stopword_file= "/";
+ERROR HY000: Variable 'ft_stopword_file' is a non persistent read only variable
+SET @@persist_only.lc_messages_dir= "/";
+ERROR HY000: Variable 'lc_messages_dir' is a non persistent read only variable
+SET @@persist_only.log_error= "/";
+ERROR HY000: Variable 'log_error' is a non persistent read only variable
+SET @@persist_only.pid_file= "/";
+ERROR HY000: Variable 'pid_file' is a non persistent read only variable
+SET @@persist_only.plugin_dir= "/";
+ERROR HY000: Variable 'plugin_dir' is a non persistent read only variable
+SET @@persist_only.secure_file_priv= "/";
+ERROR HY000: Variable 'secure_file_priv' is a non persistent read only variable
+SET @@persist_only.slave_load_tmpdir= "/";
+ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
+SET @@persist_only.ssl_ca= "/";
+ERROR HY000: Variable 'ssl_ca' is a non persistent read only variable
+SET @@persist_only.ssl_capath= "/";
+ERROR HY000: Variable 'ssl_capath' is a non persistent read only variable
+SET @@persist_only.ssl_cert= "/";
+ERROR HY000: Variable 'ssl_cert' is a non persistent read only variable
+SET @@persist_only.ssl_crlpath= "/";
+ERROR HY000: Variable 'ssl_crlpath' is a non persistent read only variable
+SET @@persist_only.ssl_crl= "/";
+ERROR HY000: Variable 'ssl_crl' is a non persistent read only variable
+SET @@persist_only.ssl_key= "/";
+ERROR HY000: Variable 'ssl_key' is a non persistent read only variable
+SET @@persist_only.tmpdir= "/";
+ERROR HY000: Variable 'tmpdir' is a non persistent read only variable
+SET @@persist_only.relay_log= "/";
+ERROR HY000: Variable 'relay_log' is a non persistent read only variable
+SET @@persist_only.relay_log_index= "/";
+ERROR HY000: Variable 'relay_log_index' is a non persistent read only variable
+SET @@persist_only.log_bin_basename= "/";
+ERROR HY000: Variable 'log_bin_basename' is a non persistent read only variable
+SET @@persist_only.log_bin_index= "/";
+ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
+SET @@persist_only.relay_log_info_file= "/";
+ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
+SET @@persist_only.bind_address= "";
+ERROR HY000: Variable 'bind_address' is a non persistent read only variable
+SET @@persist_only.port= "";
+ERROR HY000: Variable 'port' is a non persistent read only variable
+SET @@persist_only.skip_networking= "";
+ERROR HY000: Variable 'skip_networking' is a non persistent read only variable
+SET @@persist_only.socket= "";
+ERROR HY000: Variable 'socket' is a non persistent read only variable
+SET @@persist_only.default_authentication_plugin= "";
+ERROR HY000: Variable 'default_authentication_plugin' is a non persistent read only variable
+SET @@persist_only.core_file= "";
+ERROR HY000: Variable 'core_file' is a non persistent read only variable
+SET @@persist_only.innodb_read_only= "";
+ERROR HY000: Variable 'innodb_read_only' is a non persistent read only variable
+SET @@persist_only.persisted_globals_load= "";
+ERROR HY000: Variable 'persisted_globals_load' is a non persistent read only variable
+SET @@persist_only.datadir= "";
+ERROR HY000: Variable 'datadir' is a non persistent read only variable
+SET @@persist_only.innodb_data_file_path= "";
+ERROR HY000: Variable 'innodb_data_file_path' is a non persistent read only variable
+SET @@persist_only.innodb_force_load_corrupted= "";
+ERROR HY000: Variable 'innodb_force_load_corrupted' is a non persistent read only variable
+SET @@persist_only.innodb_page_size= "";
+ERROR HY000: Variable 'innodb_page_size' is a non persistent read only variable
+SET @@persist_only.version= "";
+ERROR HY000: Variable 'version' is a non persistent read only variable
+SET @@persist_only.version_comment= "";
+ERROR HY000: Variable 'version_comment' is a non persistent read only variable
+SET @@persist_only.version_compile_machine= "";
+ERROR HY000: Variable 'version_compile_machine' is a non persistent read only variable
+SET @@persist_only.version_compile_os= "";
+ERROR HY000: Variable 'version_compile_os' is a non persistent read only variable
+SET @@persist_only.have_compress= "";
+ERROR HY000: Variable 'have_compress' is a non persistent read only variable
+SET @@persist_only.have_dynamic_loading= "";
+ERROR HY000: Variable 'have_dynamic_loading' is a non persistent read only variable
+SET @@persist_only.license= "";
+ERROR HY000: Variable 'license' is a non persistent read only variable
+SET @@persist_only.protocol_version= "";
+ERROR HY000: Variable 'protocol_version' is a non persistent read only variable
+SET @@persist_only.lower_case_file_system= "";
+ERROR HY000: Variable 'lower_case_file_system' is a non persistent read only variable
+SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
+ERROR HY000: Variable 'innodb_buffer_pool_load_at_startup' is a non persistent read only variable
+RESET PERSIST;
+DROP USER wl9787;
+#
+# Bug26395134: SET PERSIST_ONLY HAS WRONG EFFECT ON P_S.VARIABLES_INFO
+#
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+SET PERSIST_ONLY max_connections = 151;
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+# Restart server
+# restart
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+PERSISTED	root	localhost
+RESET PERSIST;
+#
+# Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
+#               GTID_OWNED/EXECUTED
+#
+SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
+SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable

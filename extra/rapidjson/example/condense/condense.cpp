@@ -1,4 +1,4 @@
-// JSON condenser exmaple
+// JSON condenser example
 
 // This example parses JSON text from stdin with validation, 
 // and re-output the JSON content to stdout without whitespace.
@@ -24,7 +24,7 @@ int main(int, char*[]) {
 
     // JSON reader parse from the input stream and let writer generate the output.
     if (!reader.Parse(is, writer)) {
-        fprintf(stderr, "\nError(%u): %s\n", (unsigned)reader.GetErrorOffset(), GetParseError_En(reader.GetParseErrorCode()));
+        fprintf(stderr, "\nError(%u): %s\n", static_cast<unsigned>(reader.GetErrorOffset()), GetParseError_En(reader.GetParseErrorCode()));
         return 1;
     }
 

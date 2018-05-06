@@ -2,9 +2,6 @@
 # Tests for the performance schema nested stored program instrumentation.
 # -----------------------------------------------------------------------
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 

@@ -8,12 +8,7 @@
 # JBM                                 #
 #######################################
 
---echo --- Doing pre test cleanup --- 
-
 connection master;
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_query_log
 
 #################################################
 --echo --- Create Table Section ---
@@ -121,7 +116,7 @@ TRUNCATE TABLE t1;
 #################################################
 --echo --- Do Cleanup --
 connection master;
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 
 sync_slave_with_master;
 connection master;

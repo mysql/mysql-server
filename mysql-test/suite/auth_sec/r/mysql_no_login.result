@@ -16,15 +16,6 @@ noauthdb.f1()
 5
 # Attempt to access underlying tables directly using otheruser - should fail.
 # Connect as noauth - should fail.
-#try to set password of this plugin user with password function - should warn
-SET PASSWORD FOR noauth@localhost = '';
-Warnings:
-Note	1699	SET PASSWORD has no significance for user 'noauth'@'localhost' as authentication plugin does not support it.
-#try to set password of this plugin user with password hash - should warn
-grant all on *.* to noauth@localhost identified by password '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 #try to expire password of this plugin user - should warn
 alter user noauth@localhost password expire;
 ERROR HY000: Operation ALTER USER failed for 'noauth'@'localhost'

@@ -15,7 +15,7 @@
 
 --mkdir $BUGDIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --log-syslog=0 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -27,7 +27,8 @@
 --rmdir $BUGDIR
 
 ###########################################################################
-# 2. Run --help --verbose on an existing but empty datadir.
+# 2. Run --help --verbose and skip-log-bin on an existing but
+#    empty datadir.
 ###########################################################################
 
 --let $BUGDIR=           $MYSQL_TMP_DIR/help_verbose_tc2
@@ -37,7 +38,7 @@
 --mkdir $BUGDIR
 --mkdir $TEST_DATADIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --log-syslog=0 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT --loose-skip-log-bin > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -62,7 +63,7 @@
 
 --mkdir $BUGDIR
 
---exec $MYSQLD --no-defaults --help --verbose --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --log-syslog=0 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE
@@ -84,7 +85,7 @@
 --mkdir $BUGDIR
 --mkdir $TEST_DATADIR
 
---exec $MYSQLD --no-defaults --help --verbose --log-bin --server-id=1 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
+--exec $MYSQLD --no-defaults --help --verbose --log-syslog=0 --log-bin --server-id=1 --datadir=$TEST_DATADIR --lc-messages-dir=$MESSAGES_DIR  --secure-file-priv="" $KEYRING_PLUGIN_OPT > $LOG_FILE 2>&1
 
 --echo # There should be no errors
 --let SEARCH_FILE=    $LOG_FILE

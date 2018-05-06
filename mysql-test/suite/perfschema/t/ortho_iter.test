@@ -2,15 +2,13 @@
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
 
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop procedure if exists check_instrument;
 --enable_warnings
 
-# Print known global memory instruments (PSI_FLAG_GLOBAL),
+# Print known global memory instruments (PSI_FLAG_ONLY_GLOBAL_STAT),
 # see maintenance of count_global_expected below.
 
 # --echo "Known PSI_FLAG_GLOBAL memory instruments"
@@ -85,26 +83,8 @@ begin
   select count(name)
     from performance_schema.setup_instruments
     where (name like (concat(instr_name, "%")))
-    and (name in (
-      "memory/sql/buffered_logs",
-      "memory/sql/sql_acl_mem",
-      "memory/sql/sql_acl_memex",
-      "memory/sql/acl_cache",
-      "memory/sql/TABLE_SHARE::mem_root",
-      "memory/sql/TABLE",
-      "memory/sql/Query_cache",
-      "memory/sql/native_functions",
-      "memory/sql/Event_basic::mem_root",
-      "memory/sql/root",
-      "memory/sql/load_env_plugins",
-      "memory/sql/plugin_ref",
-      "memory/sql/plugin_mem_root",
-      "memory/sql/plugin_bookmark",
-      "memory/csv/TINA_SHARE",
-      "memory/sql/tz_storage",
-      "memory/sql/servers_cache",
-      "memory/sql/udf_mem"
-    ))
+    and (name not like "memory/performance_schema/%")
+    and (find_in_set(properties, 'global_statistics'))
   into count_global_expected;
 
   set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
@@ -264,13 +244,10 @@ begin
   close pfs_cursor;
 
   -- Dont want to return a 02000 NOT FOUND, there should be a better way
-  signal sqlstate '01000' set message_text='Done', mysql_errno=12000;
+  signal sqlstate '01000' set message_text='Done', mysql_errno=42000;
 end
 $
 delimiter ;$
-
-# Check the configuration is ok
-show global variables like "performance_schema%";
 
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");

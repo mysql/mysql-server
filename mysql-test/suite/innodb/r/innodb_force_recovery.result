@@ -1,10 +1,9 @@
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 create table t2(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 insert into t1 values(1, 2);
 insert into t2 values(1, 2);
 SET GLOBAL innodb_fast_shutdown = 0;
-# Restart the server with innodb_force_recovery as 4.
 # restart: --innodb-force-recovery=4
 select * from t1;
 f1	f2
@@ -14,21 +13,22 @@ ERROR HY000: Table 't1' is read only
 alter table t1 add f3 int not null, algorithm=copy;
 ERROR HY000: InnoDB is in read only mode.
 alter table t1 add f3 int not null, algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Operation not allowed when innodb_forced_recovery > 0.. Try ALGORITHM=COPY.
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t1;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t1 set f1=3 where f2=2;
 ERROR HY000: Table 't1' is read only
 create table t3(f1 int not null)engine=innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 drop table t3;
 ERROR 42S02: Unknown table 'test.t3'
 rename table t1 to t3;
 ERROR HY000: Error on rename of './test/t1' to './test/t3' (errno: 165 - Table is read only)
 truncate table t1;
 ERROR HY000: Table 't1' is read only
-create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Failed to create TABLESPACE t1
+create tablespace t4 add datafile 't1.ibd' Engine=InnoDB;
+ERROR HY000: Table 'tablespaces' is read only
+# restart
 drop table t1;
 show tables;
 Tables_in_test
@@ -43,13 +43,13 @@ ERROR HY000: Table 't2' is read only
 alter table t2 add f3 int not null, algorithm=copy;
 ERROR HY000: InnoDB is in read only mode.
 alter table t2 add f3 int not null, algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Operation not allowed when innodb_forced_recovery > 0.. Try ALGORITHM=COPY.
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t2;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Table 't2' is read only
 create table t1(f1 int not null)engine=innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 drop table t1;
 ERROR 42S02: Unknown table 'test.t1'
 rename table t2 to t3;
@@ -57,9 +57,9 @@ ERROR HY000: Error on rename of './test/t2' to './test/t3' (errno: 165 - Table i
 truncate table t2;
 ERROR HY000: Table 't2' is read only
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Failed to create TABLESPACE t1
+ERROR HY000: Table 'tablespaces' is read only
 drop table t2;
-ERROR 42S02: Unknown table 'test.t2'
+ERROR HY000: Storage engine can't drop table 'test.t2'
 show tables;
 Tables_in_test
 t2
@@ -71,15 +71,15 @@ f1	f2
 insert into t2 values(2, 3);
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 alter table t2 add f3 int not null, algorithm=copy;
-ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: InnoDB is in read only mode.
 alter table t2 add f3 int not null, algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Operation not allowed when innodb_forced_recovery > 0.. Try ALGORITHM=COPY.
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t2;
-ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 create table t1(f1 int not null)engine=innodb;
-ERROR HY000: InnoDB is in read only mode.
+ERROR HY000: Table 'tables' is read only
 drop table t1;
 ERROR 42S02: Unknown table 'test.t1'
 rename table t2 to t3;
@@ -87,9 +87,9 @@ ERROR HY000: Error on rename of './test/t2' to './test/t3' (errno: 165 - Table i
 truncate table t2;
 ERROR HY000: Table 't2' is read only
 create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
-ERROR HY000: Failed to create TABLESPACE t1
+ERROR HY000: Table 'tablespaces' is read only
 drop table t2;
-ERROR 42S02: Unknown table 'test.t2'
+ERROR HY000: Storage engine can't drop table 'test.t2'
 show tables;
 Tables_in_test
 t2

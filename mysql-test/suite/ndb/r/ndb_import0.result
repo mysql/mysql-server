@@ -1,0 +1,173 @@
+# manual ndb_import tests
+# database argument is required
+# no args is ok
+# table does not exist
+create table t1 (
+a int primary key,
+b int not null
+) engine=ndb;
+# csv file does not exist
+# bad state dir
+# normal import
+select count(*) from t1;
+count(*)
+1000
+# invalid --input-type
+# invalid --output-type
+# test --connections and --ndb-nodeid
+# needs consecutive api nodes 230,231,232
+delete from t1;
+create table t1ver like t1;
+select count(*) from t1 x, t1ver y
+where x.a = y.a and x.b = y.b;
+count(*)
+1000
+# simple utf8 test
+create table t2 (
+a int primary key,
+b char(3)
+) charset utf8
+engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create table t2ver (
+a int primary key,
+b char(3)
+) charset utf8
+engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+select count(*) from t2 x, t2ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+count(*)
+4
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# simple hidden-pk test
+create table t3 (
+b int not null,
+# unique key would turn into pk
+key bx (b)
+) engine=ndb;
+create table t3ver like t3;
+select count(*) from t3;
+count(*)
+1000
+select count(*) from t3ver;
+count(*)
+1000
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+count(*)
+1000
+# test with rejects and no --keep-state
+create table t4 (
+a int primary key,
+b int not null
+) engine=ndb;
+select count(*) from t4;
+count(*)
+997
+# test with rejects and --stats
+delete from t4;
+select count(*) from t4;
+count(*)
+997
+# test --continue option with missing table
+create table t5a (a int primary key) engine=ndb;
+create table t5c like t5a;
+select count(*) from t5a;
+count(*)
+2
+select count(*) from t5c;
+count(*)
+2
+# test --continue option with rejects
+delete from t5a;
+delete from t5c;
+create table t5b like t5a;
+select count(*) from t5a;
+count(*)
+2
+select count(*) from t5b;
+count(*)
+1
+select count(*) from t5c;
+count(*)
+2
+# test quoting and escapes
+create table t6 (
+a int primary key,
+b char(5) not null
+) engine=ndb;
+create table t6ver like t6;
+select count(*) from t6 x, t6ver y
+where x.a = y.a and x.b = y.b;
+count(*)
+7
+select a from t6
+where b like '%"%'
+order by a;
+a
+3
+4
+5
+# test CR-LF line terminator
+create table t7 (
+a int primary key,
+b varbinary(20)
+) engine=ndb;
+create table t7ver like t7;
+select count(*) from t7 x, t7ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+count(*)
+1000
+# test windows directory separator
+delete from t7;
+select count(*) from t7;
+count(*)
+1000
+t7.csv
+t7.map
+t7.rej
+t7.res
+# test NUL byte
+create table t8 (
+a int primary key,
+b varbinary(20)
+) engine=ndb;
+create table t8ver like t8;
+select count(*) from t8 x, t8ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+count(*)
+1000
+# test long field and line terminators
+create table t9 (
+a int primary key,
+b char(10),
+c char(10)
+) engine=ndb;
+create table t9ver like t9;
+select * from t9ver order by a;
+a	b	c
+0	123	abc
+1	:456=	:foo=
+2	789===	bar===
+3	123	abc
+4	:456=	:foo=
+5	789===	bar===
+select count(*) from t9 x, t9ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null))
+and (x.c = y.c or (x.c is null and y.c is null));
+count(*)
+6
+drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
+t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;

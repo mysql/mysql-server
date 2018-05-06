@@ -1,1 +1,0 @@
---innodb_large_prefix=OFF --innodb_file_format=barracuda --innodb-file-format-check=off --innodb-file-format-max=antelope

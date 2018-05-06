@@ -1,13 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 
-# Test does not need to run with embedded
-# since mysqld/libmysqld is not involved
---source include/not_embedded.inc
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
+
+# The testMgmd binary is not built on Windows
+--source include/not_windows.inc
 
 let NDBAPITEST_NAME=testMgmd;
 let NDBAPITEST_ARGS=--stop-on-error;

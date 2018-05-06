@@ -190,4 +190,3 @@ set optimizer_switch=default;
 show variables like 'optimizer_switch';
 
 drop table t0, t1;
-

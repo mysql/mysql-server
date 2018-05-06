@@ -1,19 +1,19 @@
 SET @start_value = @@global.table_definition_cache;
-SELECT IF(@@open_files_limit < 5000, 1400, @start_value);
-IF(@@open_files_limit < 5000, 1400, @start_value)
-1400
+SELECT IF(@@open_files_limit < 5000, 2000, @start_value);
+IF(@@open_files_limit < 5000, 2000, @start_value)
+2000
 '#--------------------FN_DYNVARS_019_01------------------------#'
 SET @@global.table_definition_cache = 100;
 Warnings:
 Warning	1292	Truncated incorrect table_definition_cache value: '100'
 SET @@global.table_definition_cache = DEFAULT;
-SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache);
-IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache)
-1400
+SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache);
+IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache)
+2000
 '#---------------------FN_DYNVARS_019_02-------------------------#'
 SET @@global.table_definition_cache = DEFAULT;
-SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache) = 1400;
-IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache) = 1400
+SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache) = 2000;
+IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache) = 2000
 1
 '#--------------------FN_DYNVARS_019_03------------------------#'
 SET @@global.table_definition_cache = 1;
@@ -72,7 +72,7 @@ SELECT @@session.table_definition_cache;
 ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable
 '#----------------------FN_DYNVARS_019_06------------------------#'
 SELECT @@global.table_definition_cache = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_definition_cache';
 @@global.table_definition_cache = VARIABLE_VALUE
 1
@@ -106,6 +106,6 @@ ERROR 42S02: Unknown table 'global' in field list
 SELECT table_definition_cache = @@session.table_definition_cache;
 ERROR 42S22: Unknown column 'table_definition_cache' in 'field list'
 SET @@global.table_definition_cache = @start_value;
-SELECT IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache);
-IF(@@open_files_limit < 5000, 1400, @@global.table_definition_cache)
-1400
+SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache);
+IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache)
+2000

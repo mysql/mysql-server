@@ -1,5 +1,5 @@
 --source include/not_group_replication_plugin.inc
-source include/have_ssl_communication.inc;
+source include/have_ssl.inc;
 source include/master-slave.inc;
 
 # We don't test all types of ssl auth params here since it's a bit hard 
@@ -9,10 +9,8 @@ source include/master-slave.inc;
 # preparing playground
 connection master;
 SET SQL_LOG_BIN= 0;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-grant replication slave on *.* to replssl@localhost require ssl;
-set sql_mode= @orig_sql_mode;
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 SET SQL_LOG_BIN= 1;
 create table t1 (t int);
 
@@ -26,17 +24,11 @@ change master to master_user='replssl',master_password='';
 start slave;
 
 #showing that replication don't work
-connection master;
-insert into t1 values (1);
-#reasonable timeout for changes to propagate to slave
-let $wait_condition= SELECT COUNT(*) = 1 FROM t1;
-source include/wait_condition_or_abort.inc;
-connection slave;
-select * from t1;
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
 #showing that replication could work with ssl params
-stop slave;
---source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
 eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.1';
@@ -45,6 +37,7 @@ start slave;
 
 #avoiding unneeded sleeps
 connection master;
+insert into t1 values (1);
 --source include/sync_slave_sql_with_master.inc
 
 #checking that replication is ok

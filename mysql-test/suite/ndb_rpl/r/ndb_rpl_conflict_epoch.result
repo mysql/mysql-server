@@ -2288,15 +2288,15 @@ stop slave;
 -- Insert a row on Primary
 insert into test.t1 values (1,1,repeat('B', 2000));
 -- Generate a large batch of inserts with early + late conflicts
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
 set @x = 0;
 START TRANSACTION;
 repeat
 insert into test.t1 values (@x, @x, repeat('B', 2000));
 set @x = @x + 1;
-until @x = rows
-end repeat;
+until @x = `rows`
+    end repeat;
 COMMIT;
 START TRANSACTION;
 update test.t1 set b=999, c=repeat('E',2000) where a=1;
@@ -2337,7 +2337,7 @@ stop slave;
 -- Delete row on Primary Cluster
 delete from test.t1 where a=1;
 -- Delete row on Secondary Cluster, followed by Insert in later 'batch'
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
 set @x = 2;
 START TRANSACTION;
@@ -2345,7 +2345,7 @@ delete from test.t1 where a=1;
 repeat
 insert into test.t1 values (@x, @x, repeat('B', 2000));
 set @x = @x + 1;
-until @x = (rows + 2)
+until @x = (`rows` + 2)
 end repeat;
 COMMIT;
 START TRANSACTION;
@@ -2388,17 +2388,17 @@ insert into mysql.ndb_replication values
 ("test", "t3", 0, 7, "NDB$EPOCH(32)"),
 ("test", "t4", 0, 7, "NDB$EPOCH(-1)");
 create table test.t3 (a int primary key) engine=ndb;
-ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+ERROR HY000: Error in parsing conflict function. Message: NDB$EPOCH(32), Too many extra Gci bits at ')'
 show warnings;
 Level	Code	Message
-Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(32), Too many extra Gci bits at ')'
-Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Error	1626	Error in parsing conflict function. Message: NDB$EPOCH(32), Too many extra Gci bits at ')'
+Error	1031	Table storage engine for 't3' doesn't have this option
 create table test.t4 (a int primary key) engine=ndb;
-ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+ERROR HY000: Error in parsing conflict function. Message: NDB$EPOCH(-1), Too many extra Gci bits at ')'
 show warnings;
 Level	Code	Message
-Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(-1), Too many extra Gci bits at ')'
-Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Error	1626	Error in parsing conflict function. Message: NDB$EPOCH(-1), Too many extra Gci bits at ')'
+Error	1031	Table storage engine for 't4' doesn't have this option
 -- Force sync before dropping table to avoid race
 flush logs;
 flush logs;

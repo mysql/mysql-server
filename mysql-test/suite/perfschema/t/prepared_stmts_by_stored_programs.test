@@ -2,8 +2,7 @@
 # stored programs. SQL prepared statements (PREPARE, EXECUTE, DEALLOCATE PREPARE) 
 # can be used in stored procedures, but not stored functions or triggers.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
 --let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, COUNT_REPREPARE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
@@ -105,12 +104,14 @@ DELIMITER ;|
 
 CREATE TABLE tab(a INT);
 
-SET GLOBAL event_scheduler=ON;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 DELIMITER |;
 CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO
 BEGIN
-  PREPARE st FROM 'INSERT INTO tab VALUES(?)';  
+  PREPARE st FROM 'INSERT INTO tab VALUES(?)';
   SET @a=1;
   EXECUTE st USING @a;
 END|
@@ -125,11 +126,8 @@ SELECT * FROM tab LIMIT 1;
 
 # Wait till the  above one execution of event is instrumented.
 
---let $wait_condition= select count_star >= 1 from performance_schema.events_statements_summary_by_program where object_type='EVENT'
+--let $wait_condition= select count_star >= 1 from performance_schema.events_statements_summary_by_program use index () where object_type='EVENT'
 --source include/wait_condition.inc
-
-SET GLOBAL event_scheduler=OFF;
---source include/no_running_event_scheduler.inc
 
 # The following should return empty set as the instrumented prepared statement
 # row is removed as de allocation of the statement happens automatically as 

@@ -1,13 +1,20 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,11 +32,12 @@
 */
 
 #ifndef ROWS_EVENT_INCLUDED
-#define	ROWS_EVENT_INCLUDED
+#define ROWS_EVENT_INCLUDED
 
+#include <vector>
+#include "byteorder.h"
 #include "control_events.h"
 #include "table_id.h"
-#include <vector>
 
 /**
    1 byte length, 1 byte format
@@ -41,14 +49,13 @@
 #define EXTRA_ROW_INFO_HDR_BYTES 2
 #define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
 
-#define ROWS_MAPID_OFFSET    0
-#define ROWS_FLAGS_OFFSET    6
-#define ROWS_VHLEN_OFFSET    8
-#define ROWS_V_TAG_LEN       1
+#define ROWS_MAPID_OFFSET 0
+#define ROWS_FLAGS_OFFSET 6
+#define ROWS_VHLEN_OFFSET 8
+#define ROWS_V_TAG_LEN 1
 #define ROWS_V_EXTRAINFO_TAG 0
 
-namespace binary_log
-{
+namespace binary_log {
 /**
   @class Table_map_event
 
@@ -158,6 +165,18 @@ namespace binary_log
     on.  </td>
   </tr>
 
+  <tr>
+    <td>optional metadata fields</td>
+    <td>optional metadata fields are stored in Type, Length, Value(TLV) format.
+    Type takes 1 byte. Length is a packed integer value. Values takes
+    Length bytes.
+    </td>
+    <td>There are some optional metadata defined. They are listed in the table
+    @ref Table_table_map_event_optional_metadata. Optional metadata fields
+    follow null_bits. Whether binlogging an optional metadata is decided by the
+    server. The order is not defined, so they can be binlogged in any order.
+    </td>
+  </tr>
   </table>
 
   The table below lists all column types, along with the numerical
@@ -363,18 +382,167 @@ namespace binary_log
   </tr>
 
   </table>
+
+  The table below lists all optional metadata types, along with the numerical
+  identifier for it and the size and interpretation of meta-data used
+  to describe the type.
+
+  @anchor Table_table_map_event_optional_metadata
+  <table>
+  <caption>Table_map_event optional metadata types: numerical identifier and
+  metadata. Optional metadata fields are stored in TLV fields.
+  Format of values are described in this table. </caption>
+  <tr>
+    <th>Type</th>
+    <th>Description</th>
+    <th>Format</th>
+  </tr>
+  <tr>
+    <td>SIGNEDNESS</td>
+    <td>signedness of numeric colums</td>
+    <td>For each numeric column, a bit indicates whether the numeric colunm has
+    unsigned flag. 1 means it is unsigned. The number of bytes needed for this
+  is int((column_count + 7) / 8). The order is same to the order of column_type
+    field.</td>
+  </tr>
+  <tr>
+    <td>DEFAULT_CHARSET</td>
+    <td>Charsets of character columns. It has a default charset for the case
+    that most of character columns have same charset and the most used charset
+    is binlogged as default charset.Collation numbers are binlogged for
+    identifying charsets. They are stored in packed length format. </td>
+    <td>Default charset's collation is logged first. The charsets which are not
+    same to default charset are logged following default charset. They are
+    logged as column index and charset collation number pair sequence. The
+    column index is counted only in all character columns. The order is same to
+    the order of column_type
+    field. </td>
+  </tr>
+  <tr>
+    <td>COLUMN_CHARSET</td>
+    <td>Charsets of character columns. For the case that most of columns have
+    different charsets, this field is logged. It is never logged with
+    DEFAULT_CHARSET together.</td>
+    <td>It is a collation number sequence for all character columns.</td>
+  </tr>
+  <tr>
+    <td>COLUMN_NAME</td>
+    <td>Names of columns</td>
+    <td>A sequence of column names. For each column name, 1 byte string length
+    followed by a string without null terminator. </td>
+  </tr>
+  <tr>
+    <td>SET_STR_VALUE</td>
+    <td>The string values of SET columns</td>
+    <td>For each SET column, a pack_length presents value count is followed by
+    a sequence of length and string pairs. length is pack_length and string
+    has no null terminator.</td>
+  </tr>
+  <tr>
+    <td>ENUM_STR_VALUE</td>
+    <td>The string values is ENUM columns</td>
+    <td>Format is same to SET_STR_VALUE</td>
+  </tr>
+  <tr>
+    <td>GEOMETRY_TYPE</td>
+    <td>The real type of geometry columns</td>
+    <td>A sequence of real type of geometry columns are stored in pack_length
+    format. </td>
+  </tr>
+  <tr>
+    <td>SIMPLE_PRIMARY_KEY</td>
+    <td>The primary key without any prefix</td>
+    <td>A sequence of column indexes. The indexes are stored in pack_length
+    format.</td>
+  </tr>
+  <tr>
+    <td>PRIMARY_KEY_WITH_PREFIX</td>
+    <td>The primary key with some prefix. It doesn't appear with
+    SIMPLE_PRIMARY_KEY together. </td>
+    <td>A sequence of column index and prefix length pairs. Both
+    column index and prefix length are in pack_length format. It means
+    the whole value is used even if prefix length is 0.</td>
+  </tr>
+  </table>
 */
-class Table_map_event: public Binary_log_event
-{
-public:
+class Table_map_event : public Binary_log_event {
+ public:
   /** Constants representing offsets */
   enum Table_map_event_offset {
     /** TM = "Table Map" */
-    TM_MAPID_OFFSET= 0,
-    TM_FLAGS_OFFSET= 6
+    TM_MAPID_OFFSET = 0,
+    TM_FLAGS_OFFSET = 6
   };
 
   typedef uint16_t flag_set;
+
+  /**
+    DEFAULT_CHARSET and COLUMN_CHARSET don't appear together. They are just two
+    ways to pack character set information. When binlogging, it just log
+    character set in the way which occupy less storage.
+
+    SIMPLE_PRIMARY_KEY and PRIMARY_KEY_WITH_PREFIX don't appear together.
+    SIMPLE_PRIMARY_KEY is for the primary keys which only use whole values of
+    pk columns. PRIMARY_KEY_WITH_PREFIX is
+    for the primary keys which just use part value of pk columns.
+   */
+  enum Optional_metadata_field_type {
+    SIGNEDNESS = 1,   // UNSIGNED flag of numeric columns
+    DEFAULT_CHARSET,  // Default character set of string columns
+    COLUMN_CHARSET,   // Character set of string columns
+    COLUMN_NAME,
+    SET_STR_VALUE,           // String value of SET columns
+    ENUM_STR_VALUE,          // String value of ENUM columns
+    GEOMETRY_TYPE,           // Real type of geometry columns
+    SIMPLE_PRIMARY_KEY,      // Primary key without prefix
+    PRIMARY_KEY_WITH_PREFIX  // Primary key with prefix
+  };
+
+  /**
+    Metadata_fields organizes m_optional_metadata into a structured format which
+    is easy to access.
+  */
+  struct Optional_metadata_fields {
+    typedef std::pair<unsigned int, unsigned int> uint_pair;
+    typedef std::vector<std::string> str_vector;
+
+    struct Default_charset {
+      Default_charset() : default_charset(0) {}
+      bool empty() const { return default_charset == 0; }
+
+      // Default charset for the columns which are not in charset_pairs.
+      unsigned int default_charset;
+
+      /* The uint_pair means <column index, column charset number>. */
+      std::vector<uint_pair> charset_pairs;
+    };
+
+    // Content of DEFAULT_CHARSET field is converted into Default_charset.
+    Default_charset m_default_charset;
+    std::vector<bool> m_signedness;
+    // Character set number of every column
+    std::vector<unsigned int> m_column_charset;
+    std::vector<std::string> m_column_name;
+    // each str_vector stores values of one enum/set column
+    std::vector<str_vector> m_enum_str_value;
+    std::vector<str_vector> m_set_str_value;
+    std::vector<unsigned int> m_geometry_type;
+    /*
+      The uint_pair means <column index, prefix length>.  Prefix length is 0 if
+      whole column value is used.
+    */
+    std::vector<uint_pair> m_primary_key;
+
+    /*
+      It parses m_optional_metadata and populates into above variables.
+
+      @param[in] optional_metadata points to the begin of optional metadata
+                                   fields in table_map_event.
+      @param[in] optional_metadata_len length of optional_metadata field.
+     */
+    Optional_metadata_fields(unsigned char *optional_metadata,
+                             unsigned int optional_metadata_len);
+  };
 
   /**
   <pre>
@@ -394,7 +562,7 @@ public:
   +---------------------------------------------+
   </pre>
   @param buf                Contains the serialized event.
-  @param length             Length of the serialized event.
+  @param event_len             Length of the serialized event.
   @param description_event  An FDE event, used to get the following information
                             -binlog_version
                             -server_version
@@ -406,34 +574,32 @@ public:
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
 
-  Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam,
+  Table_map_event(const Table_id &tid, unsigned long colcnt, const char *dbnam,
                   size_t dblen, const char *tblnam, size_t tbllen)
-    : Binary_log_event(TABLE_MAP_EVENT),
-      m_table_id(tid),
-      m_data_size(0),
-      m_dbnam(""),
-      m_dblen(dblen),
-      m_tblnam(""),
-      m_tbllen(tbllen),
-      m_colcnt(colcnt),
-      m_field_metadata_size(0),
-      m_field_metadata(0),
-      m_null_bits(0)
-  {
-    if (dbnam)
-      m_dbnam= std::string(dbnam, m_dblen);
-    if (tblnam)
-      m_tblnam= std::string(tblnam, m_tbllen);
+      : Binary_log_event(TABLE_MAP_EVENT),
+        m_table_id(tid),
+        m_data_size(0),
+        m_dbnam(""),
+        m_dblen(dblen),
+        m_tblnam(""),
+        m_tbllen(tbllen),
+        m_colcnt(colcnt),
+        m_field_metadata_size(0),
+        m_field_metadata(0),
+        m_null_bits(0),
+        m_optional_metadata_len(0),
+        m_optional_metadata(NULL) {
+    if (dbnam) m_dbnam = std::string(dbnam, m_dblen);
+    if (tblnam) m_tblnam = std::string(tblnam, m_tbllen);
   }
 
   virtual ~Table_map_event();
-
 
   /** Event post header contents */
   Table_id m_table_id;
   flag_set m_flags;
 
-  size_t   m_data_size;                         /** event data size */
+  size_t m_data_size; /** event data size */
 
   /** Event body contents */
   std::string m_dbnam;
@@ -441,42 +607,35 @@ public:
   std::string m_tblnam;
   size_t m_tbllen;
   unsigned long m_colcnt;
-  unsigned char* m_coltype;
+  unsigned char *m_coltype;
 
   /**
     The size of field metadata buffer set by calling save_field_metadata()
   */
-  unsigned long  m_field_metadata_size;
-  unsigned char* m_field_metadata;        /** field metadata */
-  unsigned char* m_null_bits;
+  unsigned long m_field_metadata_size;
+  unsigned char *m_field_metadata; /** field metadata */
+  unsigned char *m_null_bits;
+  unsigned int m_optional_metadata_len;
+  unsigned char *m_optional_metadata;
 
   Table_map_event()
-    : Binary_log_event(TABLE_MAP_EVENT),
-      m_coltype(0),
-      m_field_metadata_size(0),
-      m_field_metadata(0),
-      m_null_bits(0)
-  {}
+      : Binary_log_event(TABLE_MAP_EVENT),
+        m_coltype(0),
+        m_field_metadata_size(0),
+        m_field_metadata(0),
+        m_null_bits(0),
+        m_optional_metadata_len(0),
+        m_optional_metadata(NULL) {}
 
-  unsigned long long get_table_id()
-  {
-    return m_table_id.id();
-  }
-  std::string get_table_name()
-  {
-    return m_tblnam;
-  }
-  std::string get_db_name()
-  {
-    return m_dbnam;
-  }
+  unsigned long long get_table_id() { return m_table_id.id(); }
+  std::string get_table_name() { return m_tblnam; }
+  std::string get_db_name() { return m_dbnam; }
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 };
-
 
 /**
   @class Rows_event
@@ -527,17 +686,17 @@ public:
 
 
   <tr>
-    <td>var_header_len</td>
+    <td>width</td>
     <td>packed integer</td>
     <td>Represents the number of columns in the table</td>
   </tr>
 
   <tr>
-    <td>width</td>
+    <td>cols</td>
     <td>Bitfield, variable sized</td>
     <td>Indicates whether each column is used, one bit per column.
-        For this field, the amount of storage required for N columns
-        is INT((N + 7) / 8) bytes. </td>
+        For this field, the amount of storage required is
+        INT((width + 7) / 8) bytes. </td>
   </tr>
 
   <tr>
@@ -549,7 +708,8 @@ public:
   <tr>
     <td>columns_before_image</td>
     <td>vector of elements of type uint8_t</td>
-    <td>Bit-field indicating whether each column is used
+    <td>For DELETE and UPDATE only.
+        Bit-field indicating whether each column is used
         one bit per column. For this field, the amount of storage
         required for N columns is INT((N + 7) / 8) bytes.</td>
   </tr>
@@ -557,7 +717,7 @@ public:
   <tr>
     <td>columns_after_image</td>
     <td>vector of elements of type uint8_t</td>
-    <td>variable-sized (for UPDATE_ROWS_EVENT only).
+    <td>For WRITE and UPDATE only.
         Bit-field indicating whether each column is used in the
         UPDATE_ROWS_EVENT and WRITE_ROWS_EVENT after-image; one bit per column.
         For this field, the amount of storage required for N columns
@@ -571,7 +731,7 @@ public:
           |  INSERT    |   NULL            |    Inserted row      |
           |  UPDATE    |   Old     row     |    Updated row       |
           +-------------------------------------------------------+
-        @end verbatim
+        @endverbatim
     </td>
   </tr>
 
@@ -603,10 +763,10 @@ public:
              @endverbatim
     </td>
   </tr>
+  </table>
 */
-class Rows_event: public Binary_log_event
-{
-public:
+class Rows_event : public Binary_log_event {
+ public:
   /**
     These definitions allow to combine the flags into an
     appropriate flag set using the normal bitwise operators.  The
@@ -614,8 +774,7 @@ public:
     accepted by the compiler, which is then used to set the real set
     of flags.
   */
-  enum enum_flag
-  {
+  enum enum_flag {
     /** Last event of a statement */
     STMT_END_F = (1U << 0),
     /** Value of the OPTION_NO_FOREIGN_KEY_CHECKS flag in thd->options */
@@ -633,119 +792,97 @@ public:
     Constructs an event directly. The members are assigned default values.
 
     @param type_arg          Type of ROW_EVENT. Expected types are:
-                             - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1,
-                               PRE_GA_WRITE_ROWS_EVENT,
+                             - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1
                              - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1,
-                               PRE_GA_UPDATE_ROWS_EVENT,
-                             - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1,
-                               PRE_GA_DELETE_ROWS_EVENT
+                               PARTIAL_UPDATE_ROWS_EVENT
+                             - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1
   */
   explicit Rows_event(Log_event_type type_arg)
-    : Binary_log_event(type_arg),
-      m_table_id(0),
-      m_width(0),
-      m_extra_row_data(0),
-      columns_before_image(0),
-      columns_after_image(0),
-      row(0)
-  {}
+      : Binary_log_event(type_arg),
+        m_table_id(0),
+        m_width(0),
+        m_extra_row_data(0),
+        columns_before_image(0),
+        columns_after_image(0),
+        row(0) {}
 
- /**
-   The constructor is responsible for decoding the event contained in
-   the buffer.
+  /**
+    The constructor is responsible for decoding the event contained in
+    the buffer.
 
-   <pre>
-   The buffer layout for fixed data part is as follows
-   +------------------------------------+
-   | table_id | reserved for future use |
-   +------------------------------------+
-   </pre>
+    <pre>
+    The buffer layout for fixed data part is as follows
+    +------------------------------------+
+    | table_id | reserved for future use |
+    +------------------------------------+
+    </pre>
 
-   <pre>
-   The buffer layout for variable data part is as follows
-   +------------------------------------------------------------------+
-   | var_header_len | column_before_image | columns_after_image | row |
-   +------------------------------------------------------------------+
-   </pre>
+    <pre>
+    The buffer layout for variable data part is as follows
+    +------------------------------------------------------------------+
+    | var_header_len | column_before_image | columns_after_image | row |
+    +------------------------------------------------------------------+
+    </pre>
 
-   @param buf                Contains the serialized event.
-   @param length             Length of the serialized event.
-   @param description_event  An FDE event, used to get the following information
-                             -binlog_version
-                             -server_version
-                             -post_header_len
-                             -common_header_len
-                             The content of this object
-                             depends on the binlog-version currently in use.
- */
- Rows_event(const char *buf, unsigned int event_len,
+    @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param description_event  An FDE event, used to get the following
+    information -binlog_version -server_version -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+  Rows_event(const char *buf, unsigned int event_len,
              const Format_description_event *description_event);
 
   virtual ~Rows_event();
 
-protected:
-  Log_event_type  m_type;     /** Actual event type */
+ protected:
+  Log_event_type m_type; /** Actual event type */
 
   /** Post header content */
   Table_id m_table_id;
-  uint16_t m_flags;           /** Flags for row-level events */
+  uint16_t m_flags; /** Flags for row-level events */
 
   /* Body of the event */
-  unsigned long m_width;      /** The width of the columns bitmap */
-  uint32_t n_bits_len;        /** value determined by (m_width + 7) / 8 */
+  unsigned long m_width; /** The width of the columns bitmap */
+  uint32_t n_bits_len;   /** value determined by (m_width + 7) / 8 */
   uint16_t var_header_len;
 
-  unsigned char* m_extra_row_data;
+  unsigned char *m_extra_row_data;
 
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
 
-public:
-  unsigned long long get_table_id() const
-  {
-    return m_table_id.id();
-  }
+ public:
+  unsigned long long get_table_id() const { return m_table_id.id(); }
 
-  enum_flag get_flags() const
-  {
-    return static_cast<enum_flag>(m_flags);
-  }
+  enum_flag get_flags() const { return static_cast<enum_flag>(m_flags); }
 
-  uint32_t get_null_bits_len() const
-  {
-    return n_bits_len;
-  }
+  uint32_t get_null_bits_len() const { return n_bits_len; }
 
-  unsigned long get_width() const
-  {
-    return m_width;
-  }
+  unsigned long get_width() const { return m_width; }
 
-  static std::string get_flag_string(enum_flag flag)
-  {
-    std::string str= "";
-    if (flag & STMT_END_F)
-      str.append(" Last event of the statement");
-    if (flag & NO_FOREIGN_KEY_CHECKS_F)
-      str.append(" No foreign Key checks");
-    if (flag & RELAXED_UNIQUE_CHECKS_F)
-      str.append(" No unique key checks");
-    if (flag & COMPLETE_ROWS_F)
-      str.append(" Complete Rows");
+  static std::string get_flag_string(enum_flag flag) {
+    std::string str = "";
+    if (flag & STMT_END_F) str.append(" Last event of the statement");
+    if (flag & NO_FOREIGN_KEY_CHECKS_F) str.append(" No foreign Key checks");
+    if (flag & RELAXED_UNIQUE_CHECKS_F) str.append(" No unique key checks");
+    if (flag & COMPLETE_ROWS_F) str.append(" Complete Rows");
     if (flag & ~(STMT_END_F | NO_FOREIGN_KEY_CHECKS_F |
                  RELAXED_UNIQUE_CHECKS_F | COMPLETE_ROWS_F))
       str.append("Unknown Flag");
     return str;
   }
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 
-  template <class Iterator_value_type> friend class Row_event_iterator;
+  template <class Iterator_value_type>
+  friend class Row_event_iterator;
 };
-
 
 /**
   @class Write_rows_event
@@ -755,20 +892,15 @@ public:
 
   @section Write_rows_event_binary_format Binary Format
 */
-class Write_rows_event : public virtual Rows_event
-{
-public:
-
+class Write_rows_event : public virtual Rows_event {
+ public:
   Write_rows_event(const char *buf, unsigned int event_len,
                    const Format_description_event *description_event)
-    : Rows_event(buf, event_len, description_event)
-  {
-    this->header()->type_code= m_type;
+      : Rows_event(buf, event_len, description_event) {
+    this->header()->type_code = m_type;
   };
 
-  Write_rows_event()
-    : Rows_event(WRITE_ROWS_EVENT)
-  {}
+  Write_rows_event() : Rows_event(WRITE_ROWS_EVENT) {}
 };
 
 /**
@@ -783,20 +915,15 @@ public:
 
   @section Update_rows_event_binary_format Binary Format
 */
-class Update_rows_event : public virtual Rows_event
-{
-public:
-
+class Update_rows_event : public virtual Rows_event {
+ public:
   Update_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-    : Rows_event(buf, event_len, description_event)
-  {
-    this->header()->type_code= m_type;
+      : Rows_event(buf, event_len, description_event) {
+    this->header()->type_code = m_type;
   }
 
-  Update_rows_event()
-    : Rows_event(UPDATE_ROWS_EVENT)
-  {}
+  Update_rows_event(Log_event_type event_type) : Rows_event(event_type) {}
 };
 
 /**
@@ -812,19 +939,15 @@ public:
 
    @section Delete_rows_event_binary_format Binary Format
 */
-class Delete_rows_event : public virtual Rows_event
-{
-public:
+class Delete_rows_event : public virtual Rows_event {
+ public:
   Delete_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-    : Rows_event(buf, event_len, description_event)
-  {
-    this->header()->type_code= m_type;
+      : Rows_event(buf, event_len, description_event) {
+    this->header()->type_code = m_type;
   }
 
-  Delete_rows_event()
-    : Rows_event(DELETE_ROWS_EVENT)
-  {}
+  Delete_rows_event() : Rows_event(DELETE_ROWS_EVENT) {}
 };
 
 /**
@@ -857,10 +980,8 @@ public:
   </tr>
   </table>
 */
-class Rows_query_event: public virtual Ignorable_event
-{
-public:
-
+class Rows_query_event : public virtual Ignorable_event {
+ public:
   /**
     It is used to write the original query in the binlog file in case of RBR
     when the session flag binlog_rows_query_log_events is set.
@@ -870,10 +991,11 @@ public:
     +------------------------------------+
     | The original query executed in RBR |
     +------------------------------------+
+    </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param event_len          Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -889,17 +1011,16 @@ public:
     It is the minimal constructor, and all it will do is set the type_code as
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
   */
-  Rows_query_event()
-    : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0)
-  {}
+  Rows_query_event() : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0) {}
 
   virtual ~Rows_query_event();
-protected:
+
+ protected:
   char *m_rows_query;
 };
-}
+}  // namespace binary_log
 
 /**
   @} (end of group Replication)
 */
-#endif	/* ROWS_EVENT_INCLUDED */
+#endif /* ROWS_EVENT_INCLUDED */

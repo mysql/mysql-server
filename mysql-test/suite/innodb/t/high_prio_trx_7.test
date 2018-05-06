@@ -3,7 +3,6 @@
 --echo #  T2= ( Try to take table level lock )
 --echo # Outcome: T2 waits for t1 to acquire table lock
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/count_sessions.inc
 

@@ -101,7 +101,7 @@ a	b	c
 explain select * from t1 where c in (select c from t3 where c between -2 and -1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	range	c	c	5	NULL	2	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	5	60.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	c	c	5	test.t3.c	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where ((`test`.`t1`.`c` = `test`.`t3`.`c`) and (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))))
 # select_type=UNION, type=system
@@ -142,7 +142,7 @@ count(*)
 5
 explain select count(*) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c	5	NULL	5	100.00	Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1`
 # SELECT COUNT(DISTINCT <non-gcol>) FROM tbl_name
@@ -321,13 +321,13 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`t
 # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(b) from t1 group by b;
 sum(b)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`b`
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
@@ -357,13 +357,13 @@ Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(c) from t1 group by b;
 sum(c)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(c) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
 drop table t1;
@@ -609,7 +609,7 @@ FROM (c AS subquery2_t1 RIGHT JOIN
 (subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key))
 ORDER BY subquery2_field1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	subquery2_t2	NULL	index	NULL	col_int_key_2	10	NULL	#	#	Using index; Using temporary; Using filesort
+1	SIMPLE	subquery2_t2	NULL	index	NULL	col_int_key_2	16	NULL	#	#	Using index; Using temporary; Using filesort
 1	SIMPLE	subquery2_t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	subquery2_t1	NULL	index	NULL	col_date_key	4	NULL	#	#	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
@@ -896,11 +896,11 @@ ON (table3.col_int_key = table2.col_int_key  ) ) )
 ON (table3.col_int_nokey = table2.pk  ) )
 GROUP BY field1, field2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	table1	NULL	index	col_datetime_key,col_varchar_key_2	col_datetime_key	6	NULL	#	100.00	Using index; Using temporary; Using filesort
+1	PRIMARY	table1	NULL	index	col_datetime_key,col_varchar_key_2	col_datetime_key	6	NULL	#	100.00	Using index; Using temporary
 1	PRIMARY	table2	NULL	index	PRIMARY,col_int_key,col_int_key_2	col_int_key	5	NULL	#	100.00	Using index
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.table2.pk,test.table2.col_int_key	#	100.00	NULL
 2	DERIVED	SUBQUERY1_t2	NULL	range	PRIMARY,col_int_key,col_varchar_key,col_int_key_2	PRIMARY	4	NULL	#	100.00	Using where
-2	DERIVED	SUBQUERY1_t3	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	5	test.SUBQUERY1_t2.col_varchar_key	#	100.00	Using index
+2	DERIVED	SUBQUERY1_t3	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	11	test.SUBQUERY1_t2.col_varchar_key	#	100.00	Using index
 2	DERIVED	SUBQUERY1_t1	NULL	ALL	col_int_key,col_int_key_2	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
 SELECT
 table1.pk AS field1 ,
@@ -973,8 +973,8 @@ GROUP BY SQ1_field1 , SQ1_field2
 )
 GROUP BY field1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	alias1	NULL	index	NULL	col_int_key_3	10	NULL	#	100.00	Using index; Using temporary; Using filesort
-1	PRIMARY	alias2	NULL	index	col_varchar_key,col_int_key_2,col_varchar_key_2	col_int_key_2	10	NULL	#	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	alias1	NULL	index	NULL	col_int_key_3	10	NULL	#	100.00	Using index; Using temporary
+1	PRIMARY	alias2	NULL	index	col_varchar_key,col_int_key_2,col_varchar_key_2	col_int_key_2	16	NULL	#	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	SQ1_alias1	NULL	ref_or_null	col_int_key,col_int_key_2,col_int_key_3	col_int_key	5	func	#	100.00	Using where; Using index; Full scan on NULL key
 2	DEPENDENT SUBQUERY	SQ1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
 SELECT
@@ -994,13 +994,13 @@ GROUP BY field1;
 field1
 bb
 ee
-gg
+jj
+uu
 hh
 ii
-jj
 mm
 pp
-uu
+gg
 ww
 DROP TABLE IF EXISTS c,cc;
 SET @save_old_sql_mode= @@sql_mode;
@@ -1082,8 +1082,6 @@ col_varchar_nokey
 (1, '2008-01-23', '11:14:24.032949', '2004-10-02 20:31:15.022553', 't');
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT DISTINCT alias1.col_varchar_key AS field1
 FROM ( cc AS alias1 STRAIGHT_JOIN
 (( cc AS alias2 STRAIGHT_JOIN cc AS alias3 ON
@@ -1102,8 +1100,6 @@ Warning	1292	Truncated incorrect DOUBLE value: 'm'
 Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#20797941: WL8149:ASSERTION !TABLE ||
 #  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET

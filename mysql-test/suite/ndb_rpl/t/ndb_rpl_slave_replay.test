@@ -18,7 +18,7 @@ reset master;
 --connection slave
 # Add a suppression for the warning that will appear in the
 # Slave's .err file
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 
 STOP SLAVE;
 CHANGE MASTER TO MASTER_LOG_POS=4;
@@ -137,7 +137,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --connection master
 --echo Now get unexpected epoch back-step using fault injection
 --echo on the Master.
-call mtr.add_suppression("NDB Binlog injector cycling gcis .*");
+call mtr.add_suppression("Binlog injector cycling gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
@@ -159,7 +159,7 @@ while($i)
 
 --connection slave
 
-call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as applying epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
@@ -217,7 +217,7 @@ delete from test.t1;
 
 --connection master
 --echo Now get unexpected epoch repeat using fault-injection on the master
-call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("Binlog injector repeating gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
@@ -239,7 +239,7 @@ while($i)
 
 --connection slave
 
-call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as attempted to reapply already committed epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
@@ -319,7 +319,7 @@ while($i)
 
 --connection slave
 
-call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
+call mtr.add_suppression("NDB Slave: SQL thread stopped as attempting to apply new epoch .*");
 call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 

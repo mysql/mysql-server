@@ -1,9 +1,9 @@
 # ==== Purpose ====
 #
-# Execute a .inc file once for server that was configured by
-# rpl_init.inc.  For each server, $rpl_server will be set to the
-# number of the server, and the current connection will be set to
-# server_N, where N == $rpl_server.
+# Source a .inc file once for server that was configured by
+# rpl_init.inc.  For each server N, $rpl_server will be set to the N,
+# and the current connection to server_N, and then the file will be
+# sourced.
 #
 # ==== Usage ====
 #
@@ -13,14 +13,20 @@
 #
 # Parameters:
 #   $rpl_source_file
-#     The file that will be sourced.
+#     File that will be sourced.
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
 
 
+if (!$rpl_source_file)
+{
+  --die !!!ERROR IN TEST: You must set $rpl_source_file
+}
+
 --let $include_filename= rpl_for_each_server.inc [$rpl_source_file]
 --source include/begin_include_file.inc
+
 
 --let $rpl_server= 1
 while ($rpl_server <= $rpl_server_count)

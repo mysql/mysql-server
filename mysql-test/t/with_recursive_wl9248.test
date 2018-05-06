@@ -1,0 +1,73 @@
+--source include/have_64bit.inc
+--source include/no_valgrind_without_big.inc
+
+set session internal_tmp_mem_storage_engine='memory';
+
+--echo # This specifically tests WITH RECURSIVE queries which have
+--echo # required changes in InnoDB (done as WL#9248).
+
+create table t1(a int);
+insert into t1 values(1),(2),(3);
+
+--echo # Force InnoDB tmp table, not MEMORY
+set big_tables=1;
+
+--echo # Problem required this:
+set optimizer_switch='block_nested_loop=off';
+
+--echo # with one reader, there was no problem:
+with qn as (select * from t1 limit 3) select * from qn;
+
+--echo # The problems were in the following scenarios.
+
+--echo # First all writes are done then two readers read
+
+with qn as (select * from t1 limit 3) select * from qn, qn qn1;
+
+--echo # Second, with one reader and one writer (reader is the query block
+--echo # after UNION ALL, writer is the derived materialization code)
+
+with recursive qn as (
+select 0 as n
+union all
+select n+1 from qn where n<10)
+select * from qn;
+
+--echo # With two readers (the two recursive query blocks after UNION ALL)
+--echo # and one writer (the derived materialization code).
+
+with recursive qn as (
+select 0 as n
+union all
+select 2*n+2 from qn where n<50
+union all
+select 2*n+1 from qn where n<50
+)
+select count(n),max(n) from qn;
+
+set optimizer_switch=default;
+
+--echo # Test overflow from MEMORY engine to INNODB:
+
+set big_tables=1;
+--echo # Set baseline, disk-based results:
+--source include/with_recursive_wl9248.inc
+
+set big_tables=0;
+
+--echo # Set different limits, to have different overflow scenarios;
+--echo # we have overflow at record #122, #1481, #937 depending on
+--echo # limits and queries.
+
+set @@tmp_table_size=1024,@@max_heap_table_size=16384;
+--source include/with_recursive_wl9248.inc
+
+set @@tmp_table_size=30000,@@max_heap_table_size=30000;
+--source include/with_recursive_wl9248.inc
+
+set @@tmp_table_size=60000,@@max_heap_table_size=60000;
+--source include/with_recursive_wl9248.inc
+
+--echo # cleanup
+drop table t1;
+set session internal_tmp_mem_storage_engine=default;

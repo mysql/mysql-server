@@ -2,7 +2,6 @@
 --echo # Basic test for innodb_merge_threshold_set_all_debug
 --echo #
 
---source include/have_innodb.inc
 
 # The config variable is a debug variable
 -- source include/have_debug.inc

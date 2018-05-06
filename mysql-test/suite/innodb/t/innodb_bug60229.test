@@ -6,7 +6,6 @@
 #in case sensitive filesystem. Using 'lower_case_table_names=0' in case of
 #insensitive filsystem is not allowed.
 -- source include/have_case_sensitive_file_system.inc
--- source include/have_innodb.inc
 
 CREATE TABLE PERSON (
   PERSON_ID VARCHAR(50) NOT NULL,

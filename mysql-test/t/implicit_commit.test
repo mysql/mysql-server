@@ -1,9 +1,6 @@
-source include/have_innodb.inc;
-source include/not_embedded.inc;
 source include/have_profiling.inc;
 
 SET GLOBAL EVENT_SCHEDULER = OFF;
-SET BINLOG_FORMAT = STATEMENT;
 
 LET $OLD_DB= `SELECT DATABASE()`;
 
@@ -442,12 +439,10 @@ source include/implicit_commit_helper.inc;
 --echo # SQLCOM_GRANT
 --echo #
 
+create user mysqltest_2@localhost;
 let $statement=
   grant all on test.t1 to mysqltest_2@localhost with grant option;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 source include/implicit_commit_helper.inc;
-set sql_mode= @orig_sql_mode;
 
 --echo #
 --echo # SQLCOM_REVOKE
@@ -536,14 +531,6 @@ source include/implicit_commit_helper.inc;
 
 #let $statement=
 #  alter database db2 collate cp1251_general_cs;
-#source include/implicit_commit_helper.inc;
-
---echo #
---echo # SQLCOM_ALTER_DB_UPGRADE
---echo #
-
-#let $statement=
-#  alter database `#mysql50#db3` upgrade data directory name;
 #source include/implicit_commit_helper.inc;
 
 --echo #
@@ -695,14 +682,6 @@ source include/implicit_commit_helper.inc;
 
 let $statement=
   rename table t4 to t3;
-source include/implicit_commit_helper.inc;
-
---echo #
---echo # SQLCOM_RESET
---echo #
-
-let $statement=
-  reset query cache;
 source include/implicit_commit_helper.inc;
 
 --echo #
@@ -1160,4 +1139,6 @@ DROP TABLE t3;
 eval USE $OLD_DB;
 DROP DATABASE db1;
 
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 --echo End of tests

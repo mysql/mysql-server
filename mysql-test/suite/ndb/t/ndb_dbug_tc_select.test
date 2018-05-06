@@ -1,16 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 # Test is using error insert, check that binaries support it
 --source have_ndb_error_insert.inc
 
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
 
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
@@ -20,8 +13,18 @@ drop table if exists t1,t2;
 --echo # Test tc select with 2-way joins with unique lookups
 --echo #
 
-create table t1 (a int key, b int) engine ndb;
-create table t2 (a int, b int, c int, d int, primary key(a,b), unique(d)) engine ndb partition by key(a);
+create table t1 (
+  a int key,
+  b int
+) charset latin1 engine ndb;
+create table t2 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b),
+  unique(d)
+) charset latin1 engine ndb partition by key(a);
 --disable_query_log
 --disable_result_log
 let $i= 100;
@@ -79,8 +82,17 @@ drop table t1,t2;
 --echo # Test tc select with 2-way joins with scan followed by unique lookup
 --echo #
 
-create table t1 (a int, b int, primary key(a,b)) engine ndb partition by key (a);
-create table t2 (a int, b int, c int, primary key(a,b)) engine ndb partition by key (a);
+create table t1 (
+  a int,
+  b int,
+  primary key(a,b)
+) charset latin1 engine ndb partition by key (a);
+create table t2 (
+  a int,
+  b int,
+  c int,
+  primary key(a,b)
+) charset latin1 engine ndb partition by key (a);
 
 --disable_query_log
 --disable_result_log
@@ -159,3 +171,5 @@ drop table t1,t2;
 --let $type3= varchar(257)
 --let $type4= char(12)
 --source suite/ndb/t/ndb_dbug_tc_select_3.inc
+
+--source suite/ndb/include/restore_ndb_read_backup.inc

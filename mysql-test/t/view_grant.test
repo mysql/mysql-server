@@ -1,26 +1,17 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# Can't test with embedded server
--- source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 --disable_warnings
 drop database if exists mysqltest;
 drop view if exists v1,v2,v3;
 --enable_warnings
 
-
 # simple test of grants
+create user test@localhost;
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
 revoke create view on test.* from test@localhost;
@@ -37,7 +28,7 @@ create database mysqltest;
 
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
-
+create user mysqltest_1@localhost;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
 
@@ -119,6 +110,8 @@ connection root;
 revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 
 #
 # EXPLAIN rights
@@ -230,9 +223,11 @@ explain select c from mysqltest.v4;
 show create view mysqltest.v4;
 
 connection root;
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+revoke all privileges, grant option from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 
 #
 # UPDATE privileges on VIEW columns and whole VIEW
@@ -651,6 +646,7 @@ delete from mysql.user where user='';
 flush privileges;
 
 # Create the test user
+create user 'test14256'@'%';
 grant all on test.* to 'test14256'@'%';
 
 connect (test14256,localhost,test14256,,test);
@@ -1158,6 +1154,8 @@ INSERT INTO mysqltest1.t2 VALUES (21), (22), (23), (24);
 INSERT INTO mysqltest1.t3 VALUES (31), (32), (33), (34);
 INSERT INTO mysqltest1.t4 VALUES (41), (42), (43), (44);
 
+CREATE USER mysqltest_u1@localhost;
+
 GRANT SELECT ON mysqltest1.t1 TO mysqltest_u1@localhost;
 GRANT INSERT ON mysqltest1.t2 TO mysqltest_u1@localhost;
 GRANT SELECT, UPDATE ON mysqltest1.t3 TO mysqltest_u1@localhost;
@@ -1232,7 +1230,7 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1(f1 INT, f2 INT);
 CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
-
+CREATE USER foo;
 GRANT SELECT (f1) ON t1 TO foo;
 GRANT SELECT (f1) ON v1 TO foo;
 
@@ -1740,7 +1738,6 @@ USE test;
 --echo # Bug#35996: SELECT + SHOW VIEW should be enough to display view 
 --echo # definition
 --echo #
--- source include/not_embedded.inc
 CREATE USER mysqluser1@localhost;
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
@@ -3045,3 +3042,70 @@ DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_a
 DROP VIEW silly_view;
 DROP TABLE silly_one;
 
+--echo #
+--echo # Bug #27094955 -- INCORRECT CHECKING FOR FILE PRIVILEGE IN CASE QUERY IS RUN AGAINST A VIEW
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+
+CREATE USER `u1`@`localhost`;
+CREATE USER `u2`@`localhost`;
+
+--echo # Create a view for that a user specified as definer doesn't have the FILE privilege
+CREATE DEFINER=`u2`@`localhost` VIEW v1 AS SELECT a FROM t1;
+
+--echo # Grant the FILE privilege to a user who will run the SELECT INTO OUTFILE against the view v1
+GRANT FILE ON *.* TO `u1`@`localhost`;
+
+let $OUTFILE = $MYSQLTEST_VARDIR/tmp/datadict.out;
+
+--enable_connect_log
+
+connect (con1,localhost,u1,,);
+--connection con1
+
+--echo # Run SELECT from a view with the clause "INTO OUTFILE".
+--echo # Without the patch this query would failed with error ER_ACCESS_DENIED_ERROR.
+--replace_result $OUTFILE <OUTFILE>
+eval SELECT a INTO OUTFILE '$OUTFILE'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM v1;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+cat_file $OUTFILE;
+remove_file $OUTFILE;
+
+--echo # Now revoke the privilege FILE from the user u1@localhost
+--echo # in order to check that without this privilege the statement
+--echo # "SELECT INTO OUTFILE .. FROM view" will fail. That is, check that
+--echo # the privilege FILE is still taken into account during processing
+--echo # when the clause INTO OUTFILE is specified.
+REVOKE FILE ON *.* FROM `u1`@`localhost`;
+
+connect (con1,localhost,u1,,);
+--connection con1
+
+--echo # Check that querying from v1 with the clause INTO OUTFILE is failed in case
+--echo # a user who running a query doesn't have the FILE privilege
+
+--replace_result $OUTFILE <OUTFILE>
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+eval SELECT a INTO OUTFILE '$OUTFILE'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM v1;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--disable_connect_log
+DROP USER `u1`@`localhost`;
+DROP USER `u2`@`localhost`;
+DROP VIEW v1;
+DROP TABLE t1;

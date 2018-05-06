@@ -1,7 +1,4 @@
 
-# Don't test with embedded server
--- source include/not_embedded.inc
-
 # Test of grants when lower_case_table_names is on
 use mysql;
 
@@ -9,10 +6,8 @@ use mysql;
 create database MYSQLtest;
 
 # check that database name gets forced to lowercase
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_1@localhost;
 grant all on MySQLtest.* to mysqltest_1@localhost;
-set sql_mode= @orig_sql_mode;
 show grants for mysqltest_1@localhost;
 
 # now force it to mixed case, but see that it is lowercased in the acl cache

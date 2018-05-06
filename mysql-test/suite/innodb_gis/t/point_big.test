@@ -4,10 +4,7 @@
 #
 #********************************************************
 
---source include/have_geometry.inc
---source include/have_innodb.inc
 
---source include/not_embedded.inc
 --source include/big_test.inc
 --source include/not_valgrind.inc
 
@@ -127,7 +124,7 @@ SET @poly4 = ST_GeomFromText('POLYGON((0 10, -10 10, -10 -10, 0 -10, 0 10))');
 SET @p1 = ST_PointFromText('POINT(0 0)');
 SET @mpoly = ST_GeomFromText('MULTIPOLYGON(((3 3, 3 16, 16 16, 16 3, 3 3)), ((10 10, 10 50, 50 50, 50 10, 10 10)))');
 
-CREATE TABLE gis_point (p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
+CREATE TABLE gis_point (p1 POINT NOT NULL SRID 0, p2 POINT NOT NULL SRID 0, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
 
 INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(1 2)'), ST_PointFromText('POINT(-1 -3)')),
@@ -204,7 +201,7 @@ CHECK TABLE gis_point;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
@@ -215,7 +212,7 @@ SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@
 -- echo Build another new table with the same schema, will insert data from this table to the orignal one
 -- echo ======================================================================
 
-CREATE TABLE p(p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL INDEX k1(p2)) ENGINE=InnoDB;
+CREATE TABLE p(p1 POINT NOT NULL, p2 POINT NOT NULL SRID 0, SPATIAL INDEX k1(p2)) ENGINE=InnoDB;
 
 INSERT INTO p VALUES(ST_PointFromText('POINT(1000 -1000)'), ST_PointFromText('POINT(-201 203.56)'));
 INSERT INTO p VALUES(ST_PointFromText('POINT(20.5 43.9832)'), ST_PointFromText('POINT(-0 0)'));
@@ -309,11 +306,11 @@ GROUP BY p1, p2;
 
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
+SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ASC;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1 ASC, p2 ASC;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly) GROUP BY p1, p2;
 
 CHECK TABLE gis_point;

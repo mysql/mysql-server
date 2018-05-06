@@ -48,7 +48,7 @@ SELECT @@session.general_log;
 ERROR HY000: Variable 'general_log' is a GLOBAL variable
 '#----------------------FN_DYNVARS_004_05------------------------#'
 SELECT IF(@@global.general_log, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='general_log';
 IF(@@global.general_log, "ON", "OFF") = VARIABLE_VALUE
 1

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ##############################################################
 # Author: Nikolay
 # Date: 2006-04-01
@@ -32,12 +27,6 @@
 ########################################################### 
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-DROP TABLE IF EXISTS test.t3;
---enable_warnings
-
 #### Copy data from table in one table space to table in ###
 #### different table space. ####
 --echo *****
@@ -55,6 +44,7 @@ DROP TABLE IF EXISTS test.t3;
  ADD DATAFILE './table_space1/datafile.dat'
  USE LOGFILE GROUP lg
  INITIAL_SIZE 25M
+ EXTENT_SIZE 256K
  ENGINE NDB;
 
  CREATE TABLESPACE ts2
@@ -68,8 +58,10 @@ DROP TABLE IF EXISTS test.t3;
  CREATE TABLE test.t2 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) 
  TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
  
+--disable_warnings
  SHOW CREATE TABLE test.t1;
  SHOW CREATE TABLE test.t2;
+--enable_warnings
  
  INSERT INTO test.t1 VALUES (1,'111111','aaaaaaaa');
  INSERT INTO test.t1 VALUES (2,'222222','bbbbbbbb');
@@ -119,12 +111,14 @@ select length(@x0),length(@b1),length(@d1) from dual;
 select length(@x0),length(@b2),length(@d2) from dual;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
- TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ TABLESPACE ts1 STORAGE DISK  ENGINE=NDB CHARACTER SET latin1;
  CREATE TABLE test.t2 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
- TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
+ TABLESPACE ts2 STORAGE DISK  ENGINE=NDB CHARACTER SET latin1;
  
+--disable_warnings
  SHOW CREATE TABLE test.t1;
  SHOW CREATE TABLE test.t2;
+--enable_warnings
  
  INSERT INTO test.t1 VALUES (1,@vc1,@d1);
  INSERT INTO test.t1 VALUES (2,@vc2,@b1);
@@ -167,11 +161,11 @@ from dual;
 select length(@bb1),length(@bb2),length(@bb3),length(@bb4),length(@bb5) 
 from dual;
 
- CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
- TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
-# CREATE TABLE test.t2 (a1 int NOT NULL, a2 VARCHAR(5000), a3 BLOB) 
+ CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB)
+ TABLESPACE ts1 STORAGE DISK CHARACTER SET latin1 ENGINE=NDB;
+# CREATE TABLE test.t2 (a1 int NOT NULL, a2 VARCHAR(5000), a3 BLOB)
 # TABLESPACE ts2 STORAGE DISK  ENGINE=NDB;
- 
+
  INSERT INTO test.t1 VALUES (1,@vc1,@bb1);
  INSERT INTO test.t1 VALUES (2,@vc2,@bb2);
  INSERT INTO test.t1 VALUES (3,@vc3,@bb3);
@@ -481,7 +475,8 @@ select length(@x0),length(@b1),length(@d1) from dual;
 select length(@x0),length(@b2),length(@d2) from dual;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(1000), a3 BLOB)
- TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ TABLESPACE ts1 STORAGE DISK  ENGINE=NDB
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
  
  INSERT INTO test.t1 values(1,@vc1,@d1);
  INSERT INTO test.t1 values(2,@vc2,@d2);
@@ -500,9 +495,6 @@ select length(@x0),length(@b2),length(@d2) from dual;
  FROM test.t1 where a1=1;
  SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
  FROM test.t1 where a1=2;
-
- #SHOW VARIABLES LIKE 'have_query_cache';
- #SHOW STATUS LIKE 'Qcache%';
 
  DELETE FROM test.t1;
  DROP TABLE test.t1;
@@ -539,14 +531,12 @@ select length(@x0),length(@b2),length(@d2) from dual;
  DROP TABLE test.t1;
 
  ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
+ DROP DATAFILE './table_space1/datafile.dat';
+ DROP TABLESPACE ts1;
 
  ALTER TABLESPACE ts2
- DROP DATAFILE './table_space2/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts2 ENGINE=NDB;
+ DROP DATAFILE './table_space2/datafile.dat';
+ DROP TABLESPACE ts2;
 
  DROP LOGFILE GROUP lg
  ENGINE=NDB;

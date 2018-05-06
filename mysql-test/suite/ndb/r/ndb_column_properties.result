@@ -1,4 +1,3 @@
-drop table if exists t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 1M
@@ -7,10 +6,10 @@ ENGINE=NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
-INITIAL_SIZE 6M
+INITIAL_SIZE 8M
 EXTENT_SIZE 256k
 ENGINE NDB;
-create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
+create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 Warnings:
 Warning	1478	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
 show create table t1;
@@ -34,7 +33,7 @@ e CHAR(100) column_format FIXED,
 e1 CHAR(100) column_format DYNAMIC,
 f CHAR(100) NOT NULL column_format FIXED,
 f1 char(100) NOT NULL column_format DYNAMIC storage DISK,
-index (b)) TABLESPACE ts1 engine NDB;
+index (b)) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 Warnings:
 Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
 insert into t1 (b, b1, d,d1,f,f1) values
@@ -247,7 +246,7 @@ c2 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 c3 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 drop table t1;
-create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 alter table t1 change column a a int storage memory column_format DYNAMIC;
 show create table t1;
 Table	Create Table
@@ -258,7 +257,7 @@ Attributes:
 a Int NULL AT=FIXED ST=MEMORY DYNAMIC
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 drop table t1;
-create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -271,10 +270,8 @@ storage Int NULL AT=FIXED ST=DISK
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 drop table t1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
-drop tablespace ts1
-engine ndb;
+DROP DATAFILE 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 CREATE TABLE t1 (

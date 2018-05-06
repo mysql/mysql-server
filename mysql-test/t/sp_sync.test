@@ -1,5 +1,3 @@
-# This test should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
 
 --echo Tests of synchronization of stored procedure execution.
 
@@ -150,33 +148,106 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLES t0, t1;
 
+#
+# Bug#22700385 - MDL ON STORED ROUTINES IS CASE SENSITIVE EVEN IF ROUTINE NAMES
+#                ARE INSENSITIVE
+#
 
---echo #
---echo # test for bug#11756013
---echo #
---disable_warnings
-DROP SCHEMA IF EXISTS s1;
---enable_warnings
-CREATE SCHEMA s1;
-CREATE PROCEDURE s1.p1() BEGIN END;
+--enable_connect_log
 
-connect (con3, localhost, root);
-SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
---send CALL s1.p1
+--echo # Case 1: Test case to verify MDL locking from concurrent SELECT and
+--echo #         DROP FUNCTION operation with case insensitive routine name.
 
-connection default;
-SET DEBUG_SYNC='now WAIT_FOR check_db';
-DROP SCHEMA s1;
-SET DEBUG_SYNC='now SIGNAL dropped_schema';
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_shared_lock_pname SIGNAL locked WAIT_FOR continue';
+--SEND SELECT mIxEdCaSe()
+--echo # At this point we have a shared lock on 'mIxEdCaSe'
 
-connection con3;
---error ER_BAD_DB_ERROR
---reap
-connection default;
-disconnect con3;
+--CONNECT (con1, localhost, root)
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--SEND DROP FUNCTION mixedcase;
+--echo # Without fix the shared lock does not prevent us from dropping the SF
+--echo # since the case used in this statement is different. This statement
+--echo # takes exclusive metadata lock on 'mixedcase', not 'mIxEdCaSe'.
+--echo # Drop function mIxEdCaSe will be blocked properly.
 
-SET DEBUG_SYNC = 'RESET';
+--CONNECT (con2, localhost, root)
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'DROP FUNCTION mixedcase' AND
+                     state='Waiting for stored function metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
 
-# Check that all connections opened by test cases in this file are really
-# gone so execution of other tests won't be affected by their presence.
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--REAP
+
+--echo # Case 2: Test case to verify MDL locking from concurrent SHOW FUNCTION
+--echo #         and DROP FUNCTION operation with case insensitive routine name.
+
+--CONNECTION default
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+--SEND DROP FUNCTION mIxEdCaSe;
+--echo # At this point we have a exclusive lock on 'mIxEdCaSe'
+
+--CONNECTION con1
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--SEND SHOW CREATE FUNCTION MiXeDcAsE
+--echo # This statement request for shared lock and it is blocked till DROP
+--echo # statement releases lock.
+
+--CONNECTION con2
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'SHOW CREATE FUNCTION%' AND
+                     state='Waiting for stored function metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--error ER_SP_DOES_NOT_EXIST
+--REAP
+
+--echo # Case 3: Test case to verify MDL locking from concurrent DDL operations
+--echo #         with case insensitive routine name.
+
+--CONNECTION default
+CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+--SEND DROP FUNCTION miXEDCAse
+--echo # At this point we have a exclusive lock on 'miXEDCAse'
+
+--CONNECTION con1
+SET DEBUG_SYNC='now WAIT_FOR locked';
+--SEND ALTER FUNCTION mixedcase COMMENT "comment_string";
+--echo # This statement request for exclusive lock and it is blocked till DROP
+--echo # statement releases lock.
+
+--CONNECTION con2
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info LIKE 'ALTER FUNCTION mixedcase%' AND
+                     state='Waiting for stored function metadata lock';
+source include/wait_condition.inc;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--CONNECTION default
+--REAP
+
+--CONNECTION con1
+--error ER_SP_DOES_NOT_EXIST
+--REAP
+
+# Cleanup
+--CONNECTION default
+DISCONNECT con1;
+DISCONNECT con2;
+--disable_connect_log
+
+# Check that all connections opened by test cases in this file are really gone
+# so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

@@ -99,16 +99,13 @@ a	b
 SELECT * FROM tsp_04;
 a	b
 9	Nine
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: Tables have different definitions
 SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'test'
 AND TABLE_NAME IN ('tp', 't_100');
 TABLE_NAME	ROW_FORMAT
-t_100	Dynamic
+t_100	Compressed
 tp	Dynamic
-Warnings:
-Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_100;
+ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_1000;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 DROP TABLE IF EXISTS t_10;

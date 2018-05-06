@@ -1,0 +1,544 @@
+#
+# Upgrading of sys schema tests
+#
+CREATE TABLE mysql.tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TABLE mysql.tmp_backup_user AS SELECT * FROM mysql.user;
+# Remove the sys schema, and check the --skip-sys-schema option
+DROP DATABASE sys;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+# Now run it normally, to ensure the sys schema is created
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+# Now drop procedures and make sure re-install is done
+DROP PROCEDURE sys.ps_setup_save;
+DROP PROCEDURE sys.ps_setup_reload_saved;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
+ROUTINE_NAME
+create_synonym_db
+diagnostics
+execute_prepared_stmt
+ps_setup_disable_background_threads
+ps_setup_disable_consumer
+ps_setup_disable_instrument
+ps_setup_disable_thread
+ps_setup_enable_background_threads
+ps_setup_enable_consumer
+ps_setup_enable_instrument
+ps_setup_enable_thread
+ps_setup_reload_saved
+ps_setup_reset_to_default
+ps_setup_save
+ps_setup_show_disabled
+ps_setup_show_disabled_consumers
+ps_setup_show_disabled_instruments
+ps_setup_show_enabled
+ps_setup_show_enabled_consumers
+ps_setup_show_enabled_instruments
+ps_statement_avg_latency_histogram
+ps_trace_statement_digest
+ps_trace_thread
+ps_truncate_all_tables
+statement_performance_analyzer
+table_exists
+# Now drop functions and make sure re-install is done
+DROP FUNCTION sys.format_bytes;
+DROP FUNCTION sys.format_time;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
+ROUTINE_NAME
+extract_schema_from_file_name
+extract_table_from_file_name
+format_bytes
+format_path
+format_statement
+format_time
+list_add
+list_drop
+ps_is_account_enabled
+ps_is_consumer_enabled
+ps_is_instrument_default_enabled
+ps_is_instrument_default_timed
+ps_is_thread_instrumented
+ps_thread_account
+ps_thread_id
+ps_thread_stack
+ps_thread_trx_info
+quote_identifier
+sys_get_config
+version_major
+version_minor
+version_patch
+# Now drop views and make sure re-install is done
+DROP VIEW sys.host_summary;
+DROP VIEW sys.processlist;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW';
+TABLE_NAME
+host_summary
+host_summary_by_file_io
+host_summary_by_file_io_type
+host_summary_by_stages
+host_summary_by_statement_latency
+host_summary_by_statement_type
+innodb_buffer_stats_by_schema
+innodb_buffer_stats_by_table
+innodb_lock_waits
+io_by_thread_by_latency
+io_global_by_file_by_bytes
+io_global_by_file_by_latency
+io_global_by_wait_by_bytes
+io_global_by_wait_by_latency
+latest_file_io
+memory_by_host_by_current_bytes
+memory_by_thread_by_current_bytes
+memory_by_user_by_current_bytes
+memory_global_by_current_bytes
+memory_global_total
+metrics
+processlist
+ps_check_lost_instrumentation
+schema_auto_increment_columns
+schema_index_statistics
+schema_object_overview
+schema_redundant_indexes
+schema_table_lock_waits
+schema_table_statistics
+schema_table_statistics_with_buffer
+schema_tables_with_full_table_scans
+schema_unused_indexes
+session
+session_ssl_status
+statement_analysis
+statements_with_errors_or_warnings
+statements_with_full_table_scans
+statements_with_runtimes_in_95th_percentile
+statements_with_sorting
+statements_with_temp_tables
+user_summary
+user_summary_by_file_io
+user_summary_by_file_io_type
+user_summary_by_stages
+user_summary_by_statement_latency
+user_summary_by_statement_type
+version
+wait_classes_global_by_avg_latency
+wait_classes_global_by_latency
+waits_by_host_by_latency
+waits_by_user_by_latency
+waits_global_by_latency
+x$host_summary
+x$host_summary_by_file_io
+x$host_summary_by_file_io_type
+x$host_summary_by_stages
+x$host_summary_by_statement_latency
+x$host_summary_by_statement_type
+x$innodb_buffer_stats_by_schema
+x$innodb_buffer_stats_by_table
+x$innodb_lock_waits
+x$io_by_thread_by_latency
+x$io_global_by_file_by_bytes
+x$io_global_by_file_by_latency
+x$io_global_by_wait_by_bytes
+x$io_global_by_wait_by_latency
+x$latest_file_io
+x$memory_by_host_by_current_bytes
+x$memory_by_thread_by_current_bytes
+x$memory_by_user_by_current_bytes
+x$memory_global_by_current_bytes
+x$memory_global_total
+x$processlist
+x$ps_digest_95th_percentile_by_avg_us
+x$ps_digest_avg_latency_distribution
+x$ps_schema_table_statistics_io
+x$schema_flattened_keys
+x$schema_index_statistics
+x$schema_table_lock_waits
+x$schema_table_statistics
+x$schema_table_statistics_with_buffer
+x$schema_tables_with_full_table_scans
+x$session
+x$statement_analysis
+x$statements_with_errors_or_warnings
+x$statements_with_full_table_scans
+x$statements_with_runtimes_in_95th_percentile
+x$statements_with_sorting
+x$statements_with_temp_tables
+x$user_summary
+x$user_summary_by_file_io
+x$user_summary_by_file_io_type
+x$user_summary_by_stages
+x$user_summary_by_statement_latency
+x$user_summary_by_statement_type
+x$wait_classes_global_by_avg_latency
+x$wait_classes_global_by_latency
+x$waits_by_host_by_latency
+x$waits_by_user_by_latency
+x$waits_global_by_latency
+# Now drop triggers and make sure re-install is done
+DROP TRIGGER sys.sys_config_insert_set_user;
+DROP TRIGGER sys.sys_config_update_set_user;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
+TRIGGER_NAME
+sys_config_insert_set_user
+sys_config_update_set_user
+# Now drop the sys_config table and make sure re-install is done
+DROP TABLE sys.sys_config;
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
+TABLE_NAME
+sys_config
+#
+# WL#2284: Increase the length of a user name
+#
+# First downgrade all tables with user name columnd to 5.6
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SET sql_mode= (SELECT replace(@@sql_mode,'STRICT_TRANS_TABLES',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE mysql.db_backup SELECT * FROM mysql.db;
+ALTER TABLE mysql.tables_priv
+MODIFY User char(16) NOT NULL default '',
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.columns_priv
+MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.user
+MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.db
+MODIFY User char(16) NOT NULL default '';
+ALTER TABLE mysql.procs_priv
+MODIFY User char(16) binary DEFAULT '' NOT NULL,
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+#
+# Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+# ARE NOT UPDATED TO 32
+#
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+# Tables with user name column downgraded to 5.6, now run mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.db_backup                                    OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.tmp_backup_tables_priv                       OK
+mysql.tmp_backup_user                              OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM mysql.tmp_backup_tables_priv);
+DROP TABLE mysql.tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM mysql.tmp_backup_user);
+DROP TABLE mysql.tmp_backup_user;
+TRUNCATE TABLE mysql.db;
+INSERT INTO mysql.db SELECT * FROM mysql.db_backup;
+DROP TABLE mysql.db_backup;
+SET sql_mode= @orig_sql_mode;

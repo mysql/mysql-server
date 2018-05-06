@@ -22,6 +22,9 @@ DROP TABLE IF EXISTS nt1;
 CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
+# Get tables loaded in data-dictionary cache
+
+
 # Disable all events from the control thread
 
 
@@ -33,28 +36,18 @@ CALL clear_transaction_tables();
 # STEP 2 - BASIC TRANSACTION
 ========================================================================
 
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT @@global.autocommit;
 @@global.autocommit
 1
-SELECT @@global.binlog_format;
-@@global.binlog_format
-ROW
-SELECT @@tx_isolation;
-@@tx_isolation
+SELECT @@transaction_isolation;
+@@transaction_isolation
 REPEATABLE-READ
-Warnings:
-Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT @@autocommit;
 @@autocommit
 0
-SELECT @@binlog_format;
-@@binlog_format
-ROW
 
 # STEP 2.1 - START/COMMIT
 
@@ -105,7 +98,7 @@ START TRANSACTION;
 INSERT INTO t1 VALUES (302, 'REPEATABLE READ');
 COMMIT;
 SELECT @@binlog_format INTO @binlog_save;
-SET SESSION BINLOG_FORMAT=ROW;
+SET SESSION BINLOG_FORMAT='ROW';
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION;
 INSERT INTO t1 VALUES (303, 'READ COMMITTED');
@@ -248,7 +241,10 @@ ACTUAL	EXPECTED
      0	       0
 INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ## Issue a DDL statement to force a commmit
-CREATE TABLE t2 (s1 INT, s2 VARCHAR(64)) ENGINE=INNODB;
+## This DDL needs to fail early, to avoid starting its own transaction
+## which will disturb the state.
+ALTER TABLE t1 ADD KEY (s3);
+ERROR 42000: Key column 's3' doesn't exist in table
 
 ## Expect 0 active transactions, 1 committed transaction
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
@@ -261,7 +257,6 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '',
 ACTUAL	EXPECTED
      1	       1
 CALL clear_transaction_tables();
-DROP TABLE test.t2;
 
 ========================================================================
 STEP 7 - XA TRANSACTIONS
@@ -374,8 +369,9 @@ CALL clear_transaction_tables();
 ========================================================================
 
 SET SESSION AUTOCOMMIT = 0;
-SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
-THREAD_ID	EVENT_ID	END_EVENT_ID	EVENT_NAME	STATE	TRX_ID	GTID	XID_FORMAT_ID	XID_GTRID	XID_BQUAL	XA_STATE	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	ACCESS_MODE	ISOLATION_LEVEL	AUTOCOMMIT	NUMBER_OF_SAVEPOINTS	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	NUMBER_OF_RELEASE_SAVEPOINT	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	NESTING_EVENT_TYPE
+SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
+COUNT(*)
+0
 
 #
 # STEP 8.1 - UPDATE NON-TRANSACTIONAL TABLE

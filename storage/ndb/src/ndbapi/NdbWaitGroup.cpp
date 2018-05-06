@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -37,16 +44,12 @@ NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int ndbs) :
   m_multiWaitHandler(0),
   m_pos_overflow(0),
   m_nodeId(0),
-  m_active_version(0),
   m_conn(_conn)
 {
   const int pointers_per_cache_line = NDB_CL / sizeof(Ndb *);
 
   /* round array size up to a whole cache line */
   m_array_size = round_up(ndbs, pointers_per_cache_line);
-
-  /* m_pos is used in the version 1 api */
-  m_pos = m_array_size;
 
   /* overflow list is 1/8 of array, also rounded up */
   m_overflow_size = m_array_size / 8;
@@ -87,52 +90,6 @@ NdbWaitGroup::~NdbWaitGroup()
 void NdbWaitGroup::wakeup()
 {
   m_conn->m_impl.m_transporter_facade->requestWakeup();
-}
-
-
-/*  Old-API addNdb() 
-*/
-bool NdbWaitGroup::addNdb(Ndb *ndb)
-{
-  if(unlikely(ndb->theNode != Uint32(m_nodeId)))
-  {
-    return false; // Ndb belongs to wrong ndb_cluster_connection
-  }
-
-  if(unlikely(m_pos == 0))
-  {
-    return false; // array is full
-  }
-
-  m_array[--m_pos] = ndb;
-  return true;
-}
-
-
-/*  Old-API version of wait().
-    It is single-threaded without any concurrent push().
-*/
-int NdbWaitGroup::wait(Ndb ** & arrayHead    /* out */,
-                       Uint32 timeout_millis,
-                       int min_ndbs)
-{
-  int nready;
-  int nwait = m_array_size - m_pos;
-  Ndb ** ndblist = m_array + m_pos;
-  arrayHead = NULL;
-  m_active_version = 1;
-  int wait_rc = m_multiWaitHandler->waitForInput(ndblist,
-                                                 nwait,
-                                                 min_ndbs,
-                                                 timeout_millis,
-                                                 &nready);
-  if(wait_rc == 0) 
-  {
-    arrayHead = ndblist; 
-    m_pos += nready;
-    return nready;
-  }
-  return wait_rc ? -1 : nready;
 }
 
 
@@ -198,14 +155,10 @@ int NdbWaitGroup::push(Ndb *ndb)
 
 
 /* wait() takes the lock before and after wait (not during).
-   In 7.2, shifting or resizing the list requires a PollGuard,
-   but in 7.3, the underlying wakeupHandler will only touch the 
-   array during wait() so no lock is needed.
 */
 int NdbWaitGroup::wait(Uint32 timeout_millis, int pct_ready) 
 {
   int nready, nwait;
-  m_active_version = 2;
   assert(pct_ready >=0 && pct_ready <= 100);
 
   lock();

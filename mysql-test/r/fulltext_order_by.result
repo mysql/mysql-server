@@ -96,12 +96,16 @@ PRIMARY KEY  (id),
 KEY thread (thread),
 FULLTEXT KEY beitrag (beitrag)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 id int(11) NOT NULL auto_increment,
 text varchar(100) NOT NULL default '',
 PRIMARY KEY  (id),
 KEY text (text)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t3 (
 id int(11) NOT NULL auto_increment,
 forum int(11) NOT NULL default '0',
@@ -110,6 +114,8 @@ PRIMARY KEY  (id),
 KEY forum (forum),
 FULLTEXT KEY betreff (betreff)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -128,7 +134,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in global ORDER clause
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -144,7 +150,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in global ORDER clause
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join

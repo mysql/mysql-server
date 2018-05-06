@@ -1,17 +1,24 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
- 
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
+ GNU General Public License, version 2.0, for more details.
+
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MY_CONFIG_H
 #define MY_CONFIG_H
@@ -20,7 +27,6 @@
  * From configure.cmake, in order of appearance 
  */
 #cmakedefine HAVE_LLVM_LIBCPP 1
-#cmakedefine _LARGEFILE_SOURCE 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
@@ -41,6 +47,7 @@
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_LANGINFO_H 1
+#cmakedefine HAVE_LSAN_INTERFACE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -74,13 +81,10 @@
 #cmakedefine HAVE_BACKTRACE 1
 #cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_INDEX 1
-#cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_FTRUNCATE 1
-#cmakedefine HAVE_COMPRESS 1
-#cmakedefine HAVE_CRYPT 1
-#cmakedefine HAVE_DLOPEN 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1
@@ -88,7 +92,6 @@
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
-#cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
 #cmakedefine HAVE_GETPASS 1
@@ -103,7 +106,7 @@
 #cmakedefine HAVE_GETEUID 1
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
-#cmakedefine HAVE_LSTAT 1
+#cmakedefine HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MEMRCHR 1
@@ -116,15 +119,12 @@
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_READLINK 1
-#cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
-#cmakedefine HAVE_STRNLEN 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_FGETLN 1
@@ -134,7 +134,6 @@
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
-#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
 /* #cmakedefine HAVE_EVENT_PORTS 1 */
 #cmakedefine HAVE_INET_NTOP 1
@@ -155,12 +154,10 @@
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
-#cmakedefine HAVE_SIGEV_THREAD_ID 1
-#cmakedefine HAVE_SIGEV_PORT 1
-#cmakedefine HAVE_LOG2 1
 
 #cmakedefine HAVE_ISINF 1
 
+#cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_KQUEUE_TIMERS 1
 #cmakedefine HAVE_POSIX_TIMERS 1
 
@@ -176,15 +173,16 @@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
 #cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
-#cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine HAVE_STRUCT_TIMESPEC
 
 /* Support for tagging symbols with __attribute__((visibility("hidden"))) */
 #cmakedefine HAVE_VISIBILITY_HIDDEN 1
 
 /* Code tests*/
+#cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_CLOCK_REALTIME 1
+#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
@@ -198,29 +196,34 @@
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
+#cmakedefine HAVE_SYS_GETTID 1
+#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+#cmakedefine HAVE_PTHREAD_THREADID_NP 1
+#cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP 1
+/*
+  This macro defines whether the compiler in use needs a 'typename' keyword
+  to access the types defined inside a class template, such types are called
+  dependent types. Some compilers require it, some others forbid it, and some
+  others may work with or without it. For example, GCC requires the 'typename'
+  keyword whenever needing to access a type inside a template, but msvc
+  forbids it.
+ */
+#cmakedefine HAVE_IMPLICIT_DEPENDENT_NAME_TYPING 1
 
 /* IPV6 */
 #cmakedefine HAVE_NETINET_IN6_H 1
-#cmakedefine HAVE_STRUCT_SOCKADDR_IN6 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
-#cmakedefine HAVE_IPV6 1
-
-#cmakedefine ss_family @ss_family@
-#cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
-#cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
 
 /*
  * Platform specific CMake files
  */
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
+#cmakedefine LINUX_ALPINE 1
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
-#cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
-/* Windows stuff, mostly functions, that have Posix analogs but named differently */
-#cmakedefine IPPROTO_IPV6 @IPPROTO_IPV6@
-#cmakedefine IPV6_V6ONLY @IPV6_V6ONLY@
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
 
@@ -233,8 +236,8 @@
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine ENABLED_PROFILING 1
 #cmakedefine HAVE_ASAN
+#cmakedefine HAVE_UBSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
-#cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"
 #cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"
@@ -250,7 +253,6 @@
 #cmakedefine INSTALL_SHAREDIR "@default_prefix@/@INSTALL_SHAREDIR@"
 #cmakedefine INSTALL_PLUGINDIR "@default_prefix@/@INSTALL_PLUGINDIR@"
 #cmakedefine INSTALL_INCLUDEDIR "@default_prefix@/@INSTALL_INCLUDEDIR@"
-#cmakedefine INSTALL_SCRIPTDIR "@default_prefix@/@INSTALL_SCRIPTDIR@"
 #cmakedefine INSTALL_MYSQLDATADIR "@default_prefix@/@INSTALL_MYSQLDATADIR@"
 #cmakedefine INSTALL_MYSQLKEYRINGDIR "@default_prefix@/@INSTALL_MYSQLKEYRINGDIR@"
 #cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
@@ -282,61 +284,10 @@
 #cmakedefine HAVE_DECL_TGOTO 1
 
 /*
- * DTrace
- */
-#cmakedefine HAVE_DTRACE 1
-
-/*
  * Character sets
  */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
-#cmakedefine HAVE_CHARSET_armscii8 1
-#cmakedefine HAVE_CHARSET_ascii 1
-#cmakedefine HAVE_CHARSET_big5 1
-#cmakedefine HAVE_CHARSET_cp1250 1
-#cmakedefine HAVE_CHARSET_cp1251 1
-#cmakedefine HAVE_CHARSET_cp1256 1
-#cmakedefine HAVE_CHARSET_cp1257 1
-#cmakedefine HAVE_CHARSET_cp850 1
-#cmakedefine HAVE_CHARSET_cp852 1 
-#cmakedefine HAVE_CHARSET_cp866 1
-#cmakedefine HAVE_CHARSET_cp932 1
-#cmakedefine HAVE_CHARSET_dec8 1
-#cmakedefine HAVE_CHARSET_eucjpms 1
-#cmakedefine HAVE_CHARSET_euckr 1
-#cmakedefine HAVE_CHARSET_gb2312 1
-#cmakedefine HAVE_CHARSET_gbk 1
-#cmakedefine HAVE_CHARSET_gb18030 1
-#cmakedefine HAVE_CHARSET_geostd8 1
-#cmakedefine HAVE_CHARSET_greek 1
-#cmakedefine HAVE_CHARSET_hebrew 1
-#cmakedefine HAVE_CHARSET_hp8 1
-#cmakedefine HAVE_CHARSET_keybcs2 1
-#cmakedefine HAVE_CHARSET_koi8r 1
-#cmakedefine HAVE_CHARSET_koi8u 1
-#cmakedefine HAVE_CHARSET_latin1 1
-#cmakedefine HAVE_CHARSET_latin2 1
-#cmakedefine HAVE_CHARSET_latin5 1
-#cmakedefine HAVE_CHARSET_latin7 1
-#cmakedefine HAVE_CHARSET_macce 1
-#cmakedefine HAVE_CHARSET_macroman 1
-#cmakedefine HAVE_CHARSET_sjis 1
-#cmakedefine HAVE_CHARSET_swe7 1
-#cmakedefine HAVE_CHARSET_tis620 1
-#cmakedefine HAVE_CHARSET_ucs2 1
-#cmakedefine HAVE_CHARSET_ujis 1
-#cmakedefine HAVE_CHARSET_utf8mb4 1
-#cmakedefine HAVE_CHARSET_utf8mb3 1
-#cmakedefine HAVE_CHARSET_utf8 1
-#cmakedefine HAVE_CHARSET_utf16 1
-#cmakedefine HAVE_CHARSET_utf32 1
-#cmakedefine HAVE_UCA_COLLATIONS 1
-
-/*
- * Feature set
- */
-#cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
 
 /*
  * Performance schema
@@ -354,37 +305,15 @@
 #cmakedefine DISABLE_PSI_SP 1
 #cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
+#cmakedefine DISABLE_PSI_ERROR 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1
 #cmakedefine DISABLE_PSI_MEMORY 1
 #cmakedefine DISABLE_PSI_TRANSACTION 1
 
 /*
- * syscall
-*/
-#cmakedefine HAVE_SYS_THREAD_SELFID 1
-#cmakedefine HAVE_SYS_GETTID 1
-#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
-#cmakedefine HAVE_PTHREAD_SETNAME_NP 1
-#cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
-
-/* Platform-specific C++ compiler behaviors we rely upon */
-
-/*
-  This macro defines whether the compiler in use needs a 'typename' keyword
-  to access the types defined inside a class template, such types are called
-  dependent types. Some compilers require it, some others forbid it, and some
-  others may work with or without it. For example, GCC requires the 'typename'
-  keyword whenever needing to access a type inside a template, but msvc
-  forbids it.
- */
-#cmakedefine HAVE_IMPLICIT_DEPENDENT_NAME_TYPING 1
-
-
-/*
  * MySQL version
  */
-#cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 #define MYSQL_VERSION_MAJOR @MAJOR_VERSION@
 #define MYSQL_VERSION_MINOR @MINOR_VERSION@
 #define MYSQL_VERSION_PATCH @PATCH_VERSION@
@@ -413,7 +342,6 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
-#cmakedefine HAVE_CHOWN 1
 
 /*
  * Hardcoded values needed by libevent/NDB/memcached
@@ -443,10 +371,11 @@
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
-#cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
 #cmakedefine HAVE_LIBNUMA 1
 
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
+
+#define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
 #endif

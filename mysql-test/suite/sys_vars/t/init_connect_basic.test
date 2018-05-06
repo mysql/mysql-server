@@ -143,7 +143,7 @@ SELECT @@global.init_connect;
 
 --disable_warnings
 SELECT @@global.init_connect = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='init_connect') AS res;
 --enable_warnings
 

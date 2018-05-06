@@ -17,7 +17,7 @@ SELECT @@GLOBAL.table_open_cache_instances;
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
 SELECT @@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='table_open_cache_instances';
 @@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
 1
@@ -25,7 +25,7 @@ SELECT @@GLOBAL.table_open_cache_instances;
 @@GLOBAL.table_open_cache_instances
 16
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_open_cache_instances';
 VARIABLE_VALUE
 16

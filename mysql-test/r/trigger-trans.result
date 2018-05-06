@@ -8,7 +8,7 @@ end|
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	begin
 set new.a := upper(new.a);
 set new.b := new.b + 3;
@@ -24,7 +24,7 @@ test.t1	optimize	status	OK
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	begin
 set new.a := upper(new.a);
 set new.b := new.b + 3;
@@ -38,7 +38,7 @@ alter table t1 add column c int default 0;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	begin
 set new.a := upper(new.a);
 set new.b := new.b + 3;
@@ -53,7 +53,7 @@ alter table t1 rename to t1;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	begin
 set new.a := upper(new.a);
 set new.b := new.b + 3;
@@ -69,7 +69,7 @@ alter table t1 rename to t1, add column d int default 0;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	begin
 set new.a := upper(new.a);
 set new.b := new.b + 3;
@@ -82,6 +82,24 @@ THE UNICORN	23	0	0
 ALICE	33	1	0
 THE CROWN	43	1	0
 THE PIE	53	1	1
+alter table t1 add primary key(b), algorithm=copy;
+select trigger_schema, trigger_name, event_object_schema,
+event_object_table, action_statement from information_schema.triggers
+where event_object_schema = 'test' and event_object_table = 't1';
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
+test	t1_bi	test	t1	begin
+set new.a := upper(new.a);
+set new.b := new.b + 3;
+end
+insert into t1 values ('The Mirror', 60, 1, 1);
+select * from t1;
+a	b	c	d
+THE LION	13	0	0
+THE UNICORN	23	0	0
+ALICE	33	1	0
+THE CROWN	43	1	0
+THE PIE	53	1	1
+THE MIRROR	63	1	1
 drop table t1;
 
 Bug#26141 mixing table types in trigger causes full
@@ -151,7 +169,7 @@ CREATE TRIGGER t1_ad AFTER DELETE ON t1 FOR EACH ROW SET @b = 1;
 SET @a = 0;
 SET @b = 0;
 TRUNCATE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `test`.`t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT @a, @b;
 @a	@b
 0	0

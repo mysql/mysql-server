@@ -1,0 +1,151 @@
+############# suite/perfschema/t/ees.test ####################
+
+--source include/no_protocol.inc
+
+--echo
+--echo ========================================================================
+--echo STEP 1 - SETUP
+--echo ========================================================================
+
+# Create a stored procedure which handles ER_NO_SUCH_TABLE error
+delimiter //;
+
+CREATE PROCEDURE handleError() 
+BEGIN
+  DECLARE no_such_table CONDITION FOR 1146;
+  DECLARE CONTINUE HANDLER FOR no_such_table select 1;
+  INSERT INTO test.no_table values (1);
+END//
+
+CREATE PROCEDURE signalError() 
+BEGIN
+  DECLARE mycond CONDITION FOR SQLSTATE '42S02';
+  SIGNAL mycond SET MESSAGE_TEXT = 'An error occurred';
+END//
+
+CREATE PROCEDURE bigError()
+BEGIN
+   SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 40000, MESSAGE_TEXT = "A big error number";
+END//
+
+delimiter ;//
+
+truncate  performance_schema.events_errors_summary_by_thread_by_error;
+truncate  performance_schema.events_errors_summary_by_user_by_error;
+truncate  performance_schema.events_errors_summary_by_host_by_error;
+truncate  performance_schema.events_errors_summary_by_account_by_error;
+truncate  performance_schema.events_errors_summary_global_by_error;
+
+--echo
+--echo # Control thread
+--echo
+--connection default
+
+#-------------------------------------------------------------
+# Create new users 
+#-------------------------------------------------------------
+--echo
+--echo # Create new user user1.
+--echo
+create user user1@localhost;
+grant ALL on *.* to user1@localhost;
+
+--echo
+--echo # Create new user user2.
+--echo
+create user user2@localhost;
+grant ALL on *.* to user2@localhost;
+
+#-------------------------------------------------------------
+# Run some queries which give errors.
+#-------------------------------------------------------------
+--echo
+--echo # Connection 1
+--echo
+connect(con1, localhost, user1,,);
+let $con1_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE
+       PROCESSLIST_ID = connection_id()`;
+# BAD db name
+--error ER_BAD_DB_ERROR
+use bad_db;
+# Syntax error
+--error ER_NO_SUCH_TABLE
+SELECT * from test.no_table;
+
+--error 1644
+# Call the stored procedure
+call signalError();
+--error 40000
+call bigError();
+
+--echo
+--echo # Connection 2
+--echo
+connect(con2, localhost, user2,,);
+let $con2_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE
+       PROCESSLIST_ID = connection_id()`;
+# Table doesn't exist error
+--error ER_NO_SUCH_TABLE
+SELECT * from test.no_table;
+--error ER_PARSE_ERROR 
+I dont know the syntax;
+
+# Call the stored procedure
+call handleError();
+
+
+
+--echo #-------------------------------------------------------------
+--echo # Now see the error stats from P_S tables.
+--echo #-------------------------------------------------------------
+
+--connection default
+
+--echo
+--echo # events_errors_summary_by_thread_by_error.
+--disable_query_log
+eval SELECT ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_thread_by_error where (SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0) AND THREAD_ID = $con1_thread_id;
+eval SELECT ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_thread_by_error where (SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0) AND THREAD_ID = $con2_thread_id;
+--enable_query_log
+
+--echo
+--echo # events_errors_summary_by_user_by_error.
+SELECT USER, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_user_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+--echo
+--echo # events_errors_summary_by_host_by_error.
+SELECT HOST, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_host_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+--echo
+--echo # events_errors_summary_by_account_by_error.
+SELECT USER, HOST, ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_by_account_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+--echo
+--echo # events_errors_summary_global_by_error.
+SELECT ERROR_NUMBER, ERROR_NAME, SQL_STATE, SUM_ERROR_RAISED, SUM_ERROR_HANDLED from performance_schema.events_errors_summary_global_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+--echo
+
+--echo #-----------------------------------------------------
+--echo # Truncate stats
+--echo #-----------------------------------------------------
+TRUNCATE performance_schema.events_errors_summary_by_thread_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_user_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_host_by_error;
+TRUNCATE performance_schema.events_errors_summary_by_account_by_error;
+TRUNCATE performance_schema.events_errors_summary_global_by_error;
+
+SELECT * from performance_schema.events_errors_summary_by_thread_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * from performance_schema.events_errors_summary_by_user_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * from performance_schema.events_errors_summary_by_host_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * from performance_schema.events_errors_summary_by_account_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+SELECT * from performance_schema.events_errors_summary_global_by_error where SUM_ERROR_HANDLED>0 OR SUM_ERROR_RAISED>0;
+
+
+
+#-------------------------------------------------------------
+# Cleanup
+#-------------------------------------------------------------
+#--disconnect con1;
+#--disconnect con2;
+drop procedure handleError;
+drop procedure signalError;
+drop procedure bigError;
+drop user user1@localhost;
+drop user user2@localhost;

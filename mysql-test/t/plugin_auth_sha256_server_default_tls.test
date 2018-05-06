@@ -1,15 +1,9 @@
---source include/not_embedded.inc
 --source include/have_ssl.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 CREATE USER 'kristofer';
-# Bootstrap did not follow the startup variables while creating root account,
-# hence need to change old_passwords variable.
-SET old_passwords=2;
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user ORDER BY user;
 connect(con1,localhost,kristofer,secret,,,,SSL);
@@ -19,8 +13,8 @@ connection default;
 disconnect con1;
 DROP USER 'kristofer';
 
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
-GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
 connect(con2,localhost,kristofer,secret2,,,,SSL);
@@ -50,7 +44,7 @@ disconnect con2;
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
 
-GRANT ALL ON *.* TO 'kristofer'@'localhost';
+CREATE USER 'kristofer'@'localhost';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 connect(con3,localhost,kristofer,,,,,SSL);
 connection con3;
@@ -60,7 +54,7 @@ connection default;
 disconnect con3;
 DROP USER 'kristofer'@'localhost';
 
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
+CREATE USER 'kristofer'@'33.33.33.33';
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 --echo Connection should fail for localhost
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
@@ -70,14 +64,13 @@ connect(con4,127.0.0.1,kristofer,,,,,SSL);
 --enable_query_log
 DROP USER 'kristofer'@'33.33.33.33';
 
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
+CREATE USER 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
 connect(con3,localhost,kristofer,awesomeness,,,,SSL);
 connection con3;
 SELECT USER(),CURRENT_USER();
 SHOW GRANTS FOR 'kristofer'@'localhost';
 connection default;
 disconnect con3;
-# Setting password for kristofer@localhost using old_passwords=0 will fail.
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 DROP USER 'kristofer'@'localhost';
 

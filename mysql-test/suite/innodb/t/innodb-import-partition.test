@@ -1,9 +1,5 @@
-# Not supported in embedded
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
---source include/have_innodb.inc
---source include/have_partition.inc
 
 let $partitioning= 1;
 
@@ -22,7 +18,7 @@ FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM t1 ORDER BY c1;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 EOF
 
@@ -35,7 +31,7 @@ INSERT INTO t1 VALUES (31), (32), (33);
 ALTER TABLE t1 DISCARD PARTITION p0,p2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p2");
 EOF
@@ -46,7 +42,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1");
 ib_restore_tablespaces("test", "t1#P#p1");
 EOF
@@ -58,7 +54,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 EOF
@@ -81,7 +77,7 @@ ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1");
 ib_restore_tablespaces("test", "t1#P#p1");
 EOF
@@ -105,7 +101,7 @@ SELECT c1 FROM t1 ORDER BY c1;
 FLUSH TABLES t1 FOR EXPORT;
 SELECT * FROM t1 ORDER BY c1;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_backup_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -124,7 +120,7 @@ INSERT INTO t1 VALUES (131), (132), (133);
 ALTER TABLE t1 DISCARD PARTITION p0sp1,p1sp0 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
 ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
 EOF
@@ -135,7 +131,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1, p0sp2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -151,7 +147,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -170,7 +166,7 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp2");
 ib_restore_tablespaces("test", "t1#P#p1#SP#p1sp2");
 EOF
@@ -179,7 +175,7 @@ EOF
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -193,7 +189,7 @@ EOF
 --error ER_INTERNAL_ERROR
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp2");
 EOF
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
@@ -203,7 +199,7 @@ ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -237,7 +233,7 @@ SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
  PARTITION p1 VALUES LESS THAN MAXVALUE);
 ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test","t1#P#p0#SP#p0sp0");
 ib_restore_tablespaces("test","t1#P#p0#SP#p0sp0");
 EOF
@@ -248,7 +244,7 @@ ALTER TABLE t1 REBUILD PARTITION p0;
 SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
 ib_restore_tablespaces("test",
@@ -267,7 +263,7 @@ ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp2 TABLESPACE;
 perl;
-do 'include/innodb-util.inc';
+require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
 "t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
 "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
@@ -281,14 +277,14 @@ SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
-call mtr.add_suppression("InnoDB: Missing \.ibd file for table .test...t1. .. Partition");
+call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("Missing \.ibd file for table .test...t1. .. Partition");
 --enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd

@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -45,46 +52,46 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
   KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
     prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
     int ret = 0;
     if (prefAttrs > 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       ret = cmpSearchKey(ctx, searchKey, prefKey, prefAttrs);
     }
     if (ret == 0 && prefAttrs < numAttrs) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       // read and compare all attributes
       readKeyAttrs(ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
       ret = cmpSearchKey(ctx, searchKey, entryKey, numAttrs);
     }
     if (ret == 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getEnt(0));
     }
     if (ret < 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(0);
       if (loc != NullTupLoc) {
-        thrjam(ctx.jamBuffer);
+        thrjamDebug(ctx.jamBuffer);
         // continue to left subtree
         currNode.m_loc = loc;
         continue;
       }
       if (! glbNode.isNull()) {
-        thrjam(ctx.jamBuffer);
+        thrjamDebug(ctx.jamBuffer);
         // move up to the g.l.b
         currNode = glbNode;
       }
       break;
     }
     if (ret > 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(1);
       if (loc != NullTupLoc) {
-        thrjam(ctx.jamBuffer);
+        thrjamDebug(ctx.jamBuffer);
         // save potential g.l.b
         glbNode = currNode;
         // continue to right subtree
@@ -94,7 +101,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
       break;
     }
     // ret == 0
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     break;
   }
 }
@@ -112,22 +119,22 @@ Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt 
   KeyData entryKey(index.m_keySpec, false, 0);
   entryKey.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
   while (hi - lo > 1) {
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
     // read and compare all attributes
     readKeyAttrs(ctx, frag, currNode.getEnt(j), entryKey, index.m_numAttrs);
     int ret = cmpSearchKey(ctx, searchKey, entryKey, index.m_numAttrs);
     if (ret == 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getEnt(j));
     }
     if (ret < 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       hi = j;
     } else if (ret > 0) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       lo = j;
     } else {
       treePos.m_pos = j;
@@ -150,10 +157,10 @@ Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeE
 {
   const unsigned occup = currNode.getOccup();
   for (unsigned j = 0; j < occup; j++) {
-    thrjam(ctx.jamBuffer);
+    thrjamDebug(ctx.jamBuffer);
     // compare only the entry
     if (searchEnt.eq(currNode.getEnt(j))) {
-      thrjam(ctx.jamBuffer);
+      thrjamDebug(ctx.jamBuffer);
       treePos.m_pos = j;
       return true;
     }

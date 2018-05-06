@@ -1,20 +1,3 @@
-drop table if exists t1;
-SELECT variable_name, variable_value
-FROM information_schema.global_variables
-WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-ORDER BY variable_name;
-variable_name	variable_value
-DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
-DATE_FORMAT	%d.%m.%Y
-TIME_FORMAT	%H.%i.%s
-SELECT variable_name, variable_value
-FROM information_schema.session_variables
-WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-ORDER BY variable_name;
-variable_name	variable_value
-DATETIME_FORMAT	%Y-%m-%d %H:%i:%s
-DATE_FORMAT	%d.%m.%Y
-TIME_FORMAT	%H.%i.%s
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
 str_to_date(concat('15-01-2001',' 2:59:58.999'),
@@ -27,8 +10,6 @@ Warnings:
 Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
 Warning	1411	Incorrect datetime value: '2004.12.12 22.30.61' for function str_to_date
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
@@ -391,11 +372,10 @@ NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
-explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
+explain select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select makedate(1997,1) AS `makedate(1997,1)`,addtime('31.12.97 11.59.59.999999 PM','1 1.1.1.000002') AS `addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,subtime('31.12.97 11.59.59.999999 PM','1 1.1.1.000002') AS `subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,timediff('01.01.97 11:59:59.000001 PM','31.12.95 11:59:59.000002 PM') AS `timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM")`,cast(str_to_date('15-01-2001 12:59:59','%d-%m-%Y %H:%i:%S') as time) AS `cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME)`,maketime(23,11,12) AS `maketime(23,11,12)`,microsecond('1997-12-31 23:59:59.000001') AS `microsecond("1997-12-31 23:59:59.000001")`
 create table t1 (d date);
 insert into t1 values ('2004-07-14'),('2005-07-14');
@@ -408,8 +388,6 @@ select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f
 a
 2003-01-02 10:11:12.001200
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
 str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,
@@ -566,6 +544,8 @@ Thursday 01 January 2009
 # Bug#58005 utf8 + get_format causes failed assertion: !str || str != Ptr'
 #
 SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT LEAST('%', GET_FORMAT(datetime, 'eur'), CAST(GET_FORMAT(datetime, 'eur') AS CHAR(65535)));
 LEAST('%', GET_FORMAT(datetime, 'eur'), CAST(GET_FORMAT(datetime, 'eur') AS CHAR(65535)))
 %
@@ -618,3 +598,67 @@ Warning	1411	Incorrect datetime value: '1' for function str_to_date
 do timestamp(date_format('2011-11-11', right("12345" + 1, 3)));
 Warnings:
 Warning	1292	Incorrect datetime value: '346'
+#
+# Bug #25949639: DATE FORMAT 'YYYYMMDD' ISN'T RECOGNIZED IN LEFT JOIN
+#
+CREATE TABLE t1 (a varchar(10), PRIMARY KEY (a));
+CREATE TABLE t2 (a varchar(10), b date, PRIMARY KEY(a,b));
+CREATE TABLE t3 (a varchar(10), b TIME, PRIMARY KEY(a,b));
+INSERT INTO t1 VALUES ('test1');
+INSERT INTO t2 VALUES
+('test1','2016-12-13'),('test1','2016-12-14'),('test1','2016-12-15');
+INSERT INTO t3 VALUES
+('test1','11:13:14'), ('test1','12:13:14'), ('test1','10:13:14');
+EXPLAIN SELECT *
+FROM t1 LEFT JOIN t2
+ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	45	const,const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select 'test1' AS `a`,'test1' AS `a`,'2016-12-13' AS `b` from `test`.`t1` left join `test`.`t2` on((multiple equal('test1', 'test1') and multiple equal('20161213', '2016-12-13'))) where 1
+EXPLAIN SELECT *
+FROM t1 LEFT JOIN t2 IGNORE INDEX(PRIMARY)
+ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 'test1' AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` IGNORE INDEX (PRIMARY) on(((`test`.`t2`.`b` = '20161213') and (`test`.`t2`.`a` = 'test1'))) where 1
+SELECT *
+FROM t1 LEFT JOIN t2
+ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+a	a	b
+test1	test1	2016-12-13
+SELECT *
+FROM t1 LEFT JOIN t2 IGNORE INDEX(PRIMARY)
+ON t2.a = 'test1' AND t2.b = '20161213'
+WHERE t1.a = 'test1';
+a	a	b
+test1	test1	2016-12-13
+SELECT b, b = '20161213',
+CASE b WHEN '20161213' then 'found' ELSE 'not found' END FROM t2;
+b	b = '20161213'	CASE b WHEN '20161213' then 'found' ELSE 'not found' END
+2016-12-13	1	found
+2016-12-14	0	not found
+2016-12-15	0	not found
+SELECT b, b IN ('20161213'), b in ('20161213', 0) FROM t2;
+b	b IN ('20161213')	b in ('20161213', 0)
+2016-12-13	1	1
+2016-12-14	0	0
+2016-12-15	0	0
+SELECT b, b = '121314',
+CASE b WHEN '121314' then 'found' ELSE 'not found' END FROM t3;
+b	b = '121314'	CASE b WHEN '121314' then 'found' ELSE 'not found' END
+10:13:14	0	not found
+11:13:14	0	not found
+12:13:14	1	found
+SELECT b, b in ('121314'), b in ('121314', 0) FROM t3;
+b	b in ('121314')	b in ('121314', 0)
+10:13:14	0	0
+11:13:14	0	0
+12:13:14	1	1
+DROP TABLE t1, t2, t3;

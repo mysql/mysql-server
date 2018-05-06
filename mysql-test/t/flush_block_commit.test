@@ -1,10 +1,9 @@
-# Let's see if FLUSH TABLES WITH READ LOCK blocks COMMIT of existing
+# Let us see if FLUSH TABLES WITH READ LOCK blocks COMMIT of existing
 # transactions.
 # We verify that we did not introduce a deadlock.
 # This is intended to mimick how mysqldump and innobackup work.
 
 # And it requires InnoDB
---source include/have_innodb.inc
 
 --echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -113,4 +112,3 @@ DROP TABLE t1;
 
 --echo # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

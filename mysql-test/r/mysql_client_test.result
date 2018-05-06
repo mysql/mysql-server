@@ -8,7 +8,7 @@ ok
 exec_counter: 0
 num_fields: 4
   - 0: name: 'a1'/'a1'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 2: name: 'a3'/'a3'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 3: name: 'a4'/'a4'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -20,7 +20,7 @@ mysql_stmt_next_result(): 0; field_count: 5
 num_fields: 5
   - 0: name: 'b0'/'b0'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
   - 1: name: 'b1'/'b1'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 3: name: 'b3'/'b3'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 4: name: 'b4'/'b4'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -30,11 +30,11 @@ Data:
 EOF
 mysql_stmt_next_result(): 0; field_count: 8
 num_fields: 8
-  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 1: name: 'v_dbl_1'/'v_dbl_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 2: name: 'v_dec_1'/'v_dec_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 8; max_length: 0; type: 246; decimals: 3
   - 3: name: 'v_int_1'/'v_int_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 64; max_length: 0; type: 254; decimals: 0
+  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 256; max_length: 0; type: 254; decimals: 0
   - 5: name: 'v_dbl_2'/'v_dbl_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 5; decimals: 3
   - 6: name: 'v_dec_2'/'v_dec_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 9; max_length: 0; type: 246; decimals: 4
   - 7: name: 'v_int_2'/'v_int_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
@@ -46,7 +46,7 @@ mysql_stmt_next_result(): 0; field_count: 0
 exec_counter: 1
 num_fields: 4
   - 0: name: 'a1'/'a1'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 2: name: 'a3'/'a3'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 3: name: 'a4'/'a4'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -58,7 +58,7 @@ mysql_stmt_next_result(): 0; field_count: 5
 num_fields: 5
   - 0: name: 'b0'/'b0'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
   - 1: name: 'b1'/'b1'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 3: name: 'b3'/'b3'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 4: name: 'b4'/'b4'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -68,11 +68,11 @@ Data:
 EOF
 mysql_stmt_next_result(): 0; field_count: 8
 num_fields: 8
-  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 1: name: 'v_dbl_1'/'v_dbl_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 2: name: 'v_dec_1'/'v_dec_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 8; max_length: 0; type: 246; decimals: 3
   - 3: name: 'v_int_1'/'v_int_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 64; max_length: 0; type: 254; decimals: 0
+  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 256; max_length: 0; type: 254; decimals: 0
   - 5: name: 'v_dbl_2'/'v_dbl_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 5; decimals: 3
   - 6: name: 'v_dec_2'/'v_dec_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 9; max_length: 0; type: 246; decimals: 4
   - 7: name: 'v_int_2'/'v_int_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
@@ -84,7 +84,7 @@ mysql_stmt_next_result(): 0; field_count: 0
 exec_counter: 2
 num_fields: 4
   - 0: name: 'a1'/'a1'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 1: name: 'a2'/'a2'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 2: name: 'a3'/'a3'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 3: name: 'a4'/'a4'; table: 't1'/'t1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -96,7 +96,7 @@ mysql_stmt_next_result(): 0; field_count: 5
 num_fields: 5
   - 0: name: 'b0'/'b0'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
   - 1: name: 'b1'/'b1'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 2: name: 'b2'/'b2'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 3: name: 'b3'/'b3'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 4: name: 'b4'/'b4'; table: 't2'/'t2'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 246; decimals: 1
 Data:
@@ -106,11 +106,11 @@ Data:
 EOF
 mysql_stmt_next_result(): 0; field_count: 8
 num_fields: 8
-  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 32; max_length: 0; type: 254; decimals: 0
+  - 0: name: 'v_str_1'/'v_str_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 128; max_length: 0; type: 254; decimals: 0
   - 1: name: 'v_dbl_1'/'v_dbl_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 4; max_length: 0; type: 5; decimals: 2
   - 2: name: 'v_dec_1'/'v_dec_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 8; max_length: 0; type: 246; decimals: 3
   - 3: name: 'v_int_1'/'v_int_1'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
-  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 64; max_length: 0; type: 254; decimals: 0
+  - 4: name: 'v_str_2'/'v_str_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 256; max_length: 0; type: 254; decimals: 0
   - 5: name: 'v_dbl_2'/'v_dbl_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 5; max_length: 0; type: 5; decimals: 3
   - 6: name: 'v_dec_2'/'v_dec_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 9; max_length: 0; type: 246; decimals: 4
   - 7: name: 'v_int_2'/'v_int_2'; table: 'p1'/'p1'; db: 'client_test_db'; catalog: 'def'; length: 11; max_length: 0; type: 3; decimals: 0
@@ -122,3 +122,20 @@ mysql_stmt_next_result(): 0; field_count: 0
 
 SET @@global.general_log= @old_general_log;
 SET @@global.slow_query_log= @old_slow_query_log;
+#
+# Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
+# INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE
+#
+# Shut server down.
+# Create bootstrap file.
+# First start the server with --initialize
+# Restart the server against DDIR.
+# Run the single test.
+# Following command would crash if run without fix.
+# Shutdown server.
+# Cleanup.
+#   Delete $DDIR.
+#   Delete sql files.
+#   Delete log files.
+#   Delete expect files.
+# Restart server without --lower-case-table-names

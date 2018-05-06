@@ -4,7 +4,7 @@ RESET MASTER;
 # and itself as one.
 CREATE TABLE t1 (a int) ENGINE= innodb;
 
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 
 --let $logical_timestamps= 0 1
 --source include/assert_logical_timestamps.inc
@@ -127,7 +127,7 @@ COMMIT;
 # Now the proof: the "rotated" transaction is logged with uninitialized last committed
 # as expected. Its timestamp pair of (0,1) must be found.
 
---let $binlog_file= master-bin.000002
+--let $binlog_file= binlog.000002
 --let $logical_timestamps= 0 1
 --source include/assert_logical_timestamps.inc
 
@@ -163,7 +163,7 @@ COMMIT;
 
 # Not "rotated" 2nd transaction is logged following the regular rule.
 # Its timestamp pair of (1,2) must be found.
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 --let $logical_timestamps= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 
@@ -191,8 +191,7 @@ DROP TABLE t1;
 
 
 #
-# Testing DROP of multiple tables logging when a query produces few groups
-# into binary log.
+# Testing DROP of multiple tables logging
 #
 
 CREATE TABLE t1 (a int) ENGINE= innodb;
@@ -201,16 +200,13 @@ RESET MASTER;
 CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 
-# The query is logged in three parts where only
-# the first one is sequenced.
-# Such logging is caused by just one cache is used for logging.
-
---echo *** The query is logged in three parts.
+--echo *** The query is logged in four part.
 
 DROP TABLE tm,t1,ttm1,tti1;
 
-
---let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5
+--let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5;5 6
+# CREATE/DROP TEMPORARY TABLE is not binlogged under MIXED
+--let $logical_timestamps_mix= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 
 #

@@ -1,3 +1,2 @@
 --binlog_cache_size=4096
 --binlog_stmt_cache_size=4096
---log-bin=master-bin

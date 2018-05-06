@@ -1,14 +1,4 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
-
---disable_warnings
-drop table if exists t1;
-drop database if exists test2;
---enable_warnings
 
 #
 # Minimal NDB blobs test.
@@ -28,7 +18,8 @@ create table t1 (
   c int not null,
   d longblob,
   key (c)
-) engine=ndbcluster;
+) engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 # -- values --
 
@@ -697,7 +688,9 @@ drop table t1;
 #   ASSERTION: !USES_BLOB_VALUE(TABLE->READ_SET) IN MULTI_RANGE_START_RETRIEVALS
 #   table->read_set was calculated to late to detect Blob read.
 
-create table `t1` (`a` int,`b` blob,primary key (`a`)) engine=ndbcluster;
+create table `t1` (`a` int,`b` blob,primary key (`a`))
+  engine=ndbcluster
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (2, 'Hei og hopp! ');
 
 update t1 set b=concat(b,b,b,b,b);

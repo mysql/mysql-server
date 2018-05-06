@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -205,7 +212,7 @@
  *
  * 4. The "LCP loop".  Started periodically by NDB.  Each loop starts
  * pageout of a number of hash list entries.  Continues via delay signal
- * until done.
+ * until done. TODO RONM: Describe new per fragment LCP loop.
  *
  * SPECIAL CASES
  *
@@ -215,14 +222,14 @@
  * A TUP scan is likely to access a page repeatedly within a short time.
  * This can make the page hot when it should not be.  Such "correlated
  * requests" are handled by a request flag which modifies default LIRS
- * processing.  [fill in details later]
+ * processing.  [fill in details later, currently not implemented, TODO]
  *
  * Also PK operations make 2 rapid page references.  The 2nd one is for
  * commit.  This too should be handled as a correlated request.
  *
  * CLIENT TSMAN
  *
- * TSMAN reads "meta" pages such as extent headers.  There are currently
+ * TSMAN reads "meta" pages such as extent headers.  These are currently
  * "locked" forever in PGMAN cache.
  *
  * CLIENT DBTUP
@@ -242,6 +249,9 @@ class Pgman : public SimulatedBlock
 public:
   Pgman(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Pgman();
+
+  /* Special function to indicate the block is the extra PGMAN worker */
+  void set_extra_pgman(void);
   BLOCK_DEFINES(Pgman);
 
 private:
@@ -250,6 +260,19 @@ private:
 
   struct Page_entry; // CC
   friend struct Page_entry;
+
+  struct File_entry
+  {
+    File_entry(){}
+
+    Uint32 m_magic;
+    Uint32 m_fd;
+    Uint32 m_ndb_version;
+    Uint32 m_file_no;
+    Uint32 nextPool;
+  };
+  typedef RecordPool<RWPool<File_entry> > File_entry_pool;
+  File_entry_pool m_file_entry_pool;
 
   struct Page_request {
     enum Flags {
@@ -264,6 +287,8 @@ private:
 #ifdef ERROR_INSERT
       ,DELAY_REQ    = 0x1000 // Force request to be delayed
 #endif
+      ,UNDO_REQ     = 0x2000 // Request from UNDO processing
+      ,DISK_SCAN    = 0x4000 // Request from Disk scan
     };
     
     Uint16 m_block; // includes instance
@@ -277,9 +302,9 @@ private:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Page_request, WOPool> Page_request_pool;
-  typedef SLFifoListImpl<Page_request_pool, Page_request> Page_request_list;
-  typedef LocalSLFifoListImpl<Page_request_pool, Page_request> Local_page_request_list;
+  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
+  typedef SLFifoList<Page_request_pool> Page_request_list;
+  typedef LocalSLFifoList<Page_request_pool> Local_page_request_list;
   
   struct Page_entry_stack_ptr {
     Uint32 nextList;
@@ -296,13 +321,29 @@ private:
     Uint32 prevList;
   };
 
-  typedef Uint16 Page_state;
+  struct Page_entry_dirty_ptr {
+    Uint32 nextList;
+    Uint32 prevList;
+  };
+
+  typedef Uint32 Page_state;
   
+  enum DirtyState {
+    IN_FIRST_FRAG_DIRTY_LIST = 0,
+    IN_SECOND_FRAG_DIRTY_LIST = 1,
+    IN_LCP_OUT_LIST = 2,
+    IN_NO_DIRTY_LIST = 3
+  };
+
   struct Page_entry : Page_entry_stack_ptr,
                       Page_entry_queue_ptr,
-                      Page_entry_sublist_ptr {
+                      Page_entry_sublist_ptr,
+                      Page_entry_dirty_ptr {
     Page_entry() {}
-    Page_entry(Uint32 file_no, Uint32 page_no);
+    Page_entry(Uint32 file_no,
+               Uint32 page_no,
+               Uint32 tableId,
+               Uint32 fragmentId);
 
     enum State {
       NO_STATE = 0x0000
@@ -321,6 +362,7 @@ private:
       ,HOT     = 0x2000 // page is hot
       ,ONSTACK = 0x4000 // page is on LIRS stack
       ,ONQUEUE = 0x8000 // page is on LIRS queue
+      ,WAIT_LCP= 0x10000 //BUSY page holding up LCP
     };
     
     enum Sublist {
@@ -337,13 +379,20 @@ private:
     };
 
     Uint16 m_file_no;       // disk page address set at seize
+
+    DirtyState m_dirty_state;
+
+    bool m_dirty_during_pageout;
+
     Page_state m_state;         // flags (0 for new entry)
-    
+ 
     Uint32 m_page_no;
     Uint32 m_real_page_i;
     Uint64 m_lsn;
-    
-    Uint32 m_last_lcp;
+
+    Uint32 m_table_id;
+    Uint32 m_fragment_id;
+
     Uint32 m_dirty_count;
     Uint32 m_copy_page_i;
     union {
@@ -367,10 +416,105 @@ private:
 #endif
   };
 
-  typedef DLCHashTable<Page_entry> Page_hashlist;
-  typedef DLCFifoList<Page_entry, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
+  typedef ArrayPool<Page_entry> Page_entry_pool;
+  typedef DLCHashTable<Page_entry_pool> Page_hashlist;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_stack_ptr> Page_stack;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_queue_ptr> Page_queue;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_dirty_ptr> Page_dirty_list;
+  typedef LocalDLCFifoList<Page_entry_pool, Page_entry_dirty_ptr>
+    LocalPage_dirty_list;
+
+  /**
+   * We keep all page entries in a linked list on the fragment record.
+   * This is only used for LCP processing. When the LCP for a fragment
+   * starts we will move the linked list to the m_dirty_list_lcp list.
+   * When a page is sent to disk as part of LCP it is moved to the
+   * m_dirty_list_lcp_out list.
+   *
+   * When both of those lists are empty we are done with the LCP for
+   * the fragment.
+   *
+   * LCP of extent pages is done by simply ensuring that no pages
+   * in the extent page list is dirty. When this is completed the
+   * LCP of extent pages is done.
+   */
+  struct FragmentRecord
+  {
+    FragmentRecord(Pgman &pgman, Uint32, Uint32);
+    Uint32 m_table_id;
+    Uint32 m_fragment_id;
+
+    Page_dirty_list::Head m_dirty_list;
+
+    DirtyState m_current_lcp_dirty_state;
+
+    Uint32 prevList;
+    Uint32 nextList;
+    Uint32 prevHash;
+    union
+    {
+      Uint32 nextPool;
+      Uint32 nextHash;
+    };
+
+    inline bool equal(const FragmentRecord & p) const
+    {
+      return (p.m_table_id == m_table_id &&
+              p.m_fragment_id == m_fragment_id);
+    }
+    inline Uint32 hashValue() const
+    {
+      /**
+       * tableId is fairly good, usually there are 2 fragments per
+       * LDM per table. So we provide a function that gives at least
+       * sometimes a different first bit dependent on fragmentId.
+       */
+      return ((m_table_id << 1) +
+              ((m_fragment_id >> 1) & 1));
+    }
+  };
+  typedef Ptr<FragmentRecord> FragmentRecordPtr;
+  typedef ArrayPool<FragmentRecord> FragmentRecord_pool;
+  FragmentRecord_pool m_fragmentRecordPool;
+  DLFifoList<FragmentRecord_pool> m_fragmentRecordList;
+  DLHashTable<FragmentRecord_pool, FragmentRecord> m_fragmentRecordHash;
+
+  Page_dirty_list m_dirty_list_lcp;
+  Page_dirty_list m_dirty_list_lcp_out;
+
+  Uint32 m_lcp_table_id;
+  Uint32 m_lcp_fragment_id;
+
+  bool m_lcp_loop_ongoing;
+  Uint32 m_locked_pages_written;
+  Uint32 m_lcp_outstanding;     // remaining i/o waits
+  SyncExtentPagesReq::LcpOrder m_sync_extent_order;
+  bool m_sync_extent_pages_ongoing;
+  bool m_sync_extent_continueb_ongoing;
+  Uint32 m_sync_extent_next_page_entry;
+  SyncPageCacheReq m_sync_page_cache_req;
+  SyncExtentPagesReq m_sync_extent_pages_req;
+  EndLcpReq m_end_lcp_req;
+
+  /* Methods to handle local LCP from LGMAN after UNDO log execution */
+  void sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages);
+  void sendSYNC_PAGE_CACHE_REQ(Signal*, FragmentRecordPtr);
+  void sendSYNC_EXTENT_PAGES_REQ(Signal*);
+  void sendEND_LCPCONF(Signal*);
+
+  void check_restart_lcp(Signal*);
+  void start_lcp_loop(Signal*);
+  void handle_lcp(Signal*, Uint32 tableId, Uint32 fragmentId);
+  void handle_lcp(Signal*, FragmentRecord*);
+  void finish_lcp(Signal*, FragmentRecord*);
+  void finish_sync_extent_pages(Signal*);
+  Uint32 get_num_lcp_pages_to_write(void);
+
+  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
+  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
+
+  bool m_extra_pgman;
 
   class Dbtup *c_tup;
   class Lgman *c_lgman;
@@ -381,31 +525,17 @@ private:
   bool m_busy_loop_on;
   bool m_cleanup_loop_on;
 
-  // LCP variables
-  enum LCP_STATE
-  {
-    LS_LCP_OFF = 0
-    ,LS_LCP_ON = 1
-    ,LS_LCP_MAX_LCP_OUTSTANDING = 2
-    ,LS_LCP_LOCKED = 3
-  } m_lcp_state;
-  Uint32 m_last_lcp;
-  Uint32 m_last_lcp_complete;
-  Uint32 m_lcp_curr_bucket;
-  Uint32 m_lcp_outstanding;     // remaining i/o waits
-  EndLcpReq m_end_lcp_req;
-  
   // clean-up variables
   Ptr<Page_entry> m_cleanup_ptr;
  
   // file map
-  typedef DataBuffer<15> File_map;
+  typedef DataBuffer<15,ArrayPool<DataBufferSegment<15> > > File_map;
   File_map m_file_map;
   File_map::DataBufferPool m_data_buffer_pool;
 
   // page entries and requests
   Page_request_pool m_page_request_pool;
-  ArrayPool<Page_entry> m_page_entry_pool;
+  Page_entry_pool m_page_entry_pool;
   Page_hashlist m_page_hashlist;
   Page_stack m_page_stack;
   Page_queue m_page_queue;
@@ -421,7 +551,6 @@ private:
     Uint32 m_max_io_waits;
     Uint32 m_stats_loop_delay;
     Uint32 m_cleanup_loop_delay;
-    Uint32 m_lcp_loop_delay;
   } m_param;
 
   // runtime sizes and statistics
@@ -470,8 +599,11 @@ protected:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
-  void execLCP_FRAG_ORD(Signal*);
   void execEND_LCPREQ(Signal*);
+  void execSYNC_PAGE_CACHE_REQ(Signal*);
+  void execSYNC_PAGE_CACHE_CONF(Signal*);
+  void execSYNC_EXTENT_PAGES_REQ(Signal*);
+  void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execRELEASE_PAGES_REQ(Signal*);
   
   void execFSREADCONF(Signal*);
@@ -494,35 +626,40 @@ private:
   void release_cache_page(Uint32 i);
 
   bool find_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
-  Uint32 seize_page_entry(Ptr<Page_entry>&, Uint32 file_no, Uint32 page_no);
-  bool get_page_entry(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>&, 
-                      Uint32 file_no, Uint32 page_no);
-  void release_page_entry(Ptr<Page_entry>&);
+  Uint32 seize_page_entry(Ptr<Page_entry>&,
+                          Uint32 file_no,
+                          Uint32 page_no,
+                          Uint32 tableId,
+                          Uint32 fragmentId,
+                          EmulatedJamBuffer *jamBuf);
+  bool get_page_entry(EmulatedJamBuffer* jamBuf,
+                      Ptr<Page_entry>&, 
+                      Uint32 file_no,
+                      Uint32 page_no,
+                      Uint32 tableId,
+                      Uint32 fragmentId,
+                      Uint32 flags);
+  void release_page_entry(Ptr<Page_entry>&, EmulatedJamBuffer *jamBuf);
 
-  void lirs_stack_prune();
-  void lirs_stack_pop();
-  void lirs_reference(Ptr<Page_entry> ptr);
+  void lirs_stack_prune(EmulatedJamBuffer*);
+  void lirs_stack_pop(EmulatedJamBuffer*);
+  void lirs_reference(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr);
 
   void do_stats_loop(Signal*);
   void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
   void do_cleanup_loop(Signal*);
-  void do_lcp_loop(Signal*);
 
-  bool process_bind(Signal*);
-  bool process_bind(Signal*, Ptr<Page_entry> ptr);
-  bool process_map(Signal*);
-  bool process_map(Signal*, Ptr<Page_entry> ptr);
-  bool process_callback(Signal*);
-  bool process_callback(Signal*, Ptr<Page_entry> ptr);
+  bool process_bind(Signal*, EmulatedJamBuffer*);
+  bool process_bind(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_map(Signal*, EmulatedJamBuffer*);
+  bool process_map(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
+  bool process_callback(Signal*, EmulatedJamBuffer*);
+  bool process_callback(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
 
   bool process_cleanup(Signal*);
-  void move_cleanup_ptr(Ptr<Page_entry> ptr);
+  void move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer*);
 
-  LCP_STATE process_lcp(Signal*);
-  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
-  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
-
-  void pagein(Signal*, Ptr<Page_entry>);
+  void pagein(Signal*, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   void fsreadreq(Signal*, Ptr<Page_entry>);
   void fsreadconf(Signal*, Ptr<Page_entry>);
   void pageout(Signal*, Ptr<Page_entry>);
@@ -534,13 +671,22 @@ private:
                        Page_request page_req);
   int get_page(EmulatedJamBuffer* jamBuf, Signal*, Ptr<Page_entry>, 
                Page_request page_req);
-  void update_lsn(EmulatedJamBuffer* jamBuf, Ptr<Page_entry>, Uint32 block, 
+  void update_lsn(Signal *signal,
+                  EmulatedJamBuffer* jamBuf,
+                  Ptr<Page_entry>,
+                  Uint32 block, 
                   Uint64 lsn);
-  Uint32 create_data_file();
-  Uint32 alloc_data_file(Uint32 file_no);
+  int add_fragment(Uint32 tableId, Uint32 fragmentId);
+  void drop_fragment(Uint32 tableId, Uint32 fragmentId);
+  void insert_fragment_dirty_list(Ptr<Page_entry>,
+                                  Page_state,
+                                  EmulatedJamBuffer*);
+  void remove_fragment_dirty_list(Signal*, Ptr<Page_entry>, Page_state);
+  Uint32 create_data_file(Uint32 version);
+  Uint32 alloc_data_file(Uint32 file_no, Uint32 version);
   void map_file_no(Uint32 file_no, Uint32 fd);
   void free_data_file(Uint32 file_no, Uint32 fd = RNIL);
-  int drop_page(Ptr<Page_entry>);
+  int drop_page(Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   
 #ifdef VM_TRACE
   bool debugFlag;        // not yet in use in 7.0
@@ -571,6 +717,8 @@ public:
   Page_cache_client(SimulatedBlock* block, SimulatedBlock* pgman);
 
   struct Request {
+    Uint32 m_table_id;
+    Uint32 m_fragment_id;
     Local_key m_page;
     SimulatedBlock::Callback m_callback;
     
@@ -592,6 +740,8 @@ public:
 #ifdef ERROR_INSERT
     ,DELAY_REQ = Pgman::Page_request::DELAY_REQ
 #endif
+    ,UNDO_REQ = Pgman::Page_request::UNDO_REQ
+    ,DISK_SCAN = Pgman::Page_request::DISK_SCAN
   };
   
   /**
@@ -604,7 +754,15 @@ public:
    */
   int get_page(Signal*, Request&, Uint32 flags);
 
-  void update_lsn(Local_key, Uint64 lsn);
+  /**
+   * When reading the UNDO log we don't have access to the table id and
+   * fragment id, so to make sure that the table id and fragment id is
+   * properly set on the page entry object we use this method to set
+   * table id and fragment id on the page entry object.
+   */
+  bool init_page_entry(Request&);
+
+  void update_lsn(Signal*, Local_key, Uint64 lsn);
 
   /**
    * Drop page
@@ -618,12 +776,12 @@ public:
   /**
    * Create file record
    */
-  Uint32 create_data_file(Signal*);
+  Uint32 create_data_file(Signal*, Uint32 version);
 
   /**
    * Alloc datafile record
    */
-  Uint32 alloc_data_file(Signal*, Uint32 file_no);
+  Uint32 alloc_data_file(Signal*, Uint32 file_no, Uint32 version);
 
   /**
    * Map file_no to m_fd
@@ -634,6 +792,16 @@ public:
    * Free file
    */
   void free_data_file(Signal*, Uint32 file_no, Uint32 fd = RNIL);
+
+  /**
+   * Allocate fragment record
+   */
+  int add_fragment(Uint32 tableId, Uint32 fragmentId);
+
+  /**
+   * Drop fragment record
+   */
+  void drop_fragment(Uint32 tableId, Uint32 fragmentId);
 };
 
 

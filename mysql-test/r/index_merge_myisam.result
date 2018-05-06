@@ -554,12 +554,12 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` FORCE INDEX (`colb`) FORCE INDEX (`cola`) where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 drop table t1;
@@ -743,7 +743,7 @@ drop table t0, t1, t2, t3;
 # BUG#44810: index merge and order by with low sort_buffer_size 
 # crashes server!
 #
-CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B));
+CREATE TABLE t1(a VARCHAR(128),b VARCHAR(128),KEY(A),KEY(B)) charset latin1;
 INSERT INTO t1 VALUES (REPEAT('a',128),REPEAT('b',128));
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
@@ -835,7 +835,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "411.69"
+      "query_cost": "#"
     },
     "table": {
       "table_name": "t1",
@@ -852,10 +852,10 @@ EXPLAIN
       "rows_produced_per_join": 154,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "380.90",
-        "eval_cost": "30.80",
-        "prefix_cost": "411.70",
-        "data_read_per_join": "187K"
+        "read_cost": "#",
+        "eval_cost": "#",
+        "prefix_cost": "#",
+        "data_read_per_join": "729K"
       },
       "used_columns": [
         "key1",
@@ -1112,7 +1112,7 @@ count(a)
 # BUG#1:
 expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
 id	select_type	ta_or_ba_or_ble	pa_or_brtitions	type	possia_or_ble_keys	key	key_len	ref	rows	filtered	Extra_or_b
-1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	6	const	4	12.50	Using where
+1	SIMPLE	t2	NULL	ref	a_or_b,a_or_b	a_or_b	21	const	4	12.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a_or_b`) AS `count(a_or_b)` from `test`.`t2` where ((`test`.`t2`.`a_or_b` = 'AAAAAAAA') a_or_bnd (`test`.`t2`.`a_or_b` = 'AAAAAAAA'))
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
@@ -1124,7 +1124,7 @@ count(a)
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
 explain select a from t2 where a='ab';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	6	const	1	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	21	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`test`.`t2`.`a` = 'ab')
 drop table t2;
@@ -1133,7 +1133,7 @@ drop table t2;
 #             try to repair it
 #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
-KEY(c1), KEY(c2), KEY(c3));
+KEY(c1), KEY(c2), KEY(c3)) charset latin1;
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t1 VALUES(0,0,0);
@@ -1153,7 +1153,7 @@ key1 int not null,
 key2 int not null,
 INDEX i1(key1),
 INDEX i2(key2)
-);
+) charset latin1;
 # No primary key
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1220,7 +1220,7 @@ key2  integer not null,
 filler char  (200),
 index (key1),
 index (key2)
-);
+) charset latin1;
 show warnings;
 Level	Code	Message
 explain select pk from t1 where key1 = 1 and key2 = 1;
@@ -1382,7 +1382,7 @@ filler2 char(250) default NULL,
 PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
 UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
 KEY IX_5 (t_vers,t_rele,t_cust)
-);
+) charset latin1;
 insert into t1 values
 ('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
 ('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
@@ -1903,8 +1903,6 @@ DROP TABLE t1,t2;
 # Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
 #
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_int_nokey int(11) NOT NULL,
@@ -2050,7 +2048,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
 FROM t2
 WHERE (col_time_key, col_int_key, col_int_key) IN (
-('s','a', 'm'), (0, 'n', 7)
+(0, 'a', 'm'), (0, 'n', 7)
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2061,7 +2059,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
 FROM t2
 WHERE (col_time_key, col_int_key, col_int_key) IN (
-('s','a', 'm'), (0, 'n', 7)
+(0, 'a', 'm'), (0, 'n', 7)
 )
 );
 DROP TABLE t1, t2;
@@ -2072,19 +2070,19 @@ SET sql_mode = default;
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set optimizer_switch='index_merge=off,index_merge_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set optimizer_switch='index_merge_union=on';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set optimizer_switch='default,index_merge_sort_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set optimizer_switch=4;
 set optimizer_switch=NULL;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
@@ -2110,21 +2108,21 @@ set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 set @@global.optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 #
 # Check index_merge's @@optimizer_switch flags
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -2268,5 +2266,5 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 set optimizer_switch=default;
 show variables like 'optimizer_switch';
 Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 drop table t0, t1;

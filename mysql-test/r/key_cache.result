@@ -3,13 +3,27 @@ SET @save_key_buffer=@@key_buffer_size;
 SELECT @@key_buffer_size, @@small.key_buffer_size;
 @@key_buffer_size	@@small.key_buffer_size
 2097152	131072
+Warnings:
+Warning	1287	@@global.small.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.key_buffer_size=16*1024*1024;
 SET @@global.default.key_buffer_size=16*1024*1024;
+Warnings:
+Warning	1287	default.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.default.key_buffer_size=16*1024*1024;
+Warnings:
+Warning	1287	default.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.small.key_buffer_size=1*1024*1024;
+Warnings:
+Warning	1287	small.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.medium.key_buffer_size=4*1024*1024;
+Warnings:
+Warning	1287	medium.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.medium.key_buffer_size=0;
+Warnings:
+Warning	1287	medium.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.medium.key_buffer_size=0;
+Warnings:
+Warning	1287	medium.key_buffer_size syntax is deprecated and will be removed in a future release
 SHOW VARIABLES like "key_buffer_size";
 Variable_name	Value
 key_buffer_size	16777216
@@ -22,60 +36,100 @@ SELECT @@global.key_buffer_size;
 SELECT @@global.default.key_buffer_size;
 @@global.default.key_buffer_size
 16777216
+Warnings:
+Warning	1287	@@global.default.key_buffer_size syntax is deprecated and will be removed in a future release
 SELECT @@global.default.`key_buffer_size`;
 @@global.default.`key_buffer_size`
 16777216
+Warnings:
+Warning	1287	@@global.default.key_buffer_size syntax is deprecated and will be removed in a future release
 SELECT @@global.`default`.`key_buffer_size`;
 @@global.`default`.`key_buffer_size`
 16777216
+Warnings:
+Warning	1287	@@global.default.key_buffer_size syntax is deprecated and will be removed in a future release
 SELECT @@`default`.key_buffer_size;
 @@`default`.key_buffer_size
 16777216
+Warnings:
+Warning	1287	@@global.default.key_buffer_size syntax is deprecated and will be removed in a future release
 SELECT @@small.key_buffer_size;
 @@small.key_buffer_size
 1048576
+Warnings:
+Warning	1287	@@global.small.key_buffer_size syntax is deprecated and will be removed in a future release
 SELECT @@medium.key_buffer_size;
 @@medium.key_buffer_size
 0
+Warnings:
+Warning	1287	@@global.medium.key_buffer_size syntax is deprecated and will be removed in a future release
 SET @@global.key_buffer_size=@save_key_buffer;
 SELECT @@default.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default.key_buffer_size' at line 1
 SELECT @@skr.default_storage_engine="test";
-ERROR HY000: Variable 'default_storage_engine' is not a variable component (can't be used as XXXX.variable_name)
+ERROR HY000: Unknown system variable 'skr.default_storage_engine'
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 0
+Warnings:
+Warning	1287	@@global.keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_buffer_size;
 @@keycache1.key_buffer_size
 0
+Warnings:
+Warning	1287	@@global.keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_cache_block_size=2048;
+Warnings:
+Warning	1287	keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_buffer_size;
 @@keycache1.key_buffer_size
 0
+Warnings:
+Warning	1287	@@global.keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 2048
+Warnings:
+Warning	1287	@@global.keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=1*1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_buffer_size;
 @@keycache1.key_buffer_size
 1048576
+Warnings:
+Warning	1287	@@global.keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 2048
+Warnings:
+Warning	1287	@@global.keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache2.key_buffer_size=4*1024*1024;
+Warnings:
+Warning	1287	keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 4194304
+Warnings:
+Warning	1287	@@global.keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_cache_block_size;
 @@keycache2.key_cache_block_size
 1024
+Warnings:
+Warning	1287	@@global.keycache2.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_buffer_size;
 @@keycache1.key_buffer_size
 0
+Warnings:
+Warning	1287	@@global.keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 2048
+Warnings:
+Warning	1287	@@global.keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 select @@key_buffer_size;
 @@key_buffer_size
 2097152
@@ -83,6 +137,8 @@ select @@key_cache_block_size;
 @@key_cache_block_size
 1024
 set global keycache1.key_buffer_size=1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 create table t1 (p int primary key, a char(10)) delay_key_write=1;
 create table t2 (p int primary key, i int, a char(10), key k1(i), key k2(a));
 show status like 'key_blocks_used';
@@ -208,23 +264,39 @@ test.t1	assign_to_keycache	status	Operation failed
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 4194304
+Warnings:
+Warning	1287	@@global.keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_cache_block_size;
 @@keycache2.key_cache_block_size
 1024
+Warnings:
+Warning	1287	@@global.keycache2.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache2.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 0
+Warnings:
+Warning	1287	@@global.keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_cache_block_size;
 @@keycache2.key_cache_block_size
 1024
+Warnings:
+Warning	1287	@@global.keycache2.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache2.key_buffer_size=1024*1024;
+Warnings:
+Warning	1287	keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select @@keycache2.key_buffer_size;
 @@keycache2.key_buffer_size
 1048576
+Warnings:
+Warning	1287	@@global.keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 update t2 set p=4000 where a='zzzz';
 update t1 set p=p+1;
 set global keycache1.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 select * from t2;
 p	i	a
 1001	2	qqqq
@@ -296,6 +368,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 insert t1 values (1),(2),(3),(4),(5),(6),(7),(8);
 set global keycache2.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache2.key_buffer_size syntax is deprecated and will be removed in a future release
 select * from t1;
 a
 1
@@ -310,7 +384,10 @@ drop table t1;
 set global keycache3.key_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect key_buffer_size value: '100'
+Warning	1287	keycache3.key_buffer_size syntax is deprecated and will be removed in a future release
 set global keycache3.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache3.key_buffer_size syntax is deprecated and will be removed in a future release
 create table t1 (mytext text, FULLTEXT (mytext));
 insert t1 values ('aaabbb');
 check table t1;
@@ -376,11 +453,11 @@ SET @bug28478_key_cache_block_size= @@global.key_cache_block_size;
 SET GLOBAL key_cache_block_size= 1536;
 CREATE TABLE t1 (
 id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-c1 CHAR(150),
-c2 CHAR(150),
-c3 CHAR(150),
+c1 CHAR(83),
+c2 CHAR(83),
+c3 CHAR(83),
 KEY(c1, c2, c3)
-) ENGINE= MyISAM;
+) ENGINE= MyISAM DEFAULT CHARSET utf8mb4;
 INSERT INTO t1 (c1, c2, c3) VALUES
 ('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'),
 ('e', 'f', 'g'), ('f', 'g', 'h'), ('g', 'h', 'i'), ('h', 'i', 'j'),
@@ -404,6 +481,8 @@ DROP TABLE t1;
 #
 # Note that this creates an empty disabled key cache!
 SET GLOBAL key_cache_none.key_cache_block_size = 1024;
+Warnings:
+Warning	1287	key_cache_none.key_cache_block_size syntax is deprecated and will be removed in a future release
 CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) ) ENGINE = MYISAM;
 INSERT INTO t1 VALUES (1, 1);
 CACHE INDEX t1 in key_cache_none;

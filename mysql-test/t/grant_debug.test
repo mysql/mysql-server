@@ -1,19 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-# Grant tests not performed with embedded server
---source include/not_embedded.inc
-
 --source include/have_debug.inc
 
 --echo #
 --echo # WL#9262: All system tables should support 32 character length user names
 --echo #
-
-call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
 
 CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
@@ -29,9 +18,9 @@ connect (con_1, localhost, user_name_robert_golebiowski1234,,);
 --echo # user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 --echo # We have to do this in the server code as we are not able to simulate connecting to
 --echo # such a host from MTR
-SET DEBUG='+d,wl_9262_set_max_length_hostname';
+SET @@global.debug="+d,wl_9262_set_max_length_hostname";
 FLUSH PRIVILEGES;
-SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SET @@global.debug="-d,wl_9262_set_max_length_hostname";
 SELECT CURRENT_USER();
 
 CREATE DATABASE db_1;
@@ -51,123 +40,71 @@ DROP DATABASE db_1;
 --connection default
 --disconnect con_1
 
---echo #Make sure CURRENT_USER is root@localhost
-SELECT CURRENT_USER();
-
---echo # Changing mysql.tables_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.tables_priv
-  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-
---echo # Now let us do the same for the procedure privileges
---echo # Changing mysql.procs_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.procs_priv
-  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-
-CREATE DATABASE db_1;
-CREATE TABLE db_1.test_table(ID INT);
-
---error ER_CANNOT_LOAD_FROM_TABLE_V2
-CREATE USER user_name_robert_golebiowski@localhost;
---error ER_PASSWORD_NO_MATCH
-GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@localhost WITH GRANT OPTION;
-
---echo #Create user with length > 77 (username length + hostname length)
---error ER_CANNOT_LOAD_FROM_TABLE_V2
-CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
---error ER_PASSWORD_NO_MATCH
-GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
-
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_ACCESS_DENIED_ERROR
-connect (con_grant,localhost,user_name_robert_golebiowski,,);
-
---echo # This will change CURRENT_USER from user_name_robert_golebiowski@localhost to
---echo # user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
---echo # We have to do this in the server code as we are not able to simulate connecting to
---echo # such a host from MTR
-SET DEBUG='+d,wl_9262_set_max_length_hostname';
+--echo #
+--echo # If acl_load() fails unexpectedly we shouldn't delete the acl cache
+--echo #
+use test;
+CREATE ROLE r1,r2;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT all on *.* to u1@localhost;
+GRANT r1,r2 TO u1@localhost;
+GRANT ALL ON *.* TO r1;
+SHOW GRANTS FOR u1@localhost USING r1;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+SET @@global.debug="+d,induce_acl_load_failure";
+GRANT r1 TO r2;
+--error ER_UNKNOWN_ERROR
 FLUSH PRIVILEGES;
-SET DEBUG='-d,wl_9262_set_max_length_hostname';
-SELECT CURRENT_USER();
-
---error ER_CANNOT_LOAD_FROM_TABLE_V2
-CREATE USER lucky_user@localhost;
-
---echo # Now we should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
---echo # is longer then mysql.tables_priv.Grantor column length - 77 chars)
---error ER_PASSWORD_NO_MATCH
-GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
-
-CREATE PROCEDURE db_1.p_def() SQL SECURITY DEFINER SELECT 1;
-
---echo # We should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
---echo # is longer then mysql.procs_priv.Grantor column length - 77 chars)
---error ER_PASSWORD_NO_MATCH
-GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
-
---echo #Now we make sure if usernames with length of 77 or less work with
---echo #this old db schema
-
---echo #First create user of length 77 chars.
---error ER_CANNOT_LOAD_FROM_TABLE_V2
-CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
---error ER_PASSWORD_NO_MATCH
-GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
---echo #Create user for connecting
---error ER_CANNOT_LOAD_FROM_TABLE_V2
-CREATE USER robert_golebiows@localhost;
---error ER_PASSWORD_NO_MATCH
-GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
-
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_ACCESS_DENIED_ERROR
-connect (con_grant_2,localhost,robert_golebiows,,);
-
---echo # Again we change localhost to oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
---echo # for CURRENT_USER
-SET DEBUG='+d,wl_9262_set_max_length_hostname';
+connect (con1,localhost,u1,foo,);
+SHOW GRANTS;
+connection default;
+REVOKE r1 FROM r2;
+SET @@global.debug="+d,induce_acl_load_failure";
+--error ER_UNKNOWN_ERROR
 FLUSH PRIVILEGES;
-SET DEBUG='-d,wl_9262_set_max_length_hostname';
-SELECT CURRENT_USER();
+--echo # Grant should not have changed
+SHOW GRANTS FOR u1@localhost USING r1;
+connection con1;
+--echo # Grant should not have changed
+SHOW GRANTS;
+connection default;
+disconnect con1;
+SET @@global.debug="-d,induce_acl_load_failure";
+FLUSH PRIVILEGES;
+DROP USER u1@localhost;
+DROP ROLE r1,r2;
 
---echo # Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
-
---echo #Now it should pass as mysql.tables_priv.Grantor is 77 chars
---error ER_PASSWORD_NO_MATCH
-GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
-SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
-SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
-
---echo #Now it should pass as mysql.procs_priv.Grantor is 77 chars
---error ER_PASSWORD_NO_MATCH
-GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
-SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
-SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
-
---echo #cleanup
-
---echo Restore mysql.procs_priv
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.procs_priv
-  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
-
---echo Restore mysql.tables_priv
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode='';
-ALTER TABLE mysql.tables_priv
-  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
-SET sql_mode= @orig_sql_mode;
+--echo #
+--echo # If reload_roles_cache() fails unexpectedly, we should be able to
+--echo # revert the roles cache to previous sane state
+--echo #
+CREATE USER u1;
+CREATE ROLE r1;
+GRANT r1 TO u1;
+GRANT SELECT ON *.* TO r1;
+SET DEFAULT ROLE ALL TO u1;
+SELECT * FROM mysql.role_edges;
+SELECT * FROM mysql.default_roles;
+# Since foo have some privilege over mysql database therefore,
+# following must succeed
+connect(foo_conn, localhost, u1,);
+USE mysql;
 
 --connection default
+--disconnect foo_conn
 
-DROP PROCEDURE db_1.p_def;
-DROP DATABASE db_1;
+# Trigger a debug execution in role cache reinitialization and return error,
+# in turn this leads backup copies to be restored.
+SET @@global.debug="+d, dbug_fail_in_role_cache_reinit";
+--error ER_TABLE_CORRUPT
+FLUSH PRIVILEGES;
+# Since backup copies of roles are restored hence following must succeed
+connect(foo_conn, localhost, u1,);
+USE mysql;
 
+--connection default
+--disconnect foo_conn
+
+SET @@global.debug="-d, dbug_fail_in_role_cache_reinit";
+DROP USER u1;
+DROP ROLE r1;

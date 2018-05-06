@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +31,26 @@
 
 #define JAM_FILE_ID 288
 
+/**
+ * NDB_DEBUG_RES_OWNERSHIP
+ *
+ * Useful for debugging shared resource ownership problems in the lab.
+ * Currently implemented for LongSignalMemory.
+ * When defined :
+ *   - LongSignalMemory segments have an 'owner' tag added to each
+ *   - This is maintained mostly by import() and appendToSection()
+ *     (Some other segment uses may be uncovered)
+ *   - The value is obtained from a thread local value
+ *   - The threadlocal is set :
+ *      - By the Transporter receiver to 0x1 << 16 | gsn
+ *      - By SimulatedBlock::exec to Block << 16 | gsn
+ *      - Manually using functions below if desired
+ *   - DUMP 2612 can be used to get a breakdown of segments owned
+ *     per owner tag
+ *   - This can help understand usage, leaks etc...
+ *   - The owner tag idea may be useful for other resources in future
+ */
+//#define NDB_DEBUG_RES_OWNERSHIP
 
 /**
  * Section handling
@@ -50,18 +77,20 @@ struct SectionSegment {
   };
   Uint32 theData[DataLength];
 };
+typedef CachedArrayPool<SectionSegment> SectionSegment_basepool;
 
 /**
  * Pool for SectionSegments
  */
-class SectionSegmentPool : public ArrayPool<SectionSegment> 
+
+class SectionSegmentPool : public SectionSegment_basepool
 {
 private:
   // Print an informative error message.
-  static void handleOutOfSegments(ArrayPool<SectionSegment>& pool);
+  static void handleOutOfSegments(SectionSegment_basepool& pool);
 public:
   SectionSegmentPool() : 
-    ArrayPool<SectionSegment>(&handleOutOfSegments){}
+    SectionSegment_basepool(&handleOutOfSegments){}
 };
 
 /**
@@ -121,9 +150,9 @@ Uint32* getLastWordPtr(Uint32 id);
 bool verifySection(Uint32 firstIVal, 
                    SectionSegmentPool& thePool= g_sectionSegmentPool);
 
-template<Uint32 sz>
+template<Uint32 sz, typename Pool>
 void
-append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
+append(DataBuffer<sz,Pool>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
   Uint32 len = ptr.sz;
   while(len > SectionSegment::DataLength){
     dst.append(ptr.p->theData, SectionSegment::DataLength);
@@ -132,6 +161,36 @@ append(DataBuffer<sz>& dst, SegmentedSectionPtr ptr, SectionSegmentPool& pool){
   }
   dst.append(ptr.p->theData, len);
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+
+void setResOwner(Uint32 id);
+Uint32 getResOwner();
+
+/* Util for custom-owner within a scope */
+class ResOwnerGuard
+{
+private:
+  Uint32 oldOwner;
+public:
+  ResOwnerGuard(Uint32 id)
+  {
+    oldOwner = getResOwner();
+    setResOwner(id);
+  }
+  ~ResOwnerGuard()
+  {
+    setResOwner(oldOwner);
+  }
+};
+
+#define DEBUG_RES_OWNER_GUARD(x) ResOwnerGuard _ROG_TMP(x)
+
+#else
+
+#define DEBUG_RES_OWNER_GUARD(x) { }
+
+#endif
 
 #undef JAM_FILE_ID
 

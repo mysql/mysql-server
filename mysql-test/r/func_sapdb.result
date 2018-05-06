@@ -60,8 +60,6 @@ select datediff("1997-11-30 23:59:59.000001","1997-12-31");
 datediff("1997-11-30 23:59:59.000001","1997-12-31")
 -31
 SET @@SQL_MODE="ALLOW_INVALID_DATES";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select datediff("1997-11-31 23:59:59.000001","1997-12-31");
 datediff("1997-11-31 23:59:59.000001","1997-12-31")
 -30

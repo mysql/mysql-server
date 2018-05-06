@@ -2,8 +2,6 @@
 # Bug 17057168 -  LARGE PERFORMANCE REGRESSION FOR INNODB
 # GEOMETRY/SPATIAL INDEX LOOKUP
 #********************************************************
---source include/have_geometry.inc
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
 
 CREATE DATABASE geotest;

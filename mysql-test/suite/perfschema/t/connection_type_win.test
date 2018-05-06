@@ -1,8 +1,6 @@
 
 --source include/windows.inc
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 
 --echo "Default connection"
 

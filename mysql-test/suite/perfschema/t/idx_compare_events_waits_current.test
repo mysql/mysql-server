@@ -1,0 +1,26 @@
+#
+# Verify that query results are the same with and without indexes.
+#
+--source include/have_debug_sync.inc
+
+let $table = "events_waits_current";
+let $key_group = 1;
+
+--echo TABLE: $table
+--echo INDEXES: PK (THREAD_ID, EVENT_ID)
+
+--source ../include/idx_compare_setup.inc
+
+#
+# Freeze the content of the performance schema tables,
+# to compare the same data.
+#
+update performance_schema.setup_consumers
+  set enabled = 'NO' where name = 'global_instumentation';
+
+--source ../include/idx_compare_load.inc
+
+update performance_schema.setup_consumers
+  set enabled = 'YES' where name = 'global_instumentation';
+
+--source ../include/idx_compare_cleanup.inc

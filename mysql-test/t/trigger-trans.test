@@ -1,6 +1,5 @@
 # Tests which involve triggers and transactions
 # (or just InnoDB storage engine)
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -46,6 +45,12 @@ select trigger_schema, trigger_name, event_object_schema,
        event_object_table, action_statement from information_schema.triggers
        where event_object_schema = 'test' and event_object_table = 't1';
 insert into t1 values ('The Pie', 50, 1, 1);
+select * from t1;
+alter table t1 add primary key(b), algorithm=copy;
+select trigger_schema, trigger_name, event_object_schema,
+       event_object_table, action_statement from information_schema.triggers
+       where event_object_schema = 'test' and event_object_table = 't1';
+insert into t1 values ('The Mirror', 60, 1, 1);
 select * from t1;
 drop table t1;
 

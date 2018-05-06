@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -59,10 +66,15 @@ public:
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
                 int backup_nodeid,
-                Uint32 parallelism=1) :
+                Uint32 parallelism,
+                int ndb_connect_retry_delay,
+                int ndb_connect_retries
+                ) :
     m_ndb(NULL),
     m_cluster_connection(NULL),
     m_ndb_connectstring(ndb_connectstring),
+    m_ndb_connect_retry_delay(ndb_connect_retry_delay),
+    m_ndb_connect_retries(ndb_connect_retries),
     m_ndb_nodeid(ndb_nodeid)
   {
     m_nodegroup_map = ng_map;
@@ -129,15 +141,14 @@ public:
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
   virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
-                  uint data_len, uint *new_data_len);
+                  uint data_len, uint *new_data_len) const;
   bool search_replace(char *search_str, char **new_data,
                       const char **data, const char *end_data,
-                      uint *new_data_len);
-  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
-  Uint32 map_ng(Uint32 ng);
-  bool translate_frm(NdbDictionary::Table *table);
+                      uint *new_data_len) const;
+  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const;
+  Uint32 map_ng(Uint32 ng) const;
+  bool translate_frm(NdbDictionary::Table *table) const;
   bool isMissingTable(const TableS& table);
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
@@ -205,6 +216,8 @@ public:
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   const char* m_ndb_connectstring;
+  int m_ndb_connect_retry_delay;
+  int m_ndb_connect_retries;
   int m_ndb_nodeid;
   bool m_restore;
   bool m_restore_meta;

@@ -5,7 +5,7 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name = NAME]
+# [--let $rpl_channel_name= 'NAME']
 # [--let $rpl_debug= 1]
 # --source include/check_slave_is_running.inc
 #
@@ -18,6 +18,10 @@
 
 
 --let $include_filename= check_slave_is_running.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 

@@ -1,6 +1,6 @@
 set default_storage_engine=ndb;
 # Verify that the client can show JSON data and metadata.
-CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL);
+CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL) CHARSET utf8mb4;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 SHOW CREATE TABLE t;
@@ -9,7 +9,7 @@ t	CREATE TABLE `t` (
   `i` int(11) DEFAULT NULL,
   `j1` json DEFAULT NULL,
   `j2` json NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t VALUES
 (0, NULL, 'null'),
 (1, '1', '1'),

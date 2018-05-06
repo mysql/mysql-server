@@ -2,19 +2,11 @@
 # WL#6965: Truncate UNDO logs.
 #
 
---source include/have_innodb.inc
-# this is must to ensure that trx_purge_truncate is called with increased
-# frequency so that undo logs are cleared.
+# This test uses debug insertion points.
 --source include/have_debug.inc
-# We are printing size of undo log below and if page size keeps on
-# varying then initial size too keeps on varying.
---source include/have_innodb_16k.inc
---source include/have_undo_tablespaces.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 --source include/big_test.inc
@@ -78,6 +70,12 @@ let SEARCH_PATTERN = ib_undo_trunc_before_truncate;
 let $debug_point="+d,ib_undo_trunc_before_ddl_log_end";
 let SEARCH_PATTERN = ib_undo_trunc_before_ddl_log_end;
 --source suite/innodb_undo/include/undo_log_trunc_recv.inc
+
+--disable_query_log
+call mtr.add_suppression("Header page consists of zero bytes in datafile");
+call mtr.add_suppression("Datafile '.*' is corrupted. Cannot determine the space ID from the first 64 pages");
+call mtr.add_suppression("Ignoring.*undo_002.*invalid tablespace ID in the header");
+--enable_query_log
 #
 #
 let $debug_point="+d,ib_undo_trunc_trunc_done";
