@@ -115,6 +115,14 @@ extern EventLogger * g_eventLogger;
 //#define EVENT_PH2_DEBUG
 //#define EVENT_PH3_DEBUG
 //#define EVENT_DEBUG
+#define DEBUG_API_FAIL
+
+#ifdef DEBUG_API_FAIL
+#define DEB_API_FAIL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_API_FAIL (arglist) do { } while (0)
+#endif
+
 
 static const char EVENT_SYSTEM_TABLE_NAME[] = "sys/def/NDB$EVENTS_0";
 
@@ -33286,6 +33294,7 @@ Dbdict::handleApiFail(Signal* signal,
       jam();
       D("failed" << hex << V(clientRef));
 
+      DEB_API_FAIL(("API node %u failed, setting ApiFail", failedApiNode));
       ndbrequire(!(trans_ptr.p->m_clientFlags & TransClient::ApiFail));
       trans_ptr.p->m_clientFlags |= TransClient::ApiFail;
 
