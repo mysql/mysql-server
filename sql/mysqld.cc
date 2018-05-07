@@ -2659,7 +2659,10 @@ static void start_signal_handler() {
   */
   guardize = my_thread_stack_size;
 #endif
-  (void)my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
+  if (0 !=
+      my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize)) {
+    DBUG_ASSERT(false);
+  }
 
   /*
     Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL/SIGUSR2 can interrupt
@@ -5754,8 +5757,10 @@ int mysqld_main(int argc, char **argv)
   guardize = my_thread_stack_size;
 #endif
 
-  my_thread_attr_setstacksize(&connection_attrib,
-                              my_thread_stack_size + guardize);
+  if (0 != my_thread_attr_setstacksize(&connection_attrib,
+                                       my_thread_stack_size + guardize)) {
+    DBUG_ASSERT(false);
+  }
 
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
