@@ -2665,13 +2665,13 @@ trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	
 trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -3440,3 +3440,26 @@ fld1	fld2
 # Cleanup
 DROP TRIGGER update_before_update;
 DROP TABLE t1, t2;
+#
+# BUG#27544152 - TRIGGERS ARE FIRED IN INCORRECT ORDE
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER _AI_1 AFTER INSERT ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_AI_1');
+CREATE TRIGGER _AI_2 AFTER INSERT ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_AI_2');
+CREATE TRIGGER _BU_2 BEFORE UPDATE ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_BU_2');
+CREATE TRIGGER _BD_2 BEFORE DELETE ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_BD_2');
+CREATE TRIGGER _AI_0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES _AI_1 SET
+@t1_var=concat(@t1_var,'_AI_0');
+CREATE TRIGGER _AI_3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS _AI_2 SET
+@t1_var=concat(@t1_var,'_AI_3');
+SET @t1_var='Actual Result:   ';
+INSERT INTO t1 VALUES (1);
+SELECT @t1_var;
+@t1_var
+Actual Result:   _AI_0_AI_1_AI_2_AI_3
+# Expected result : _AI_0_AI_1_AI_2_AI_3
+DROP TABLE t1;
