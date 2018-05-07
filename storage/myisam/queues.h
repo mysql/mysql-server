@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,9 +69,6 @@ typedef int (*queue_compare)(void *, uchar *, uchar *);
 int init_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
                uint offset_to_key, bool max_at_top, queue_compare compare,
                void *first_cmp_arg);
-int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
-                  uint offset_to_key, bool max_at_top, queue_compare compare,
-                  void *first_cmp_arg, uint auto_extent);
 int reinit_queue(QUEUE *queue, PSI_memory_key psi_key, uint max_elements,
                  uint offset_to_key, bool max_at_top, queue_compare compare,
                  void *first_cmp_arg);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -357,7 +357,7 @@ struct MI_SORT_PARAM {
   MEM_ROOT wordroot;
   uchar *record;
   MY_TMPDIR *tmpdir;
-  int (*key_cmp)(const void *, const void *, const void *);
+  int (*key_cmp)(void *, uchar *, uchar *);
   int (*key_read)(MI_SORT_PARAM *, void *);
   int (*key_write)(MI_SORT_PARAM *, const void *);
   int (*write_keys)(MI_SORT_PARAM *, uchar **, uint, BUFFPEK *, IO_CACHE *);

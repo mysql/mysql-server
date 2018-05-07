@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,10 @@ struct FTB : public FT_INFO {
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE } state;
 };
 
-static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b) {
+static int FTB_WORD_cmp(void *v_v, uchar *u_a, uchar *u_b) {
+  my_off_t *v = static_cast<my_off_t *>(v_v);
+  FTB_WORD *a = pointer_cast<FTB_WORD *>(u_a);
+  FTB_WORD *b = pointer_cast<FTB_WORD *>(u_b);
   int i;
 
   /* if a==curdoc, take it as  a < b */
@@ -556,7 +559,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
             &ftb->mem_root, (ftb->queue.max_elements + 1) * sizeof(void *))))
     goto err;
   reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
-               (int (*)(void *, uchar *, uchar *))FTB_WORD_cmp, 0);
+               FTB_WORD_cmp, 0);
   for (ftbw = ftb->last_word; ftbw; ftbw = ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
   ftb->list = (FTB_WORD **)alloc_root(&ftb->mem_root,

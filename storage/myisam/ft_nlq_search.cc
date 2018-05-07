@@ -207,8 +207,7 @@ static int walk_and_push(void *v_from, uint32, void *v_best) {
   DBUG_RETURN(0);
 }
 
-static int FT_DOC_cmp(const void *unused MY_ATTRIBUTE((unused)),
-                      const void *a_arg, const void *b_arg) {
+static int FT_DOC_cmp(void *, uchar *a_arg, uchar *b_arg) {
   FT_DOC *a = (FT_DOC *)a_arg;
   FT_DOC *b = (FT_DOC *)b_arg;
   double c = b->weight - a->weight;
@@ -254,7 +253,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (flags & FT_EXPAND && ft_query_expansion_limit) {
     QUEUE best;
     init_queue(&best, key_memory_QUEUE, ft_query_expansion_limit, 0, 0,
-               (queue_compare)&FT_DOC_cmp, 0);
+               &FT_DOC_cmp, 0);
     tree_walk(&aio.dtree, &walk_and_push, &best, left_root_right);
     while (best.elements) {
       my_off_t docid = ((FT_DOC *)queue_remove(&best, 0))->dpos;

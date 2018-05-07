@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -597,7 +597,8 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
   DBUG_ENTER("write_keys");
 
   std::sort(sort_keys, sort_keys + count, [info](uchar *a, uchar *b) {
-    return info->key_cmp(info, &a, &b) < 0;
+    return info->key_cmp(info, pointer_cast<unsigned char *>(&a),
+                         pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
@@ -632,7 +633,8 @@ static int write_keys_varlen(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
   DBUG_ENTER("write_keys_varlen");
 
   std::sort(sort_keys, sort_keys + count, [info](uchar *a, uchar *b) {
-    return info->key_cmp(info, &a, &b) < 0;
+    return info->key_cmp(info, pointer_cast<unsigned char *>(&a),
+                         pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
@@ -669,7 +671,8 @@ static int write_index(MI_SORT_PARAM *info, uchar **sort_keys, uint count) {
   DBUG_ENTER("write_index");
 
   std::sort(sort_keys, sort_keys + count, [info](uchar *a, uchar *b) {
-    return info->key_cmp(info, &a, &b) < 0;
+    return info->key_cmp(info, pointer_cast<unsigned char *>(&a),
+                         pointer_cast<unsigned char *>(&b)) < 0;
   });
   while (count--) {
     if ((*info->key_write)(info, *sort_keys++))
