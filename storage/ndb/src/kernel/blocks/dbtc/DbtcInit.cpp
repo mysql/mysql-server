@@ -191,7 +191,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_maxNumberOfIndexes(0),
   c_fk_hash(c_fk_pool),
   c_currentApiConTimers(NULL),
-  inflightZSHRINK_TRANSIENT_POOLS(false),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
   BLOCK_CONSTRUCTOR(Dbtc);
@@ -318,6 +317,35 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   tcFailRecord = 0;
   m_deferred_enabled = ~Uint32(0);
   m_max_writes_per_trans = ~Uint32(0);
+
+  c_transient_pools[DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX] =
+    &c_theAttributeBufferPool;
+  c_transient_pools[DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX] =
+    &c_theCommitAckMarkerBufferPool;
+  c_transient_pools[DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX] =
+    &c_theFiredTriggerPool;
+  c_transient_pools[DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX] =
+    &c_theIndexOperationPool;
+  c_transient_pools[DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX] =
+    &c_apiConTimersPool;
+  c_transient_pools[DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX] =
+    &m_fragLocationPool;
+  c_transient_pools[DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX] =
+    &c_apiConnectRecordPool;
+  c_transient_pools[DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX] =
+    &tcConnectRecord;
+  c_transient_pools[DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX] =
+    &c_cacheRecordPool;
+  c_transient_pools[DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX] =
+    &c_gcpRecordPool;
+  c_transient_pools[DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX] =
+    &c_scan_frag_pool;
+  c_transient_pools[DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX] =
+    &scanRecordPool;
+  c_transient_pools[DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX] =
+    &m_commitAckMarkerPool;
+  NDB_STATIC_ASSERT(c_transient_pool_count == 13);
+  c_transient_pools_shrinking.clear();
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 

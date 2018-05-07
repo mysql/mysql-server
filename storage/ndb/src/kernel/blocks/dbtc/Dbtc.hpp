@@ -346,6 +346,7 @@ public:
   */
   typedef DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> AttributeBufferSegment;
   typedef TransientPool<AttributeBufferSegment> AttributeBuffer_pool;
+  STATIC_CONST(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX = 0);
   typedef DataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
             AttributeBuffer;
   typedef LocalDataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
@@ -433,6 +434,7 @@ public:
   typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
               CommitAckMarkerSegment;
   typedef TransientPool<CommitAckMarkerSegment> CommitAckMarkerBuffer_pool;
+  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX = 1);
   typedef DataBuffer<5,
                      CommitAckMarkerBuffer_pool,
                      RT_DBTC_COMMIT_ACK_MARKER_BUFFER> CommitAckMarkerBuffer;
@@ -540,6 +542,7 @@ public:
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
   typedef TransientPool<TcFiredTriggerData> TcFiredTriggerData_pool;
+  STATIC_CONST(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX = 2);
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
@@ -696,6 +699,7 @@ public:
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
   typedef TransientPool<TcIndexOperation> TcIndexOperation_pool;
+  STATIC_CONST(DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX = 3);
   typedef LocalDLList<TcIndexOperation_pool> LocalTcIndexOperation_dllist;
 
   /**
@@ -875,6 +879,7 @@ public:
 
   typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
   typedef TransientPool<TcConnectRecord> TcConnectRecord_pool;
+  STATIC_CONST(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 4);
   typedef LocalDLFifoList<TcConnectRecord_pool> LocalTcConnectRecord_fifo;
 
   /************************** API CONNECT RECORD ***********************
@@ -938,6 +943,7 @@ public:
 
   typedef Ptr<ApiConTimers> ApiConTimersPtr;
   typedef TransientPool<ApiConTimers> ApiConTimers_pool;
+  STATIC_CONST(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX = 5);
   typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
 
   ApiConTimers_pool c_apiConTimersPool;
@@ -1198,6 +1204,7 @@ public:
   };
   
   typedef TransientPool<ApiConnectRecord> ApiConnectRecord_pool;
+  STATIC_CONST(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX = 6);
   typedef LocalDLFifoList<ApiConnectRecord_pool, IA_GcpConnect>
       LocalApiConnectRecord_gcp_list;
   typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
@@ -1291,7 +1298,9 @@ public:
       timers_list.remove(apiConTimers);
       c_apiConTimersPool.release(apiConTimers);
       Signal signal[1];
-      checkPoolShrinkNeed(signal, c_apiConTimersPool);
+      checkPoolShrinkNeed(signal,
+                          DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX,
+                          c_apiConTimersPool);
       if (apiConTimers.p == c_currentApiConTimers)
       {
         jam();
@@ -1379,6 +1388,7 @@ public:
   
   typedef Ptr<CacheRecord> CacheRecordPtr;
   typedef TransientPool<CacheRecord> CacheRecord_pool;
+  STATIC_CONST(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX = 7);
   
   /* ************************ HOST RECORD ********************************** */
   /********************************************************/
@@ -1522,6 +1532,7 @@ public:
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
   typedef TransientPool<ScanFragLocationRec> ScanFragLocation_pool;
+  STATIC_CONST(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX = 8);
   typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
@@ -1602,6 +1613,7 @@ public:
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
   typedef TransientPool<ScanFragRec> ScanFragRec_pool;
+  STATIC_CONST(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX = 9);
   typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
   typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
   typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
@@ -1758,6 +1770,7 @@ public:
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef TransientPool<ScanRecord> ScanRecord_pool;
+  STATIC_CONST(DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 10);
   
   /*************************************************************************>*/
   /*                     GLOBAL CHECKPOINT INFORMATION RECORD                */
@@ -1785,6 +1798,7 @@ public:
   
   typedef Ptr<GcpRecord> GcpRecordPtr;
   typedef TransientPool<GcpRecord> GcpRecord_pool;
+  STATIC_CONST(DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX = 11);
   typedef LocalSLFifoList<GcpRecord_pool> LocalGcpRecord_list;
 
   /*************************************************************************>*/
@@ -2077,8 +2091,8 @@ private:
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void checkPoolShrinkNeed(Signal* signal, const TransientFastSlotPool& pool);
-  void sendPoolShrink(Signal* signal);
+  void checkPoolShrinkNeed(Signal* signal, Uint32 pool_index, const TransientFastSlotPool& pool);
+  void sendPoolShrink(Signal* signal, Uint32 pool_index);
   bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
@@ -2589,7 +2603,6 @@ private:
   UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
   UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];
 
-  bool inflightZSHRINK_TRANSIENT_POOLS;
   /**
    * Commit Ack handling
    */
@@ -2631,6 +2644,7 @@ public:
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
+  STATIC_CONST(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 12);
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
@@ -2638,6 +2652,10 @@ private:
   CommitAckMarker_hash m_commitAckMarkerHash;
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
+  static const int c_transient_pool_count = 13;
+  TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
+  Bitmask<1> c_transient_pools_shrinking;
+
   void execTC_COMMIT_ACK(Signal* signal);
   void sendRemoveMarkers(Signal*, CommitAckMarker *, Uint32);
   void sendRemoveMarker(Signal* signal, 
@@ -2810,11 +2828,17 @@ static Uint64 getTransactionMemoryNeed(
 };
 
 #ifndef DBTC_STATE_EXTRACT
-inline void Dbtc::checkPoolShrinkNeed(Signal* signal, const TransientFastSlotPool& pool)
+inline void Dbtc::checkPoolShrinkNeed(Signal* signal,
+                                      const Uint32 pool_index,
+                                      const TransientFastSlotPool& pool)
 {
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(pool_index < c_transient_pool_count);
+  ndbrequire(c_transient_pools[pool_index] == &pool);
+#endif
   if (pool.may_shrink())
   {
-    sendPoolShrink(signal);
+    sendPoolShrink(signal, pool_index);
   }
 }
 #endif
