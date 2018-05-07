@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,10 +295,12 @@ int main(int argc,char *argv[])
         else
           msg= ndb_string;
 
+#ifndef MCP_BUG23523926
         fprintf(stderr,
                 "Warning: using '--ndb' with 'perror' is deprecated and this "
                 "functionality may not be available in the future versions, "
                 "please use 'ndb_perror' instead\n");
+#endif
 
         if (msg)
         {
