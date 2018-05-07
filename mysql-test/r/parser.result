@@ -2255,3 +2255,9 @@ CREATE FUNCTION f1() RETURNS CHAR(1) CHARSET DEFAULT RETURN '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1
 CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1
+#
+# Bug#27814204: THE "ADMIN" WORD SHOULD BE A NON-RESERVED WORD IN THE
+#               SQL GRAMMAR
+#
+CREATE TEMPORARY TABLE admin (admin INT);
+DROP TABLE admin;

@@ -1163,7 +1163,7 @@ void warn_about_deprecated_national(THD *thd)
 %token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  PERSIST_SYM
 %token<keyword> ROLE_SYM              /* SQL-1999-R */
-%token  ADMIN_SYM                     /* SQL-1999-R */
+%token<keyword> ADMIN_SYM             /* SQL-2003-N */
 %token<keyword> INVISIBLE_SYM
 %token<keyword> VISIBLE_SYM
 %token  EXCEPT_SYM                    /* SQL-1999-R */
@@ -13700,6 +13700,7 @@ label_keyword:
 role_or_label_keyword:
           ACTION
         | ADDDATE_SYM
+        | ADMIN_SYM
         | AFTER_SYM
         | AGAINST
         | AGGREGATE_SYM
