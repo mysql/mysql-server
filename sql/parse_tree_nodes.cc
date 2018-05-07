@@ -30,11 +30,12 @@
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
-#include "scope_guard.h"
+#include "mysql_com.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
-#include "sql/derror.h"                   // ER_THD
-#include "sql/error_handler.h"
+#include "sql/dd/types/column.h"
+#include "sql/derror.h"  // ER_THD
 #include "sql/gis/srid.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
@@ -46,7 +47,8 @@
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
 #include "sql/query_options.h"
-#include "sql/sp.h"        // sp_add_used_routine
+#include "sql/sp.h"  // sp_add_used_routine
+#include "sql/sp_head.h"
 #include "sql/sp_instr.h"  // sp_instr_set
 #include "sql/sp_pcontext.h"
 #include "sql/sql_base.h"  // find_temporary_table
@@ -2376,6 +2378,9 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       break;
     case Explain_format_type::JSON:
       lex->explain_format = new (thd->mem_root) Explain_format_JSON;
+      break;
+    case Explain_format_type::TREE:
+      lex->explain_format = new (thd->mem_root) Explain_format_tree;
       break;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM

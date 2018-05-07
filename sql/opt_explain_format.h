@@ -519,6 +519,8 @@ class Explain_format {
   */
   virtual bool is_hierarchical() const = 0;
 
+  virtual bool is_tree() const { return false; }
+
   /**
     Send EXPLAIN header item(s) to output stream
 

@@ -30,12 +30,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <new>
+#include <string>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "memory_debugging.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -70,7 +72,6 @@ class SELECT_LEX;
 class Security_context;
 class THD;
 class user_var_entry;
-struct MEM_ROOT;
 struct TYPELIB;
 template <class T>
 class List;
@@ -5936,5 +5937,7 @@ void convert_and_print(const String *from_str, String *to_str,
 #ifndef DBUG_OFF
 bool is_fixed_or_outer_ref(const Item *ref);
 #endif
+
+std::string ItemToString(Item *item);
 
 #endif /* ITEM_INCLUDED */

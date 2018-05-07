@@ -63,8 +63,11 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/sql_lex.h"
 #include "sys/types.h"
 
+#include <string>
+
 class Item;
 class QEP_TAB;
+class RowIterator;
 class THD;
 struct TABLE;
 template <class T>
@@ -186,5 +189,9 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
   /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
   my_thread_id m_thread_id;
 };
+
+// Print out an iterator and all of its children (if any) in a tree.
+// "level" is the current indenting level, as this is called recursively.
+std::string PrintQueryPlan(int level, RowIterator *iterator);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

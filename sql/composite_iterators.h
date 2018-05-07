@@ -38,15 +38,20 @@
   SortingIterator is also a composite iterator, but is defined in its own file.
  */
 
-#include "my_table_map.h"
-#include "sql/row_iterator.h"
-#include "sql/sql_base.h"
-
+#include <stdio.h>
+#include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
-class Item;
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_table_map.h"
+#include "sql/item.h"
+#include "sql/row_iterator.h"
+
 class JOIN;
+class THD;
 
 /**
   An iterator that takes in a stream of rows and passes through only those that
@@ -64,6 +69,13 @@ class FilterIterator final : public RowIterator {
   int Read() override;
 
   void UnlockRow() override { m_source->UnlockRow(); }
+
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_source.get()};
+  }
+  std::string DebugString() const override {
+    return "Filter: " + ItemToString(m_condition);
+  }
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
@@ -98,6 +110,23 @@ class LimitOffsetIterator final : public RowIterator {
   int Read() override;
 
   void UnlockRow() override { m_source->UnlockRow(); }
+
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_source.get()};
+  }
+
+  std::string DebugString() const override {
+    char buf[256];
+    if (m_offset == 0) {
+      snprintf(buf, sizeof(buf), "Limit: %llu row(s)", m_limit);
+    } else if (m_limit == HA_POS_ERROR) {
+      snprintf(buf, sizeof(buf), "Offset: %llu row(s)", m_offset);
+    } else {
+      snprintf(buf, sizeof(buf), "Limit/Offset: %llu/%llu row(s)",
+               m_limit - m_offset, m_offset);
+    }
+    return buf;
+  }
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
@@ -146,6 +175,12 @@ class AggregateIterator final : public RowIterator {
   int Read() override;
   void UnlockRow() override;
 
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_source.get()};
+  }
+
+  std::string DebugString() const override;
+
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
 
@@ -188,6 +223,12 @@ class PrecomputedAggregateIterator final : public RowIterator {
   bool Init() override;
   int Read() override;
   void UnlockRow() override;
+
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_source.get()};
+  }
+
+  std::string DebugString() const override;
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;

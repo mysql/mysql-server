@@ -36,19 +36,20 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/key.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
-#include "sql/psi_memory_key.h"
-#include "sql/sort_param.h"
-#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
 #include "sql/table.h"
+
+using std::string;
 
 /**
   Initialize READ_RECORD structure to perform full index scan in desired
@@ -168,6 +169,19 @@ int IndexScanIterator<true>::Read() {  // Backward read.
   return 0;
 }
 //! @endcond
+
+template <bool Reverse>
+string IndexScanIterator<Reverse>::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+
+  const KEY *key = &table()->key_info[m_idx];
+  string str =
+      string("Index scan on ") + table()->alias + " using " + key->name;
+  if (Reverse) {
+    str += " (reverse)";
+  }
+  return str;
+}
 
 template class IndexScanIterator<true>;
 template class IndexScanIterator<false>;
@@ -327,6 +341,20 @@ int IndexRangeScanIterator::Read() {
   return 0;
 }
 
+string IndexRangeScanIterator::DebugString() const {
+  // TODO: Convert QUICK_SELECT_I to RowIterator so that we can get
+  // better outputs here (similar to dbug_dump()).
+  String str;
+  m_quick->add_info_string(&str);
+  string ret = string("Index range scan on ") + table()->alias + " using " +
+               to_string(str);
+  if (table()->file->pushed_idx_cond != nullptr) {
+    ret += ", with index condition: " +
+           ItemToString(table()->file->pushed_idx_cond);
+  }
+  return ret;
+}
+
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
@@ -371,4 +399,9 @@ int TableScanIterator::Read() {
     ++*m_examined_rows;
   }
   return 0;
+}
+
+string TableScanIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  return string("Table scan on ") + table()->alias;
 }

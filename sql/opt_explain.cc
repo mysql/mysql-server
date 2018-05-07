@@ -33,6 +33,8 @@
 #include <string.h>
 #include <sys/types.h>
 #include <atomic>
+#include <limits>
+#include <string>
 
 #include "ft_global.h"
 #include "lex_string.h"
@@ -70,6 +72,7 @@
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"  // Opt_trace_*
 #include "sql/protocol.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // lock_tables
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -91,6 +94,8 @@
 
 class Opt_trace_context;
 
+using std::string;
+
 typedef qep_row::extra extra;
 
 static bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
@@ -106,6 +111,9 @@ static const enum_query_type cond_print_flags =
 /// First string: for regular EXPLAIN; second: for EXPLAIN CONNECTION
 static const char *plan_not_ready[] = {"Not optimized, outer query is empty",
                                        "Plan isn't ready yet"};
+
+static bool ExplainIterator(THD *ethd, const THD *query_thd,
+                            SELECT_LEX_UNIT *unit);
 
 /**
   A base for all Explain_* classes
@@ -1819,6 +1827,11 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   const bool other = (query_thd != explain_thd);
   bool ret;
 
+  if (explain_thd->lex->explain_format->is_tree()) {
+    // These kinds of queries don't have a JOIN with an iterator tree.
+    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, nullptr));
+  }
+
   /**
     Prepare the self-allocated result object
 
@@ -1978,6 +1991,103 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
+std::string PrintQueryPlan(int level, RowIterator *iterator) {
+  std::string ret(level * 4, ' ');
+
+  if (iterator == nullptr) {
+    return ret + "<not executable by iterator executor>\n";
+  }
+
+  ret += "-> ";
+  ret += iterator->DebugString();
+  ret += "\n";
+
+  for (RowIterator *child : iterator->children()) {
+    ret += PrintQueryPlan(level + 1, child);
+  }
+  return ret;
+}
+
+// Return a comma-separated list of all tables that are touched by UPDATE or
+// DELETE.
+static string FindUpdatedTables(JOIN *join) {
+  string ret;
+  for (size_t idx = 0; idx < join->tables; ++idx) {
+    TABLE *table = join->qep_tab[idx].table();
+    if (table != nullptr && table->pos_in_table_list->updating &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
+      if (!ret.empty()) {
+        ret += ", ";
+      }
+      ret += table->alias;
+    }
+  }
+  return ret;
+}
+
+static bool ExplainIterator(THD *ethd, const THD *query_thd,
+                            SELECT_LEX_UNIT *unit) {
+  Query_result_send result;
+  {
+    List<Item> field_list;
+    Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
+    if (field_list.push_back(item)) return true;
+    if (result.send_result_set_metadata(
+            ethd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
+      return true;
+    }
+  }
+
+  {
+    std::string explain;
+    if (unit != nullptr && unit->is_simple()) {
+      int base_level = 0;
+      JOIN *join = unit->first_select()->join;
+      const THD::Query_plan *query_plan = &query_thd->query_plan;
+      switch (query_plan->get_command()) {
+        case SQLCOM_UPDATE_MULTI:
+        case SQLCOM_UPDATE:
+          explain = "-> Update " + FindUpdatedTables(join) + "\n";
+          base_level = 1;
+          break;
+        case SQLCOM_DELETE_MULTI:
+        case SQLCOM_DELETE:
+          explain = "-> Delete from " + FindUpdatedTables(join) + "\n";
+          base_level = 1;
+          break;
+        case SQLCOM_INSERT_SELECT:
+        case SQLCOM_INSERT:
+          explain = string("-> Insert into ") +
+                    query_plan->get_lex()->insert_table_leaf->table->alias +
+                    "\n";
+          base_level = 1;
+          break;
+        case SQLCOM_REPLACE_SELECT:
+        case SQLCOM_REPLACE:
+          explain = string("-> Replace into ") +
+                    query_plan->get_lex()->insert_table_leaf->table->alias +
+                    "\n";
+          base_level = 1;
+          break;
+        default:
+          break;
+      }
+      explain += PrintQueryPlan(base_level, join->root_iterator());
+    } else {
+      explain += PrintQueryPlan(0, nullptr);
+    }
+    List<Item> field_list;
+    Item *item =
+        new Item_string(explain.data(), explain.size(), system_charset_info);
+    if (field_list.push_back(item)) return true;
+
+    if (result.send_data(ethd, field_list)) {
+      return true;
+    }
+  }
+  return result.send_eof(ethd);
+}
+
 /**
   EXPLAIN handling for SELECT, INSERT/REPLACE SELECT, and multi-table
   UPDATE/DELETE queries
@@ -2016,6 +2126,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   DBUG_ENTER("explain_query");
 
   const bool other = (explain_thd != query_thd);
+
+  if (explain_thd->lex->explain_format->is_tree()) {
+    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, unit));
+  }
 
   Query_result *explain_result = NULL;
 

@@ -40,6 +40,7 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
@@ -57,6 +58,8 @@
 #include "sql/table.h"
 #include "thr_lock.h"
 #include "varlen_sort.h"
+
+using std::string;
 
 SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
                                                    IO_CACHE *tempfile,
@@ -247,6 +250,12 @@ int SortFileIndirectIterator::CachedRead() {
   }
 }
 
+string SortFileIndirectIterator::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return string("Read sorted data: Row IDs from file, records from ") +
+         table()->alias;
+}
+
 template <bool Packed_addon_fields>
 SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
                                                         IO_CACHE *tempfile,
@@ -308,6 +317,13 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
+string SortFileIterator<Packed_addon_fields>::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return string("Read sorted data from file (originally from ") +
+         table()->alias + ")";
+}
+
+template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
     THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result,
     ha_rows *examined_rows)
@@ -359,6 +375,13 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
     ++*m_examined_rows;
   }
   return 0;
+}
+
+template <bool Packed_addon_fields>
+string SortBufferIterator<Packed_addon_fields>::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return string("Read sorted data from memory (originally from ") +
+         table()->alias + ")";
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
@@ -418,6 +441,12 @@ int SortBufferIndirectIterator::Read() {
       continue;
     return HandleError(tmp);
   }
+}
+
+string SortBufferIndirectIterator::DebugString() const {
+  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  return string("Read sorted data: Row IDs from memory, records from ") +
+         table()->alias;
 }
 
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
@@ -616,4 +645,35 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     else
       field->unpack(field->ptr, buff + addonf->offset);
   }
+}
+
+string SortingIterator::DebugString() const {
+  string ret = "Sort: ";
+
+  bool first = true;
+  for (unsigned i = 0; i < m_filesort->sort_order_length(); ++i) {
+    if (first) {
+      first = false;
+    } else {
+      ret += ", ";
+    }
+
+    const st_sort_field *order = &m_filesort->sortorder[i];
+    if (order->item) {
+      ret += ItemToString(order->item);
+    } else {
+      ret += order->field->table->alias;
+      ret += ".";
+      ret += order->field->field_name;
+    }
+    if (order->reverse) {
+      ret += " DESC";
+    }
+  }
+  if (m_filesort->qep_tab->condition() != nullptr) {
+    // FIXME: Get rid of filtering in filesort.
+    ret += " (with hidden filter)";
+  }
+
+  return ret;
 }

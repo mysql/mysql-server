@@ -741,6 +741,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref_or_null	b	b	5	const	3	100.00	Using index condition; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`)) order by `test`.`t1`.`a`
+explain format=tree select * from t1 where b=1 or b is null order by a;
+EXPLAIN
+-> Sort: t1.a
+    -> Index lookup on t1 using b (b=1 or NULL), with index condition: ((t1.b = 1) or isnull(t1.b))
+
 select * from t1 where b=1 or b is null order by a;
 a	b
 1	1

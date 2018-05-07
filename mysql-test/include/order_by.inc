@@ -425,11 +425,17 @@ drop table t1;
 
 #
 # REF_OR_NULL optimization + filesort (bug #2419)
+# Also tests printing of RefOrNullIterator with index condition pushdown.
+# Do note, however, that this given index condition pushdown is pretty
+# nonsensical (the condition should have been removed when setting up
+# the ref_or_null, so that there was nothing left to push); if that issue
+# is fixed, you'll need to make a new test.
 #
 
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
 explain select * from t1 where b=1 or b is null order by a;
+explain format=tree select * from t1 where b=1 or b is null order by a;
 select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;
 select * from t1 where b=2 or b is null order by a;

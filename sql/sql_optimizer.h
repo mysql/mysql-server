@@ -38,17 +38,19 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
+#include "sql/row_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -56,8 +58,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_select.h"     // Key_use
-#include "sql/sql_tmp_table.h"  // enum_tmpfile_windowing_action
+#include "sql/sql_select.h"  // Key_use
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "template_utils.h"

@@ -30,15 +30,12 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <memory>
 
-#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/item.h"
-#include "sql/records.h"  // READ_RECORD
-#include "sql/row_iterator.h"
+#include "sql/records.h"    // READ_RECORD
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
@@ -56,7 +53,6 @@ class QEP_TAB;
 class QUICK_SELECT_I;
 struct CACHE_FIELD;
 struct POSITION;
-struct st_join_table;
 template <class T>
 class List;
 

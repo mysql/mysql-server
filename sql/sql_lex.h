@@ -2060,7 +2060,7 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type { TRADITIONAL, JSON };
+enum class Explain_format_type { TRADITIONAL, JSON, TREE };
 
 union YYSTYPE {
   /*

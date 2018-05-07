@@ -17,6 +17,11 @@ a
 14
 15
 16
+EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
+EXPLAIN
+-> Limit/Offset: 5/1 row(s)
+    -> Table scan on t1
+
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
 a
 17

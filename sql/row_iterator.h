@@ -23,6 +23,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string>
+#include <vector>
+
 class Item;
 class THD;
 struct TABLE;
@@ -100,6 +103,12 @@ class RowIterator {
   // should usually either forward the call to their source iterator (if any)
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
+
+  virtual std::vector<RowIterator *> children() const {
+    return std::vector<RowIterator *>();
+  }
+
+  virtual std::string DebugString() const = 0;
 
  protected:
   THD *thd() const { return m_thd; }

@@ -115,6 +115,9 @@
 
 using std::max;
 using std::min;
+using std::string;
+using std::unique_ptr;
+using std::vector;
 
 static void return_zero_rows(JOIN *join, List<Item> &fields);
 static int do_select(JOIN *join);
@@ -163,6 +166,34 @@ static bool having_is_true(Item *h) {
 
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
+
+namespace {
+
+string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
+  string ret;
+
+  const uchar *key_buff = ref.key_buff;
+
+  for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
+       ++key_part_idx) {
+    if (key_part_idx != 0) {
+      ret += ", ";
+    }
+    ret += key->key_part[key_part_idx].field->field_name;
+    ret += "=";
+    ret += ItemToString(ref.items[key_part_idx]);
+
+    // If we have ref_or_null access, find out if this keypart is the one that
+    // is -or-NULL (there's always only a single one).
+    if (include_nulls && key_buff == ref.null_ref_key) {
+      ret += " or NULL";
+    }
+    key_buff += key->key_part[key_part_idx].store_length;
+  }
+  return ret;
+}
+
+}  // namespace
 
 /**
   Execute select, executor entry point.
@@ -1164,6 +1195,12 @@ void JOIN::create_iterators() {
         thd, move(iterator), select_limit_cnt, unit->offset_limit_cnt,
         /*skipped_rows=*/&send_records));
   }
+
+#if 0
+  // This can be useful during debugging.
+  fprintf(stderr, "Query plan:\n%s\n",
+          PrintQueryPlan(0, iterator.get()).c_str());
+#endif
 
   m_root_iterator = move(iterator);
 }
@@ -2389,6 +2426,11 @@ int ConstIterator::Read() {
   return err;
 }
 
+string ConstIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  return string("Constant row from ") + table()->alias;
+}
+
 static int read_const(TABLE *table, TABLE_REF *ref) {
   int error;
   DBUG_ENTER("read_const");
@@ -2560,6 +2602,18 @@ void EQRefIterator::UnlockRow() {
   if (m_ref->use_count) m_ref->use_count--;
 }
 
+string EQRefIterator::DebugString() const {
+  const KEY *key = &table()->key_info[m_ref->key];
+  string str = string("Single-row index lookup on ") + table()->alias +
+               " using " + key->name + " (" +
+               RefToString(*m_ref, key, /*include_nulls=*/false) + ")";
+  if (table()->file->pushed_idx_cond != nullptr) {
+    str += ", with index condition: " +
+           ItemToString(table()->file->pushed_idx_cond);
+  }
+  return str;
+}
+
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
                                              TABLE_REF *ref, bool use_order,
                                              ha_rows *examined_rows)
@@ -2624,6 +2678,14 @@ int PushedJoinRefIterator::Read() {
   }
 }
 
+string PushedJoinRefIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  const KEY *key = &table()->key_info[m_ref->key];
+  return string("Pushed join index lookup on ") + table()->alias + " using " +
+         key->name + " (" + RefToString(*m_ref, key, /*include_nulls=*/false) +
+         ")";
+}
+
 template <bool Reverse>
 RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
                                   bool use_order, QEP_TAB *qep_tab,
@@ -2639,6 +2701,23 @@ bool RefIterator<Reverse>::Init() {
   m_first_record_since_init = true;
   return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
                                       m_ref->key, m_use_order);
+}
+
+template <bool Reverse>
+string RefIterator<Reverse>::DebugString() const {
+  const KEY *key = &table()->key_info[m_ref->key];
+  string str = string("Index lookup on ") + table()->alias + " using " +
+               key->name + " (" +
+               RefToString(*m_ref, key, /*include_nulls=*/false);
+  if (Reverse) {
+    str += "; iterate backwards";
+  }
+  str += ")";
+  if (table()->file->pushed_idx_cond != nullptr) {
+    str += ", with index condition: " +
+           ItemToString(table()->file->pushed_idx_cond);
+  }
+  return str;
 }
 
 // Doxygen gets confused by the explicit specializations.
@@ -2804,6 +2883,19 @@ int DynamicRangeIterator::Read() {
   } else {
     return m_iterator->Read();
   }
+}
+
+string DynamicRangeIterator::DebugString() const {
+  // TODO: Convert QUICK_SELECT_I to RowIterator so that we can get
+  // better outputs here (similar to dbug_dump()), although it might
+  // get tricky when there are many alternatives.
+  string str = string("Index range scan on ") + table()->alias +
+               " (re-planned for each iteration)";
+  if (table()->file->pushed_idx_cond != nullptr) {
+    str += ", with index condition: " +
+           ItemToString(table()->file->pushed_idx_cond);
+  }
+  return str;
 }
 
 /**
@@ -2988,6 +3080,14 @@ int FullTextSearchIterator::Read() {
   return 0;
 }
 
+string FullTextSearchIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  const KEY *key = &table()->key_info[m_ref->key];
+  return string("Indexed full text search on ") + table()->alias + " using " +
+         key->name + " (" + RefToString(*m_ref, key, /*include_nulls=*/false) +
+         ")";
+}
+
 /**
   Reading of key with key reference and one part that may be NULL.
 */
@@ -3051,6 +3151,18 @@ int RefOrNullIterator::Read() {
   }
 }
 
+string RefOrNullIterator::DebugString() const {
+  const KEY *key = &table()->key_info[m_ref->key];
+  string str = string("Index lookup on ") + table()->alias + " using " +
+               key->name + " (" +
+               RefToString(*m_ref, key, /*include_nulls=*/true) + ")";
+  if (table()->file->pushed_idx_cond != nullptr) {
+    str += ", with index condition: " +
+           ItemToString(table()->file->pushed_idx_cond);
+  }
+  return str;
+}
+
 AlternativeIterator::AlternativeIterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, ha_rows *examined_rows,
     unique_ptr_destroy_only<RowIterator> source, TABLE_REF *ref)
@@ -3077,6 +3189,31 @@ bool AlternativeIterator::Init() {
     }
   }
   return m_iterator->Init();
+}
+
+string AlternativeIterator::DebugString() const {
+  const KEY *key = &m_table_scan_iterator.table()->key_info[m_ref->key];
+  string ret = "Alternative plans for IN subquery: Index lookup unless ";
+  if (m_applicable_cond_guards.size() > 1) {
+    ret += " any of (";
+  }
+  bool first = true;
+  for (unsigned key_part_idx = 0; key_part_idx < m_ref->key_parts;
+       ++key_part_idx) {
+    if (m_ref->cond_guards[key_part_idx] == nullptr) {
+      continue;
+    }
+    if (!first) {
+      ret += ", ";
+    }
+    first = false;
+    ret += key->key_part[key_part_idx].field->field_name;
+  }
+  if (m_applicable_cond_guards.size() > 1) {
+    ret += ")";
+  }
+  ret += " IS NULL";
+  return ret;
 }
 
 /**

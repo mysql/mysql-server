@@ -25,22 +25,20 @@
 
 #include "my_config.h"
 
-#include "my_alloc.h"
-#include "my_macros.h"
-#include "sql/gis/srid.h"
-#include "sql/system_variables.h"
-#include "typelib.h"
-
+#include <stdio.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <stdio.h>
 #include <algorithm>
 #include <cmath>
 #include <utility>
 
 #include "decimal.h"
+#include "float.h"
+#include "limits.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "mysql.h"  // IS_NUM
 #include "mysql_time.h"
 #include "sql/aggregate_check.h"  // Distinct_check
@@ -48,8 +46,9 @@
 #include "sql/auth/auth_common.h"  // get_column_grant
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
-#include "sql/derror.h"          // ER_THD
-#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/derror.h"         // ER_THD
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/gis/srid.h"
 #include "sql/item_cmpfunc.h"    // COND_EQUAL
 #include "sql/item_create.h"     // create_temporal_literal
 #include "sql/item_func.h"       // item_func_sleep_init
@@ -63,22 +62,27 @@
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mysqld.h"     // lower_case_table_names files_charset_info
 #include "sql/protocol.h"
+#include "sql/query_options.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sp.h"           // sp_map_item_type
 #include "sql/sp_rcontext.h"  // sp_rcontext
 #include "sql/sql_base.h"     // view_ref_found
-#include "sql/sql_class.h"    // THD
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"  // append_identifier
 #include "sql/sql_time.h"  // Date_time_format
 #include "sql/sql_view.h"  // VIEW_ANY_ACL
+#include "sql/system_variables.h"
 #include "template_utils.h"
+#include "typelib.h"
 #include "unsafe_string_append.h"
 
 using std::max;
 using std::min;
+using std::string;
 
 const String my_null_string("NULL", 4, default_charset_info);
 
@@ -4560,17 +4564,17 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
     return NULL;
 }
 
-/**
-  Check if an Item is fixed or is an Item_outer_ref.
-
-  @param ref the reference to check
-
-  @return Whether or not the item is a fixed item or an Item_outer_ref
-
-  @note Currently, this function is only used in DBUG_ASSERT
-  statements and therefore not included in optimized builds.
- */
 #ifndef DBUG_OFF
+/**
+        Check if an Item is fixed or is an Item_outer_ref.
+
+        @param ref the reference to check
+
+        @return Whether or not the item is a fixed item or an Item_outer_ref
+
+        @note Currently, this function is only used in DBUG_ASSERT
+        statements and therefore not included in optimized builds.
+ */
 bool is_fixed_or_outer_ref(const Item *ref) {
   /*
     The requirements are that the Item pointer
@@ -9562,4 +9566,13 @@ bool Item_ref::contains_alias_of_expr(uchar *arg) {
   } else if (context->select_lex == sl)
     return true;
   return false;
+}
+
+string ItemToString(Item *item) {
+  String str;
+  const ulonglong save_bits = current_thd->variables.option_bits;
+  current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;
+  item->print(current_thd, &str, QT_NO_DEFAULT_DB);
+  current_thd->variables.option_bits = save_bits;
+  return to_string(str);
 }

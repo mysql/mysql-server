@@ -27,13 +27,12 @@
 #include <vector>
 
 #include "sql/item.h"
+#include "sql/item_sum.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
-
-class Item_sum;
 
 using std::string;
 using std::vector;
@@ -215,6 +214,31 @@ void AggregateIterator::UnlockRow() {
   // Thus, do nothing.
 }
 
+string AggregateIterator::DebugString() const {
+  string ret;
+  if (m_join->grouped || m_join->group_optimized_away) {
+    if (m_join->sum_funcs == m_join->sum_funcs_end[0]) {
+      ret = "Group (no aggregates)";
+    } else {
+      ret = "Group aggregate: ";
+    }
+  } else {
+    ret = "Aggregate: ";
+  }
+
+  bool first = true;
+  for (Item_sum **item = m_join->sum_funcs; item != m_join->sum_funcs_end[0];
+       ++item) {
+    if (first) {
+      first = false;
+    } else {
+      ret += ", ";
+    }
+    ret += ItemToString(*item);
+  }
+  return ret;
+}
+
 bool PrecomputedAggregateIterator::Init() {
   DBUG_ASSERT(m_join->tmp_table_param.precomputed_group_by);
   DBUG_ASSERT(m_join->grouped || m_join->group_optimized_away);
@@ -239,4 +263,31 @@ int PrecomputedAggregateIterator::Read() {
 
 void PrecomputedAggregateIterator::UnlockRow() {
   // See AggregateIterator::UnlockRow().
+}
+
+string PrecomputedAggregateIterator::DebugString() const {
+  string ret;
+
+  // If precomputed_group_by is set, there's always grouping; thus, our
+  // EXPLAIN output should always say “group”, unlike AggregateIterator.
+  // Do note that neither m_join->grouped nor m_join->group_optimized_away
+  // need to be set (in particular, this seems to be the case for
+  // skip index scan).
+  if (m_join->sum_funcs == m_join->sum_funcs_end[0]) {
+    ret = "Group (computed in earlier step, no aggregates)";
+  } else {
+    ret = "Group aggregate (computed in earlier step): ";
+  }
+
+  bool first = true;
+  for (Item_sum **item = m_join->sum_funcs; item != m_join->sum_funcs_end[0];
+       ++item) {
+    if (first) {
+      first = false;
+    } else {
+      ret += ", ";
+    }
+    ret += ItemToString(*item);
+  }
+  return ret;
 }

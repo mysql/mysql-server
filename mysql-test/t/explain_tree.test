@@ -1,0 +1,81 @@
+#
+# Test of EXPLAIN FORMAT=tree, and more specifically, the transformation from
+# the existing optimizer structures to the new executor. It contains a number
+# of tests for various parts of the transformation, as well as some corner
+# cases that demonstrate odd or unexpected behavior.
+#
+
+# Basic table scan.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1;
+DROP TABLE t1;
+
+# Basic INSERT.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f1 INT );
+EXPLAIN FORMAT=tree INSERT INTO t2 SELECT * FROM t1;
+DROP TABLE t1, t2;
+
+# Multi-table UPDATE.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f2 INT );
+EXPLAIN FORMAT=tree UPDATE t1, t2 SET f1=f1+2, f2=f2+1 WHERE f1 = f2;
+DROP TABLE t1, t2;
+
+# Multi-table DELETE.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f2 INT );
+EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
+DROP TABLE t1, t2;
+
+# Subquery in SELECT list, which is not shown yet.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) FROM t1;
+DROP TABLE t1;
+
+# Index scan.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
+DROP TABLE t1;
+
+# Various form of grouping and aggregation.
+CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
+EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
+EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
+DROP TABLE t1;
+
+# Sort.
+CREATE TABLE t1 ( f1 INT );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
+DROP TABLE t1;
+
+# Condition pushed into filesort (and thus hidden).
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
+(1,3), (2,1), (1,5), (1,7), (3,1),
+(3,2), (3,1), (2,4);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
+DROP TABLE t1;
+
+# Single-table modifications don't have a JOIN, so are not explainable with a tree.
+CREATE TABLE t1 (i INT);
+EXPLAIN INSERT INTO t1 VALUES (10);
+EXPLAIN FORMAT=tree INSERT INTO t1 VALUES (10);
+DROP TABLE t1;
+

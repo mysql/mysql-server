@@ -32,6 +32,8 @@ INSERT INTO t1 VALUES ('1999-07-10',100100,24), ('1999-07-11',100100,25),
 ('1999-08-31',100600,33), ('1999-09-17',100100,37), ('1999-09-18',100100,37),
 ('1999-09-19',100100,37), ('2000-12-18',100700,38);
 
+explain select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 explain select event_date,type,event_id from t1 WHERE type = 100601 and event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND (type=100600 OR type=100100) or event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND type=100099;
@@ -905,6 +907,7 @@ SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 
 EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;  # Tests printing of sort_union.
 
 DROP TABLE t1;
 

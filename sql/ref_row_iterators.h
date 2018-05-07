@@ -50,6 +50,7 @@ class RefIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -71,6 +72,7 @@ class RefOrNullIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -95,6 +97,7 @@ class EQRefIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
   void UnlockRow() override;
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -115,12 +118,15 @@ class ConstIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+
   /**
     Rows from const tables are read once but potentially used
     multiple times during execution of a query.
     Ensure such rows are never unlocked during query execution.
   */
   void UnlockRow() override {}
+
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -138,6 +144,7 @@ class FullTextSearchIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -166,6 +173,7 @@ class DynamicRangeIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  std::string DebugString() const override;
 
  private:
   QEP_TAB *m_qep_tab;
@@ -217,6 +225,7 @@ class PushedJoinRefIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  std::string DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -248,6 +257,14 @@ class AlternativeIterator final : public RowIterator {
   int Read() override { return m_iterator->Read(); }
 
   void UnlockRow() override { m_iterator->UnlockRow(); }
+
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{
+        m_source_iterator.get(),
+        const_cast<TableScanIterator *>(&m_table_scan_iterator)};
+  }
+
+  std::string DebugString() const override;
 
  private:
   // The reference value with condition guards that we are switching on.

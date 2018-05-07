@@ -12906,6 +12906,8 @@ opt_explain_format_type:
               $$= Explain_format_type::JSON;
             else if (is_identifier($3, "TRADITIONAL"))
               $$= Explain_format_type::TRADITIONAL;
+            else if (is_identifier($3, "TREE"))
+              $$= Explain_format_type::TREE;
             else
             {
               my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);

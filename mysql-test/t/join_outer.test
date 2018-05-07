@@ -267,6 +267,8 @@ create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
 select * from t1 where str is not null order by id;
 select * from t1 where str is null;
+explain select * from t1 where str is null;
+explain format=tree select * from t1 where str is null;  # Tests printing of index condition pushdown on RefIterator.
 drop table t1;
 
 #

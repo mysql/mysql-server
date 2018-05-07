@@ -382,6 +382,15 @@ select * from t1 where str is null;
 id	str
 1	NULL
 2	NULL
+explain select * from t1 where str is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
+explain format=tree select * from t1 where str is null;
+EXPLAIN
+-> Index lookup on t1 using str (str=NULL), with index condition: isnull(t1.str)
+
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
