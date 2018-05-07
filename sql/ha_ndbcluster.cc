@@ -13630,6 +13630,9 @@ int ndbcluster_init(void* handlerton_ptr)
   hton->sdi_set = ndb_dummy_ts::sdi_set;
   hton->sdi_delete = ndb_dummy_ts::sdi_delete;
 
+  hton->foreign_keys_flags = HTON_FKS_WITH_SUPPORTING_HASH_KEYS |
+                             HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS;
+
   // Initialize NdbApi
   ndb_init_internal(1);
 

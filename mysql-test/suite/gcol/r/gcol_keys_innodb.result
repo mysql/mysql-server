@@ -151,10 +151,10 @@ drop table t1;
 create table t2 (a int primary key);
 create table t1 (a int, b int generated always as (a+1) virtual,
 foreign key (b) references t2(a));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'b' which is not supported.
 create table t1 (a int, b int generated always as (a+1) virtual);
 alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Foreign key 't1_ibfk_1' uses virtual column 'b' which is not supported.
 drop table t1, t2;
 # Allowed FK options.
 create table t2 (a int primary key, b char(5));

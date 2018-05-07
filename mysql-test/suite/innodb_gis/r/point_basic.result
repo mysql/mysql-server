@@ -1524,13 +1524,13 @@ child	CREATE TABLE `child` (
   SPATIAL KEY `idx2` (`p`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
 ALTER TABLE parent DROP INDEX idx1;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
 ALTER TABLE child DROP INDEX idx2;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
 DROP TABLE child, parent;
 #
 # Bug#28763: Selecting geometry fields in UNION caused server crash.

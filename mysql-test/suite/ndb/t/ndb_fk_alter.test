@@ -130,7 +130,7 @@ while ($i)
 	insert into t2(col1,col2,col3) values (1, 2, 'abcdefghijkl');
 
 	--echo # Attempt to drop col1, should give error
-	--error ER_DROP_INDEX_FK
+        --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 	ALTER TABLE t1 DROP COLUMN col1;
 
 	--echo # Attempt to modify col1, should give error

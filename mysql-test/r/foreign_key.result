@@ -484,10 +484,10 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY,
 b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
 CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
+ERROR HY000: Foreign key 't2_ibfk_1' uses virtual column 'b' which is not supported.
 CREATE TABLE t2(a INT);
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
+ERROR HY000: Foreign key 't2_ibfk_1' uses virtual column 'b' which is not supported.
 DROP TABLE t1, t2;
 # FK on generated stored column
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -538,10 +538,10 @@ DROP TABLE t2, t1;
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE,
 FOREIGN KEY(b) REFERENCES t1(a));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Foreign key 't2_ibfk_1' uses virtual column 'b' which is not supported.
 CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
 ALTER TABLE t2 ADD FOREIGN KEY (b) REFERENCES t1(a);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Foreign key 't2_ibfk_1' uses virtual column 'b' which is not supported.
 DROP TABLE t2;
 CREATE TABLE t2(a INT, b INT, FOREIGN KEY(b) REFERENCES t1(a));
 ALTER TABLE t2 MODIFY COLUMN b INT GENERATED ALWAYS AS (a+1) VIRTUAL;
@@ -3349,3 +3349,213 @@ grandparent1	PRIMARY
 grandparent2	PRIMARY
 self	NULL
 DROP TABLE self, grandparent1, grandparent2;
+#
+# Bug#25722927 "NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+#
+#
+# 1) Check how missing/dropped referencing and referenced columns
+#    are handled.
+#
+#
+# 1.a) Missing referencing column. This problem is detected
+#      during generated supported index processing.
+CREATE TABLE parent (pk INT PRIMARY KEY, j INT);
+CREATE TABLE child (fk INT, FOREIGN KEY (nocol) REFERENCES parent(pk));
+ERROR 42000: Key column 'nocol' doesn't exist in table
+CREATE TABLE self (pk INT PRIMARY KEY, FOREIGN KEY (nocol) REFERENCES self(pk));
+ERROR 42000: Key column 'nocol' doesn't exist in table
+CREATE TABLE child (fk INT, j INT);
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT);
+ALTER TABLE child ADD FOREIGN KEY (nocol) REFERENCES parent(pk);
+ERROR 42000: Key column 'nocol' doesn't exist in table
+ALTER TABLE self ADD FOREIGN KEY (nocol) REFERENCES self(pk);
+ERROR 42000: Key column 'nocol' doesn't exist in table
+#
+# 1.b) Dropped referencing column.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ALTER TABLE child DROP COLUMN fk;
+ERROR HY000: Cannot drop column 'fk': needed in a foreign key constraint 'child_ibfk_1'
+# Adding column with the same name at the same time should not help.
+ALTER TABLE child DROP COLUMN fk, ADD COLUMN fk INT;
+ERROR HY000: Cannot drop column 'fk': needed in a foreign key constraint 'child_ibfk_1'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ALTER TABLE self DROP COLUMN fk;
+ERROR HY000: Cannot drop column 'fk': needed in a foreign key constraint 'self_ibfk_1'
+ALTER TABLE self DROP COLUMN fk, ADD COLUMN fk INT;
+ERROR HY000: Cannot drop column 'fk': needed in a foreign key constraint 'self_ibfk_1'
+#
+# 1.c) Missing referenced column.
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(nocol));
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE self;
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES self(nocol));
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'self_ibfk_1' in the referenced table 'self'
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(nocol);
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'child_ibfk_1' in the referenced table 'parent'
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT);
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(nocol);
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'self_ibfk_1' in the referenced table 'self'
+#
+# 1.d) Dropped referenced column.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ALTER TABLE parent DROP COLUMN pk;
+ERROR HY000: Cannot drop column 'pk': needed in a foreign key constraint 'child_ibfk_1' of table 'child'
+# Adding column with the same name at the same time should not help.
+ALTER TABLE parent DROP COLUMN pk, ADD COLUMN pk INT;
+ERROR HY000: Cannot drop column 'pk': needed in a foreign key constraint 'child_ibfk_1' of table 'child'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ALTER TABLE self DROP COLUMN pk;
+ERROR HY000: Cannot drop column 'pk': needed in a foreign key constraint 'self_ibfk_1' of table 'self'
+ALTER TABLE self DROP COLUMN pk, ADD COLUMN pk INT;
+ERROR HY000: Cannot drop column 'pk': needed in a foreign key constraint 'self_ibfk_1' of table 'self'
+#
+# 1.e) Special case. Attempt to create parent for orphan
+#      foreign key which doesn't have matching column.
+DROP TABLES child, parent;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(nocol));
+CREATE TABLE parent (pk INT PRIMARY KEY);
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'child_ibfk_1' in the referenced table 'parent'
+CREATE TABLE parent0 (pk INT PRIMARY KEY);
+RENAME TABLE parent0 TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE parent0 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'nocol' for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent0, self;
+#
+# 2) Handling of virtual columns in referencing and referenced
+#    columns lists.
+#
+#
+# 2.a) Virtual columns in referencing columns list are not
+#      supported.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) VIRTUAL,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'fk' which is not supported.
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+fk INT GENERATED ALWAYS AS (base+1) VIRTUAL,
+FOREIGN KEY (fk) REFERENCES self(pk));
+ERROR HY000: Foreign key 'self_ibfk_1' uses virtual column 'fk' which is not supported.
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) VIRTUAL);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'fk' which is not supported.
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+fk INT GENERATED ALWAYS AS (base+1) VIRTUAL);
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ERROR HY000: Foreign key 'self_ibfk_1' uses virtual column 'fk' which is not supported.
+#
+# 2.b) One should not be able to get virtual column in referencing
+#      columns list by ALTERing column.
+DROP TABLE child, self;
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) STORED,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE child MODIFY fk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+fk INT GENERATED ALWAYS AS (base+1) STORED,
+FOREIGN KEY (fk) REFERENCES self(pk));
+ALTER TABLE self MODIFY fk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+#
+# 2.c) Virtual columns in referenced columns list are not
+#      supported.
+DROP TABLE child, parent, self;
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'pk' which is not supported.
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'pk' which is not supported.
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, fk INT,
+UNIQUE KEY(pk), FOREIGN KEY (fk) REFERENCES self(pk));
+ERROR HY000: Foreign key 'self_ibfk_1' uses virtual column 'pk' which is not supported.
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, fk INT,
+UNIQUE KEY(pk));
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ERROR HY000: Foreign key 'self_ibfk_1' uses virtual column 'pk' which is not supported.
+#
+# 2.d) Again, one should not be able to get referenced virtual
+#      column by ALTERing it.
+DROP TABLE child, parent, self;
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) STORED, UNIQUE KEY(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent MODIFY pk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) STORED, fk INT,
+UNIQUE KEY(pk), FOREIGN KEY (fk) REFERENCES self(pk));
+ALTER TABLE self MODIFY pk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+#
+# 2.e) Special case. Attempt to create parent for orphan
+#      foreign key which has virtual column.
+DROP TABLES child, parent, self;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'pk' which is not supported.
+CREATE TABLE parent0 (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+RENAME TABLE parent0 TO parent;
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'pk' which is not supported.
+ALTER TABLE parent0 RENAME TO parent;
+ERROR HY000: Foreign key 'child_ibfk_1' uses virtual column 'pk' which is not supported.
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent0;
+#
+# 3) Check how missing/dropped supporting index on referencing table
+#    is handled.
+#
+#
+# 3.a) Normally, generated supporting index is automatically added
+#      along with foreign key, so it can be missing only in some rare
+#      corner case, for example, when generated index is automatically
+#      converted to spatial index.
+CREATE TABLE parent (pk POINT SRID 0 NOT NULL, KEY(pk));
+CREATE TABLE child (fk POINT SRID 0 NOT NULL, FOREIGN KEY(fk) REFERENCES parent(pk));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
+CREATE TABLE child (fk POINT SRID 0 NOT NULL);
+ALTER TABLE child ADD FOREIGN KEY(fk) REFERENCES parent(pk);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the foreign table 'child'
+CREATE TABLE self (pk POINT SRID 0 NOT NULL, fk POINT SRID 0 NOT NULL,
+KEY(pk), FOREIGN KEY(fk) REFERENCES self(pk));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the foreign table 'self'
+CREATE TABLE self (pk POINT SRID 0 NOT NULL, fk POINT SRID 0 NOT NULL, KEY(pk));
+ALTER TABLE self ADD FOREIGN KEY(fk) REFERENCES self(pk);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the foreign table 'self'
+#
+# 3.b) Attempt to drop supporting index should be prohibited.
+DROP TABLES self, child, parent;
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent(pk));
+ALTER TABLE child DROP KEY fk;
+ERROR HY000: Cannot drop index 'fk': needed in a foreign key constraint
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY(fk) REFERENCES self(pk));
+ALTER TABLE self DROP KEY fk;
+ERROR HY000: Cannot drop index 'fk': needed in a foreign key constraint
+# However, we allow automatic dropping of generated index when new
+# explicit supporting index is added.
+ALTER TABLE child ADD KEY fk_s(fk);
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk_s` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE self ADD KEY fk_s(fk);
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `pk` int(11) NOT NULL,
+  `fk` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `fk_s` (`fk`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Also dropping supporting index and providing replacement is fine.
+ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
+ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
+DROP TABLES self, child, parent;

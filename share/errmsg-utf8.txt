@@ -8522,6 +8522,12 @@ ER_GEOMETRY_PARAM_LONGITUDE_OUT_OF_RANGE 22S02
 ER_GEOMETRY_PARAM_LATITUDE_OUT_OF_RANGE 22S03
   eng "A parameter of function %.192s contains a geometry with latitude %f, which is out of range. It must be within [%f, %f]."
 
+ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+  eng "Foreign key '%s' uses virtual column '%s' which is not supported."
+
+ER_FK_NO_COLUMN_PARENT
+  eng "Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'"
+
 #
 #  End of 8.0 error messages.
 #

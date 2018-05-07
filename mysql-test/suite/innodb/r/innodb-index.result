@@ -494,9 +494,9 @@ ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk
 alter table t2 DROP COLUMN b;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
-ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1' of table 't2'
 alter table t1 DROP COLUMN b;
-ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1' of table 't2'
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 create unique index dc on t2 (d,c);
 affected rows: 0
