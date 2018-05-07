@@ -16,7 +16,7 @@ CREATE PROCEDURE load_test_data()
 BEGIN
 
 DECLARE cnt INTEGER UNSIGNED DEFAULT 1;
-	WHILE (cnt <= 400220) DO
+	WHILE (cnt <= 600220) DO
 		INSERT INTO fttest04(str, str2) VALUES('徳島県','徳島県');
 		SET cnt= cnt+1;
 	END WHILE;
