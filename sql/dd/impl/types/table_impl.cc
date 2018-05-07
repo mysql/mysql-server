@@ -766,21 +766,22 @@ Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
   DBUG_ASSERT(trigger != nullptr && trigger->action_timing() == at &&
               trigger->event_type() == et);
 
-  int new_pos = dynamic_cast<const Trigger_impl *>(trigger)->ordinal_position();
-
   // Allocate new Trigger object.
   Trigger_impl *new_trigger = create_trigger();
   if (new_trigger == nullptr) return nullptr;
 
-  m_triggers.push_back(new_trigger);
+  Trigger_collection::const_iterator it =
+      m_triggers.find(dynamic_cast<const Trigger_impl *>(trigger));
+
+  if (++it != m_triggers.cend())
+    m_triggers.insert(it, new_trigger);
+  else
+    m_triggers.push_back(new_trigger);
+
   new_trigger->set_action_timing(at);
   new_trigger->set_event_type(et);
 
-  int last_pos = dynamic_cast<Trigger_impl *>(new_trigger)->ordinal_position();
-  if (last_pos > (new_pos + 1)) m_triggers.move(last_pos - 1, new_pos);
-
   reorder_action_order(at, et);
-
   return new_trigger;
 }
 
@@ -795,13 +796,12 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
   Trigger_impl *new_trigger = create_trigger();
   if (new_trigger == nullptr) return nullptr;
 
-  int new_pos = dynamic_cast<const Trigger_impl *>(trigger)->ordinal_position();
-  m_triggers.push_back(new_trigger);
   new_trigger->set_action_timing(at);
   new_trigger->set_event_type(et);
 
-  int last_pos = dynamic_cast<Trigger_impl *>(new_trigger)->ordinal_position();
-  m_triggers.move(last_pos - 1, new_pos - 1);
+  Trigger_collection::const_iterator it =
+      m_triggers.find(dynamic_cast<const Trigger_impl *>(trigger));
+  m_triggers.insert(it, new_trigger);
 
   reorder_action_order(at, et);
 

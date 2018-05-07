@@ -4184,3 +4184,28 @@ SELECT * FROM t2;
 --echo # Cleanup
 DROP TRIGGER update_before_update;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#27544152 - TRIGGERS ARE FIRED IN INCORRECT ORDE
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER _AI_1 AFTER INSERT ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_AI_1');
+CREATE TRIGGER _AI_2 AFTER INSERT ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_AI_2');
+CREATE TRIGGER _BU_2 BEFORE UPDATE ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_BU_2');
+CREATE TRIGGER _BD_2 BEFORE DELETE ON t1 FOR EACH ROW SET
+@t1_var=concat(@t1_var,'_BD_2');
+CREATE TRIGGER _AI_0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES _AI_1 SET
+@t1_var=concat(@t1_var,'_AI_0');
+CREATE TRIGGER _AI_3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS _AI_2 SET
+@t1_var=concat(@t1_var,'_AI_3');
+
+SET @t1_var='Actual Result:   ';
+INSERT INTO t1 VALUES (1);
+SELECT @t1_var;
+--echo # Expected result : _AI_0_AI_1_AI_2_AI_3
+
+DROP TABLE t1;
