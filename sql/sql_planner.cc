@@ -852,7 +852,10 @@ double Optimize_table_order::calculate_scan_cost(
                                        tab->records() - *rows_after_filtering));
 
       trace_access_scan->add("using_join_cache", true);
-      trace_access_scan->add("buffers_needed", (ulong)buffer_count);
+      trace_access_scan->add("buffers_needed",
+                             buffer_count >= std::numeric_limits<ulong>::max()
+                                 ? std::numeric_limits<ulong>::max()
+                                 : static_cast<ulong>(buffer_count));
     }
   }
 
