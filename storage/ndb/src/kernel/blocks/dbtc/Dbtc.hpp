@@ -1990,6 +1990,7 @@ private:
   void packLqhkeyreq040Lab(Signal* signal,
                            BlockReference TBRef);
   void returnFromQueuedDeliveryLab(Signal* signal);
+  bool insert_take_over_failed_node(Uint32 failedNodeId);
   void startTakeOverLab(Signal* signal,
                         Uint32 instanceId,
                         Uint32 failedNodeId);
