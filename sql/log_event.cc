@@ -4867,6 +4867,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
 
 compare_errors:
+    /* Parser errors shall be ignored when (GTID) skipping statements */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR &&
+        gtid_pre_statement_checks(thd) == GTID_STATEMENT_SKIP)
+    {
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
