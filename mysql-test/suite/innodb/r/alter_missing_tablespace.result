@@ -1,38 +1,584 @@
 #
-# Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING
-# OR DISCARDED TABLESPACES
+# ALLOW IN-PLACE DDL OPERATIONS ON MISSING AND/OR DISCARDED TABLESPACES
 #
 SET GLOBAL innodb_file_per_table=1;
-CREATE TABLE t(a INT)ENGINE=InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t1 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t2 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE t3 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t3 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE t4 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t4 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+# Check also with tables having special characters
+CREATE TABLE `t_.._a` (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO `t_.._a` VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE `t_.._b` (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO `t_.._b` VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+#
+# Remove and Discard tablespaces
+#
 # restart
-SELECT * FROM t;
-ERROR HY000: Tablespace is missing for table `test`.`t`.
-ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
-ERROR HY000: Tablespace is missing for table `test`.`t`.
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+ALTER TABLE `t_.._b` DISCARD TABLESPACE;
+#
+# SELECT * FROM __
+#
+SELECT * FROM t1;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1812	InnoDB: Tablespace is missing for table test/t.
-Error	1812	Tablespace is missing for table `test`.`t`.
-ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
-ERROR 42S02: Table 'test.t1' doesn't exist
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+SELECT * FROM t2;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1146	Table 'test.t1' doesn't exist
-ALTER TABLE t ALGORITHM=INPLACE, DISCARD TABLESPACE;
-ERROR 0A000: ALGORITHM=COPY/INPLACE/INSTANT is not supported for this operation. Try ALGORITHM=DEFAULT.
-ALTER TABLE t ALGORITHM=COPY, DISCARD TABLESPACE;
-ERROR 0A000: ALGORITHM=COPY/INPLACE/INSTANT is not supported for this operation. Try ALGORITHM=DEFAULT.
-ALTER TABLE t ALGORITHM=DEFAULT, DISCARD TABLESPACE;
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+SELECT * FROM t3;
+ERROR HY000: Tablespace has been discarded for table 't3'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't3'
+Error	1146	Table 'test.t3' doesn't exist
+SELECT * FROM t4;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+SELECT * FROM `t_.._a`;
+ERROR HY000: Tablespace is missing for table `test`.`t_.._a`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t_@002e@002e_a.
+Error	1812	Tablespace is missing for table `test`.`t_.._a`.
+SELECT * FROM `t_.._b`;
+ERROR HY000: Tablespace has been discarded for table 't_.._b'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't_.._b'
+Error	1146	Table 'test.t_.._b' doesn't exist
+#
+# ALTER TABLE __ TABLESPACE innodb_system
+#
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 TABLESPACE innodb_system, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 TABLESPACE innodb_system, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t3'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 'test/t3'
+ALTER TABLE t4 TABLESPACE innodb_system, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ TABLESPACE ts1
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+ALTER TABLE t1 TABLESPACE ts1, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 TABLESPACE ts1, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 TABLESPACE ts1, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t3'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 'test/t3'
+ALTER TABLE t4 TABLESPACE ts1, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ADD INDEX
+#
+ALTER TABLE t1 ADD INDEX (a), ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ADD INDEX (a), ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ADD INDEX (a), ALGORITHM=INPLACE;
+ERROR 42000: Key column 'a' doesn't exist in table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1072	Key column 'a' doesn't exist in table
+ALTER TABLE t4 ADD INDEX (a), ALGORITHM=COPY;
+ERROR 42000: Key column 'a' doesn't exist in table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1072	Key column 'a' doesn't exist in table
+#
+# ALTER TABLE __ DROP INDEX
+#
+ALTER TABLE t1 DROP INDEX c2, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 DROP INDEX c2, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 DROP INDEX c2, ALGORITHM=INPLACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table test/t.
-Warning	1812	InnoDB: Tablespace is missing for table test/t.
-ALTER TABLE t DISCARD TABLESPACE;
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 DROP INDEX c2, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ADD COLUMN
+#
+ALTER TABLE t1 ADD COLUMN c3 INT, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ADD COLUMN c3 INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ADD COLUMN c3 INT, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t3'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 'test/t3'
+ALTER TABLE t4 ADD COLUMN c3 INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ DROP COLUMN
+#
+ALTER TABLE t1 DROP COLUMN ct, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 DROP COLUMN ct, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 DROP COLUMN ct, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t3'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 'test/t3'
+ALTER TABLE t4 DROP COLUMN ct, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ALTER c2 DROP DEFAULT
+#
+ALTER TABLE t1 ALTER c2 DROP DEFAULT, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ALTER c2 DROP DEFAULT, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ALTER c2 DROP DEFAULT, ALGORITHM=INPLACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table test/t.
-DROP TABLE t;
-CREATE TABLE `x..d` (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
-INSERT INTO `x..d` (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 ALTER c2 DROP DEFAULT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ALTER c2 SET DEFAULT 42
+#
+ALTER TABLE t1 ALTER c2 SET DEFAULT 42, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ALTER c2 SET DEFAULT 42, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ALTER c2 SET DEFAULT 42, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 ALTER c2 SET DEFAULT 42, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ADD FULLTEXT INDEX
+#
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct), ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ADD FULLTEXT INDEX (ct), ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ADD FULLTEXT INDEX (ct), ALGORITHM=INPLACE;
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 ADD FULLTEXT INDEX (ct), ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ CHANGE c2 c2 INT AFTER c1
+#
+ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 CHANGE c2 c2 INT AFTER c1, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 CHANGE c2 c2 INT AFTER c1, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 CHANGE c2 c2 INT AFTER c1, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ CHANGE c1 c1 INT FIRST
+#
+ALTER TABLE t1 CHANGE c1 c1 INT FIRST, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 CHANGE c1 c1 INT FIRST, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 CHANGE c1 c1 INT FIRST, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 CHANGE c1 c1 INT FIRST, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ CHANGE C2 c3 INT
+#
+ALTER TABLE t1 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 CHANGE C2 c3 INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+ALTER TABLE t4 CHANGE C2 c3 INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ ROW_FORMAT=REDUNDANT
+#
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
+ALTER TABLE t4 ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# ALTER TABLE __ RENAME TO __
+#
+ALTER TABLE t1 RENAME TO t11, ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is missing for table `test`.`t1`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Error	1812	Tablespace is missing for table `test`.`t1`.
+ALTER TABLE t2 RENAME TO t22, ALGORITHM=COPY;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+ALTER TABLE t3 RENAME TO t33, ALGORITHM=INPLACE;
+ALTER TABLE t33 RENAME TO t3, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't33'
+ALTER TABLE t4 RENAME TO t44, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't4'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1814	Tablespace has been discarded for table 't4'
+Error	1146	Table 'test.t4' doesn't exist
+#
+# DISCARD an already missing tablespace;
+#
+ALTER TABLE t1 DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1.
+#
+# Show the resultant tables before dropping them
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT '1',
+  `ct` text,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+ERROR HY000: Tablespace is missing for table `test`.`t2`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t2.
+Error	1812	Tablespace is missing for table `test`.`t2`.
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) NOT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `ct` text,
+  PRIMARY KEY (`c1`),
+  FULLTEXT KEY `ct` (`ct`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT '1',
+  `ct` text,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE `t_.._a`;
+ERROR HY000: Tablespace is missing for table `test`.`t_.._a`.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1812	InnoDB: Tablespace is missing for table test/t_@002e@002e_a.
+Error	1812	Tablespace is missing for table `test`.`t_.._a`.
+SHOW CREATE TABLE `t_.._b`;
+Table	Create Table
+t_.._b	CREATE TABLE `t_.._b` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT '1',
+  `ct` text,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# DROP TABLE __ while mising or discarded
+#
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE `t_.._a`;
+DROP TABLE `t_.._b`;
+#
+# Recreate the 6 tables; 1 & 2 missing, 3 & 4 discarded, 5 & 6 normal
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t3 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t4 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t5 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t6 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t1 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t2 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t3 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t4 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t5 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t6 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE t1p LIKE t1;
+CREATE TABLE t2p LIKE t1;
+CREATE TABLE t3p LIKE t1;
+CREATE TABLE t4p LIKE t1;
+CREATE TABLE t5p LIKE t1;
+CREATE TABLE t6p LIKE t1;
+#
+# Remove t1 and Discard t3 & t4
+#
 # restart
-select * from `x..d`;
-ERROR HY000: Tablespace is missing for table `test`.`x..d`.
-DROP TABLE `x..d`;
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+#
+# Add some foreign key constraints
+#
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
+CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2));
+CREATE TABLE t2c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t2(c2),
+CONSTRAINT t2c3 FOREIGN KEY (c3) REFERENCES t2p(c2));
+CREATE TABLE t3c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t3c2 FOREIGN KEY (c2) REFERENCES t3(c2),
+CONSTRAINT t3c3 FOREIGN KEY (c3) REFERENCES t3p(c2));
+CREATE TABLE t4c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t4c2 FOREIGN KEY (c2) REFERENCES t4(c2),
+CONSTRAINT t4c3 FOREIGN KEY (c3) REFERENCES t4p(c2));
+CREATE TABLE t5c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t5c2 FOREIGN KEY (c2) REFERENCES t5(c2),
+CONSTRAINT t5c3 FOREIGN KEY (c3) REFERENCES t5p(c2));
+CREATE TABLE t6c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+CONSTRAINT t6c2 FOREIGN KEY (c2) REFERENCES t6(c2),
+CONSTRAINT t6c3 FOREIGN KEY (c3) REFERENCES t6p(c2));
+#
+# Remove t2, try to discard t3 & t4 already discarded
+#
+# restart
+ALTER TABLE t3 DISCARD TABLESPACE;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails ()
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
+Warning	1812	InnoDB: Tablespace is missing for table test/t3.
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails ()
+ALTER TABLE t4 DISCARD TABLESPACE;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails ()
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1814	InnoDB: Tablespace has been discarded for table 't4'
+Warning	1812	InnoDB: Tablespace is missing for table test/t4.
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails ()
+ALTER TABLE t5 DISCARD TABLESPACE;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails ()
+SHOW WARNINGS;
+Level	Code	Message
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails ()
+#
+# ALTER TABLE __ DROP FOREIGN KEY
+#
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, ALGORITHM=INPLACE;
+ALTER TABLE t2c DROP FOREIGN KEY t2c2, ALGORITHM=COPY;
+ALTER TABLE t3c DROP FOREIGN KEY t3c2, ALGORITHM=INPLACE;
+ALTER TABLE t4c DROP FOREIGN KEY t4c2, ALGORITHM=COPY;
+ALTER TABLE t5c DROP FOREIGN KEY t5c2, ALGORITHM=INPLACE;
+ALTER TABLE t6c DROP FOREIGN KEY t6c2, ALGORITHM=COPY;
+#
+# Cleanup
+#
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t1c;
+DROP TABLE t2c;
+DROP TABLE t3c;
+DROP TABLE t4c;
+DROP TABLE t5c;
+DROP TABLE t6c;
+DROP TABLE t1p;
+DROP TABLE t2p;
+DROP TABLE t3p;
+DROP TABLE t4p;
+DROP TABLE t5p;
+DROP TABLE t6p;
+DROP TABLESPACE ts1;
