@@ -14997,7 +14997,7 @@ static int copy_data_between_tables(
   unique_ptr_destroy_only<Filesort> fsort;
   READ_RECORD info;
   setup_read_record(&info, thd, from, NULL, false,
-                    /*ignore_not_found_rows=*/false);
+                    /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
 
   if (order && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
@@ -15030,7 +15030,8 @@ static int copy_data_between_tables(
     fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
     unique_ptr_destroy_only<RowIterator> sort(
         new (&info.sort_holder)
-            SortingIterator(thd, from, fsort.get(), move(info.iterator)));
+            SortingIterator(thd, from, fsort.get(), move(info.iterator),
+                            /*examined_rows=*/nullptr));
     if (sort->Init()) {
       error = 1;
       goto err;

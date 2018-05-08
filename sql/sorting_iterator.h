@@ -57,8 +57,10 @@ class SortingIterator final : public RowIterator {
   // as long as SortingIterator lives (since Init() may be called multiple
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortingIterator(THD *thd, TABLE *table, Filesort *filesort,
-                  unique_ptr_destroy_only<RowIterator> source);
+                  unique_ptr_destroy_only<RowIterator> source,
+                  ha_rows *examined_rows);
   ~SortingIterator();
 
   // Calls Init() on the source iterator, then does the actual sort.
@@ -97,6 +99,8 @@ class SortingIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_result_iterator;
 
   Sort_result m_sort_result;
+
+  ha_rows *m_examined_rows;
 
   // Similarly to iterator_holder in READ_RECORD, allows us to keep one of
   // the different forms of result iterators without incurring a heap

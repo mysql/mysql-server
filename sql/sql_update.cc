@@ -557,17 +557,20 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           to update
           NOTE: filesort will call table->prepare_for_position()
         */
+        ha_rows examined_rows = 0;
         setup_read_record(&info, thd, NULL, &qep_tab, false,
-                          /*ignore_not_found_rows=*/false);
+                          /*ignore_not_found_rows=*/false, &examined_rows);
 
         // Force filesort to sort by position.
         qep_tab.keep_current_rowid = true;
         fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
         unique_ptr_destroy_only<RowIterator> sort(
             new (&info.sort_holder)
-                SortingIterator(thd, table, fsort.get(), move(info.iterator)));
+                SortingIterator(thd, table, fsort.get(), move(info.iterator),
+                                /*examined_rows=*/nullptr));
         if (sort->Init()) DBUG_RETURN(true);
         info.iterator = move(sort);
+        thd->inc_examined_row_count(examined_rows);
 
         /*
           Filesort has already found and selected the rows we want to update,
@@ -614,7 +617,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         if (used_index == MAX_KEY || qep_tab.quick()) {
           setup_read_record(&info, thd, NULL, &qep_tab, false,
-                            /*ignore_not_found_rows=*/false);
+                            /*ignore_not_found_rows=*/false,
+                            /*examined_rows=*/nullptr);
         } else {
           setup_read_record_idx(&info, thd, table, used_index, reverse,
                                 &qep_tab);
@@ -692,7 +696,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                 SortFileIndirectIterator(thd, table, tempfile,
                                          /*request_cache=*/false,
                                          /*ignore_not_found_rows=*/false,
-                                         qep_tab.condition()));
+                                         qep_tab.condition(),
+                                         /*examined_rows=*/nullptr));
         if (info.iterator->Init()) DBUG_RETURN(true);
 
         qep_tab.set_quick(NULL);

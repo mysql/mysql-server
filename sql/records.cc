@@ -46,6 +46,7 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
 #include "sql/table.h"
 
@@ -72,20 +73,25 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
   empty_record(table);
   new (info) READ_RECORD;
 
+  ha_rows *examined_rows = nullptr;
+  if (qep_tab != nullptr && qep_tab->join() != nullptr) {
+    examined_rows = &qep_tab->join()->examined_rows;
+  }
+
   unique_ptr_destroy_only<RowIterator> iterator;
 
   if (reverse) {
     iterator.reset(
-        new (&info->iterator_holder.index_scan_reverse)
-            IndexScanIterator<true>(thd, table, idx,
-                                    /*use_order=*/true, qep_tab,
-                                    qep_tab ? qep_tab->condition() : nullptr));
+        new (&info->iterator_holder.index_scan_reverse) IndexScanIterator<true>(
+            thd, table, idx,
+            /*use_order=*/true, qep_tab,
+            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
   } else {
     iterator.reset(
-        new (&info->iterator_holder.index_scan)
-            IndexScanIterator<false>(thd, table, idx,
-                                     /*use_order=*/true, qep_tab,
-                                     qep_tab ? qep_tab->condition() : nullptr));
+        new (&info->iterator_holder.index_scan) IndexScanIterator<false>(
+            thd, table, idx,
+            /*use_order=*/true, qep_tab,
+            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
   }
   info->iterator = std::move(iterator);
 }
@@ -93,13 +99,15 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
 template <bool Reverse>
 IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
                                               bool use_order, QEP_TAB *qep_tab,
-                                              Item *pushed_condition)
+                                              Item *pushed_condition,
+                                              ha_rows *examined_rows)
     : RowIterator(thd, table),
       m_record(table->record[0]),
       m_idx(idx),
       m_use_order(use_order),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition) {}
+      m_pushed_condition(pushed_condition),
+      m_examined_rows(examined_rows) {}
 
 template <bool Reverse>
 IndexScanIterator<Reverse>::~IndexScanIterator() {
@@ -143,6 +151,9 @@ int IndexScanIterator<false>::Read() {  // Forward read.
     error = table()->file->ha_index_next(m_record);
   }
   if (error) return HandleError(error);
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
   return 0;
 }
 
@@ -156,6 +167,9 @@ int IndexScanIterator<true>::Read() {  // Backward read.
     error = table()->file->ha_index_prev(m_record);
   }
   if (error) return HandleError(error);
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
   return 0;
 }
 //! @endcond
@@ -181,16 +195,25 @@ template class IndexScanIterator<false>;
     Ignore any rows not found in reference tables, as they may already have
     been deleted by foreign key handling. Only relevant for methods that need
     to look up rows in tables (those marked “Indirect”).
+  @param examined_rows
+    If not-nullptr, the iterator will increase this variable by the number of
+    examined rows. If nullptr, will use qep_tab->join()->examined_rows
+    if possible.
  */
 void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
                        QEP_TAB *qep_tab, bool disable_rr_cache,
-                       bool ignore_not_found_rows) {
+                       bool ignore_not_found_rows, ha_rows *examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
 
   new (info) READ_RECORD;
+
+  if (examined_rows == nullptr && qep_tab != nullptr &&
+      qep_tab->join() != nullptr) {
+    examined_rows = &qep_tab->join()->examined_rows;
+  }
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -202,15 +225,16 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
         new (&info->iterator_holder.sort_file_indirect)
             SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
                                      !disable_rr_cache, ignore_not_found_rows,
-                                     qep_tab ? qep_tab->condition() : nullptr));
+                                     qep_tab ? qep_tab->condition() : nullptr,
+                                     examined_rows));
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
   } else if (quick) {
     DBUG_PRINT("info", ("using IndexRangeScanIterator"));
     iterator.reset(
-        new (&info->iterator_holder.index_range_scan)
-            IndexRangeScanIterator(thd, table, quick, qep_tab,
-                                   qep_tab ? qep_tab->condition() : nullptr));
+        new (&info->iterator_holder.index_range_scan) IndexRangeScanIterator(
+            thd, table, quick, qep_tab,
+            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
   } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
@@ -222,11 +246,12 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
         new (&info->iterator_holder.sort_buffer_indirect)
             SortBufferIndirectIterator(
                 thd, table, &table->unique_result, ignore_not_found_rows,
-                qep_tab ? qep_tab->condition() : nullptr));
+                qep_tab ? qep_tab->condition() : nullptr, examined_rows));
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
     iterator.reset(new (&info->iterator_holder.table_scan) TableScanIterator(
-        thd, table, qep_tab, qep_tab ? qep_tab->condition() : nullptr));
+        thd, table, qep_tab, qep_tab ? qep_tab->condition() : nullptr,
+        examined_rows));
   }
   info->iterator = std::move(iterator);
 }
@@ -235,7 +260,7 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
                       QEP_TAB *qep_tab, bool disable_rr_cache,
                       bool ignore_not_found_rows) {
   setup_read_record(info, thd, table, qep_tab, disable_rr_cache,
-                    ignore_not_found_rows);
+                    ignore_not_found_rows, /*examined_rows=*/nullptr);
   if (info->iterator->Init()) {
     info->iterator.reset();
     return true;
@@ -288,11 +313,13 @@ void RowIterator::PushDownCondition(Item *condition) {
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
                                                QEP_TAB *qep_tab,
-                                               Item *pushed_condition)
+                                               Item *pushed_condition,
+                                               ha_rows *examined_rows)
     : RowIterator(thd, table),
       m_quick(quick),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition) {}
+      m_pushed_condition(pushed_condition),
+      m_examined_rows(examined_rows) {}
 
 bool IndexRangeScanIterator::Init() {
   PushDownCondition(m_pushed_condition);
@@ -324,15 +351,20 @@ int IndexRangeScanIterator::Read() {
     }
   }
 
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
   return 0;
 }
 
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                                     Item *pushed_condition)
+                                     Item *pushed_condition,
+                                     ha_rows *examined_rows)
     : RowIterator(thd, table),
       m_record(table->record[0]),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition) {}
+      m_pushed_condition(pushed_condition),
+      m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
   table()->file->ha_index_or_rnd_end();
@@ -368,6 +400,9 @@ int TableScanIterator::Read() {
     */
     if (tmp == HA_ERR_RECORD_DELETED && !thd()->killed) continue;
     return HandleError(tmp);
+  }
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
   }
   return 0;
 }

@@ -4453,9 +4453,9 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   // Wrap the chosen RowIterator in a SortingIterator, so that we get
   // sorted results out.
   unique_ptr_destroy_only<RowIterator> sort(
-      new (&tab->read_record.sort_holder)
-          SortingIterator(tab->join()->thd, tab->table(), tab->filesort,
-                          move(tab->read_record.iterator)));
+      new (&tab->read_record.sort_holder) SortingIterator(
+          tab->join()->thd, tab->table(), tab->filesort,
+          move(tab->read_record.iterator), &tab->join()->examined_rows));
   tab->read_record.iterator = move(sort);
 
   DBUG_RETURN(false);

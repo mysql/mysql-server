@@ -33,14 +33,14 @@ CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_r
 CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');
 Next Output
 QUERY_INSERT	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	2	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
-QUERY_SELECT	test	*	2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	3	2	17	9	0	0	2	0	3	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	3	2	15	8	0	0	2	0	3	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
 QUERY_UPDATE	test		2	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	2	1	2	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
 Top 100 Queries Ordered by Total Latency
 query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
 Next Output
 QUERY_INSERT	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	0	0	1	1	0	0	0	0	DIGEST_INSERT	FIRST_SEEN	LAST_SEEN
-QUERY_SELECT	test	*	1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	2	2	12	12	0	0	1	0	2	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
+QUERY_SELECT	test	*	1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	2	2	11	11	0	0	1	0	2	0	DIGEST_SELECT	FIRST_SEEN	LAST_SEEN
 QUERY_UPDATE	test		1	0	0	LATENCY	LATENCY	LATENCY	LATENCY	0	0	1	1	1	1	0	0	0	0	DIGEST_UPDATE	FIRST_SEEN	LAST_SEEN
 Top 100 Queries Ordered by Total Latency
 query	db	full_scan	exec_count	err_count	warn_count	total_latency	max_latency	avg_latency	lock_latency	rows_sent	rows_sent_avg	rows_examined	rows_examined_avg	rows_affected	rows_affected_avg	tmp_tables	tmp_disk_tables	rows_sorted	sort_merge_passes	digest	first_seen	last_seen
@@ -56,12 +56,12 @@ CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans'
 Next Output
 Top 100 Queries with Full Table Scan
 query	db	exec_count	total_latency	no_index_used_count	no_good_index_used_count	no_index_used_pct	rows_sent	rows_examined	rows_sent_avg	rows_examined_avg	first_seen	last_seen	digest
-QUERY_SELECT	test	2	LATENCY	2	0	100	3	17	2	9	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+QUERY_SELECT	test	2	LATENCY	2	0	100	3	15	2	8	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');
 Next Output
 Top 100 Queries with Full Table Scan
 query	db	exec_count	total_latency	no_index_used_count	no_good_index_used_count	no_index_used_pct	rows_sent	rows_examined	rows_sent_avg	rows_examined_avg	first_seen	last_seen	digest
-QUERY_SELECT	test	1	LATENCY	1	0	100	2	12	2	12	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
+QUERY_SELECT	test	1	LATENCY	1	0	100	2	11	2	11	FIRST_SEEN	LAST_SEEN	DIGEST_SELECT
 CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');
 Next Output
 Top 100 Queries with Sorting
@@ -100,14 +100,14 @@ Next Output
 Top 100 Queries Using Custom View
 query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
 QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
-QUERY_SELECT	test	2	LATENCY	LATENCY	2	9	0	DIGEST_SELECT
+QUERY_SELECT	test	2	LATENCY	LATENCY	2	8	0	DIGEST_SELECT
 QUERY_UPDATE	test	2	LATENCY	LATENCY	0	1	1	DIGEST_UPDATE
 CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');
 Next Output
 Top 100 Queries Using Custom View
 query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
 QUERY_INSERT	test	1	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
-QUERY_SELECT	test	1	LATENCY	LATENCY	2	12	0	DIGEST_SELECT
+QUERY_SELECT	test	1	LATENCY	LATENCY	2	11	0	DIGEST_SELECT
 QUERY_UPDATE	test	1	LATENCY	LATENCY	0	1	1	DIGEST_UPDATE
 SET @sys.statement_performance_analyzer.limit = 2;
 CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
@@ -115,7 +115,7 @@ Next Output
 Top 2 Queries Using Custom View
 query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
 QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
-QUERY_SELECT	test	2	LATENCY	LATENCY	2	9	0	DIGEST_SELECT
+QUERY_SELECT	test	2	LATENCY	LATENCY	2	8	0	DIGEST_SELECT
 SET SESSION sql_mode = '';
 CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
 ERROR 45000: Unknown action. Supported actions are: cleanup, create_table, create_tmp, delta, overall, save, snapshot

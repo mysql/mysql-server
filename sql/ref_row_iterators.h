@@ -44,8 +44,9 @@ struct TABLE_REF;
 template <bool Reverse>
 class RefIterator final : public RowIterator {
  public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-              QEP_TAB *qep_tab);
+              QEP_TAB *qep_tab, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -54,6 +55,7 @@ class RefIterator final : public RowIterator {
   TABLE_REF *const m_ref;
   const bool m_use_order;
   QEP_TAB *const m_qep_tab;
+  ha_rows *const m_examined_rows;
   bool m_first_record_since_init;
 };
 
@@ -63,8 +65,9 @@ class RefIterator final : public RowIterator {
  */
 class RefOrNullIterator final : public RowIterator {
  public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                    QEP_TAB *qep_tab);
+                    QEP_TAB *qep_tab, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -74,6 +77,7 @@ class RefOrNullIterator final : public RowIterator {
   const bool m_use_order;
   bool m_reading_first_row;
   QEP_TAB *const m_qep_tab;
+  ha_rows *const m_examined_rows;
 };
 
 /**
@@ -84,7 +88,9 @@ class RefOrNullIterator final : public RowIterator {
  */
 class EQRefIterator final : public RowIterator {
  public:
-  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order);
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+                ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -94,6 +100,7 @@ class EQRefIterator final : public RowIterator {
   TABLE_REF *const m_ref;
   const bool m_use_order;
   bool m_first_record_since_init;
+  ha_rows *const m_examined_rows;
 };
 
 /**
@@ -102,7 +109,9 @@ class EQRefIterator final : public RowIterator {
  */
 class ConstIterator final : public RowIterator {
  public:
-  ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref);
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref,
+                ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -110,13 +119,15 @@ class ConstIterator final : public RowIterator {
  private:
   TABLE_REF *const m_ref;
   bool m_first_record_since_init;
+  ha_rows *const m_examined_rows;
 };
 
 /** An iterator that does a search through a full-text index. */
 class FullTextSearchIterator final : public RowIterator {
  public:
-  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref,
-                         bool use_order);
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+                         ha_rows *examined_rows);
   ~FullTextSearchIterator();
 
   bool Init() override;
@@ -125,6 +136,7 @@ class FullTextSearchIterator final : public RowIterator {
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;
+  ha_rows *const m_examined_rows;
 };
 
 /*
@@ -142,7 +154,9 @@ class FullTextSearchIterator final : public RowIterator {
  */
 class DynamicRangeIterator final : public RowIterator {
  public:
-  DynamicRangeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab);
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  DynamicRangeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                       ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -170,6 +184,8 @@ class DynamicRangeIterator final : public RowIterator {
     for the first range.
   */
   bool m_quick_traced_before = false;
+
+  ha_rows *const m_examined_rows;
 };
 
 /**
@@ -189,7 +205,9 @@ class DynamicRangeIterator final : public RowIterator {
  */
 class PushedJoinRefIterator final : public RowIterator {
  public:
-  PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order);
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+                        ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -198,6 +216,7 @@ class PushedJoinRefIterator final : public RowIterator {
   TABLE_REF *const m_ref;
   const bool m_use_order;
   bool m_first_record_since_init;
+  ha_rows *const m_examined_rows;
 };
 
 #endif  // SQL_REF_ROW_ITERATORS_H

@@ -1880,7 +1880,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
       does not meet the conditions that have been pushed to this table
     */
     if (rc == NESTED_LOOP_OK) {
-      join->examined_rows++;
       if (const_cond) {
         const bool consider_record = const_cond->val_int() != false;
         if (join->thd->is_error())  // error in condition evaluation

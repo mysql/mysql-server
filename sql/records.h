@@ -75,7 +75,7 @@ struct READ_RECORD {
 
 void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
                        QEP_TAB *qep_tab, bool disable_rr_cache,
-                       bool ignore_not_found_rows);
+                       bool ignore_not_found_rows, ha_rows *examined_rows);
 
 /** Calls setup_read_record(), then calls Init() on the resulting iterator. */
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,

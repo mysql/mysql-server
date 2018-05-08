@@ -272,15 +272,14 @@ class Sort_param {
   uint m_fixed_rec_length;   ///< Maximum length of a record, see above.
   uint m_fixed_sort_length;  ///< Maximum number of bytes used for sorting.
  public:
-  uint ref_length;            // Length of record ref.
-  uint m_addon_length;        // Length of added packed fields.
-  uint fixed_res_length;      // Length of records in final sorted file/buffer.
-  uint max_rows_per_buffer;   // Max (unpacked) rows / buffer.
-  ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
-  ha_rows num_examined_rows;  // Number of examined rows.
-  TABLE *sort_form;           // For quicker make_sortkey.
-  bool use_hash;              // Whether to use hash to distinguish cut JSON
-  bool m_force_stable_sort;   // Keep relative order of equal elements
+  uint ref_length;           // Length of record ref.
+  uint m_addon_length;       // Length of added packed fields.
+  uint fixed_res_length;     // Length of records in final sorted file/buffer.
+  uint max_rows_per_buffer;  // Max (unpacked) rows / buffer.
+  ha_rows max_rows;          // Select limit, or HA_POS_ERROR if unlimited.
+  TABLE *sort_form;          // For quicker make_sortkey.
+  bool use_hash;             // Whether to use hash to distinguish cut JSON
+  bool m_force_stable_sort;  // Keep relative order of equal elements
 
   /**
     ORDER BY list with some precalculated info for filesort.

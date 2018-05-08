@@ -330,9 +330,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
                               when rowids are required by executor)
   @param      source_iterator Where to read the rows to be sorted from.
   @param      sort_result    Where to store the sort result.
-  @param[out] examined_rows  Store number of examined rows here
-                             This is the number of found rows before
-                             applying WHERE condition.
   @param[out] found_rows     Store the number of found rows here.
                              This is the number of found rows after
                              applying WHERE condition.
@@ -348,8 +345,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
 bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
               RowIterator *source_iterator, Sort_result *sort_result,
-              ha_rows *examined_rows, ha_rows *found_rows,
-              ha_rows *returned_rows) {
+              ha_rows *found_rows, ha_rows *returned_rows) {
   int error;
   ulong memory_available = thd->variables.sortbuff_size;
   ha_rows num_rows_found = HA_POS_ERROR;
@@ -492,7 +488,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_chunks == 0)  // The whole set is in memory
   {
-    if (save_index(&param, num_rows_found, &table->sort, sort_result)) goto err;
+    ha_rows rows_in_chunk = param.using_pq ? pq.num_elements() : num_rows_found;
+    if (save_index(&param, rows_in_chunk, &table->sort, sort_result)) goto err;
   } else {
     // We will need an extra buffer in SortFileIndirectIterator
     if (table->sort.addon_fields != nullptr &&
@@ -558,7 +555,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
         .add("max_rows_per_buffer", param.max_rows_per_buffer)
         .add("num_rows_estimate", num_rows_estimate)
         .add("num_rows_found", num_rows_found)
-        .add("num_examined_rows", param.num_examined_rows)
         .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
         .add("peak_memory_used", table->sort.peak_memory_used())
         .add_alnum("sort_algorithm", algo_text[param.m_sort_algorithm]);
@@ -626,12 +622,10 @@ err:
     }
   } else
     thd->inc_status_sort_rows(num_rows_found);
-  *examined_rows = param.num_examined_rows;
   *returned_rows = num_rows_found;
 
-  DBUG_PRINT("exit", ("num_rows: %ld examined_rows: %ld found_rows: %ld",
+  DBUG_PRINT("exit", ("num_rows: %ld found_rows: %ld",
                       static_cast<long>(num_rows_found),
-                      static_cast<long>(*examined_rows),
                       static_cast<long>(*found_rows)));
   DBUG_RETURN(error);
 } /* filesort */
@@ -1002,11 +996,11 @@ static ha_rows read_all_rows(
       num_total_records = HA_POS_ERROR;
       goto cleanup;
     }
-    param->num_examined_rows++;
 
     bool skip_record;
     if (!qep_tab->skip_record(thd, &skip_record) && !skip_record) {
       ++(*found_rows);
+      num_total_records++;
       if (pq)
         pq->push(ref_pos);
       else {
@@ -1037,7 +1031,6 @@ static ha_rows read_all_rows(
         }
 
         num_records_this_chunk++;
-        num_total_records++;
       }
     }
     /*
@@ -1070,8 +1063,6 @@ static ha_rows read_all_rows(
     num_total_records = HA_POS_ERROR;  // purecov: inspected
     goto cleanup;
   }
-
-  if (pq) num_total_records = pq->num_elements();
 
 cleanup:
   // Clear tmp_set so it can be used elsewhere

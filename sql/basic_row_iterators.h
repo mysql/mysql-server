@@ -34,6 +34,7 @@
 
 #include "map_helpers.h"
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/row_iterator.h"
 
@@ -59,8 +60,10 @@ class TableScanIterator final : public RowIterator {
   // buffers.
   //
   // The pushed condition can be nullptr.
+  //
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                    Item *pushed_condition);
+                    Item *pushed_condition, ha_rows *examined_rows);
   ~TableScanIterator();
 
   bool Init() override;
@@ -70,6 +73,7 @@ class TableScanIterator final : public RowIterator {
   uchar *const m_record;
   QEP_TAB *const m_qep_tab;
   Item *const m_pushed_condition;
+  ha_rows *const m_examined_rows;
 };
 
 /** Perform a full index scan along an index. */
@@ -87,8 +91,10 @@ class IndexScanIterator final : public RowIterator {
   //
   // The pushed condition can be nullptr.
   //
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
-                    QEP_TAB *qep_tab, Item *pushed_condition);
+                    QEP_TAB *qep_tab, Item *pushed_condition,
+                    ha_rows *examined_rows);
   ~IndexScanIterator();
 
   bool Init() override;
@@ -100,6 +106,7 @@ class IndexScanIterator final : public RowIterator {
   const bool m_use_order;
   QEP_TAB *const m_qep_tab;
   Item *const m_pushed_condition;
+  ha_rows *const m_examined_rows;
   bool m_first = true;
 };
 
@@ -122,8 +129,10 @@ class IndexRangeScanIterator final : public RowIterator {
   //
   // The pushed condition can be nullptr.
   //
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
-                         QEP_TAB *qep_tab, Item *pushed_condition);
+                         QEP_TAB *qep_tab, Item *pushed_condition,
+                         ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -133,6 +142,7 @@ class IndexRangeScanIterator final : public RowIterator {
   QUICK_SELECT_I *const m_quick;
   QEP_TAB *const m_qep_tab;
   Item *const m_pushed_condition;
+  ha_rows *const m_examined_rows;
 };
 
 // Readers relating to reading sorted data (from filesort).
@@ -157,8 +167,9 @@ class IndexRangeScanIterator final : public RowIterator {
 template <bool Packed_addon_fields>
 class SortBufferIterator final : public RowIterator {
  public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
-                     Sort_result *sort_result);
+                     Sort_result *sort_result, ha_rows *examined_rows);
   ~SortBufferIterator();
 
   bool Init() override;
@@ -169,6 +180,7 @@ class SortBufferIterator final : public RowIterator {
   Filesort_info *const m_sort;
   Sort_result *const m_sort_result;
   unsigned m_unpack_counter;
+  ha_rows *const m_examined_rows;
 };
 
 /**
@@ -190,9 +202,11 @@ class SortBufferIndirectIterator final : public RowIterator {
   // However, it _does_ free the buffers within on destruction.
   //
   // The pushed condition can be nullptr.
+  //
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
-                             bool ignore_not_found_rows,
-                             Item *pushed_condition);
+                             bool ignore_not_found_rows, Item *pushed_condition,
+                             ha_rows *examined_rows);
   ~SortBufferIndirectIterator();
   bool Init() override;
   int Read() override;
@@ -201,6 +215,7 @@ class SortBufferIndirectIterator final : public RowIterator {
   Sort_result *const m_sort_result;
   const uint m_ref_length;
   Item *const m_pushed_condition;
+  ha_rows *const m_examined_rows;
   uchar *m_record = nullptr;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
   bool m_ignore_not_found_rows;
@@ -219,7 +234,7 @@ class SortFileIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                   Filesort_info *sort);
+                   Filesort_info *sort, ha_rows *examined_rows);
   ~SortFileIterator();
 
   bool Init() override { return false; }
@@ -230,6 +245,7 @@ class SortFileIterator final : public RowIterator {
   const uint m_ref_length;
   IO_CACHE *const m_io_cache;
   Filesort_info *const m_sort;
+  ha_rows *const m_examined_rows;
 };
 
 /**
@@ -247,9 +263,10 @@ class SortFileIndirectIterator final : public RowIterator {
   //
   // The pushed condition can be nullptr.
   //
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                            bool request_cache, bool ignore_not_found_rows,
-                           Item *pushed_condition);
+                           Item *pushed_condition, ha_rows *examined_rows);
   ~SortFileIndirectIterator();
 
   bool Init() override;
@@ -262,6 +279,7 @@ class SortFileIndirectIterator final : public RowIterator {
 
   IO_CACHE *m_io_cache = nullptr;
   Item *const m_pushed_condition;
+  ha_rows *const m_examined_rows;
   uchar *m_record = nullptr;
   uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
   bool m_ignore_not_found_rows;

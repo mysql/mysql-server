@@ -457,7 +457,7 @@ class QEP_shared_owner {
 
   // Getters/setters forwarding to QEP_shared:
 
-  JOIN *join() const { return m_qs->join(); }
+  JOIN *join() const { return m_qs ? m_qs->join() : nullptr; }
   void set_join(JOIN *j) { return m_qs->set_join(j); }
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }

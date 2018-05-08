@@ -406,9 +406,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     unique_ptr_destroy_only<Filesort> fsort;
     READ_RECORD info;
+    ha_rows examined_rows = 0;
     if (usable_index == MAX_KEY || qep_tab.quick())
       setup_read_record(&info, thd, NULL, &qep_tab, false,
-                        /*ignore_not_found_rows=*/false);
+                        /*ignore_not_found_rows=*/false, &examined_rows);
     else
       setup_read_record_idx(&info, thd, table, usable_index, reverse, &qep_tab);
 
@@ -418,10 +419,12 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
       unique_ptr_destroy_only<RowIterator> sort(
           new (&info.sort_holder)
-              SortingIterator(thd, table, fsort.get(), move(info.iterator)));
+              SortingIterator(thd, table, fsort.get(), move(info.iterator),
+                              /*rows_examined=*/nullptr));
       qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
       if (sort->Init()) DBUG_RETURN(true);
       info.iterator = move(sort);
+      thd->inc_examined_row_count(examined_rows);
 
       /*
         Filesort has already found and selected the rows we want to delete,
