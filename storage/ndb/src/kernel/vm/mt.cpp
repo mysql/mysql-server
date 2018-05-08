@@ -5538,8 +5538,8 @@ execute_signals(thr_data *selfptr,
 
     Uint32 gsn = s->theVerId_signalNumber;
     *watchDogCounter = 1 +
-      (gsn << 8) +
-      (bno << 20);
+      (bno << 8) +
+      (gsn << 20);
 
     /* Must update original buffer so signal dump will see it. */
     s->theSignalId = selfptr->m_signal_id_counter++;
