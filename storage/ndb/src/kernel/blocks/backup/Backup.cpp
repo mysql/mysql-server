@@ -12896,6 +12896,17 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
    * We will continue as if things were ok, the table is being dropped so
    * no need to abort here, the file will be dropped anyways.
    */
+  if (lqhCreateTableVersion != 0 &&
+      lqhCreateTableVersion != createTableVersion)
+  {
+    g_eventLogger->info("(%u) tab(%u,%u) lqhCreateTableVersion: %u"
+                        ", createTableVersion: %u",
+                        instance(),
+                        tabPtr.p->tableId,
+                        fragPtr.p->fragmentId,
+                        lqhCreateTableVersion,
+                        createTableVersion);
+  }
   ndbrequire(createTableVersion == lqhCreateTableVersion ||
              lqhCreateTableVersion == 0);
 

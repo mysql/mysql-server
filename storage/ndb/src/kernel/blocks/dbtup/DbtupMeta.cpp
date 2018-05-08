@@ -2820,6 +2820,14 @@ Dbtup::handle_ctl_info(TablerecPtr tabPtr,
     (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
   ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
             bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
+#ifdef DEB_DROP_TAB
+  Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
+  DEB_DROP_TAB(("(%u)tab(%u,%u)handle_ctl_info table_version: %u",
+                instance(),
+                fragPtr.p->fragTableId,
+                fragPtr.p->fragmentId,
+                createTableVersion));
+#endif
   if ((bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
        bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG) ||
       !c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
