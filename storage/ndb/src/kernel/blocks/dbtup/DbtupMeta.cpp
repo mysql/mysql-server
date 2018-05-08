@@ -52,8 +52,15 @@
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
-//#define DEBUG_TUP_META
-//#define DEBUG_TUP_META_EXTRA
+//#define DEBUG_TUP_META 1
+//#define DEBUG_TUP_META_EXTRA 1
+#endif
+#define DEBUG_DROP_TAB 1
+
+#ifdef DEBUG_DROP_TAB
+#define DEB_DROP_TAB(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DROP_TAB(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_TUP_META
@@ -2726,6 +2733,12 @@ Dbtup::execFSREADCONF(Signal *signal)
     if (handle_ctl_info(tabPtr, fragPtr, bytesRead))
     {
       jam();
+      DEB_DROP_TAB(("(%u) handle_ctl_info failed, drop all tab(%u,%u)"
+                    ", ctl: %u",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    tabPtr.p->m_dropTable.m_lcpno));
       ndbassert(false);
       tabPtr.p->m_dropTable.m_firstFileId = 0;
       tabPtr.p->m_dropTable.m_numDataFiles =
@@ -2733,6 +2746,15 @@ Dbtup::execFSREADCONF(Signal *signal)
       tabPtr.p->m_dropTable.m_lastFileId =
         BackupFormat::NDB_MAX_LCP_FILES - 1;
       tabPtr.p->m_dropTable.m_lcpno = 1;
+    }
+    else
+    {
+      DEB_DROP_TAB(("(%u) handle_ctl_info succeeded, drop all tab(%u,%u),"
+                    " ctl: %u",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    tabPtr.p->m_dropTable.m_lcpno));
     }
   }
   lcp_close_ctl_file(signal,
@@ -2993,6 +3015,11 @@ Dbtup::drop_fragment_fsremove(Signal* signal,
     {
       jam();
       FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+      DEB_DROP_TAB(("(%u)Dropping ctl file for tab(%u,%u), ctl: %u",
+                    instance(),
+                    tableId,
+                    fragId,
+                    lcpno));
     }
     else
     {
@@ -3017,8 +3044,25 @@ Dbtup::execFSREMOVEREF(Signal* signal)
   FragrecordPtr fragPtr;
 
   const Uint32 userPointer = ref->userPointer;
+#ifdef DEBUG_DROP_TAB
+  tabPtr.i = userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  Uint32 fragId = fragPtr.p->fragmentId;
+  Uint32 tableId = fragPtr.p->fragTableId;
+
+  if (tabPtr.p->m_dropTable.m_file_type == 3)
+  {
+    DEB_DROP_TAB(("(%u) Failed to remove ctl file tab(%u,%u)",
+                  instance(),
+                  tableId,
+                  fragId));
+  }
+#endif
   FsConf* conf = (FsConf*)signal->getDataPtrSend();
   conf->userPointer = userPointer;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   execFSREMOVECONF(signal);
 }
 
