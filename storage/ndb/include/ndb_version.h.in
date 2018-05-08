@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -899,6 +899,18 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
  * Support for wl#9819 ndbinfo.processes
  */
 #define NDBD_PROCESSINFO_VERSION NDB_MAKE_VERSION(7,5,7)
+static
+inline
+int
+ndbd_supports_processinfo(Uint32 x)
+{
+  if(x < NDBD_PROCESSINFO_VERSION)
+  {
+    return 0;
+  }
+  return 1;
+}
+
 
 #define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
 #define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
