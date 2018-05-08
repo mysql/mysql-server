@@ -835,8 +835,14 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
       if (std::find(cv_members.begin(), cv_members.end(), member_id) !=
           cv_members.end()) {
         members.push_back(member_id);
+        MYSQL_GCS_LOG_DEBUG("Local view with member: %s",
+                            member_id.get_member_id().c_str());
 
-        if (!(*nodes_it).is_alive()) unreachable.push_back(member_id);
+        if (!(*nodes_it).is_alive()) {
+          unreachable.push_back(member_id);
+          MYSQL_GCS_LOG_DEBUG("Local view with suspected member: %s",
+                              member_id.get_member_id().c_str());
+        }
       }
     }
 
