@@ -19430,8 +19430,6 @@ static SYS_VAR* system_variables[]= {
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-
-extern struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin;
 extern struct st_mysql_plugin ndbinfo_plugin;
 
 mysql_declare_plugin(ndbcluster)
@@ -19451,8 +19449,7 @@ mysql_declare_plugin(ndbcluster)
   NULL,                       /* config options */
   0                           /* flags */
 },
-ndbinfo_plugin, /* ndbinfo plugin */
-/* IS plugin table which maps between mysql connection id and ndb trans-id */
-i_s_ndb_transid_mysql_connection_map_plugin
+ndbinfo_plugin,
+ndb_transid_mysql_connection_map_table
 mysql_declare_plugin_end;
 
