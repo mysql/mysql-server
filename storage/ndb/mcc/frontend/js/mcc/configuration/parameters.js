@@ -349,7 +349,7 @@ var processParameterDefaults= {
                 overridableInstance: false,
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
-                defaultValueType: 11860,
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -2751,7 +2751,7 @@ var processParameterDefaults= {
                 label: "<br><b>Various NDB parameters for MYSQLD</b>",
                 heading: true,
                 visibleType: true,
-                visibleInstance: true,
+                visibleInstance: false,
                 advancedLevel: false
             },
             /*
@@ -2763,6 +2763,23 @@ var processParameterDefaults= {
             
             Same goes for ndb-default-column-format (FIXED|DYNAMIC, global) and ndb-distribution ([KEYHASH|LINHASH], global).
             */
+            ndbwaitsetup: {
+                label: "ndb-wait-setup",
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
+                    "-options-variables.html#option_mysqld_ndb-wait-setup",
+                tooltip: "Size (in bytes) to use for NDB transaction batches",
+                constraints: {min: 30, max: 31536000, places: 0, pattern: "#"},
+                attribute: "ndb-wait-setup",
+                destination: "my.cnf",
+                overridableType: true,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: "50%",
+                defaultValueType: 120,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: true
+            },
             ndbbatchsize: {
                 label: "ndb-batch-size",
                 docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
@@ -2778,8 +2795,7 @@ var processParameterDefaults= {
                 defaultValueType: 32768,
                 defaultValueInstance: [],
                 visibleType: true,
-                visibleInstance: true,
-                advancedLevel: true
+                visibleInstance: true
             },
             ndbblobreadbatchbytes: {
                 label: "ndb-blob-read-batch-bytes",
