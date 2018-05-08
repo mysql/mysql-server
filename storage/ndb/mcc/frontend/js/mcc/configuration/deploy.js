@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *  External interface: 
  *      mcc.configuration.deploy.setupContext: Get all cluster items
  *      mcc.configuration.deploy.getStartrProcessCommands: Get command for process
- *      mcc.configuration.deploy.getConfigurationFile: Get config.ini
+ *      mcc.configuration.deploy.getConfigurationFile: Get lines for config.ini and my.cnf
  *      mcc.configuration.deploy.deployCluster: Create dirs, distribute files
  *      mcc.configuration.deploy.startCluster: Deploy configuration, start procs
  *      mcc.configuration.deploy.stopCluster: Stop processes
@@ -347,6 +347,21 @@ function verifyConfiguration() {
             var port = null;
             var dir = null;
 
+            var IsLocalHostDeployment = 0;
+            if ((hostName == "localhost") || (hostName == "127.0.0.1"))
+            {
+                IsLocalHostDeployment = 1;
+            }
+            mcc.util.dbg(" IsLocalHostDeployment = " + IsLocalHostDeployment);
+            var ServerPortValue = undefined;
+            ServerPortValue = getEffectiveTypeValue(processFamilyMap['data'], 'ServerPort');
+            mcc.util.dbg(" ServerPort = " + ServerPortValue);
+            if ((IsLocalHostDeployment == 1) && (ServerPortValue != undefined)) {
+                alert("ServerPort can not be assigned for localhost deployment! " +
+                    "Please create valid configuration.");
+                return false;
+            };
+            
             // ndbds have redo log
             if (cluster.getValue("apparea") != "simple testing" && 
                 !redoLogChecked && (
@@ -375,6 +390,25 @@ function verifyConfiguration() {
                             "start. Please press the " +
                             "Cancel button below to cancel deployment, or " +
                             "press OK to continue. ")) {
+                        return false; 
+                    }
+                }
+            }
+
+            //Temporary fix for Windows malloc/touch slowness
+            if ((processTypes[proc.getValue("processtype")].getValue("name") == 
+                    "ndbd" || 
+                processTypes[proc.getValue("processtype")].getValue("name") == 
+                    "ndbmtd") && (mcc.util.isWin(hosts[h].getValue("uname")))) {
+                var DataMem = getEffectiveInstanceValue(proc, 
+                        "DataMemory"); //MB
+                if (DataMem > 20480) {
+                    if (!confirm("Please note that the current values of the " +
+                            "data layer configuration parameter " +
+                            "DataMemory might be too big for Windows. " +
+                            "Please press the Cancel button below to cancel deployment " + 
+                            "and lower the value to <= 20480GB, or " +
+                            "press OK to continue (but Cluster might not start). ")) {
                         return false; 
                     }
                 }
@@ -498,8 +532,123 @@ function distributeConfigurationFiles() {
     return waitCondition;
 }
 
-// Generate configuration file
+// Generate configuration files
 function getConfigurationFile(process) {
+    /*
+        Hard-coded process type store defines ID range, name and family for each process:
+        {
+        "identifier": "id",
+        "label": "name",
+        "items": [
+            {
+                "id": 0,
+                "name": "ndb_mgmd",
+                "family": "management",
+                "familyLabel": "Management layer",
+                "nodeLabel": "Management node",
+                "minNodeId": 49,
+                "maxNodeId": 255,
+                "currSeq": 2
+            },
+        which is linked to process store holding processes on hosts 
+        (ProcessTypeStore.ID == ProcessStore.ProcessType):
+        {
+            "identifier": "id",
+            "label": "name",
+            "items": [
+                {
+                    "id": 8,
+                    "name": "Management node 1",
+                    "host": 6,
+                    "processtype": 0,
+                    "NodeId": 49,
+                    "seqno": 1
+                },
+        which is in turn linked to host tree store which we loop cause
+        it tells us all process belonging to each host
+        (ProcessStore.Host == HostTreeStore.ID):
+            {
+                "id": 6,
+                "type": "host",
+                "name": "127.0.0.1",
+                "processes": [
+                    {
+                        "_reference": 8
+                    },
+                    {
+                        "_reference": 9
+                    },
+                    {
+                        "_reference": 10
+                    },
+                    {
+                        "_reference": 11
+                    },
+                    {
+                        "_reference": 12
+                    }
+                ]
+            },
+        and links to (also in hosttree store, referrence == ID):
+            {
+                "id": 8,
+                "type": "process",
+                "name": "Management node 1"
+            },
+            {
+                "id": 9,
+                "type": "process",
+                "name": "API node 1"
+            },
+        which is linked to host store to provide humanly readable info (ID to ID):
+        {
+            {
+                "id": 6,
+                "name": "127.0.0.1",
+                "anyHost": false,
+                "hwResFetch": "OK",
+                "hwResFetchSeq": 2,
+                "ram": 524155,
+                "cores": 88,
+                "uname": "Windows",
+                "osver": "10",
+                "osflavor": "Microsoft Windows Server 2016 Standard",
+                "dockerinfo": "NOT INSTALLED",
+                "installdir_predef": true,
+                "datadir_predef": true,
+                "diskfree": "456G",
+                "fqdn": "...",
+                "internalIP": "...",
+                "openfwhost": false,
+                "installonhost": false,
+                "installonhostrepourl": "",
+                "installonhostdockerurl": "",
+                "installonhostdockernet": "",
+                "installdir": "F:\\SomeDir\\",
+                "datadir": "C:\\Users\\user\\MySQL_Cluster\\"
+            },
+        So, this code loops all the families and types of processes over all hosts
+        and parameters values making necessary entries to configuration files.
+        There are 4 types of parameter values fetched:
+            1) Default parameter value.
+            2) Top-level parameter value (i.e. values that go into [DEFAULT] sections).
+            3) Process-level parameter values.
+            4) User modified parameter values.
+        If value is undefined, we skip processing it.
+        If value is not visible on certain level, we skip processing it
+            (parameters.js::VisibleType/VisibleInstance).
+        Range check of parameter values is done elsewhere.
+        User-modified values have greatest weight.
+        
+        Initially, all parameters are set to DefaultValueType from parameters.js. User
+        modifications are saved in appropriate store so it can be recreated upon loading
+        configuration.
+        
+        For composing config.ini, we loop all parameters from families MANAGEMENT and DATA
+            found in parameters.js.
+        For composing my.cnf, we loop all parameters from family SQL found in parameters.js.
+        Parameters in family API are not processed.
+    */
     var hostItem = clusterItems[process.getValue("host")];
     var ptype = clusterItems[process.getValue("processtype")].getValue("name");
 
@@ -667,7 +816,7 @@ function getConfigurationFile(process) {
             cf.msg += ln + "\n";
             cf.html += ln + "<br>";
         }
-            
+        //Hardcoded things for my.cnf mainly from Cluster and Host levels.    
         configFile.name = "my.cnf";
         addln(configFile, "# Configuration file for "
               + cluster.getValue("name"));
@@ -686,6 +835,97 @@ function getConfigurationFile(process) {
             addln(configFile, "socket=\""+
                   getEffectiveInstanceValue(process, "Socket")+"\"");            
         }
+        var family = "sql";
+        // Get the prototypical process type, output header
+        var ptype = processFamilyMap[family];
+        var ptypes = processFamilyTypes(family);
+        for (var t in ptypes) {
+            // Loop over all processes of this type
+            var processes = processTypeInstances(ptypes[t].
+                    getValue("name"));
+            for (var p in processes) {
+                var id = processes[p].getId();
+                ptype.getValue("name")
+
+                for (var para in mcc.configuration.getAllPara(family)) {
+                    //Instance value of parameter.
+                    var val = processes[p].getValue(para);
+                    
+                    //Is it for this concrete node?
+                    if ((para == "NodeId") && (val != process.getValue("NodeId"))) {break;};
+                    
+                    //These are processed separately above.
+                    if (para == "NodeId") {continue;};
+                    if (para == "HostName") {continue;};
+                    if (para == "DataDir") {continue;};
+                    if (para == "Portbase") {continue;};
+                    if (para == "Port") {continue;};
+                    if (para == "Socket") {continue;};
+                    
+                    //Is parameter meant for different config file (parameters.js::destination)?
+                    if (mcc.configuration.getPara(family, null, para, "destination") 
+                        == "config.ini") {continue;};
+
+                    //DEFAULT value, if any from parameters.js::DefaultValueType.
+                    val = getEffectiveInstanceValue(processes[p], para);
+                    
+                    //No suffixes for now.
+                    suffix = "";
+                    
+                    //Value on upper level (i.e. for all nodes of the same family).
+                    var tVal = undefined;
+                    
+                    //Parameter name, if any.
+                    var pname = mcc.configuration.getPara(family, null, para, "attribute");
+                    
+                    var usrVal = undefined;
+                    if (pname != undefined) {
+                        try {
+                            tVal = getEffectiveTypeValue(processFamilyMap[family], pname);
+                        } catch (e) {
+                            tVal = undefined;
+                        }
+                        //Value on the process level.
+                        usrVal = process.getValue(pname);
+                    };
+                    //User modified value always takes precedence.
+                    if (usrVal != undefined) {
+                        mcc.util.dbg("Writing usrval");
+                        //Write to my.cnf USER modified value (if any).
+                        if (usrVal == false) { usrVal = 0};
+                        if (usrVal == true) { usrVal = 1};
+                        addln(configFile, mcc.configuration.getPara(
+                            family, null, para, "attribute")
+                            + "=" + usrVal + suffix);
+                        continue;
+                    } else {
+                        //Otherwise, check that DEFAULT section value exists.
+                        if (tVal != undefined) {
+                            mcc.util.dbg("Writing tVal");
+                            //Write to my.cnf default value (if any).
+                            if (tVal == false) { tVal = 0};
+                            if (tVal == true) { tVal = 1};
+                            addln(configFile, mcc.configuration.getPara(
+                                family, null, para, "attribute")
+                                + "=" + tVal + suffix);
+                            continue;
+                        } else {
+                            //Try writing default parameter value, if any.
+                            if (val != undefined) {
+                                mcc.util.dbg("Writing val");
+                                //Write to my.cnf default value (if any).
+                                if (val == false) { val = 0};
+                                if (val == true) { val = 1};
+                                addln(configFile, mcc.configuration.getPara(
+                                    family, null, para, "attribute")
+                                    + "=" + val + suffix);
+                                continue;
+                            }
+                        }
+                    }    
+                }
+            }
+        };
     } else {
         return null;
     }
@@ -912,7 +1152,6 @@ function getCheckCommands() {
 
 // Generate the array of install commands for all required host(s).
 function getInstallCommands() {
-
     // Array to return
     var installCommands = [];
 
@@ -939,12 +1178,39 @@ function getInstallCommands() {
         var instOnHostDocker = hosts[h].getValue("installonhostdockerurl");
         var dockInf = hosts[h].getValue("dockerinfo");
         mcc.util.dbg("Check installation on host " + hostName);
+        var platform = host[h].getValue("uname");
+        //"WINDOWS", "CYGWIN", "DARWIN", "SunOS", "Linux"
+        var flavor = host[h].getValue("osflavor");
+        // RPM/YUM: "ol": OS=el, "fedora": OS=fc, "centos": OS=el, "rhel": OS=el, 
+        // RPM:ZYpp: "opensuse": OS=sles
+        // There is no "latest" for APT repo. Also, there is no way to discover newest.
+        //DPKG/APT: "ubuntu": from APT, OS=ubuntu, "debian": from APT, OS=debian
+        var ver = host[h].getValue("osver");
+        mcc.util.dbg("Platform & OS details " + platform + ", " + flavor + ", " + ver);
+        var array = ver.split('.');
+        ver = array[0]; //Take just MAJOR
+
         /*Proto-message block:
                 installCommands.push({
-                    host: host.getValue("name"),
-                    path: datadir,
-                    name: null
+                    host: host.getValue("name") Host IP.
+                    path: datadir,              DataDir.
+                    name: null,                 Name of command.
+                    terminal: false             Is failure terminal for operation?
                 });
+
+        COMMAND NAMES:
+            CheckExists - Does MySQL installation exists on host?
+            UpdManager  - Update package manager.
+            AddUtils    - Install curl wget unzip zip. We actually need just wget for now.
+            AddEPEL     - Tests use PERL :-/.
+            Wget        - Get file from provided URL.
+            Install     - Install REPO file.
+            DisableMySQLd   - RPM manipulation.
+            EnableCluster   - RPM manipulation.
+            InstallMGMT - Commands to install MGMT node. Must install Cli too.
+            InstallCli  - Commands to install client tools.
+            InstallData - Commands to install DATA node.
+            InstallSQL  - Commands to install mysqld.
         */
         if (instOnHost) {
             //Determine type of install:
@@ -960,57 +1226,184 @@ function getInstallCommands() {
                 } else {
                     //DOCKER install
                     mcc.util.dbg("Will use Docker for host " + hostName + ".");
+                    alert("Docker installation not functional yet!");
+                    return installCommands;
+                    
                     //Make list of commands.
                     installCommands.push({
                         host: hostName,
                         command: "Docker",
-                        name: instOnHostDocker
+                        name: instOnHostDocker,
+                        terminal: false
                     });
                     if (dockInf == "NOT INSTALLED") {
+                        //We need to determine OS first.
                         installCommands.push({
                             host: hostName,
                             command: "CMD to install Docker.",
-                            name: ""
+                            name: "",
+                            terminal: false
                         });
                         installCommands.push({
                             host: hostName,
                             command: "CMD to start Docker.",
-                            name: ""
+                            name: "",
+                            terminal: false
                         });
                     } else {
                         if (dockInf == "NOT RUNNING") {
                             installCommands.push({
                                 host: hostName,
                                 command: "CMD to start Docker.",
-                                name: ""
+                                name: "",
+                                terminal: false
                             });
                         }                            
                     }
                     installCommands.push({
                         host: hostName,
                         command: "WGET docker image to ~install",
-                        name: instOnHostRepo
+                        name: instOnHostRepo,
+                        terminal: false
                     });
                 }
             } else {
                 //REPO install
+                //1) Check for existing MySQL installation. If exists, bail out.
+                //2) Update SW with wget and such
+                //etc.
                 mcc.util.dbg("Will use REPO for host " + hostName + ".");
-                //Make list of commands.
-                installCommands.push({
-                    host: hostName,
-                    command: "Repo",
-                    name: instOnHostRepo
-                });
-                installCommands.push({
-                    host: hostName,
-                    command: "WGET repo file to ~install",
-                    name: instOnHostRepo
-                });
-                installCommands.push({
-                    host: hostName,
-                    command: "CMD to install stuff from ~install",
-                    name: instOnHostRepo
-                });
+                //platform, flavor, ver!
+                if (platform == "Linux") {
+                    if (["ol","centos","rhel"].indexOf(flavor) >= 0) {
+                        //RPM/YUM
+                        installCommands.push({
+                            host: hostName,
+                            command: "rpm -qa | grep mysql",
+                            name: "CheckExists",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum update",
+                            name: "UpdManager",
+                            terminal: false
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum install curl wget unzip zip",
+                            name: "AddUtils",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/e/epel-release-7-11.noarch.rpm",
+                            name: "AddEPEL",
+                            terminal: true
+                        });
+                        
+                        installCommands.push({
+                            host: hostName,
+                            command: "wget " + instOnHostRepo,
+                            name: "Wget",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo rpm -ivh " + instOnHostRepo,
+                            name: "Install",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum-config-manager --disable mysql57-community",
+                            name: "DisableMySQLd",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum-config-manager --enable mysql-cluster-7.6-community",
+                            name: "EnableCluster",
+                            terminal: true
+                        });
+                        //Put all commands in, we will check later which ones to run.
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum install mysql-cluster-community-management-server",
+                            name: "InstallMGMT",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum install mysql-cluster-community-client",
+                            name: "InstallCli",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum install mysql-cluster-community-data-node",
+                            name: "InstallData",
+                            terminal: true
+                        });
+                        installCommands.push({
+                            host: hostName,
+                            command: "sudo yum install mysql-cluster-community-server",
+                            name: "InstallSQL",
+                            terminal: true
+                        });
+
+
+                    } else {
+                        if (["opensuse"].indexOf(flavor) >= 0) {
+                            //RPM/ZYpp
+                            mcc.util.dbg("Repo RPM/ZYpp installation selected for host " + hostName + ".");
+                            alert("REPOSITORY RPM/ZYpp installation not functional yet!");
+                            return installCommands;
+                        } else {
+                            if (["ubuntu","debian"].indexOf(flavor) >= 0) {
+                                //DPKG/APT
+                                mcc.util.dbg("Repo DPKG/APT installation selected for host " + hostName + ".");
+                                alert("REPOSITORY DPKG/APT installation not functional yet!");
+                                return installCommands;
+                            } else {
+                                if (["fedora"].indexOf(flavor) >= 0) {
+                                    //RPM/DNF from 22 up
+                                    mcc.util.dbg("Repo RPM/DNF installation selected for host " + hostName + ".");
+                                    alert("REPOSITORY RPM/DNF installation not functional yet!");
+                                    return installCommands;
+                                } else {
+                                    //Unknown Linux...
+                                    mcc.util.dbg("Repo installation on unknown OS selected for host " + hostName + ".");
+                                    alert("REPOSITORY installation not functional for unknown OS!");
+                                    return installCommands;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (platform == "WINDOWS") {
+                        mcc.util.dbg("Repo Windows installation selected for host " + hostName + ".");
+                        alert("REPOSITORY installation not available for Windows!");
+                        return installCommands;
+                    } else {
+                        if (platform == "DARWIN") {
+                            mcc.util.dbg("Repo MacOSX installation selected for host " + hostName + ".");
+                            alert("REPOSITORY installation not available for MacOSX!");
+                            return installCommands;
+                        } else {
+                            if (platform == "SunOS") {
+                                mcc.util.dbg("Repo Solaris installation selected for host " + hostName + ".");
+                                alert("REPOSITORY installation not available for Solaris!");
+                                return installCommands;
+                            } else {
+                                //Unknown platform!
+                                mcc.util.dbg("Repo installation on unknown OS selected for host " + hostName + ".");
+                                alert("REPOSITORY installation not available for unknown OS!");
+                                return installCommands;
+                            }
+                        }
+                    }
+                }
             }
         };
     }    
@@ -1226,6 +1619,7 @@ function getStartProcessCommands(process) {
     if (ptype == "mysqld") {
         // Change isDone for the last data node to make it wait for all
         // ndbds to become STARTED
+        // lastNdbdCmd COULD be NULL!!!
         lastNdbdCmd.isDone = function () {
             for (var i in ndbdids) {
                if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
@@ -1247,7 +1641,6 @@ function getStartProcessCommands(process) {
             fsc.addopt("--defaults-file", datadir+"my.cnf");
             fsc.addopt("--initialize-insecure");
             fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
-            mcc.util.dbg("Initializing (insecure) node " + nodeid + " ("+ptype+")");
             scmds.unshift(fsc);
         }
       
@@ -1315,9 +1708,20 @@ function getStopProcessCommands(process) {
             //NO path prefix!
             sc.msg.file.path = '';
             //Look for ndb_mgm in InstallDirectory, /usr/bin' and in PATH.
-            sc.msg.file.autoComplete = [instDir, '/usr/bin/',''];
+            //When properly installed, ndb_mgm will be in /usr/bin.
+            //Being that there are configurations which do not point to 
+            //binaries in InstallDir but rather one step up, I'm adding BIN and SBIN too.
+            var fake1 = "";
+            var fake2 = "";
+            if (instDir.slice(-1) == "/") {
+                fake1 = instDir + "bin";
+                fake2 = instDir + "sbin";
+            } else {
+                fake1 = instDir + "/bin";
+                fake2 = instDir + "/sbin";
+            }
+            sc.msg.file.autoComplete = [instDir, fake1, fake2, '/usr/bin/',''];
         }
-        //mcc.util.dbg("SC for ndb_mgm is " + sc + ".");
         if(!isWin) {
           sc.isDone = function () 
             { return mcc.gui.getStatii(nodeid) =="UNKNOWN" };
@@ -1342,9 +1746,20 @@ function getStopProcessCommands(process) {
             //NO path prefix!
             sc.msg.file.path = '';
             //Look for mysqladmin in InstallDirectory, /usr/bin' and in PATH.
-            sc.msg.file.autoComplete = [instDir, '/usr/bin/',''];
+            //When properly installed, mysqladmin will be in /usr/bin.
+            //Being that there are configurations which do not point to 
+            //binaries in InstallDir but rather one step up, I'm adding BIN and SBIN too.
+            var fake1 = "";
+            var fake2 = "";
+            if (instDir.slice(-1) == "/") {
+                fake1 = instDir + "bin";
+                fake2 = instDir + "sbin";
+            } else {
+                fake1 = instDir + "/bin";
+                fake2 = instDir + "/sbin";
+            }
+            sc.msg.file.autoComplete = [instDir, fake1, fake2, '/usr/bin/',''];
         }
-        //mcc.util.dbg("SC for mysqladmin is " + sc + ".");
         if (!isWin) {
           sc.isDone = function () 
             { return mcc.gui.getStatii(nodeid) == "NO_CONTACT" };
@@ -1524,6 +1939,7 @@ function installCluster(silent, fraction) {
     }
     mcc.util.dbg("Finished creating list of install commands...");
     //Show install commands to user and let him decide whether to continue.
+    dijit.byId("commandsDlg").show();
     if (commandsDialogSetup(installCmd)) {
         //Continue with install.
         mcc.util.dbg("Executing install commands...");
