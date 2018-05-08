@@ -151,9 +151,13 @@ sub fix_server_id {
 }
 
 sub fix_x_socket {
-  my $result = fix_socket(@_);
-  $result =~ s/mysqld\.([0-9]+)\.sock$/mysqlx\.$1\.sock/;
-  return $result;
+  my ($self, $config, $group_name, $group) = @_;
+
+  # Replace the mysqld prefix with mysqlx in order
+  # to generate a socket named mysqlx*.sock
+  $group_name =~ s/^mysqld/mysqlx/ or die;
+
+  return fix_socket($self, $config, $group_name, $group);
 }
 
 sub fix_socket {
@@ -168,7 +172,8 @@ sub fix_socket {
   if (length($socket) > length("$dir/mysql_testsocket.sock")) {
     # Too long socket path, generate shorter based on port
     my $port = $group->value('port');
-    $socket = "$dir/mysqld-$port.sock";
+    my $group_prefix = substr($group_name, 0, index($group_name, '.'));
+    $socket = "$dir/$group_prefix-$port.sock";
   }
 
   return $socket;
