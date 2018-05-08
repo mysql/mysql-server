@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -116,14 +116,14 @@ def make_rep(req, body=None):
 def is_host_local(HostDesignation):
     if (HostDesignation == 'localhost' or HostDesignation == '127.0.0.1'):
         _logger.warning('Host is local (1-1).')
-        return true
+        return True
         
     # Check if proper IP address is provided for localhost:
     ips = socket.gethostbyname_ex(socket.gethostname())[2]
     for ipadr in ips:
         if ipadr == HostDesignation:
             _logger.warning('Host is local (1-2).')
-            return true
+            return True
     
     return False
 
@@ -135,17 +135,23 @@ def get_cred(HostNm, body):
         if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
             (not is_host_local(HostNm))):
             # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            _logger.warning('get_cred, new logic 1.')
             return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
                     body['ssh']['key_file'])
     except KeyError:
+        _logger.warning('get_cred, KeyError handler.')
         if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
             (not is_host_local(HostNm))):
             # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            _logger.warning('get_cred, new logic 2.')
             return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
                     body['ssh']['key_file'])
     
-    return (False, body['ssh']['user'], body['ssh']['pwd'], None)
-
+    _logger.warning('get_cred, old(ish) code.')
+    if (is_host_local(HostNm)):
+        return (False, "", "", None)
+    else:
+        return (False, body['ssh']['user'], body['ssh']['pwd'], None)
 
 def get_key(password):
     _logger.warning('Getting key from passp.')
@@ -209,12 +215,16 @@ def start_proc(proc, body):
     with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pc = proc['procCtrl']
         params = proc['params']
-        if f.has_key('autoComplete'): 
+        if f.has_key('autoComplete'):
+            _logger.warning('AUTOCOMPLETE key is there')
             if isinstance(f['autoComplete'], list):
+                _logger.warning('AUTOCOMPLETE key is A LIST')
                 executable = ch.auto_complete(f['path'], f['autoComplete'], f['name'])
             else:
+                _logger.warning('AUTOCOMPLETE key is NOT A LIST')
                 executable = ch.auto_complete(f['path'], ['bin', 'sbin', 'scripts', '', ch.path_module.join('..','scripts')], f['name'])
         else:
+            _logger.warning('NO AUTOCOMPLETE key')
             executable = ch.path_module.join(f['path'], f['name'])
         
         stdinFile = None
@@ -224,8 +234,11 @@ def start_proc(proc, body):
 
         _logger.debug('Attempting to launch '+executable+' on '+ch.host+
                       ' with pc='+str(pc))
+        _logger.warning('Attempting to launch '+executable+' on '+ch.host+
+                      ' with pc='+str(pc))
 
         cmdv = util.params_to_cmdv(executable, params)
+        _logger.warning('CMDV is '+str(cmdv))
 	if proc.has_key('isCommand'):
             return ch.execute_command(cmdv, stdinFile)
 		
@@ -652,7 +665,6 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.server.logger.debug('<-- ' + rep['head']['cmd'] + ':')
             self.server.logger.debug(pprint.pformat(rep))
             self.server.logger.warning('<-- ' + rep['head']['cmd'] + ':')
-            #self.server.logger.warning(pprint.pformat(rep))
             self._send_as_json(rep)
         except:
             traceback.print_exc()
