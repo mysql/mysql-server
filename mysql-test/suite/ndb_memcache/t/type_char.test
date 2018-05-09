@@ -1,7 +1,6 @@
 # CHAR
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
---source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 --source suite/ndb_memcache/include/datatypes_tables.inc
 
 --perl

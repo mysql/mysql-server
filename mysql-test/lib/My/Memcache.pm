@@ -281,6 +281,7 @@ sub wait_for_reconf {
     if (defined $F) {
       chomp($cfgen = <$F>);
       undef $F;
+      unlink("$vardir/tmp/memcache_cf_gen");
     }
     $self->{cf_gen} = $cfgen;
   }

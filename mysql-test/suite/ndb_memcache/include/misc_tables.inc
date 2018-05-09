@@ -2,13 +2,11 @@
 --disable_query_log
 --disable_result_log
 
---source suite/ndb_memcache/include/memcached_wait_for_ready.inc
-
 use ndbmemcache;
 let $done = query_get_value (select key_prefix k from key_prefixes where container = 'test_mkey', k, 1);
 if ($done != "hashtag:") 
 {
-                
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 set default_storage_engine = ndbcluster;
 
 CREATE TABLE hashtags (
