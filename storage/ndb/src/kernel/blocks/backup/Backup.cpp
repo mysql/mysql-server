@@ -8695,8 +8695,12 @@ Backup::check_new_scan(BackupRecordPtr ptr,
       jam();
       return false;
     }
-    any_min_buf = true;
     tot_size_written = op.dataBuffer.getSizeUsed();
+    if (tot_size_written > BACKUP_DEFAULT_WRITE_SIZE)
+    {
+      jam();
+      any_min_buf = true;
+    }
   }
   if (after_wait ||
       !any_min_buf ||
