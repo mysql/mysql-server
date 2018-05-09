@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_CONTINUEB, &Dbtc::execCONTINUEB);
   addRecSignal(GSN_KEYINFO, &Dbtc::execKEYINFO);
   addRecSignal(GSN_SCAN_NEXTREQ, &Dbtc::execSCAN_NEXTREQ);
-  addRecSignal(GSN_TAKE_OVERTCREQ, &Dbtc::execTAKE_OVERTCREQ);
   addRecSignal(GSN_TAKE_OVERTCCONF, &Dbtc::execTAKE_OVERTCCONF);
   addRecSignal(GSN_LQHKEYREF, &Dbtc::execLQHKEYREF);
 
