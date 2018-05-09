@@ -631,15 +631,26 @@ ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980bb'
+ALTER TABLE t5980aa CHANGE a c INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't5980aa'
+ALTER TABLE t5980bb CHANGE a c INT, ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 't5980bb'
 #
-# Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE.
+# Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aa'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+ERROR HY000: Tablespace has been discarded for table 'test/t5980bb'
+ALTER TABLE t5980aa RENAME t5980aaa, ALGORITHM=INPLACE;
+ALTER TABLE t5980aaa RENAME t5980aa, ALGORITHM=INPLACE;
 Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aaa'
+ALTER TABLE t5980bb RENAME t5980bbb, ALGORITHM=INPLACE;
+ALTER TABLE t5980bbb RENAME t5980bb, ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bbb'
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -656,16 +667,14 @@ ERROR HY000: Tablespace has been discarded for table 't5980bb'
 SHOW CREATE TABLE t5980aa;
 Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
+  `a` int(11) DEFAULT NULL,
+  `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
+  `a` int(11) DEFAULT NULL,
+  `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -675,17 +684,17 @@ test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 Warnings:
-Warning	1812	Tablespace is missing for table test/t5980c.
-Warning	1812	Tablespace is missing for table test/t5980d.
 Warning	1812	Tablespace is missing for table test/t5980aa.
 Warning	1812	Tablespace is missing for table test/t5980bb.
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -708,18 +717,16 @@ RENAME TABLE t5980bb TO t5980b;
 SHOW CREATE TABLE t5980a;
 Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
+  `a` int(11) DEFAULT NULL,
+  `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
-  `a` int(11) NOT NULL,
-  `b` text,
-  PRIMARY KEY (`a`)
+  `a` int(11) DEFAULT NULL,
+  `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
@@ -731,17 +738,17 @@ test/t5980c	test/t5980c	33	5	Dynamic	0	Single
 test/t5980d	test/t5980d	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 Warnings:
-Warning	1812	Tablespace is missing for table test/t5980c.
-Warning	1812	Tablespace is missing for table test/t5980d.
 Warning	1812	Tablespace is missing for table test/t5980a.
 Warning	1812	Tablespace is missing for table test/t5980b.
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -766,13 +773,12 @@ ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 #
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
 ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 #
 # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #
@@ -808,23 +814,22 @@ ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 #
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
+# only if a rebuild is not required.
 #
 ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
 ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 #
 # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #
 DELETE FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-UPDATE t5980a SET c="Tablespace is DISCARDED";
+UPDATE t5980a SET b="Tablespace is DISCARDED";
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
 ERROR HY000: Tablespace has been discarded for table 't5980a'
-INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'

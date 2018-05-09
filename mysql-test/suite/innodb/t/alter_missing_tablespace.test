@@ -1,74 +1,438 @@
-
 --echo #
---echo # Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING
---echo # OR DISCARDED TABLESPACES
+--echo # ALLOW IN-PLACE DDL OPERATIONS ON MISSING AND/OR DISCARDED TABLESPACES
 --echo #
 
 let $MYSQLD_DATADIR=`select @@datadir`;
 SET GLOBAL innodb_file_per_table=1;
-CREATE TABLE t(a INT)ENGINE=InnoDB;
 
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t1 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t2 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+CREATE TABLE t3 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t3 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+CREATE TABLE t4 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t4 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+--echo # Check also with tables having special characters
+CREATE TABLE `t_.._a` (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO `t_.._a` VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+CREATE TABLE `t_.._b` (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO `t_.._b` VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+
+--echo #
+--echo # Remove and Discard tablespaces
+--echo #
 --source include/shutdown_mysqld.inc
-
-# Remove the tablespace file.
-let IBD=$MYSQLD_DATADIR/test/t.ibd;
-perl;
-unlink "$ENV{IBD}" || die "Unable to unlink $ENV{IBD}\n";
-EOF
-
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
+--remove_file $MYSQLD_DATADIR/test/t_@002e@002e_a.ibd
 --source include/start_mysqld.inc
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+ALTER TABLE `t_.._b` DISCARD TABLESPACE;
+
+--echo #
+--echo # SELECT * FROM __
+--echo #
+# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
+# The table does exist, only the tablespace does not exist.
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t1;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM t2;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t3;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t4;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+SELECT * FROM `t_.._a`;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM `t_.._b`;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ TABLESPACE innodb_system
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 TABLESPACE innodb_system, ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t3 TABLESPACE innodb_system, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 TABLESPACE innodb_system, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ TABLESPACE ts1
+--echo #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 TABLESPACE ts1, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 TABLESPACE ts1, ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t3 TABLESPACE ts1, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 TABLESPACE ts1, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ADD INDEX
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ADD INDEX (a), ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ADD INDEX (a), ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t3 ADD INDEX (a), ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t4 ADD INDEX (a), ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ DROP INDEX
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 DROP INDEX c2, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 DROP INDEX c2, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 DROP INDEX c2, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 DROP INDEX c2, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ADD COLUMN
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ADD COLUMN c3 INT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ADD COLUMN c3 INT, ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t3 ADD COLUMN c3 INT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 ADD COLUMN c3 INT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ DROP COLUMN
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 DROP COLUMN ct, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 DROP COLUMN ct, ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t3 DROP COLUMN ct, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 DROP COLUMN ct, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ALTER c2 DROP DEFAULT
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ALTER c2 DROP DEFAULT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ALTER c2 DROP DEFAULT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 ALTER c2 DROP DEFAULT, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 ALTER c2 DROP DEFAULT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ALTER c2 SET DEFAULT 42
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ALTER c2 SET DEFAULT 42, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ALTER c2 SET DEFAULT 42, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 ALTER c2 SET DEFAULT 42, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 ALTER c2 SET DEFAULT 42, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ADD FULLTEXT INDEX
+--echo #
+#--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct), ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ADD FULLTEXT INDEX (ct), ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 ADD FULLTEXT INDEX (ct), ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 ADD FULLTEXT INDEX (ct), ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ CHANGE c2 c2 INT AFTER c1
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 CHANGE c2 c2 INT AFTER c1, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 CHANGE c2 c2 INT AFTER c1, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 CHANGE c2 c2 INT AFTER c1, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ CHANGE c1 c1 INT FIRST
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 CHANGE c1 c1 INT FIRST, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 CHANGE c1 c1 INT FIRST, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 CHANGE c1 c1 INT FIRST, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 CHANGE c1 c1 INT FIRST, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ CHANGE C2 c3 INT
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 CHANGE C2 c3 INT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 CHANGE C2 c3 INT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ ROW_FORMAT=REDUNDANT
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+SHOW WARNINGS;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t3 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ RENAME TO __
+--echo #
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t1 RENAME TO t11, ALGORITHM=INPLACE;
+SHOW WARNINGS;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE t2 RENAME TO t22, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+ALTER TABLE t3 RENAME TO t33, ALGORITHM=INPLACE;
+ALTER TABLE t33 RENAME TO t3, ALGORITHM=INPLACE;
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t4 RENAME TO t44, ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo #
+--echo # DISCARD an already missing tablespace;
+--echo #
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo #
+--echo # Show the resultant tables before dropping them
+--echo #
+SHOW CREATE TABLE t1;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE t2;
+SHOW WARNINGS;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+--error ER_TABLESPACE_MISSING
+SHOW CREATE TABLE `t_.._a`;
+SHOW WARNINGS;
+SHOW CREATE TABLE `t_.._b`;
+
+--echo #
+--echo # DROP TABLE __ while mising or discarded
+--echo #
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE `t_.._a`;
+DROP TABLE `t_.._b`;
+
+
+--echo #
+--echo # Recreate the 6 tables; 1 & 2 missing, 3 & 4 discarded, 5 & 6 normal
+--echo #
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t3 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t4 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t5 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+CREATE TABLE t6 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2));
+INSERT INTO t1 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t2 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t3 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t4 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t5 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+INSERT INTO t6 VALUES (1, 1, 'one'), (2, 2, 'two'), (3, 3, 'three');
+CREATE TABLE t1p LIKE t1;
+CREATE TABLE t2p LIKE t1;
+CREATE TABLE t3p LIKE t1;
+CREATE TABLE t4p LIKE t1;
+CREATE TABLE t5p LIKE t1;
+CREATE TABLE t6p LIKE t1;
+
+--echo #
+--echo # Remove t1 and Discard t3 & t4
+--echo #
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--source include/start_mysqld.inc
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+
+--echo #
+--echo # Add some foreign key constraints
+--echo #
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
+		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2));
+CREATE TABLE t2c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t2(c2),
+		  CONSTRAINT t2c3 FOREIGN KEY (c3) REFERENCES t2p(c2));
+CREATE TABLE t3c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t3c2 FOREIGN KEY (c2) REFERENCES t3(c2),
+		  CONSTRAINT t3c3 FOREIGN KEY (c3) REFERENCES t3p(c2));
+CREATE TABLE t4c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t4c2 FOREIGN KEY (c2) REFERENCES t4(c2),
+		  CONSTRAINT t4c3 FOREIGN KEY (c3) REFERENCES t4p(c2));
+CREATE TABLE t5c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t5c2 FOREIGN KEY (c2) REFERENCES t5(c2),
+		  CONSTRAINT t5c3 FOREIGN KEY (c3) REFERENCES t5p(c2));
+CREATE TABLE t6c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t6c2 FOREIGN KEY (c2) REFERENCES t6(c2),
+		  CONSTRAINT t6c3 FOREIGN KEY (c3) REFERENCES t6p(c2));
+
+--echo #
+--echo # Remove t2, try to discard t3 & t4 already discarded
+--echo #
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
+--source include/start_mysqld.inc
+--error ER_ROW_IS_REFERENCED_2
+ALTER TABLE t3 DISCARD TABLESPACE;
+SHOW WARNINGS;
+--error ER_ROW_IS_REFERENCED_2
+ALTER TABLE t4 DISCARD TABLESPACE;
+SHOW WARNINGS;
+--error ER_ROW_IS_REFERENCED_2
+ALTER TABLE t5 DISCARD TABLESPACE;
+SHOW WARNINGS;
+
+--echo #
+--echo # ALTER TABLE __ DROP FOREIGN KEY
+--echo #
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, ALGORITHM=INPLACE;
+ALTER TABLE t2c DROP FOREIGN KEY t2c2, ALGORITHM=COPY;
+ALTER TABLE t3c DROP FOREIGN KEY t3c2, ALGORITHM=INPLACE;
+ALTER TABLE t4c DROP FOREIGN KEY t4c2, ALGORITHM=COPY;
+ALTER TABLE t5c DROP FOREIGN KEY t5c2, ALGORITHM=INPLACE;
+ALTER TABLE t6c DROP FOREIGN KEY t6c2, ALGORITHM=COPY;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t1c;
+DROP TABLE t2c;
+DROP TABLE t3c;
+DROP TABLE t4c;
+DROP TABLE t5c;
+DROP TABLE t6c;
+DROP TABLE t1p;
+DROP TABLE t2p;
+DROP TABLE t3p;
+DROP TABLE t4p;
+DROP TABLE t5p;
+DROP TABLE t6p;
+DROP TABLESPACE ts1;
+
 
 --disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table `test`.`.*` is set as discarded");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot delete tablespace [0-9]+ in DISCARD TABLESPACE: Tablespace not found");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace [0-9]+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `test`.`t` in the cache");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `test`.`.*` in the cache");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Tablespace open failed for `test`\.`t`, ignored");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
 --enable_query_log
 
-# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
-# The table does exist, only the tablespace does not exist.
---error ER_TABLESPACE_MISSING
-SELECT * FROM t;
-
---error ER_TABLESPACE_MISSING
-ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
-SHOW WARNINGS;
-
---error ER_NO_SUCH_TABLE
-ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
-SHOW WARNINGS;
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-ALTER TABLE t ALGORITHM=INPLACE, DISCARD TABLESPACE;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-ALTER TABLE t ALGORITHM=COPY, DISCARD TABLESPACE;
-ALTER TABLE t ALGORITHM=DEFAULT, DISCARD TABLESPACE;
-ALTER TABLE t DISCARD TABLESPACE;
-DROP TABLE t;
-
-#Check with tables having special characters
-
-CREATE TABLE `x..d` (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
-INSERT INTO `x..d` (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
-
---source include/shutdown_mysqld.inc
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/test/x@002e@002ed.ibd
---source include/start_mysqld.inc
-
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `test`\.`x\.\.d` in the cache");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table `test`\.`x\.\.d` because the .ibd file is missing.");
---enable_query_log
-
---error ER_TABLESPACE_MISSING
-select * from `x..d`;
-
-DROP TABLE `x..d`;

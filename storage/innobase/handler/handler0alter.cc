@@ -5147,6 +5147,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     DBUG_RETURN(true);
   }
 
+  if (dict_table_is_discarded(indexed_table) &&
+      innobase_need_rebuild(ha_alter_info)) {
+    my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
+    DBUG_RETURN(true);
+  }
+
   /* ALTER TABLE will not implicitly move a table from a single-table
   tablespace to the system tablespace when innodb_file_per_table=OFF.
   But it will implicitly move a table from the system tablespace to a
