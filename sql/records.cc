@@ -248,9 +248,7 @@ int RowIterator::HandleError(int error) {
     return -1;
   } else {
     PrintError(error);
-    if (error < 0)  // Fix negative BDB errno
-      return 1;
-    return error;
+    return 1;
   }
 }
 
