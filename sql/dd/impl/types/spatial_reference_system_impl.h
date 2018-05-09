@@ -279,6 +279,12 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     return longitude;
   }
 
+  bool can_be_modified_to(const Spatial_reference_system &srs) const override {
+    return m_parsed_definition->can_be_modified_to(
+        *static_cast<const Spatial_reference_system_impl &>(srs)
+             .m_parsed_definition);
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////

@@ -187,6 +187,20 @@ class Spatial_reference_system : virtual public Entity_object {
   /// @return Longitude in the SRS unit, axis direction and meridian.
   virtual double from_normalized_longitude(double d) const = 0;
 
+  /// Checks if this SRS can be changed to another SRS definition without
+  /// changing any computations.
+  ///
+  /// It's not allowed to change any numbers that affect computations, but it is
+  /// allowed to add TOWGS84 parameters if the SRS doesn't already have any.
+  ///
+  /// @param[in] srs The SRS to compare with.
+  ///
+  /// @retval true The two SRSs are semantically the same.
+  /// @retval false The two SRss are not semantically the same, or of types
+  /// which comparison rules are unknown (e.g., unknown projection).
+  virtual bool can_be_modified_to(
+      const Spatial_reference_system &srs) const = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////
