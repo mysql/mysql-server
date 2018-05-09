@@ -40,6 +40,60 @@
 #include "mysqld_error.h"  // ER_*
 #include "sql/gis/srs/wkt_parser.h"
 
+/// Check that an element doesn't have an authority clause with a different
+/// authority name and code.
+///
+/// The function will return true if the element has no authority clause, or if
+/// it has an authority clause with a name that matches (case insensitively)
+/// with the name parameter and a code that is the same as the code parameter.
+///
+/// @tparam T The type of the element with the authority clause.
+///
+/// @param element The element with the authority clause.
+/// @param name The authority name to check for.
+/// @param code The authority code to check for.
+///
+/// @retval true The element has no other authority clause.
+/// @retval false The element has another authority clause.
+template <typename T>
+static bool has_no_conflicting_authority(const T &element, const char *name,
+                                         int code) {
+  if (!element.authority.valid) return true;
+  if (!my_strcasecmp(&my_charset_latin1, name,
+                     element.authority.name.c_str())) {
+    try {
+      int auth_code = std::stoi(element.authority.code);
+      if (auth_code == code) return true;  // Authority name and code matches.
+    } catch (...) {
+      // Code is invalid or out of range.
+    }
+  }
+  return false;
+}
+
+/// Check if an element has an authority clause with a given authority name and
+/// code.
+///
+/// The function will return true if the element has an authority clause which
+/// name matches (case insensitively) with the name parameter and a code which
+/// is the same as the code parameter.
+///
+/// @tparam T The type of the element with the authority clause.
+///
+/// @param element The element with the authority clause.
+/// @param name The authority name to check for.
+/// @param code The authority code to check for.
+///
+/// @retval true The element has the specified authority clause.
+/// @retval false The element doesn't have the specified authority clause.
+template <typename T>
+static bool has_authority(const T &element, const char *name, int code) {
+  if (element.authority.valid &&
+      has_no_conflicting_authority(element, name, code))
+    return true;
+  return false;
+}
+
 /**
   Extract projection parameter values from the parse tree and assign
   them to variables.
@@ -209,6 +263,39 @@ bool Geographic_srs::init(gis::srid_t, gis::srs::wkt_parser::Geographic_cs *g) {
     DBUG_ASSERT(m_axes[0] != Axis_direction::UNSPECIFIED);
     DBUG_ASSERT(m_axes[1] != Axis_direction::UNSPECIFIED);
   }
+
+  // Check if this is a valid WGS 84 representation. The requirements are:
+  //
+  // - The GEOGCS clause must have an authority clause that is EPSG 4326.
+  // - All the numbers and axes must match WGS 84 numbers and axes.
+  // - There must not be any authority codes in sub-clauses that contradict EPSG
+  //   4326.
+  //
+  // Text strings, apart from authority names, are ignored.
+  const double wgs84_semi_major_axis = 6378137.0;
+  const double wgs84_inverse_flattening = 298.257223563;
+  const double meter = 0.017453292519943278;
+  bool wgs84_spheroid =
+      has_no_conflicting_authority(g->datum.spheroid, "EPSG", 7030) &&
+      m_semi_major_axis == wgs84_semi_major_axis &&
+      m_inverse_flattening == wgs84_inverse_flattening;
+  bool wgs84_datum =
+      has_no_conflicting_authority(g->datum, "EPSG", 6326) && wgs84_spheroid;
+  bool wgs84_primem =
+      has_no_conflicting_authority(g->prime_meridian, "EPSG", 8901) &&
+      m_prime_meridian == 0.0;
+  bool wgs84_unit =
+      has_no_conflicting_authority(g->angular_unit, "EPSG", 9122) &&
+      m_angular_unit == meter;
+  bool wgs84_towgs84 =
+      !g->datum.towgs84.valid ||
+      (m_towgs84[0] == 0.0 && m_towgs84[1] == 0.0 && m_towgs84[2] == 0.0 &&
+       m_towgs84[3] == 0.0 && m_towgs84[4] == 0.0 && m_towgs84[5] == 0.0 &&
+       m_towgs84[6] == 0.0);
+  bool wgs84_axes =
+      m_axes[0] == Axis_direction::NORTH && m_axes[1] == Axis_direction::EAST;
+  m_is_wgs84 = has_authority(*g, "EPSG", 4326) && wgs84_datum && wgs84_primem &&
+               wgs84_unit && wgs84_towgs84 && wgs84_axes;
 
   return false;
 }

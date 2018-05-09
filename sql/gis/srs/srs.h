@@ -159,13 +159,16 @@ class Geographic_srs : public Spatial_reference_system {
   double m_angular_unit;
   /// Direction of x and y axis, respectively.
   Axis_direction m_axes[2];
+  /// Whether this SRS is WGS 84.
+  bool m_is_wgs84;
 
  public:
   Geographic_srs()
       : m_semi_major_axis(NAN),
         m_inverse_flattening(NAN),
         m_prime_meridian(NAN),
-        m_angular_unit(NAN) {
+        m_angular_unit(NAN),
+        m_is_wgs84(false) {
     for (double &d : m_towgs84) d = NAN;
     for (Axis_direction &d : m_axes) d = Axis_direction::UNSPECIFIED;
   }
