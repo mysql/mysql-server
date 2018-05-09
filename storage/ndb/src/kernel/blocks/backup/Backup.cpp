@@ -87,11 +87,11 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
-//#define DEBUG_REDO_CONTROL_DETAIL 1
 #endif
 #define DEBUG_LCP_STAT 1
 #define DEBUG_EXTENDED_LCP_STAT 1
 #define DEBUG_REDO_CONTROL 1
+#define DEBUG_REDO_CONTROL_DETAIL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -367,7 +367,7 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
 #endif
     }
   }
-  if (curr_disk_write_speed == m_curr_disk_write_speed)
+  if (true || curr_disk_write_speed == m_curr_disk_write_speed)
   {
     DEB_REDO_CONTROL_DETAIL(("(%u)bytes_written_this_period: %llu kB, "
                              " overflowThisPeriod: %llu kB, "
@@ -1519,7 +1519,7 @@ Backup::measure_change_speed(Signal *signal, Uint64 millis_since_last_call)
   Int64 current_lag = m_lcp_lag[0] + m_lcp_lag[1];
   DEB_REDO_CONTROL(("(%u)Proposed speed is %llu kB/sec"
                     ", current_redo_speed is %llu kB/sec and"
-                    ", mean_redo_speed is %llu MB/sec"
+                    ", mean_redo_speed is %llu kB/sec"
                     ", %s is %llu MB, change_rate is: %llu kB",
                     instance(),
                     (m_proposed_disk_write_speed / Uint64(1024)),

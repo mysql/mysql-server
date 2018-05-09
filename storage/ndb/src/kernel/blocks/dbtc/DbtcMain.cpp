@@ -10015,12 +10015,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
      * race conditions. Proceed with take over if our task and
      * we are ready to do so.
      */
-    if (insert_take_over_failed_node(myHostPtr.i))
-    {
-      jam();
-      signal->theData[0] = myHostPtr.i;
-      sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
-    }
+    insert_take_over_failed_node(signal, myHostPtr.i);
     
     checkScanActiveInFailedLqh(signal, 0, myHostPtr.i);
     nodeFailCheckTransactions(signal, 0, myHostPtr.i);
@@ -10393,7 +10388,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   }
 }//Dbtc::execTAKE_OVERTCCONF()
 
-bool Dbtc::insert_take_over_failed_node(Uint32 failedNodeId)
+void Dbtc::insert_take_over_failed_node(Signal* signal, Uint32 failedNodeId)
 {
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
@@ -10419,24 +10414,15 @@ bool Dbtc::insert_take_over_failed_node(Uint32 failedNodeId)
     arrGuard(tcNodeFailptr.p->queueIndex, MAX_NDB_NODES);
     tcNodeFailptr.p->queueList[tcNodeFailptr.p->queueIndex] = failedNodeId;
     tcNodeFailptr.p->queueIndex++;
-    return false;
+    return;
   }//if
-  return true;
-}
-
-void Dbtc::execTAKE_OVERTCREQ(Signal* signal) 
-{
-  jamEntry();
-  Uint32 failedNodeId = signal->theData[0];
-  tcNodeFailptr.i = 0;
-  ptrAss(tcNodeFailptr, tcFailRecord);
-  ndbrequire(cmasterNodeId == getOwnNodeId());
-  ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
   g_eventLogger->info("DBTC %u: Starting take over of node %u",
                       instance(),
                       failedNodeId);
+  ndbrequire(cmasterNodeId == getOwnNodeId());
+  ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
   startTakeOverLab(signal, 0, failedNodeId);
-}//Dbtc::execTAKE_OVERTCREQ()
+}
 
 /**
   TC Takeover protocol
