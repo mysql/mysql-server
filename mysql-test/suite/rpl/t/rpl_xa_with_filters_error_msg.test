@@ -58,5 +58,9 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 --let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
---source include/rpl_reset.inc
+
+--source include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_Table=();
+--source include/start_slave_sql.inc
+
 --source include/rpl_end.inc
