@@ -337,24 +337,24 @@ Level	Code	Message
 Error	1814	Tablespace has been discarded for table 't4'
 Error	1146	Table 'test.t4' doesn't exist
 #
-# ALTER TABLE __ CHANGE C2 c3 INT
+# ALTER TABLE __ CHANGE c2 c3 INT
 #
-ALTER TABLE t1 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+ALTER TABLE t1 CHANGE c2 c3 INT, ALGORITHM=INPLACE;
 ERROR HY000: Tablespace is missing for table `test`.`t1`.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1812	InnoDB: Tablespace is missing for table test/t1.
 Error	1812	Tablespace is missing for table `test`.`t1`.
-ALTER TABLE t2 CHANGE C2 c3 INT, ALGORITHM=COPY;
+ALTER TABLE t2 CHANGE c2 c3 INT, ALGORITHM=COPY;
 ERROR HY000: Tablespace is missing for table `test`.`t2`.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1812	InnoDB: Tablespace is missing for table test/t2.
 Error	1812	Tablespace is missing for table `test`.`t2`.
-ALTER TABLE t3 CHANGE C2 c3 INT, ALGORITHM=INPLACE;
+ALTER TABLE t3 CHANGE c2 c3 INT, ALGORITHM=INPLACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
-ALTER TABLE t4 CHANGE C2 c3 INT, ALGORITHM=COPY;
+ALTER TABLE t4 CHANGE c2 c3 INT, ALGORITHM=COPY;
 ERROR HY000: Tablespace has been discarded for table 't4'
 SHOW WARNINGS;
 Level	Code	Message
