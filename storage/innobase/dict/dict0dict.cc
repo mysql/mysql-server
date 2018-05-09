@@ -2299,7 +2299,6 @@ dict_index_node_ptr_max_size(
 	}
 
 	comp = dict_table_is_comp(index->table);
-
 	/* Each record has page_no, length of page_no and header. */
 	rec_max_size = comp
 		? REC_NODE_PTR_SIZE + 1 + REC_N_NEW_EXTRA_BYTES
@@ -2338,6 +2337,14 @@ dict_index_node_ptr_max_size(
 		}
 
 		field_max_size = dict_col_get_max_size(col);
+		/* A varchar(0) case when the max size of field
+		can't be estimated accurately */
+		if (field_max_size == 0) {
+			ulint page_rec_max = srv_page_size == UNIV_PAGE_SIZE_MAX
+				? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(comp) / 2;
+			rec_max_size += page_rec_max;
+		}
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len
