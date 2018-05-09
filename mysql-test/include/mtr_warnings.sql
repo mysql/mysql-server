@@ -220,8 +220,6 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== I   refs:      [0-9]+"),
  ("==[0-9]*== Massif"),
  ("==[0-9]*== Helgrind"),
- /* Seen with several optimizer tests that run with --big-test */
- ("==[0-9]*== Warning: set address range perms: large range"),
 
  /*
    Transient network failures that cause warnings on reconnect.

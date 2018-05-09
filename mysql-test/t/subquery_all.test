@@ -3,6 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 --source include/no_valgrind_without_big.inc
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 

@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
