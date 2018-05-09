@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,10 +114,11 @@ PLUGIN_EXPORT bool test_udf_services_udf_init(
   @param[out] is_null   If the result is null, store 1 here
   @param[out] error     On error store 1 here
 */
-PLUGIN_EXPORT longlong test_udf_services_udf(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)),
-    UDF_ARGS *args MY_ATTRIBUTE((unused)), char *is_null MY_ATTRIBUTE((unused)),
-    char *error MY_ATTRIBUTE((unused))) {
+PLUGIN_EXPORT longlong
+test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                      UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                      unsigned char *is_null MY_ATTRIBUTE((unused)),
+                      unsigned char *error MY_ATTRIBUTE((unused))) {
   char buffer[10];
   *is_null = 0;
   *error = 0;

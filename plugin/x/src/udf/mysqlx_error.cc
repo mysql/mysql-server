@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ bool mysqlx_error_init(UDF_INIT *, UDF_ARGS *args, char *message) {
   return true;
 }
 
-char *mysqlx_error(UDF_INIT *, UDF_ARGS *args, char *, unsigned long *, char *,
-                   char *error) {
+char *mysqlx_error(UDF_INIT *, UDF_ARGS *args, char *, unsigned long *,
+                   unsigned char *, unsigned char *error) {
   my_message(*reinterpret_cast<long long *>(args->args[0]),
              "Mysqlx internal error", MYF(0));
   *error = 1;

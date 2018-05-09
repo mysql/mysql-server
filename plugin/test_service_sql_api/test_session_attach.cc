@@ -314,7 +314,8 @@ extern "C" {
 
 bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *);
 
-long long execute_test(UDF_INIT *, UDF_ARGS *, char *, char *);
+long long execute_test(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                       unsigned char *);
 }
 
 /*
@@ -324,7 +325,8 @@ long long execute_test(UDF_INIT *, UDF_ARGS *, char *, char *);
   Plugin API while installing plugin leaves system variables half
   initialized , which can't be used in test_sql_service_plugin_init.
 */
-long long execute_test(UDF_INIT *, UDF_ARGS *, char *, char *) {
+long long execute_test(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                       unsigned char *) {
   plugin_context->separator();
   plugin_context->log_test_line(
       "Test in a server thread. Attach must fail on non srv_session thread.");

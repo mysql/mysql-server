@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -228,7 +228,8 @@ void keyring_key_store_deinit(UDF_INIT *) {}
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, char *, char *error) {
+long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
+                            unsigned char *error) {
   std::string current_user;
 
   if (get_current_user(&current_user)) {
@@ -304,7 +305,8 @@ void keyring_key_fetch_deinit(UDF_INIT *initid) {
 */
 PLUGIN_EXPORT
 char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
-                        unsigned long *length, char *is_null, char *error) {
+                        unsigned long *length, unsigned char *is_null,
+                        unsigned char *error) {
   char *key = NULL;
   size_t key_len = 0;
 
@@ -349,8 +351,8 @@ void keyring_key_type_fetch_deinit(UDF_INIT *initid) {
 */
 PLUGIN_EXPORT
 char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *,
-                             unsigned long *length, char *is_null,
-                             char *error) {
+                             unsigned long *length, unsigned char *is_null,
+                             unsigned char *error) {
   char *key_type = NULL;
   if (fetch("keyring_key_type_fetch", args->args[0], NULL, &key_type, NULL)) {
     if (key_type != NULL) my_free(key_type);
@@ -393,8 +395,9 @@ void keyring_key_length_fetch_deinit(UDF_INIT *initid) {
   failure
 */
 PLUGIN_EXPORT
-long long keyring_key_length_fetch(UDF_INIT *, UDF_ARGS *args, char *is_null,
-                                   char *error) {
+long long keyring_key_length_fetch(UDF_INIT *, UDF_ARGS *args,
+                                   unsigned char *is_null,
+                                   unsigned char *error) {
   size_t key_len = 0;
   char *key = NULL;
 
@@ -423,7 +426,8 @@ void keyring_key_remove_deinit(UDF_INIT *) {}
   @return 1 on success, NULL on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_remove(UDF_INIT *, UDF_ARGS *args, char *, char *error) {
+long long keyring_key_remove(UDF_INIT *, UDF_ARGS *args, unsigned char *,
+                             unsigned char *error) {
   std::string current_user;
   if (get_current_user(&current_user)) {
     *error = 1;
@@ -457,8 +461,8 @@ void keyring_key_generate_deinit(UDF_INIT *) {}
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, char *,
-                               char *error) {
+long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
+                               unsigned char *error) {
   std::string current_user;
   if (get_current_user(&current_user)) return 0;
 

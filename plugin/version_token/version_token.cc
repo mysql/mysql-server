@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,43 +230,49 @@ PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT *initid, UDF_ARGS *args,
                                            char *message);
 PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
                                        char *result, unsigned long *length,
-                                       char *null_value, char *error);
+                                       unsigned char *null_value,
+                                       unsigned char *error);
 
 PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                             char *message);
 PLUGIN_EXPORT void version_tokens_show_deinit(UDF_INIT *initid);
 PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
-                                        char *null_value, char *error);
+                                        unsigned char *null_value,
+                                        unsigned char *error);
 
 PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
                                             char *message);
 PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
-                                        char *null_value, char *error);
+                                        unsigned char *null_value,
+                                        unsigned char *error);
 
 PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *initid, UDF_ARGS *args,
                                               char *message);
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
-                                          char *null_value, char *error);
+                                          unsigned char *null_value,
+                                          unsigned char *error);
 PLUGIN_EXPORT bool version_tokens_lock_shared_init(UDF_INIT *initid,
                                                    UDF_ARGS *args,
                                                    char *message);
 PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *initid,
                                                    UDF_ARGS *args,
-                                                   char *is_null, char *error);
+                                                   unsigned char *is_null,
+                                                   unsigned char *error);
 PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(UDF_INIT *initid,
                                                       UDF_ARGS *args,
                                                       char *message);
 PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *initid,
                                                       UDF_ARGS *args,
-                                                      char *is_null,
-                                                      char *error);
+                                                      unsigned char *is_null,
+                                                      unsigned char *error);
 PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT *initid, UDF_ARGS *args,
                                               char *message);
 PLUGIN_EXPORT long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
-                                              char *is_null, char *error);
+                                              unsigned char *is_null,
+                                              unsigned char *error);
 
 enum command { SET_VTOKEN = 0, EDIT_VTOKEN, CHECK_VTOKEN };
 
@@ -610,7 +616,7 @@ mysql_declare_plugin(version_tokens){
   @retval true     All good. Go on.
 */
 
-static bool is_hash_inited(const char *function, char *error) {
+static bool is_hash_inited(const char *function, unsigned char *error) {
   if (!version_tokens_hash_inited.is_set()) {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0), function,
              "version_token plugin is not installed.");
@@ -652,8 +658,8 @@ PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT *, UDF_ARGS *args,
 }
 
 PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *, UDF_ARGS *args, char *result,
-                                       unsigned long *length, char *,
-                                       char *error) {
+                                       unsigned long *length, unsigned char *,
+                                       unsigned char *error) {
   char *hash_str;
   int len = args->lengths[0];
   int vtokens_count = 0;
@@ -733,7 +739,7 @@ PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *, UDF_ARGS *args,
 
 PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *, UDF_ARGS *args,
                                         char *result, unsigned long *length,
-                                        char *, char *error) {
+                                        unsigned char *, unsigned char *error) {
   char *hash_str;
   int len = args->lengths[0];
   std::stringstream ss;
@@ -806,7 +812,8 @@ PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *, UDF_ARGS *args,
 
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *, UDF_ARGS *args,
                                           char *result, unsigned long *length,
-                                          char *, char *error) {
+                                          unsigned char *,
+                                          unsigned char *error) {
   const char *arg = args->args[0];
   std::stringstream ss;
   int vtokens_count = 0;
@@ -943,7 +950,8 @@ PLUGIN_EXPORT void version_tokens_show_deinit(UDF_INIT *initid) {
 }
 
 PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *, char *,
-                                        unsigned long *length, char *, char *) {
+                                        unsigned long *length, unsigned char *,
+                                        unsigned char *) {
   char *result_str = initid->ptr;
   *length = 0;
 
@@ -999,7 +1007,8 @@ PLUGIN_EXPORT bool version_tokens_lock_shared_init(UDF_INIT *initid,
 }
 
 PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT *, UDF_ARGS *args,
-                                                   char *, char *error) {
+                                                   unsigned char *,
+                                                   unsigned char *error) {
   long long timeout = args->args[args->arg_count - 1] ?  // Null ?
                           *((long long *)args->args[args->arg_count - 1])
                                                       : -1;
@@ -1023,8 +1032,9 @@ PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(UDF_INIT *initid,
 }
 
 PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT *,
-                                                      UDF_ARGS *args, char *,
-                                                      char *error) {
+                                                      UDF_ARGS *args,
+                                                      unsigned char *,
+                                                      unsigned char *error) {
   long long timeout = args->args[args->arg_count - 1] ?  // Null ?
                           *((long long *)args->args[args->arg_count - 1])
                                                       : -1;
@@ -1058,7 +1068,8 @@ PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT *, UDF_ARGS *args,
   return false;
 }
 
-long long version_tokens_unlock(UDF_INIT *, UDF_ARGS *, char *, char *) {
+long long version_tokens_unlock(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                                unsigned char *) {
   // For the UDF 1 == success, 0 == failure.
   return !release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
 }
