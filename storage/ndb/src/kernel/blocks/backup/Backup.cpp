@@ -1729,6 +1729,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
      * and an LCP at the same time. The minimum is the same for total and
      * for backup. The minimum is always based on the configured value.
      */
+    jam();
     max_speed += max_backup_speed;
   }
   ndbrequire(min_speed <= max_speed);
