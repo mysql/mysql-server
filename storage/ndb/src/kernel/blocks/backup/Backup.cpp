@@ -1709,7 +1709,12 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
        * allowance.
        */
       max_backup_speed = backup_ldm_max_speed;
-      min_speed = node_backup_max_speed;
+      min_speed = MAX(min_speed, node_backup_max_speed);
+      if (!is_redo_control_enabled())
+      {
+        jam();
+        max_speed = MAX(max_speed, max_backup_speed);
+      }
     }
     else
     {
@@ -1719,10 +1724,16 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
        * to other LDM threads
        */
       max_backup_speed = other_ldm_max_speed;
-      min_speed = MIN(min_speed, max_speed);
+      min_speed = MIN(min_speed, max_backup_speed);
+      if (!is_redo_control_enabled())
+      {
+        jam();
+        max_speed = max_backup_speed;
+      }
     }
   }
-  if (m_is_backup_running)
+  if (m_is_backup_running &&
+      is_redo_control_enabled())
   {
     /**
      * Make sure that the total can be the sum while running both a backup
