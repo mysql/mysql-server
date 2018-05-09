@@ -33,5 +33,7 @@ include/assert_grep.inc [Found error message regarding usage of replication filt
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_Table=();
+include/start_slave_sql.inc
 include/rpl_end.inc
