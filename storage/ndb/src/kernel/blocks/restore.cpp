@@ -1529,13 +1529,14 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
                          file_ptr.p->m_restored_gcp_id,
                          file_ptr.p->m_ctl_file_no,
                          validFlag);
-    ndbrequire(file_ptr.p->m_ctl_file_no == 0 ||
-               file_ptr.p->m_used_ctl_file_no != Uint32(~0));
+    ndbrequire((file_ptr.p->m_ctl_file_no == 0 ||
+               file_ptr.p->m_used_ctl_file_no != Uint32(~0)) ||
+               validFlag == 0);
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     file_ptr.p->m_found_not_restorable = true;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
     if (file_ptr.p->m_ctl_file_no == 1 &&
-         file_ptr.p->m_used_ctl_file_no != Uint32(~0))
+        file_ptr.p->m_used_ctl_file_no != Uint32(~0))
     {
       jam();
       calculate_remove_new_data_files(file_ptr);
