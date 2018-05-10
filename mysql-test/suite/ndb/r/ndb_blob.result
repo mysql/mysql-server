@@ -749,6 +749,8 @@ update t1 set b=concat(b,b,b,b,b);
 explain update `t1` set `a`=1 where `a`!= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	const	4	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 1 where (`test`.`t1`.`a` <> 1)
 update `t1` set `a`=1 where `a`!= 1;
 select * from t1;
 a	b
