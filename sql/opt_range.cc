@@ -10350,23 +10350,32 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   */
   if (cur_quick->init() || cur_quick->reset()) DBUG_RETURN(1);
 
+  size_t sort_buffer_size = thd->variables.sortbuff_size;
+#ifndef DBUG_OFF
+  if (DBUG_EVALUATE_IF("sortbuff_size_256", 1, 0)) sort_buffer_size = 256;
+#endif /* DBUG_OFF */
+
   if (unique == NULL) {
     DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(););
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created",
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"););
-
-    unique = new (*THR_MALLOC)
-        Unique(refpos_order_cmp, (void *)file, file->ref_length,
-               thd->variables.sortbuff_size);
+    unique = new (*THR_MALLOC) Unique(refpos_order_cmp, (void *)file,
+                                      file->ref_length, sort_buffer_size);
   } else {
     unique->reset();
     head->unique_result.sorted_result.reset();
     DBUG_ASSERT(!head->unique_result.sorted_result_in_fsbuf);
     head->unique_result.sorted_result_in_fsbuf = false;
+
+    if (head->unique_result.io_cache) {
+      close_cached_file(head->unique_result.io_cache);
+      my_free(head->unique_result.io_cache);
+      head->unique_result.io_cache = nullptr;
+    }
   }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
-  DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
+  DBUG_ASSERT(sort_buffer_size == unique->get_max_in_memory_size());
 
   if (!unique) DBUG_RETURN(1);
   for (;;) {
