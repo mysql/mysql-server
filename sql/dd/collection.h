@@ -129,7 +129,7 @@ class Collection {
       return *this;
     }
 
-    typename Array::const_iterator current() { return m_current; }
+    typename Array::const_iterator current() const { return m_current; }
 
    private:
     const Array *m_array;
@@ -168,7 +168,7 @@ class Collection {
     renumerate_items();
   }
 
-  void insert(const_iterator it, impl_type *item) {
+  void insert(iterator it, impl_type *item) {
     m_items.insert(it.current(), item);
     renumerate_items();
   }
@@ -189,7 +189,7 @@ class Collection {
     @returns iterator pointing to found element.
   */
 
-  const_iterator find(const impl_type *item);
+  iterator find(const impl_type *item);
 
   iterator begin() { return iterator(&m_items); }
 
