@@ -63,7 +63,7 @@ drop table if exists t1;
 start slave;
 --enable_result_log
 
-let $slave_sql_errno= 1590;
+let $slave_sql_errno= 13119; # ER_SLAVE_INCIDENT
 let $show_slave_sql_error=1;
 -- source include/wait_for_slave_sql_error.inc
 

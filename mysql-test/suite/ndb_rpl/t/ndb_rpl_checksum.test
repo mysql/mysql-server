@@ -11,7 +11,7 @@ call mtr.add_suppression('Replication event checksum verification failed');
 # due to C failure simulation
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
+call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117');
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 
 # A. read/write access to the global vars:
@@ -102,7 +102,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 connection slave;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
-let $slave_io_errno= 13110; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
 # Mask line numbers
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
@@ -151,7 +151,7 @@ connection slave;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
-let $slave_io_errno= 1595, 1743;
+let $slave_io_errno= 13122, 13115;
 --let $show_slave_io_error= 0
 source include/wait_for_slave_io_error.inc;
 # no need to stop the IO thread, it is already stopped
@@ -167,7 +167,7 @@ start slave io_thread;
 set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
-let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --let $show_slave_sql_error= 1
 source include/wait_for_slave_sql_error.inc;
 --source include/stop_slave.inc
