@@ -770,10 +770,10 @@ Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
   Trigger_impl *new_trigger = create_trigger();
   if (new_trigger == nullptr) return nullptr;
 
-  Trigger_collection::const_iterator it =
+  Trigger_collection::iterator it =
       m_triggers.find(dynamic_cast<const Trigger_impl *>(trigger));
 
-  if (++it != m_triggers.cend())
+  if (++it != m_triggers.end())
     m_triggers.insert(it, new_trigger);
   else
     m_triggers.push_back(new_trigger);
@@ -799,7 +799,7 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
   new_trigger->set_action_timing(at);
   new_trigger->set_event_type(et);
 
-  Trigger_collection::const_iterator it =
+  Trigger_collection::iterator it =
       m_triggers.find(dynamic_cast<const Trigger_impl *>(trigger));
   m_triggers.insert(it, new_trigger);
 
