@@ -17,14 +17,26 @@ SET @@global.dragnet.log_error_filter_rules= DEFAULT;
 ERROR HY000: Unknown system variable 'dragnet.log_error_filter_rules'
 
 INSTALL COMPONENT "file://component_log_filter_dragnet";
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+
 SET @save_filters= @@global.dragnet.log_error_filter_rules;
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS source_line THEN unset source_line.
+SHOW STATUS LIKE "dragnet.Status";
+Variable_name	Value
+dragnet.Status	IF EXISTS source_line THEN unset source_line.
 # when clearing rule-set, notice should also show an empty rule-set
 SET @@global.dragnet.log_error_filter_rules="";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS source_line THEN unset source_line.
 SET @@global.log_error_services="log_sink_internal; log_sink_internal";
 ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_sink_internal; log_sink_internal'
 SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet";
@@ -48,21 +60,21 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 
 # correct OR
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS a OR NOT EXISTS b THEN drop.
 
 # correct AND
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS a AND NOT EXISTS b THEN drop.
 
 # multi-chain
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.
 
 # test presence/absence operator
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'.";
@@ -70,131 +82,131 @@ SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'.
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'.";
 # correct conditions:
 SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a>0 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a<3 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a>=0 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a<=3 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a>=0 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a<=3 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a!=2 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a!=2 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS a THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF NOT EXISTS a THEN drop.
 
 # correct actions:
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/60.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 5/60.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 5/30.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN set b:=2.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN set b:=2.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN set b:=2.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN set b:="2".
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.000000.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN set b:=2.000000.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN unset a.
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset a.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS a THEN unset a.
 SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset a.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF NOT EXISTS a THEN unset a.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN unset a.
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN unset a.
 SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==1408 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==1408 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF err_code==MY-001408 THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF err_symbol=="ER_STARTUP" THEN drop.
 SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF err_symbol=="ER_STARTUP" THEN drop.
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN set err_code:=1003.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF err_code==MY-001408 THEN set err_code:=MY-001003.
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".
 SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a=="\\a\"\'" THEN set err_symbol:="ER_YES".';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a=="\\a\"\'" THEN set err_symbol:="ER_YES".
 # error, unrecognized token
 SET @@global.dragnet.log_error_filter_rules='DRAUGR.';
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'DRAUGR.'
@@ -282,7 +294,7 @@ SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP" (state: 'err_code' is the only built-in field-type we will resolve ER_symbols for) ...
+Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP" (state: 'err_code' is the only built-in field-type we will resolve ER_symbols and MY-codes for) ...
 Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP'
 # error, NOT requires EXISTS
 SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action.";
@@ -292,16 +304,20 @@ Level	Code	Message
 Warning	3621	The log-filter component "dragnet" got confused at "field THEN action." (state: NOT requires EXISTS) ...
 Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF NOT field THEN action.'
 SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS field THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS field THEN drop.
+SET @@global.dragnet.log_error_filter_rules="IF\t \t\tEXISTS   field\rTHEN\nDROP.\nIF EXISTS field2 THEN DROP.";
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF EXISTS field THEN drop. IF EXISTS field2 THEN drop.
 
 # error, wrong data-type
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.';
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP THEN drop.'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP THEN drop." (state: 'err_code' is the only built-in field-type we will resolve ER_symbols for) ...
+Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP THEN drop." (state: 'err_code' is the only built-in field-type we will resolve ER_symbols and MY-codes for) ...
 Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP THEN drop.'
 SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.';
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_code=="ER_STARTUP" THEN drop.'
@@ -389,9 +405,9 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 # empty rule-set should be allowed
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 
@@ -400,7 +416,9 @@ SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET PERSIST dragnet.log_error_filter_rules= '';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 
@@ -409,25 +427,25 @@ ERROR HY000: Variable 'dragnet.log_error_filter_rules' is a GLOBAL variable
 RESET PERSIST;
 # symbolic prio
 SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>9999 THEN set prio:=WARNING.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>9999 THEN set prio:=WARNING.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=ERROR THEN drop.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=ERROR THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=ERROR THEN drop.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=WARNING THEN drop.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=WARNING THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=WARNING THEN drop.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=NOTE THEN drop.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=INFORMATION THEN drop.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN drop.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=INFORMATION THEN drop.
 SET @@global.dragnet.log_error_filter_rules="IF thread>=INFORMATION THEN drop.";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF thread>=INFORMATION THEN drop.'
 SHOW WARNINGS;
@@ -448,13 +466,13 @@ Warning	3621	The log-filter component "dragnet" got confused at "NOUGAT THEN dro
 Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=NOUGAT THEN drop.'
 # == should not require a space
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. ";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. ";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.
 # throw error for absurdly large values
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .'
@@ -471,13 +489,13 @@ Warning	3621	The log-filter component "dragnet" got confused at "1.1." (state: f
 Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1.'
 # test for correct range in throttle denominator
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/3600.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=9999 THEN throttle 111/3600.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800.";
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/604800.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF prio>=9999 THEN throttle 111/604800.
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801.";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/604801.'
 SHOW WARNINGS;
@@ -554,9 +572,9 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 
 # correct ELSE
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 1/2 ELSE throttle 1/30.
 
 # incorrect ELSE
 SET @@global.dragnet.log_error_filter_rules='ELSE.';
@@ -626,27 +644,27 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 
 # correct ELSEIF
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.
 
 # correct ELSE IF
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.
 
 # correct ELSEIF-ELSE
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.
 
 # correct ELSE IF-ELSE
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
-SHOW WARNINGS;
-Level	Code	Message
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.
 
 # correct multi-rule rule-set.
 CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256));
@@ -710,6 +728,10 @@ SET @rules= CONCAT("IF ", REPEAT("x", 20000), ">9 THEN drop.");
 SET @@global.dragnet.log_error_filter_rules= @rules;
 SHOW WARNINGS;
 Level	Code	Message
+Note	3703	The log-filter component "dragnet" updated its configuration from its system variable "dragnet.log_error_filter_rules", but could not update its status variable "dragnet.Status" to reflect the decompiled rule-set.
+SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status";
+decompiled_filter_rules
+
 SET @@global.log_error_services="log_filter_dragnet; log_sink_internal";
 UNINSTALL COMPONENT "file://component_log_sink_test";
 UNINSTALL COMPONENT "file://component_log_sink_json";
@@ -737,11 +759,15 @@ SET @@global.log_error_verbosity=DEFAULT;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW STATUS LIKE "dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
@@ -750,72 +776,72 @@ SET @@global.log_error_verbosity=DEFAULT;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
@@ -845,7 +871,9 @@ SET @@global.log_error_verbosity=DEFAULT;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\t \t\tEXISTS   field\rTHEN\nDROP.\nIF EXISTS field2 THEN DROP."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
@@ -876,29 +904,30 @@ SET @@global.log_error_verbosity=DEFAULT;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: RESET PERSIST
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: select @@datadir
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
@@ -921,13 +950,13 @@ SET @@global.log_error_verbosity=DEFAULT;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
@@ -1000,6 +1029,7 @@ SET @@global.log_error_verbosity=DEFAULT;
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name=\"dragnet.Status\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"

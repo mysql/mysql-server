@@ -50,8 +50,6 @@ SELECT @@dragnet.log_error_filter_rules;
 SET @saved_log_error_verbosity= @@global.log_error_verbosity;
 SET GLOBAL log_error_verbosity= 3;
 SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
-Warnings:
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==10926 THEN throttle 3/3600.';
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
@@ -64,8 +62,6 @@ connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
 SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
-Warnings:
-Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>INFORMATION THEN drop.';
 # restart: --no-console --log-error=LOG_FILE14 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal 
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
