@@ -7483,21 +7483,19 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
   if (c_lqh->handleLCPSurfacing(signal))
   {
     jam();
-    BackupRecordPtr ptr;
     TablePtr tabPtr;
-    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
     ptr.p->tables.first(tabPtr);
     Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     op.maxRecordSize = tabPtr.p->maxRecordSize =
       1 + tup->get_max_lcp_record_size(tabPtr.p->tableId);
   }
   op.scanConf(conf.completedOps, conf.total_len);
-  BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
   if (ptr.p->is_lcp() && ptr.p->m_num_lcp_files > 1)
   {
     jam();

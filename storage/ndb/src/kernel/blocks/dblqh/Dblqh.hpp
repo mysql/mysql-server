@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3921,6 +3921,8 @@ public:
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;
   Uint32 c_executing_redo_log;
+  Uint32 c_num_fragments_created_since_restart;
+  Uint32 c_fragments_in_lcp;
   bool c_wait_lcp_surfacing;
 #endif
 };
