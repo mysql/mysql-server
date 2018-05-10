@@ -2254,6 +2254,8 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     }
   }
 
+  c_num_fragments_created_since_restart++;
+
   LqhFragReq copy = *(LqhFragReq*)signal->getDataPtr();
   LqhFragReq * req = &copy;
 
@@ -16000,8 +16002,15 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
 void Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
 {
   jamEntry();
-  ndbrequire(c_copy_fragment_in_progress);
+  ndbrequire(c_copy_fragment_in_progress ||
+             c_num_fragments_created_since_restart == 0);
   c_copy_fragment_in_progress = false;
+  if (c_num_fragments_created_since_restart == 0)
+  {
+    jam();
+    /* No need to do anything here. */
+    return;
+  }
   /**
    * We are now sure that no more local LCPs can be started,
    * we still need to wait until the current one (if a current
@@ -16187,7 +16196,13 @@ void Dblqh::start_local_lcp(Signal *signal,
 void
 Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 {
-  ndbrequire(c_copy_fragment_in_progress);
+  if (c_num_fragments_created_since_restart == 0)
+  {
+    jam();
+    c_local_lcp_sent_wait_all_complete_lcp_req = true;
+    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+    return;
+  }
   Uint32 lcpId = signal->theData[0];
   Uint32 localLcpId = signal->theData[1];
   start_local_lcp(signal, lcpId, localLcpId);
@@ -16195,13 +16210,13 @@ Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 
 void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
 {
-  ndbrequire(c_copy_fragment_in_progress);
   Uint32 lcpId = signal->theData[0];
   Uint32 localLcpId = signal->theData[1];
 
   c_full_local_lcp_started = true;
-  if (c_local_lcp_started &&
-      c_localLcpId == 0)
+  if ((c_local_lcp_started &&
+       c_localLcpId == 0) ||
+       c_num_fragments_created_since_restart == 0)
   {
     /**
      * We have started a local LCP already. If we haven't
@@ -16315,25 +16330,28 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
    */
   c_local_lcp_sent_wait_complete_conf = false;
   c_local_lcp_sent_wait_all_complete_lcp_req = true;
-  if (!m_node_restart_first_local_lcp_started)
+  if (c_num_fragments_created_since_restart > 0)
   {
-    jam();
-    c_saveLcpId = c_lcpId;
-    complete_local_lcp(signal);
-    return;
-  }
-  if (!c_full_local_lcp_started)
-  {
-    jam();
-    /**
-     * Normal path, no LCP was started due to UNDO log overload.
-     * We still started a LCP and now that all fragments have
-     * completed synchronisation we can complete the
-     * local LCP and as soon as this is done we can continue
-     * the restart processing.
-     */
-    send_lastLCP_FRAG_ORD(signal);
-    return;
+    if (!m_node_restart_first_local_lcp_started)
+    {
+      jam();
+      c_saveLcpId = c_lcpId;
+      complete_local_lcp(signal);
+      return;
+    }
+    if (!c_full_local_lcp_started)
+    {
+      jam();
+      /**
+       * Normal path, no LCP was started due to UNDO log overload.
+       * We still started a LCP and now that all fragments have
+       * completed synchronisation we can complete the
+       * local LCP and as soon as this is done we can continue
+       * the restart processing.
+       */
+      send_lastLCP_FRAG_ORD(signal);
+      return;
+    }
   }
   if (c_localLcpId == 0)
   {
@@ -16356,6 +16374,7 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
                WaitCompleteLcpConf::SignalLength, JBB);
     return;
   }
+  ndbrequire(c_num_fragments_created_since_restart > 0);
   /**
    * A local LCP was ordered due to UNDO log overload, this haven't
    * completed yet. So we need to wait until it is completed until
@@ -17252,6 +17271,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 
     lcpPtr.p->firstFragmentFlag= true;
     c_max_gci_in_lcp = 0;
+    c_fragments_in_lcp = 0;
 
 #ifdef ERROR_INSERT
     if (check_ndb_versions())
@@ -17364,6 +17384,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     return;
   }//if
 
+  c_fragments_in_lcp++;
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
@@ -18126,6 +18147,15 @@ restart:
  * ------------------------------------------------------------------------- */
 void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
+  if (c_fragments_in_lcp == 0)
+  {
+    jam();
+    lcpPtr.i = 0;
+    ptrAss(lcpPtr, lcpRecord);
+    sendLCP_COMPLETE_REP(signal,
+                         lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId);
+    return;
+  }
   startLcpFragWatchdog(signal);
   DEB_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
@@ -18193,6 +18223,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.p->m_no_of_bytes = 0;
   cnoOfFragsCheckpointed = 0;
   clcpCompletedState = LCP_IDLE;
+  c_fragments_in_lcp = 0;
 
   if (c_localLcpId != 0)
   {
@@ -18213,7 +18244,8 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
    *
    * This coordination happens in NDBCNTR.
    */
-  ndbrequire(c_keep_gci_for_lcp <= c_max_keep_gci_in_lcp);
+  ndbrequire(c_keep_gci_for_lcp <= c_max_keep_gci_in_lcp ||
+             c_num_fragments_created_since_restart == 0);
   LcpAllCompleteReq* req = (LcpAllCompleteReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->lcpId = lcpId;
