@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,13 @@ public:
     STORED_TABLES_TABLEID =      37,
     PROCESSES_TABLEID =          38,
     CONFIG_NODES_TABLEID =       39
+  };
+
+  enum BufferId {
+    REDO = 0,
+    DD_UNDO = 1,
+    BACKUP_DATA_BUFFER = 2,
+    BACKUP_LOG_BUFFER = 3
   };
 
   struct Table {

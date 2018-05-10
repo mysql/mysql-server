@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -506,7 +506,10 @@ private:
     Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
     // for ndbrequire and ndbassert
-    void progError(int line, int cause, const char* file, const char* check);
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char* file,
+                                const char* check);
   };
 
   // stats scan
@@ -1187,7 +1190,7 @@ Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1200,7 +1203,7 @@ Dbtux::NodeHandle::setSide(unsigned i)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 

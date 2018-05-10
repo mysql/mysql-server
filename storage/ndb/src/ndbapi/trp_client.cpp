@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@ trp_client::trp_client()
   : m_blockNo(~Uint32(0)),
     m_facade(NULL),
     m_locked_for_poll(false),
+    m_is_receiver_thread(false),
     m_mutex(NULL),
     m_poll(),
     m_enabled_nodes_mask(),

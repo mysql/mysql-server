@@ -228,7 +228,7 @@ Restore::execCONTINUEB(Signal* signal){
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -815,14 +815,14 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
   lcpCtlFilePtr->partPairs[0] = locPartPair;
   lcpCtlFilePtr->NumPartPairs = 1;
 
-  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr);
-  lcp_create_ctl_write(signal, file_ptr);
-}
-
-void
-Restore::lcp_create_ctl_write(Signal *signal, FilePtr file_ptr)
-{
+  /**
+   * Since the LCP control file will only contain 1 part we are
+   * certain that we will fit in the small LCP control file size.
+   */
+  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr,
+                              BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL);
   FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+
   req->userPointer = file_ptr.i;
   req->filePointer = file_ptr.p->m_fd;
   req->userReference = reference();
@@ -837,7 +837,7 @@ Restore::lcp_create_ctl_write(Signal *signal, FilePtr file_ptr)
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset = 0;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL;
 
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -903,7 +903,7 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1046,7 +1046,7 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
       return;
     }
   }
@@ -1371,7 +1371,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
     &m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
 
-  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE &&
+  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
       bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG)
   {
     /**
@@ -2189,7 +2189,7 @@ Restore::execFSOPENREF(Signal* signal)
   }
   else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
   {
-    ndbrequire(false);
+    ndbabort();
   }
   ndbrequire(file_ptr.p->m_status == File::FIRST_READ);
 
@@ -2468,6 +2468,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	{
 	  break;
 	}
+        // Fall through - on bad version
       default:
 	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
       }
@@ -2565,7 +2566,7 @@ Restore::execFSREADREF(Signal * signal)
     return;
   }
   SimulatedBlock::execFSREADREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2625,7 +2626,7 @@ Restore::execFSCLOSEREF(Signal * signal)
 {
   jamEntry();
   SimulatedBlock::execFSCLOSEREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2807,7 +2808,7 @@ Restore::get_header_string(Uint32 header_type)
     case BackupFormat::DELETE_BY_ROWID_TYPE:
       return "DELETE_BY_ROWID_TYPE";
     default:
-      ndbrequire(false);
+      ndbabort();
       return NULL;
   }
 }
@@ -2883,7 +2884,7 @@ Restore::parse_record(Signal* signal,
     default:
     {
       jam();
-      ndbrequire(false);
+      ndbabort();
       return; /* Silence compiler warnings */
     }
   }
@@ -3352,7 +3353,7 @@ Restore::execute_operation(Signal *signal,
     {
       jam();
       crash_during_restore(file_ptr, __LINE__, ZGET_DATAREC_ERROR);
-      ndbrequire(false);
+      ndbabort();
     }
     sections.m_cnt++;
 
@@ -3368,7 +3369,7 @@ Restore::execute_operation(Signal *signal,
       {
         jam();
         crash_during_restore(file_ptr, __LINE__, ZGET_ATTRINBUF_ERROR);
-        ndbrequire(false);
+        ndbabort();
       }
       sections.m_cnt++;
     }
@@ -3385,8 +3386,9 @@ Restore::calculate_hash(Uint32 tableId, const Uint32 *src)
   jam();
   Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
-			   keyPartLen);
+  Uint32 keyLen = xfrm_key_hash(tableId, src,
+				(Uint32*)Tmp, sizeof(Tmp) >> 2,
+			        keyPartLen);
   ndbrequire(keyLen);
   
   return md5_hash(Tmp, keyLen);
@@ -3521,7 +3523,7 @@ Restore::execLQHKEYCONF(Signal* signal)
       file_ptr.p->m_row_operations++;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
   }
   check_restore_ready(signal, file_ptr);
 }
@@ -3680,7 +3682,7 @@ Restore::parse_error(Signal* signal,
 		       name, extra);
   
   progError(line, NDBD_EXIT_INVALID_LCP_FILE, buf);  
-  ndbrequire(false);
+  ndbabort();
 }
 
 NdbOut& 

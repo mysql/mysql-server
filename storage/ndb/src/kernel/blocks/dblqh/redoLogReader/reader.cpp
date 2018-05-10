@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 void usage(const char * prg);
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
 void readArguments(int argc, char** argv);
-void doExit();
+[[noreturn]] void doExit();
 
 FILE * f= 0;
 char fileName[256];
@@ -68,7 +68,7 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
-inline void ndb_end_and_exit(int exitcode)
+[[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
   exit(exitcode);

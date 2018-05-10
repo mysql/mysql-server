@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_sys.h"
+#include "my_inttypes.h"
 #include "storage/ndb/include/ndb_types.h"
 
 class Ndb_cluster_connection;
@@ -49,3 +49,7 @@ int ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
                             Uint32 cpuid_array_size);
 void ndb_set_data_node_neighbour(ulong data_node_neighbour);
 void ndb_get_connection_stats(Uint64* statsArr);
+
+// The information_schema.ndb_transid_mysql_connection_map table plugin
+extern struct st_mysql_plugin ndb_transid_mysql_connection_map_table;
+

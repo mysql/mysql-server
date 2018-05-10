@@ -1,6 +1,7 @@
 --source suite/ndb_big/suite.inc
 --source include/have_ndb.inc
 --source suite/ndb/include/ndb_info.inc
+--source suite/ndb/include/backup_restore_setup.inc
 # --call mtr.force_restart()
 set new=on;
 
@@ -306,6 +307,7 @@ DROP TABLE blobs;
 DROP TABLE types;
 DROP TABLE manycol;
 DROP TABLE empty;
+--source suite/ndb/include/backup_restore_cleanup.inc
 
 ## Test suceeded
 exit;

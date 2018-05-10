@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,9 @@
 
 #include "ndb_socket.h"
 
+#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
+                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
+
 class Transporter {
   friend class TransporterRegistry;
 public:
@@ -62,6 +65,13 @@ public:
   virtual bool connect_client();
   bool connect_client(NDB_SOCKET_TYPE sockfd);
   bool connect_server(NDB_SOCKET_TYPE socket, BaseString& errormsg);
+
+  /**
+   * Returns socket used (sockets are used for all transporters to ensure
+   * we can wake up also shared memory transporters and other types of
+   * transporters in consistent manner.
+   */
+  NDB_SOCKET_TYPE getSocket() const;
 
   /**
    * Blocking
@@ -105,7 +115,7 @@ public:
                                                used >= m_slowdown_limit);
   }
 
-  virtual bool doSend() = 0;
+  virtual bool doSend(bool need_wakeup = true) = 0;
 
   /* Get the configured maximum send buffer usage. */
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
@@ -116,6 +126,8 @@ public:
   Uint32 get_overload_count() { return m_overload_count; }
   void inc_slowdown_count() { m_slowdown_count++; }
   Uint32 get_slowdown_count() { return m_slowdown_count; }
+
+  TransporterType getTransporterType() const;
 
 protected:
   Transporter(TransporterRegistry &,
@@ -180,6 +192,8 @@ protected:
   Uint32 m_overload_count;
   Uint32 m_slowdown_count;
 
+  // Sending/Receiving socket used by both client and server
+  NDB_SOCKET_TYPE theSocket;
 private:
 
   /**
@@ -194,11 +208,22 @@ private:
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
 
+  void update_connect_state(bool connected);
+
 protected:
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
   bool m_connected;     // Are we connected
   TransporterType m_type;
+
+  /**
+   * Statistics
+   */
+  Uint32 reportFreq;
+  Uint32 receiveCount;
+  Uint64 receiveSize;
+  Uint32 sendCount;
+  Uint64 sendSize;
 
   TransporterRegistry &m_transporter_registry;
   TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; };
@@ -209,6 +234,11 @@ protected:
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 
+  void set_get(NDB_SOCKET_TYPE fd,
+               int level,
+               int optval,
+               const char *optname, 
+               int val);
   /*
    * Keep checksum state for Protocol6 messages over a byte stream.
    */
@@ -239,6 +269,19 @@ protected:
   };
   checksum_state send_checksum_state;
 };
+
+inline
+NDB_SOCKET_TYPE
+Transporter::getSocket() const {
+  return theSocket;
+}
+
+inline
+TransporterType
+Transporter::getTransporterType() const
+{
+  return m_type;
+}
 
 inline
 bool

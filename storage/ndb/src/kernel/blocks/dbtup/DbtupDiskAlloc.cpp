@@ -201,7 +201,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 }
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-#define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
+#define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
 #else
 #define ddassert(x)
 #endif
@@ -394,7 +394,7 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
                      pagePtr.p->m_extent_no,
                      pagePtr.p->m_restart_seq,
                      globalData.m_restart_seq);
-    ndbrequire(false);
+    ndbabort();
   }
   DEB_EXTENT_BITS(("(%u)restart_setup_page(%u,%u) in tab(%u,%u), extent page: %u.%u"
                    " restart_seq(%u,%u)",
@@ -941,7 +941,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
                         fragPtr.p->fragmentId,
                         pagePtr.p->m_table_id,
                         pagePtr.p->m_fragment_id);
-    ndbrequire(false);
+    ndbabort();
   }
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
@@ -1619,8 +1619,7 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
     jam();
     break;
   case -1:
-    ndbrequire(false);
-    break;
+    ndbabort();
   default:
     jam();
     Ptr<GlobalPage> gpage;
@@ -2035,7 +2034,7 @@ Dbtup::disk_restart_undo(Signal* signal,
     ndbrequire(c_pending_undo_page_hash.getCount() == 0);
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   f_undo.m_key = preq.m_page;
@@ -2116,8 +2115,7 @@ Dbtup::disk_restart_undo(Signal* signal,
     }
     break; // Wait for callback
   case -1:
-    ndbrequire(false);
-    break;
+    ndbabort();
   default:
     DEB_UNDO(("LDM(%u) DIRECT_EXECUTE Page:%u lsn:%llu",
                         instance(),
@@ -2285,7 +2283,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
       }
       }
       jamLine(flag);
-      ndbrequire(false);
+      ndbabort();
     }
   }
 }
@@ -2583,7 +2581,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
         break;
       }
       default:
-        ndbrequire(false);
+        ndbabort();
       }
 
       if (undo->m_type != File_formats::Undofile::UNDO_TUP_UPDATE_PART)
@@ -2842,7 +2840,7 @@ Dbtup::disk_restart_undo_free(Apply_undo* undo, bool full_free)
     jamLine((lsn >> 16) & 0xFFFF);
     jamLine((lsn >> 32) & 0xFFFF);
     jamLine((lsn >> 48) & 0xFFFF);
-    ndbrequire(false);
+    ndbabort();
   }
   const Disk_undo::Free *free = (const Disk_undo::Free*)undo->m_ptr;
   const Uint32* src= free->m_data;

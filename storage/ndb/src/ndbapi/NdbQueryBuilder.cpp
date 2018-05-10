@@ -2570,6 +2570,11 @@ NdbQueryPKLookupOperationDefImpl
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
+  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  {
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
+
   /**
    * NOTE: Order of sections within the optional part is fixed as:
    *    Part1:  'NI_HAS_PARENT'
@@ -2634,6 +2639,11 @@ NdbQueryIndexOperationDefImpl
     serializedDef.alloc(QN_LookupNode::NodeSize);
     Uint32 requestInfo = QN_LookupNode::L_UNIQUE_INDEX;
 
+    if (getMatchType() == NdbQueryOptions::MatchNonNull)
+    {
+      requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+    }
+
     // Optional part1: Make list of parent nodes.
     assert (getInternalOpNo() > 0);
     requestInfo |= appendParentList (serializedDef);
@@ -2682,6 +2692,9 @@ NdbQueryIndexOperationDefImpl
   Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
+
+  // Always INNER_JOINed with its index parent
+  requestInfo |= DABits::NI_INNER_JOIN;
 
   /**
    * NOTE: Order of sections within the optional part is fixed as:
@@ -2763,6 +2776,11 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
+
+  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  {
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
 
   // Optional part1: Make list of parent nodes.
   requestInfo |= appendParentList (serializedDef);

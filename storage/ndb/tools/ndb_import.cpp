@@ -249,7 +249,8 @@ my_long_options[] =
   { "rejects", NDB_OPT_NOSHORT,
     "Limit number of rejected rows (rows with permanent error) in data load."
     " Default is 0 which means that any rejected row causes a fatal error."
-    " The row(s) exceeding the limit are also added to *.rej",
+    " The row(s) exceeding the limit are also added to *.rej."
+    " The limit is per current run (not all --resume'd runs)",
     &g_opt.m_rejects, &g_opt.m_rejects, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_rejects, 0, 0, 0, 0, 0 },
   { "fields-terminated-by", NDB_OPT_NOSHORT,
@@ -276,7 +277,8 @@ my_long_options[] =
     &g_opt.m_optcsv.m_fields_escaped_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "lines-terminated-by", NDB_OPT_NOSHORT,
-    "See MySQL LOAD DATA",
+    "See MySQL LOAD DATA but note that default is"
+    " \\n for unix and \\r\\n for windows",
     &g_opt.m_optcsv.m_lines_terminated_by,
     &g_opt.m_optcsv.m_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -284,9 +286,10 @@ my_long_options[] =
     "Set some typical CSV options."
     " Useful for environments where command line quoting and escaping is hard."
     " Argument is a string of letters:"
-    " d-LOAD DATA defaults"
+    " d-defaults for the OS type"
     " c-fields terminated by real comma (,)"
     " q-fields optionally enclosed by double quotes (\")"
+    " n-lines terminated by \\n"
     " r-lines terminated by \\r\\n",
     &g_opt.m_csvopt, &g_opt.m_csvopt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -331,7 +334,8 @@ short_usage_sub(void)
     "See options --state-dir and --keep-state.\n"
     "\n"
     "Windows notes: File paths are shown with forward slash (/).\n"
-    "To load windows format files currently requires --csvopt=r.\n"
+    "Default line-terminator is \\r\\n.\n"
+    "Keyboard interrupt is not implemented.\n"
     "\n",
     my_progname);
 }
@@ -460,6 +464,9 @@ checkcsvopt()
       break;
     case 'q':
       g_opt.m_optcsv.m_fields_optionally_enclosed_by = "\"";
+      break;
+    case 'n':
+      g_opt.m_optcsv.m_lines_terminated_by = "\\n";
       break;
     case 'r':
       g_opt.m_optcsv.m_lines_terminated_by = "\\r\\n";
@@ -677,10 +684,11 @@ clearerrins()
 // main program
 
 static const uint g_rep_status = (1 << 0);
-static const uint g_rep_stats = (1 << 1);
-static const uint g_rep_reject = (1 << 2);
-static const uint g_rep_temperrors = (1 << 3);
-static const uint g_rep_errortexts = (1 << 4);
+static const uint g_rep_resume = (1 << 1);
+static const uint g_rep_stats = (1 << 2);
+static const uint g_rep_reject = (1 << 3);
+static const uint g_rep_temperrors = (1 << 4);
+static const uint g_rep_errortexts = (1 << 5);
 
 // call job.get_status() first
 static void
@@ -689,18 +697,27 @@ doreport(NdbImport::Job& job, uint flags)
   require(job.m_status != JobStatus::Status_null);
   char jobname[100];
   sprintf(jobname, "job-%u", job.m_jobno);
+  const uint runno = job.m_runno;
   char str_status[100] = "";
   if (flags & g_rep_status)
   {
     // including status only if job has been started
     sprintf(str_status, " [%s]", job.m_str_status);
   }
-  LOG(jobname << str_status <<
-      " import " << g_opt.m_database << "." << g_opt.m_table <<
-      " from " << g_opt.m_input_file);
+  if (runno == 0 || !(flags & g_rep_resume))
+    LOG(jobname << str_status <<
+        " import " << g_opt.m_database << "." << g_opt.m_table <<
+        " from " << g_opt.m_input_file);
+  else
+    LOG(jobname << str_status <<
+        " import " << g_opt.m_database << "." << g_opt.m_table <<
+        " from " << g_opt.m_input_file <<
+        " (resume #" << runno << ")");
   const JobStats& stats = job.m_stats;
   const uint64 rows = stats.m_rows;
   const uint64 reject = stats.m_reject;
+  const uint64 new_rows = stats.m_new_rows;
+  const uint64 new_reject = stats.m_new_reject;
   const uint temperrors = stats.m_temperrors;
   const std::map<uint, uint>& errormap = stats.m_errormap;
   const uint64 runtime = stats.m_runtime;
@@ -709,16 +726,27 @@ doreport(NdbImport::Job& job, uint flags)
   {
     char runtimestr[100];
     NdbImportUtil::fmt_msec_to_hhmmss(runtimestr, runtime);
-    LOG(jobname << " imported " << rows << " rows" <<
-         " in " << runtimestr <<
-         " at " << rowssec << " rows/s");
+    if (runno == 0)
+      LOG(jobname << " imported " << rows << " rows" <<
+           " in " << runtimestr <<
+           " at " << rowssec << " rows/s");
+    else
+      LOG(jobname << " imported " << rows << " rows" <<
+          " (new " << new_rows << ")" <<
+           " in " << runtimestr <<
+           " at " << rowssec << " rows/s");
   }
   if ((flags & g_rep_reject) &&
       reject != 0)
   {
-    LOG(jobname << " rejected " << reject << " rows" <<
-        " (limit " << g_opt.m_rejects << ")," <<
-        " see " << g_opt.m_reject_file);
+    if (runno == 0)
+      LOG(jobname << " rejected " << reject << " rows" <<
+          " (limit " << g_opt.m_rejects << ")," <<
+          " see " << g_opt.m_reject_file);
+    else
+      LOG(jobname << " rejected " << reject << " rows" <<
+          " (new " << new_reject << " limit " << g_opt.m_rejects << ")," <<
+          " see " << g_opt.m_reject_file);
   }
   if ((flags & g_rep_temperrors) &&
       temperrors != 0)
@@ -767,7 +795,7 @@ doreport(NdbImport::Job& job, uint flags)
 static uint
 getweigth(const JobStats& stats)
 {
-  return stats.m_reject + stats.m_temperrors;
+  return stats.m_new_reject + stats.m_temperrors;
 }
 
 static void
@@ -796,7 +824,7 @@ domonitor(NdbImport::Job& job)
     if (report)
     {
       uint flags = g_rep_status |
-                   g_rep_reject |
+                   (stats.m_new_reject ? g_rep_reject : 0) |
                    g_rep_temperrors |
                    g_rep_errortexts;
       doreport(job, flags);
@@ -866,6 +894,7 @@ doimp()
       bool job_error = job.has_error();
       job.get_status();
       uint flags = g_rep_status |
+                   g_rep_resume |
                    g_rep_stats |
                    g_rep_reject |
                    g_rep_temperrors |
@@ -922,6 +951,7 @@ doall()
 int
 main(int argc, char** argv)
 {
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage);
   if (opts.handle_options() != 0)

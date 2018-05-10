@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -428,7 +428,7 @@ Ndb::computeHash(Uint32 *retval,
   const NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
   const NdbColumnImpl* const * cols = impl->m_columns.getBase();
   Uint32 len;
-  char* pos;
+  unsigned char *pos, *bufEnd;
   void* malloced_buf = NULL;
 
   Uint32 colcnt = impl->m_columns.size();
@@ -485,16 +485,11 @@ Ndb::computeHash(Uint32 *retval,
     if (unlikely(lb == 0 && keyData[i].len != maxlen))
       goto emalformedkey;
     
-    if (partcols[i]->m_cs)
-    {
-      Uint32 xmul = partcols[i]->m_cs->strxfrm_multiply;
-      xmul = xmul ? xmul : 1;
-      len = xmul * (maxlen - lb);
-    }
+    if (partcols[i]->m_cs != NULL)
+      len = NdbSqlUtil::strnxfrm_hash_len(partcols[i]->m_cs, (maxlen - lb));
 
     len = (lb + len + 3) & ~(Uint32)3;
     sumlen += len;
-
   }
 
   if (!buf)
@@ -521,7 +516,9 @@ Ndb::computeHash(Uint32 *retval,
       goto ebuftosmall;
   }
 
-  pos = (char*)buf;
+  pos= (unsigned char*) buf;
+  bufEnd = pos + bufLen;
+
   for (Uint32 i = 0; i<parts; i++)
   {
     Uint32 lb, len;
@@ -530,21 +527,11 @@ Ndb::computeHash(Uint32 *retval,
     CHARSET_INFO* cs;
     if ((cs = partcols[i]->m_cs))
     {
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-	xmul = 1;
-      /*
-       * Varchar end-spaces are ignored in comparisons.  To get same hash
-       * we blank-pad to maximum length via strnxfrm.
-       */
-      Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize);
-      Uint32 dstLen = xmul * (maxlen - lb);
-      int n = NdbSqlUtil::strnxfrm_bug7284(cs, 
-					   (unsigned char*)pos, 
-					   dstLen, 
-					   ((unsigned char*)keyData[i].ptr)+lb,
-					   len);
-      
+      const Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize) - lb;
+      int n = NdbSqlUtil::strnxfrm_hash(cs,
+                                   pos, bufEnd-pos, 
+                                   ((uchar*)keyData[i].ptr)+lb, len, maxlen);
+
       if (unlikely(n == -1))
 	goto emalformedstring;
       
@@ -613,7 +600,7 @@ Ndb::computeHash(Uint32 *retval,
                  void* buf, Uint32 bufLen)
 {
   Uint32 len;
-  char* pos = NULL;
+  unsigned char *pos, *bufEnd;
   void* malloced_buf = NULL;
 
   Uint32 parts = keyRec->distkey_index_length;
@@ -650,7 +637,8 @@ Ndb::computeHash(Uint32 *retval,
     bufLen -= Uint32(use - org);
   }
 
-  pos= (char*) buf;
+  pos= (unsigned char*) buf;
+  bufEnd = pos + bufLen;
 
   for (Uint32 i = 0; i < parts; i++)
   {
@@ -688,19 +676,10 @@ Ndb::computeHash(Uint32 *retval,
 
     const CHARSET_INFO* cs = keyAttr.charset_info;
     if (cs)
-    {
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-        xmul = 1;
-      /*
-       * Varchar end-spaces are ignored in comparisons.  To get same hash
-       * we blank-pad to maximum length via strnxfrm.
-       */
-      Uint32 dstLen = xmul * maxlen;
-      int n = NdbSqlUtil::strnxfrm_bug7284((CHARSET_INFO*)cs,
-                                           (unsigned char*)pos,
-                                           dstLen, src,
-                                           len);
+    {      
+      const int n = NdbSqlUtil::strnxfrm_hash(cs,
+                                         pos, bufEnd-pos,
+                                         src, len, maxlen);
       if (unlikely(n == -1))
         goto emalformedstring;
       len = n;
@@ -771,11 +750,11 @@ Ndb::startTransaction(const NdbRecord *keyRec, const char *keyData,
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const struct Key_part_ptr * keyData, 
-		      void* buf, Uint32 bufLen)
+		      void* xfrmbuf, Uint32 xfrmbuflen)
 {
   int ret;
   Uint32 hash;
-  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
+  if ((ret = computeHash(&hash, table, keyData, xfrmbuf, xfrmbuflen)) == 0)
   {
     return startTransaction(table, table->getPartitionId(hash));
   }
@@ -1999,7 +1978,7 @@ const char *
 Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalTableName;
+    const char *ptr = internalTableName;
    
     // Skip database name
     while (*ptr && *ptr++ != table_name_separator)
@@ -2027,7 +2006,7 @@ const char *
 Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalIndexName;
+    const char *ptr = internalIndexName;
    
     // Scan name from the end
     while (*ptr++)
@@ -2164,7 +2143,7 @@ Ndb::getDatabaseFromInternalName(const char * internalName)
     return BaseString(NULL);
   }
   strcpy(databaseName, internalName);
-  register char *ptr = databaseName;
+  char *ptr = databaseName;
    
   /* Scan name for the first table_name_separator */
   while (*ptr && *ptr != table_name_separator)
@@ -2184,13 +2163,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
     errno = ENOMEM;
     return BaseString(NULL);
   }
-  register const char *ptr1 = internalName;
+  const char *ptr1 = internalName;
    
   /* Scan name for the second table_name_separator */
   while (*ptr1 && *ptr1 != table_name_separator)
     ptr1++;
   strcpy(schemaName, ptr1 + 1);
-  register char *ptr = schemaName;
+  char *ptr = schemaName;
   while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';

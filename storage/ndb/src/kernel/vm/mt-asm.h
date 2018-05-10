@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,9 +103,9 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_XCNG
 #define NDB_HAVE_CPU_PAUSE
 #else
+#define cpu_pause()
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
-extern void cpu_pause();
 #endif
 
 #elif defined(__powerpc__)
@@ -224,9 +224,9 @@ cpu_pause()
 }
 #endif
 #else
+#define cpu_pause()
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
-extern void cpu_pause();
 #endif
 #endif
 #elif defined (_MSC_VER)

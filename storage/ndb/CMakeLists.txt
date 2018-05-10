@@ -30,6 +30,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
+INCLUDE(ndb_add_executable)
 
 #
 # Add the ndbcluster plugin
@@ -74,6 +75,14 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_plugin_reference.cc
   ../../sql/ndb_server_hooks.cc
   ../../sql/ndb_binlog_client.cc
+  ../../sql/ndb_metadata.cc
+  ../../sql/ndb_dd_disk_data.cc
+  ../../sql/ndb_dd_upgrade_table.cc
+  ../../sql/ndb_binlog_hooks.cc
+  ../../sql/ndb_util_table.cc
+  ../../sql/ndb_schema_dist_table.cc
+  ../../sql/ndb_fk_util.cpp
+  ../../sql/ndb_schema_trans_guard.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -131,6 +140,8 @@ ELSE()
   IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
     MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved gcov coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
   # Turn on NDB tests automatically for valgrind builds
   IF(WITH_VALGRIND)

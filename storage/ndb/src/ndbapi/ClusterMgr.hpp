@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,8 +194,6 @@ private:
   void execAPI_REGREQ    (const Uint32 * theData);
   void execAPI_REGCONF   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execAPI_REGREF    (const Uint32 * theData);
-  void execCONNECT_REP   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
-  void execDISCONNECT_REP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 

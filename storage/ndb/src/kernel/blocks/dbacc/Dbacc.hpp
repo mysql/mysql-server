@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1000,7 +1000,8 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
-  Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*);
+  Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*,
+                     bool xfrm);
   Uint32 getElement(const AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
@@ -1084,9 +1085,6 @@ private:
   void storeDataPageInDirectoryLab(Signal* signal) const;
 
   void zpagesize_error(const char* where);
-
-  // charsets
-  void xfrmKeyData(AccKeyReq* signal) const;
 
   // Initialisation
   void initData();

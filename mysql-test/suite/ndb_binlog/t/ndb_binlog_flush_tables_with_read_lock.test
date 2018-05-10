@@ -193,4 +193,5 @@ drop table myisamt3s1;
 
 --connection server2
 drop table myisamt3s2;
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp ndb_binlog_mysqlbinlog*.sql
 

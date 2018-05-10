@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,5 +43,16 @@ bool ndb_dd_sdi_deserialize(class THD* thd, const dd::sdi_t &sdi,
 
 dd::sdi_t ndb_dd_sdi_serialize(class THD *thd, const dd::Table &table,
                                const dd::String_type &schema_name);
+
+/*
+  @brief prettify a JSON formatted SDI. Add whitespace and other
+  formatting characters to make the JSON more human readable.
+
+  @sdi the JSON string to prettify
+
+  @return pretty JSON string or empty string on failure.
+*/
+
+dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi);
 
 #endif

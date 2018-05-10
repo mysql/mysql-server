@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -742,8 +742,7 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
     subRec->errorCode = BuildIndxRef::BadRequestType;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   UtilReleaseConf* conf = (UtilReleaseConf*)signal->getDataPtrSend();
@@ -982,8 +981,7 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     executeBuildFKTransaction(signal, subRecPtr);
     break;
   case STAT_UTIL:
-    ndbrequire(false);
-    break;
+    ndbabort();
   case STAT_CLEAN:
     {
       StatOp& stat = statOpGetPtr(subRecPtr.p->m_statPtrI);
@@ -1364,7 +1362,7 @@ void
 Trix::execSUB_REMOVE_REF(Signal* signal){
   jamEntry();
   //@todo
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1398,7 +1396,7 @@ Trix::execSUB_REMOVE_CONF(Signal* signal){
 void
 Trix::execUTIL_RELEASE_REF(Signal* signal){
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1602,7 +1600,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     break;
   default:
     jamLine(req->requestType);
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (req->requestInfo & CopyDataReq::TupOrder)
@@ -1956,8 +1954,7 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
     stat.m_requestName = "drop head";
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
@@ -2383,8 +2380,7 @@ Trix::statUtilPrepareRef(Signal* signal, Uint32 statPtrI)
     break;
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
   statOpError(signal, stat, errorCode, __LINE__);
 }
@@ -2472,8 +2468,7 @@ Trix::statUtilExecuteRef(Signal* signal, Uint32 statPtrI)
     errorCode = IndexStatRef::BusyUtilExecute;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   if (errorCode != 0)
@@ -2518,8 +2513,10 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
   switch (stat.m_requestType) {
   case IndexStatReq::RT_CLEAN_NEW:
     jam();
+    // Fall through
   case IndexStatReq::RT_CLEAN_OLD:
     jam();
+    // Fall through
   case IndexStatReq::RT_CLEAN_ALL:
     jam();
     statCleanBegin(signal, stat);
@@ -2536,8 +2533,7 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
     break;
 
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2552,8 +2548,7 @@ Trix::statInsertHeadDone(Signal* signal, StatOp& stat)
     statScanEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2568,8 +2563,7 @@ Trix::statUpdateHeadDone(Signal* signal, StatOp& stat)
     statScanEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2584,8 +2578,7 @@ Trix::statDeleteHeadDone(Signal* signal, StatOp& stat)
     statDropEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2701,9 +2694,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
     break;
   default:
     boundCount = 0; /* Silence compiler warning */
-    ndbrequire(false);
-    return; /* Silence compiler warning */
-    break;
+    ndbabort();
   }
   clean.m_boundSize = 3 * boundCount;
 
@@ -3094,8 +3085,7 @@ Trix::statSendPrepare(Signal* signal, StatOp& stat)
         w.add(UtilPrepareReq::AttributeId, i);
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }
   }
 
@@ -3145,8 +3135,7 @@ Trix::statSendExecute(Signal* signal, StatOp& stat)
         statDataOut(stat, i);
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }
   }
 
@@ -3226,8 +3215,7 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       bytes = 4;
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }
     return;
   }
@@ -3264,13 +3252,12 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       }
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }
     return;
   }
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void

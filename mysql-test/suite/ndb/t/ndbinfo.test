@@ -245,7 +245,7 @@ select node_id from disk_write_speed_base group by node_id, thr_no;
 select count(*) from disk_write_speed_aggregate_node;
 
 desc restart_info;
-select * from restart_info;
+select * from restart_info where node_restart_status <> 'Restart completed';
 
 desc tc_time_track_stats;
 select distinct node_id from tc_time_track_stats;
@@ -449,12 +449,17 @@ set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info w
 # Replace table id of t1 in 'fq_name' values that contain it (index and blob
 # table names do), since the table id may vary between runs.
 select type, state, parent_obj_type,
-  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  replace(replace(fq_name,
+                  concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
+          concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
   if(parent_obj_id=@t1_id, "child_of_t1",
     if(parent_obj_id=0, "root", "error!")) as  nesting
   from ndbinfo.ndb$dict_obj_info
-  where id >= @t1_id and id < @t1_id + 5 and type <= 6
-  order by type, id;
+  where type <= 6
+  and (id = @t1_id or
+       instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
+       instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
+  order by type, state, parent_obj_type, fq_name;
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
@@ -470,6 +475,8 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 # Observe that memory_per_fragment.fq_name, parent_fq_name, type are all
 # functionally dependent on 'table_id', but since this cannot be deduced from
 # the schema, they are all included in the 'group by' clause.
+# Exclude system tables and mysql schema since those may have different
+# contents depending on earlier test runs.
 eval create view sum_per_tab as 
 select replace(fq_name, cast($t1_id as char(10)), "<t1 id>") as fq_name, 
 parent_fq_name, type, 
@@ -483,10 +490,12 @@ sum(fixed_elem_free_bytes/fixed_elem_size_bytes) =
    sum(fixed_elem_free_count) as fixed_elem_free_bytes_ok,
 sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
-from ndbinfo.memory_per_fragment
-where table_id >= $t1_id
-group by table_id, memory_per_fragment.fq_name, parent_fq_name, type
-order by table_id;
+from ndbinfo.memory_per_fragment mpf
+where not fq_name like "mysql/%" and
+      (parent_fq_name is null or not parent_fq_name like "mysql/%") and
+      type <> 'System table'
+group by table_id, mpf.fq_name, parent_fq_name, type
+order by ifnull(parent_fq_name, mpf.fq_name), mpf.fq_name, type;
 
 enable_query_log;
 
@@ -630,10 +639,10 @@ create view frag_ops as select
   #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
-  from ndbinfo.operations_per_fragment
+  from ndbinfo.operations_per_fragment opf
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
-  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
-  order by table_id;
+  group by table_id, type, opf.fq_name, parent_fq_name
+  order by ifnull(parent_fq_name, opf.fq_name), opf.fq_name;
 
 
 # Create and populate test tables.
@@ -705,6 +714,11 @@ update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
 
 delete from t1 where a%30=0;
 
+# check_ndb_debug sets have_ndb_debug to 1 if the
+# Ndb binaries have debug support built in
+# This is needed for error-inserts etc.
+source include/check_ndb_debug.inc;
+
 # This error insert causes the next index scan from SPJ to be queued on node 2.
 # This command may fail if error inserts is not available on this build,
 # therefore we permit return code 255.
@@ -719,12 +733,15 @@ select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 
 # Check number of queued scans. Test for debug build
 # to handle builds without error inserts (i.e. non-debug builds).
-select 
-  if ((select version() like '%debug'),
-      sum(tot_qd_frag_scans),
+
+--disable_query_log
+eval select
+     if ($have_ndb_debug,
+         sum(tot_qd_frag_scans),
       4) as tot_qd_frag_scans
   from ndbinfo.operations_per_fragment
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
+--enable_query_log
 
 # Check how these operations changed the counters. 
 --query_vertical select * from frag_ops;

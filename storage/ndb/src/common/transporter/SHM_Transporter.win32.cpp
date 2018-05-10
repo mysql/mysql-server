@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +41,9 @@ void SHM_Transporter::make_error_info(char info[], int sz)
 }
 
 bool
-SHM_Transporter::connectServer(Uint32 timeOutMillis){
-  if(!_shmSegCreated)
+SHM_Transporter::connectServer(Uint32 timeOutMillis)
+{
+  if (!_shmSegCreated)
   {
     char szName[32];
     sprintf(szName, "ndb%lu", shmKey);
@@ -63,9 +63,11 @@ SHM_Transporter::connectServer(Uint32 timeOutMillis){
     _shmSegCreated = true;
   }
 
-  if(!_attached){
+  if (!_attached)
+  {
     shmBuf = (char*)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if(shmBuf == 0){
+    if (shmBuf == 0)
+    {
       reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
@@ -79,18 +81,21 @@ SHM_Transporter::connectServer(Uint32 timeOutMillis){
   volatile Uint32 * sharedCountAttached = 
     (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
 
-  if(*sharedCountAttached == 2 && !setupBuffersDone) {
+  if (*sharedCountAttached == 2 && !setupBuffersDone)
+  {
     setupBuffers();
     setupBuffersDone=true;
   }
-  if(*sharedCountAttached > 2) {
+  if (*sharedCountAttached > 2)
+  {
     reportThreadError(remoteNodeId, TE_SHM_DISCONNECT); 
     return false;
   }
   
-  if(setupBuffersDone) {
+  if (setupBuffersDone)
+  {
     NdbSleep_MilliSleep(timeOutMillis);
-    if(*serverStatusFlag==1 && *clientStatusFlag==1)
+    if (*serverStatusFlag==1 && *clientStatusFlag==1)
       return true;
   }
 
@@ -99,8 +104,9 @@ SHM_Transporter::connectServer(Uint32 timeOutMillis){
 }
 
 bool
-SHM_Transporter::connectClient(Uint32 timeOutMillis){
-  if(!_shmSegCreated)
+SHM_Transporter::connectClient(Uint32 timeOutMillis)
+{
+  if (!_shmSegCreated)
   {
     char szName[32];
     sprintf(szName, "ndb%lu", shmKey);
@@ -114,9 +120,11 @@ SHM_Transporter::connectClient(Uint32 timeOutMillis){
     _shmSegCreated = true;
   }
 
-  if(!_attached){
+  if (!_attached)
+  {
     shmBuf = (char*)MapViewOfFile(hFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if(shmBuf == 0){
+    if (shmBuf == 0)
+    {
       reportThreadError(remoteNodeId, TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NdbSleep_MilliSleep(timeOutMillis);
       return false;
@@ -130,26 +138,32 @@ SHM_Transporter::connectClient(Uint32 timeOutMillis){
   volatile Uint32 * sharedCountAttached = 
     (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
 
-  if(*sharedCountAttached == 2 && !setupBuffersDone) {
+  if (*sharedCountAttached == 2 && !setupBuffersDone)
+  {
     setupBuffers();
     setupBuffersDone=true;
   }
 
-  if(setupBuffersDone) {
-    if(*serverStatusFlag==1 && *clientStatusFlag==1)
+  if (setupBuffersDone)
+  {
+    if (*serverStatusFlag==1 && *clientStatusFlag==1)
       return true;
   }
   NdbSleep_MilliSleep(timeOutMillis);
   return false;
-
 }
 
+void SHM_Transpporter::ndb_shm_destroy()
+{
+}
 
 bool
-SHM_Transporter::checkConnected(){
+SHM_Transporter::checkConnected()
+{
   volatile Uint32 * sharedCountAttached = 
     (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
-  if(*sharedCountAttached != 2) {
+  if (*sharedCountAttached != 2)
+  {
     report_error(TE_SHM_DISCONNECT);
     return false;
   }
@@ -157,14 +171,18 @@ SHM_Transporter::checkConnected(){
 }
 
 void
-SHM_Transporter::disconnectImpl(){
-  if(_attached) {
+SHM_Transporter::disconnectImpl()
+{
+  disconnect_socket();
+  if (_attached)
+  {
     volatile Uint32 * sharedCountAttached = 
       (volatile Uint32*)(shmBuf + 6*sizeof(Uint32*));
     
     --*sharedCountAttached;
 
-    if(!UnmapViewOfFile(shmBuf)) {
+    if (!UnmapViewOfFile(shmBuf))
+    {
       report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
@@ -174,14 +192,14 @@ SHM_Transporter::disconnectImpl(){
       _shmSegCreated = false;
   }
   
-  if(_shmSegCreated){
-    if(!CloseHandle(hFileMapping)) {
+  if (_shmSegCreated)
+  {
+    if (!CloseHandle(hFileMapping))
+    {
       report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
       return;
     }
     _shmSegCreated = false;
   }
   setupBuffersDone=false;
-
 }
-

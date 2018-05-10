@@ -1,5 +1,6 @@
 -- source include/have_ndb.inc
 -- source have_ndb_error_insert.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 CREATE TABLE t1(k int not null primary key auto_increment) engine=ndb;
 
@@ -37,3 +38,4 @@ while($mysql_errno)
   --error 0,1306
   DROP TABLE t1;
 }
+--source suite/ndb/include/backup_restore_cleanup.inc

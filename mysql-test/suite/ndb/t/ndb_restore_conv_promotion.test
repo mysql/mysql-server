@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 #The first step is to test the int type promotion
 
@@ -30,8 +31,8 @@ insert into t1 values(127, -128, 255, 32767, -32768, 65535, 8388607, -8388608,
 --echo ************************************
 delete from t1;
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1;
 
@@ -59,8 +60,8 @@ alter table t1 modify column t1 smallint, modify column t2 smallint,
 create table t3 as select * from t1;
 
 delete from t1;
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 natural join t3;
 
@@ -85,8 +86,8 @@ alter table t1 modify column t1 mediumint, modify column t2 mediumint,
 create table t3 as select * from t1;
 
 delete from t1;
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 natural join t3;
 
@@ -111,8 +112,8 @@ alter table t1 modify column t1 int, modify column t2 int,
 create table t3 as select * from t1;
 delete from t1;
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 natural join t3;
 
@@ -137,8 +138,8 @@ alter table t1 modify column t1 bigint, modify column t2 bigint,
 create table t3 as select * from t1;
 delete from t1;
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 natural join t3;
 
@@ -165,8 +166,8 @@ insert into t2 values(repeat('a', 20), repeat('b', 200), repeat('c', 20),
 --echo ************************************************
 
 delete from t2;
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t2;
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
@@ -195,8 +196,8 @@ select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
 --echo *************************************************
 delete from t2;
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t2;
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
@@ -209,8 +210,8 @@ select count(*) from t2 natural join t4;
 --echo * Restore data with reserving the tail spaces
 --echo *************************************************
 delete from t2;
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -A -P -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t2;
 select length(ch1), length(ch2),length(vch1),length(vch2),length(vch3),
@@ -244,8 +245,8 @@ create table t1(c char(1),
                 e char(1),
                 d char(1)) engine = ndb;
 
---exec $NDB_RESTORE --no-defaults --exclude-missing-columns -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --exclude-missing-columns -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --exclude-missing-columns -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --exclude-missing-columns -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select a,c,d,e from t1 order by a;
 drop table t1;
@@ -281,8 +282,8 @@ alter table subject add column song varchar(50) default 'Unknown';
 --echo ***********************************************************
 
 # Note testcase nastily assumes 2 nodes, called 1 + 2.
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo ****************************************************
 --echo All restored entries should have song name 'Unknown'
@@ -291,4 +292,5 @@ alter table subject add column song varchar(50) default 'Unknown';
 select * from subject order by pk;
 
 drop table subject;
+--source suite/ndb/include/backup_restore_cleanup.inc
 # End of testcase for WL4197

@@ -3593,6 +3593,123 @@ set global debug=@save_debug;
 #Undo update
 update t1 set u=u-100;
 
+#############
+# Additional testcase added as part of WL introducing equi-join
+# non-matching row elimination optimizations into the SPJ block
+# Test query topology which lacked coverage. (Found to fail
+# in manual or RQG testing)
+
+# Modify rows to force null rows from outer joined lookup below
+update t1 set a=a+pk;
+
+set ndb_join_pushdown=on;
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join (t1 as y join t1 as yy on yy.pk=y.u) on y.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join (t1 as y join t1 as yy on yy.pk=y.u) on y.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as z on z.b = x.b
+  left join t1 as y on y.pk = x.a;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as z on z.b = x.b
+  left join t1 as y on y.pk = x.a;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  left join t1 as y3 on y3.pk = x.a;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  left join t1 as y3 on y3.pk = x.a;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  left join t1 as z on z.pk = x.a
+    left join t1 as y1 on y1.pk = y.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  left join t1 as z on z.pk = x.a
+    left join t1 as y1 on y1.pk = y.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as y on y.pk = x.a
+    left join t1 as y1 on y1.pk = y.b
+  left join t1 as z on z.pk = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as y on y.pk = x.a
+    left join t1 as y1 on y1.pk = y.b
+  left join t1 as z on z.pk = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.b
+    join t1 as z on z.b = y2.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.b
+    join t1 as z on z.b = y2.b;
+
+#undo update
+update t1 set a=a-pk;
+
 ##############
 
 connection ddl;
@@ -3614,6 +3731,7 @@ t1 as table1 join
  (t1 as table2 join t1 as table3 on table3.a = table2.a)
  on table3.u = table1.u
  where table2.pk = 3;
+
 
 ##############
 connection ddl;
@@ -4379,8 +4497,10 @@ insert into t1 values (4, 4, 'row# 999');
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
 set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
-set range_optimizer_max_mem_size = 512*512;
+set range_optimizer_max_mem_size = 64*1024;
 
+echo ------------------------------------------------------------------;
+echo;
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
 # pass as buffer size is incresed from 32K -> 64K
@@ -4397,6 +4517,8 @@ let $query = $query );
 eval explain $query;
 eval $query;
 
+echo ------------------------------------------------------------------;
+echo;
 # Same SPJ query with 4000 IN values
 # This will hit the actuall limit of 64K and will be
 # detected by API which will drop this pushed condition.
@@ -4415,6 +4537,8 @@ let $query = $query );
 eval explain $query;
 eval $query;
 
+echo ------------------------------------------------------------------;
+echo;
 # Build single table (non-SPJ) query with 4000 IN values
 # Should give same 'Warning 4294' as above
 let $query = select * from t1 x where x.name in ('foo';
@@ -4425,6 +4549,73 @@ while ($values < 4000)
   inc $values;
 }
 let $query = $query );
+
+eval explain $query;
+eval $query;
+
+
+############################################################
+# Bug #27397802 ENTIRE CLUSTER CRASHES WITH "MESSAGE TO BIG
+#               IN SENDSIGNAL" WITH BIG IN CLAUSE.
+#
+# Similar problem as Bug#13990924; This time with a pushed
+# condition as part of an EQ_REF child node
+#
+############################################################
+
+insert into t1 values (5, 4, 'row# 1');
+insert into t1 values (6, 4, 'row# 2');
+insert into t1 values (7, 4, 'row# 3');
+insert into t1 values (8, 4, 'row# 4');
+
+echo ------------------------------------------------------------------;
+echo;
+# A 'small' 1000 valued IN-list is handled OK
+#
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 1000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
+
+eval explain $query;
+eval $query;
+
+echo ------------------------------------------------------------------;
+echo;
+# Also a sufficient HUGE IN value list is ok as the pushed
+# condition code is > 64K and catched by other 'Too large'
+# checks.
+#
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
+
+eval explain $query;
+eval $query;
+
+
+echo ------------------------------------------------------------------;
+echo;
+# A pushed condition with size between 32K - 64K was not not 'Too large',
+# but would require fragmented sending in order to work -> Crashed.
+#
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 2000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
 
 eval explain $query;
 eval $query;

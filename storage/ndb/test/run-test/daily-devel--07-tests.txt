@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -167,4 +167,17 @@ max-time : 60
 cmd: testIndex
 args: -r 10 -n NF_Mixed T1 T6 T13
 max-time: 1200
+
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow_nostart T1
+max-time: 1800
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoad T1
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoadStallGCP T1
+max-time: 1200
+
 

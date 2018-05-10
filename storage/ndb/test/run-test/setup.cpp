@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -799,12 +799,16 @@ static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
 }
 
 static bool pr_check_features(Properties& props, proc_rule_ctx& ctx, int) {
-  int features = 0;
   atrt_cluster& cluster = *ctx.m_cluster;
+  if (cluster.m_name == ".atrt"){
+    // skip cluster and replication features for atrt
+    return true;
+  }
+
+  int features = 0;
   for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
     if (cluster.m_processes[i]->m_type == atrt_process::AP_NDB_MGMD ||
         cluster.m_processes[i]->m_type == atrt_process::AP_NDB_API ||
-        cluster.m_processes[i]->m_type == atrt_process::AP_MYSQLD ||
         cluster.m_processes[i]->m_type == atrt_process::AP_NDBD) {
       features |= atrt_options::AO_NDBCLUSTER;
       break;

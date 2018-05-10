@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,12 +78,30 @@ NdbMutex* NdbMutex_CreateWithName(const char * name)
   return 0;
 }
 
+static
+int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
+                                const char * name,
+                                Uint32 shared);
+
 int NdbMutex_Init(NdbMutex* pNdbMutex)
 {
-  return NdbMutex_InitWithName(pNdbMutex, 0);
+  return NdbMutex_InitWithName_local(pNdbMutex, 0, 0);
 }
 
 int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
+{
+  return NdbMutex_InitWithName_local(pNdbMutex, name, 0);
+}
+
+int NdbMutex_Init_Shared(NdbMutex *pNdbMutex)
+{
+  return NdbMutex_InitWithName_local(pNdbMutex, 0, 1);
+}
+
+static
+int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
+                                const char * name,
+                                Uint32 shared)
 {
   int result;
   native_mutex_t * p;
@@ -119,18 +137,38 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
 
 #if defined(VM_TRACE) && \
   defined(HAVE_PTHREAD_MUTEXATTR_INIT) && \
-  defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE)
+  defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE) && \
+  defined(HAVE_PTHREAD_MUTEXATTR_SETPSHARED)
 
   {
     pthread_mutexattr_t t;
     pthread_mutexattr_init(&t);
     pthread_mutexattr_settype(&t, PTHREAD_MUTEX_ERRORCHECK);
+    if (shared)
+      pthread_mutexattr_setpshared(&t, PTHREAD_PROCESS_SHARED);
     result = pthread_mutex_init(p, &t);
     assert(result == 0);
     pthread_mutexattr_destroy(&t);
   }
 #else
-  result = native_mutex_init(p, 0);
+#if defined(HAVE_PTHREAD_MUTEXATTR_INIT) && \
+    defined(HAVE_PTHREAD_MUTEXATTR_SETPSHARED)
+    pthread_mutexattr_t t;
+    pthread_mutexattr_init(&t);
+    pthread_mutexattr_setpshared(&t, PTHREAD_PROCESS_SHARED);
+    if (shared)
+      result = pthread_mutex_init(p, &t);
+    else
+      result = pthread_mutex_init(p, 0);
+
+    require(result == 0);
+    pthread_mutexattr_destroy(&t);
+#else
+    if (shared)
+      result = 1;
+    else 
+      result = native_mutex_init(p, 0);
+#endif
 #endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR

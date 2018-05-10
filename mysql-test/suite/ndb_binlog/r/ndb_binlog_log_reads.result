@@ -15,9 +15,9 @@ insert into test.t1 values
 (8, "Initial data 8", 8, 8),
 (9, "Initial data 9", 9, 9),
 (10, "Initial data 10", 10, 10);
+create table test.synch(x int primary key) engine=ndb;
 Test 1: Testing logging of pk reads
 reset master;
-create table test.synch(x int primary key) engine=ndb;
 show create table test.synch;
 reset master;
 show create table test.synch;

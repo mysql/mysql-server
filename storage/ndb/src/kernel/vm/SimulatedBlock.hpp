@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,8 @@
 #include <blocks/record_types.hpp>
 
 #include "Ndbinfo.hpp"
+
+struct CHARSET_INFO;
 
 #define JAM_FILE_ID 248
 
@@ -1060,11 +1062,16 @@ protected:
    * If the cause of the shutdown is known use extradata to add an 
    * errormessage describing the problem
    */
-  void progError(int line, int err_code, const char* extradata=NULL, const char* check="") const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void progError(int line,
+                              int err_code,
+                              const char* extradata=NULL,
+                              const char* check="") const;
 private:
-  void  signal_error(Uint32, Uint32, Uint32, const char*, int) const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void signal_error(Uint32,
+                                 Uint32,
+                                 Uint32,
+                                 const char*,
+                                 int) const;
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const Uint32 theInstance;
@@ -1206,18 +1213,39 @@ protected:
   Uint32 change_and_get_io_laggers(int change);
   /**********************
    * Xfrm stuff
+   *
+   * xfrm the attr / key for **hash** generation.
+   * - Keys being equal should generate identical xfrm'ed strings.
+   * - Uniquenes of two non equal keys are preferred, but not required.
    */
   
   /**
    * @return length
    */
-  Uint32 xfrm_key(Uint32 tab, const Uint32* src, 
-		  Uint32 *dst, Uint32 dstSize,
-		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
+  Uint32 xfrm_key_hash(Uint32 tab, const Uint32* src,
+		       Uint32 *dst, Uint32 dstSize,
+		       Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
 
-  Uint32 xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
-                   const Uint32* src, Uint32 & srcPos,
-                   Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+  Uint32 xfrm_attr_hash(Uint32 attrDesc, const CHARSET_INFO* cs,
+                        const Uint32* src, Uint32 & srcPos,
+                        Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+
+
+  /*******************
+   * Compare either a full (non-NULL) key, or a single attr.
+   *
+   * Character strings are compared taking their normalized
+   * 'weight' into considderation, as defined by their collation.
+   *
+   * No intermediate xfrm'ed string are produced during the compare.
+   *
+   * return '<0', '==0' or '>0' for 's1<s2', s1==s2, 's2>s2' resp.
+   */
+  int cmp_key(Uint32 tab, const Uint32* s1, const Uint32 *s2) const;
+
+  int cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+	       const Uint32 *s1, Uint32 s1Len,
+	       const Uint32 *s2, Uint32 s2Len) const;
   
   /**
    *
@@ -1338,10 +1366,10 @@ public:
     ActiveMutex_list m_activeMutexes;
     
     BlockReference reference() const;
-    void progError(int line,
-                   int err_code,
-                   const char* extra = 0,
-                   const char* check = "") ATTRIBUTE_NORETURN;
+    [[noreturn]] void progError(int line,
+                                int err_code,
+                                const char* extra = 0,
+                                const char* check = "");
   };
   
   friend class MutexManager;
@@ -1467,7 +1495,7 @@ public:
       case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
         return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
       default:
-        ndbrequire(false);
+        ndbabort();
     }
     return NULL;
   }
@@ -1606,7 +1634,7 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
 inline
 void SimulatedBlock::block_require(void)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 inline

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,7 +242,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
-    ndbrequire(false);
+    ndbabort();
     return;
   case TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER:
     jam();
@@ -350,7 +350,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
        */
       if (++transPtr.p->continueBCount > 100000)
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
 #endif
@@ -458,7 +458,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
   }
 #endif
   default:
-    ndbrequire(false);
+    ndbabort();
   }//switch
 }
 
@@ -511,7 +511,7 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
 void Dbtc::execREAD_NODESREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 // create table prepare
@@ -887,8 +887,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     tabPtr.p->currentSchemaVersion = newTableVersion;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   // Request handled successfully 
@@ -1406,21 +1405,13 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     (*TloopCount) = 256;
     break;
   case CS_RESTART:
-    jam();
   case CS_COMPLETING:
-    jam();
   case CS_COMPLETE_SENT:
-    jam();
   case CS_WAIT_COMPLETE_CONF:
-    jam();
   case CS_FAIL_ABORTING:
-    jam();
   case CS_FAIL_ABORTED:
-    jam();
   case CS_FAIL_PREPARED:
-    jam();
   case CS_FAIL_COMMITTING:
-    jam();
   case CS_FAIL_COMMITTED:
     /*********************************************************************/
     // These states are only valid on copy and fail API connections.
@@ -1429,7 +1420,6 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     jam();
     jamLine(apiConnectptr.p->apiConnectstate);
     return false;
-    break;
   }//switch
   return true;
 }
@@ -1658,9 +1648,10 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	    case NodeState::SL_STOPPING_2:
               if (getNodeState().getSingleUserMode())
                 break;
-	    case NodeState::SL_STOPPING_3:
-	    case NodeState::SL_STOPPING_4:
-	      if(getNodeState().stopping.systemShutdown)
+              // Fall through
+            case NodeState::SL_STOPPING_3:
+            case NodeState::SL_STOPPING_4:
+              if(getNodeState().stopping.systemShutdown)
 		errCode = ZCLUSTER_SHUTDOWN_IN_PROGRESS;
 	      else
 		errCode = ZNODE_SHUTDOWN_IN_PROGRESS;
@@ -1816,7 +1807,7 @@ void Dbtc::sendSignalErrorRefuseLab(Signal* signal)
     jam();
     /* Force state print */
     printState(signal, 12, true);
-    ndbrequire(false);
+    ndbabort();
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = signal->theData[ttransid_ptr];
     signal->theData[2] = signal->theData[ttransid_ptr + 1];
@@ -1912,7 +1903,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     signal->theData[1] = t1;
     signal->theData[2] = t2;
     signal->theData[3] = ZABORT_ERROR;
-    ndbrequire(false);
+    ndbabort();
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREP, 
 	       signal, 4, JBB);
     return;
@@ -2218,6 +2209,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
+      // Fall through
     case NodeState::SL_STOPPING_3:
     case NodeState::SL_STOPPING_4:
       if(getNodeState().stopping.systemShutdown)
@@ -2234,6 +2226,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
+      // Fall through
     default:
       terrorCode = ZWRONG_STATE;
       break;
@@ -2755,11 +2748,11 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
   if(hasCharAttr || (compute_distkey && hasVarKeys))
   {
     keyPartLenPtr = keyPartLen;
-    inputLen = xfrm_key(tabPtrI, 
-                        src, 
-                        workspace, 
-                        sizeof(alignedWorkspace) >> 2, 
-                        keyPartLenPtr);
+    inputLen = xfrm_key_hash(tabPtrI,
+                             src,
+                             workspace,
+                             sizeof(alignedWorkspace) >> 2,
+                             keyPartLenPtr);
     if (unlikely(inputLen == 0))
     {
       goto error;
@@ -3078,7 +3071,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (refToNode(sendersBlockRef) == c_lastFailedApi)
     {
       /* Signal from API node received *after* API_FAILREQ */
-      ndbrequire(false);
+      ndbabort();
     }
   }
 #endif
@@ -3238,6 +3231,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if(isIndexOpReturn || isExecutingTrigger){
       break;
     }
+    // Fall through
   default:
     jam();
     jamLine(regApiPtr->apiConnectstate);
@@ -3334,8 +3328,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
 #ifdef ERROR_INSERT
   if (ErrorSignalReceive == DBTC)
+  {
     DEBUG("Max segments to seize : " 
           << ErrorMaxSegmentsToSeize);
+  }
 #endif
 
   /* Key and attribute lengths are passed in the header for 
@@ -3397,13 +3393,19 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (isExecutingTrigger)
   {
     // Save the TcOperationPtr for fireing operation
+    ndbrequire(TsenderData != RNIL);
     regTcPtr->triggeringOperation = TsenderData;
     // ndbrequire(hasOp(apiConnectptr, TsenderData));
 
     // Grab trigger Id from ApiConnectRecord
     ndbrequire(regApiPtr->immediateTriggerId != RNIL);
     regTcPtr->currentTriggerId= regApiPtr->immediateTriggerId;
+
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
+    trigPtr.p->refCount++;
   }
+
   ndbassert(isExecutingTrigger || 
             (regApiPtr->immediateTriggerId == RNIL));
 
@@ -4083,7 +4085,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 #ifdef ERROR_INSERT
     else if (ERROR_INSERTED(8083))
     {
-      ndbrequire(false);  // Only node-local reads
+      ndbabort();  // Only node-local reads
     }
 #endif
   }
@@ -4342,16 +4344,6 @@ void Dbtc::packLqhkeyreq(Signal* signal,
                      LqhKeyReq::MaxKeyInfo,
                      regCachePtr->keyInfoSectionI);
   }//if
-
-  if (tcConnectptr.p->triggeringOperation != RNIL &&
-      tcConnectptr.p->currentTriggerId != RNIL)
-  {
-    jam();
-    //NOTE: before packLqhkeyreq040Lab which might release operation...
-    Ptr<TcDefinedTriggerData> trigPtr;
-    c_theDefinedTriggers.getPtr(trigPtr, tcConnectptr.p->currentTriggerId);
-    trigPtr.p->refCount++;
-  }
 
   /* Release key storage */ 
   releaseKeys();
@@ -4825,11 +4817,8 @@ void Dbtc::releaseTcCon()
     jam();
     Ptr<TcDefinedTriggerData> trigPtr;
     c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
-    ndbassert(trigPtr.p->refCount);
-    if (trigPtr.p->refCount)
-    {
-      trigPtr.p->refCount--;
-    }
+    ndbrequire(trigPtr.p->refCount > 0);
+    trigPtr.p->refCount--;
   }
 
   if (!regTcPtr->thePendingTriggers.isEmpty())
@@ -5082,6 +5071,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   }
   case GSN_TRANSID_AI_R:  //TODO
     jam();
+    // Fall through
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
@@ -6277,7 +6267,7 @@ Dbtc::crash_gcp(Uint32 line)
     localGcpPointer.i = localGcpPointer.p->nextGcp;
   }
   progError(line, NDBD_EXIT_NDBREQUIRE);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
@@ -8630,8 +8620,10 @@ ABORT020:
     break;
   case OS_PREPARED:
     jam();
+    // Fall through
   case OS_OPERATING:
     jam();
+    // Fall through
   case OS_FIRE_TRIG_REQ:
     jam();
     /*----------------------------------------------------------------------
@@ -9073,12 +9065,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
+    // Fall through
   case CS_COMPLETING:
     jam();
     /*------------------------------------------------------------------*/
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
+    // Fall through
   case CS_PREPARE_TO_COMMIT:
   {
     jam();
@@ -9240,19 +9234,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     toCompleteHandlingLab(signal);
     return;
   case CS_FAIL_PREPARED:
-    jam();
   case CS_FAIL_COMMITTING:
-    jam();
   case CS_FAIL_COMMITTED:
-    jam();
   case CS_RESTART:
-    jam();
   case CS_FAIL_ABORTED:
-    jam();
   case CS_DISCONNECTED:
-    jam();
   default:
     jam();
+    jamLine(apiConnectptr.p->apiConnectstate);
     /*------------------------------------------------------------------*/
     /*       AN IMPOSSIBLE STATE IS SET. CRASH THE SYSTEM.              */
     /*------------------------------------------------------------------*/
@@ -9284,7 +9273,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	     transP->firstTcConnect,
 	     c_apiConTimer[apiConnectptr.i]
 	     );
-    ndbrequire(false);
+    ndbabort();
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
     return;
   }
@@ -9340,7 +9329,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	}
 	warningEvent("%s", buf);
 	ndbout_c("%s", buf);
-	ndbrequire(false);
+	ndbabort();
 	releaseAbortResources(signal);
 	return;
       }
@@ -9708,8 +9697,10 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   }
   case ScanFragRec::DELIVERED:
     jam();
+    // Fall through
   case ScanFragRec::IDLE:
     jam();
+    // Fall through
   case ScanFragRec::QUEUED_FOR_DELIVERY:
     jam();
     /*-----------------------------------------------------------------------
@@ -10643,7 +10634,7 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1)
       locApiConnectptr.i = locApiConnectptr.p->nextApiConnect;
     }
   } while (locApiConnectptr.i != RNIL);
-  ndbrequire(false);
+  ndbabort();
 }
 
 Uint32
@@ -12581,6 +12572,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     return;
   }
 
+  const BlockReference apiBlockRef = signal->getSendersBlockRef();
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
   const Uint32 ri = scanTabReq->requestInfo;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
@@ -12665,6 +12657,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
       goto SCAN_TAB_error_no_state_change;
     }
   }
+  ndbassert(transP->ndbapiBlockref == apiBlockRef);
 
   if(tabptr.i >= ctabrecFilesize)
   {
@@ -12853,8 +12846,16 @@ SCAN_TAB_error_no_state_change:
   ref->transId2 = transid2;
   ref->errorCode  = errCode;
   ref->closeNeeded = 0;
-  sendSignal(transP->ndbapiBlockref, GSN_SCAN_TABREF, 
+  sendSignal(apiBlockRef, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
+
+  /**
+   * If we are DISCONNECTED, an API_FAILREQ signals had
+   * already arrived when we got the SCAN_TABREQ. Those
+   * are required to arrive as the last signal from a failed
+   * API-node. We want to detect that if it should happen.
+   */
+  ndbassert(transP->apiConnectstate != CS_DISCONNECTED);
   return;
 }//Dbtc::execSCAN_TABREQ()
 
@@ -13585,7 +13586,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
   if (ERROR_INSERTED(8083) &&
       nodeId != ownNodeId)
   {
-    ndbrequire(false);  // Only node-local reads 
+    ndbabort();  // Only node-local reads 
   }
 
   /* Send SCANFRAGREQ directly to LQH block, or 'viaSPJ'
@@ -14107,13 +14108,13 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
        *********************************************************************/
       DEBUG("scanTabRefLab: ZSCANTIME_OUT_ERROR2");
       ndbout_c("apiConnectptr(%d) -> abort", apiConnectptr.i);
-      ndbrequire(false); //B2 indication of strange things going on
+      ndbabort(); //B2 indication of strange things going on
       scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2);
       return;
     }
     DEBUG("scanTabRefLab: ZSTATE_ERROR");
     DEBUG("  apiConnectstate="<<apiConnectptr.p->apiConnectstate);
-    ndbrequire(false); //B2 indication of strange things going on
+    ndbabort(); //B2 indication of strange things going on
     scanTabRefLab(signal, ZSTATE_ERROR);
     return;
   }//if
@@ -14294,7 +14295,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	break;
       default:
 	jamLine(curr.p->scanFragState);
-	ndbrequire(false);
+	ndbabort();
       }
       
       curr.p->startFragTimer(ctcTimer);
@@ -14780,13 +14781,6 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
 void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 {
-  GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
-  conf->senderData = c_gcp_data;
-  conf->gci_hi = Uint32(gci >> 32);
-  conf->gci_lo = Uint32(gci);
-  conf->tcFailNo = cfailure_nr; /* Indicate highest handled failno in GCP */
-
-#ifdef ERROR_INSERT
   if (ERROR_INSERTED(8098))
   {
     if (cmasterNodeId == getOwnNodeId())
@@ -14834,16 +14828,22 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
     SET_ERROR_INSERT_VALUE(8099);
   }
 
+  GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
+  conf->senderData = c_gcp_data;
+  conf->gci_hi = Uint32(gci >> 32);
+  conf->gci_lo = Uint32(gci);
+  conf->tcFailNo = cfailure_nr; /* Indicate highest handled failno in GCP */
+
   if (ERROR_INSERTED(8099))
   {
     /* Slow it down */
     ndbout_c("TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local DIH(%x)",
              conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
-    sendSignalWithDelay(cdihblockref, GSN_GCP_TCFINISHED, signal,
+    sendSignalWithDelay(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
                         2000, GCPTCFinished::SignalLength);
     return;
   }
-#endif
+
   sendSignal(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
@@ -17239,7 +17239,7 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
   r0.reset(); // undo implicit first()
   if (!r0.getWord(&indexData->attributeList.sz) ||
       !r0.getWords(indexData->attributeList.id, indexData->attributeList.sz)) {
-    ndbrequire(false);
+    ndbabort();
   }
   indexData->primaryKeyPos = indexData->attributeList.sz;
 
@@ -17291,8 +17291,7 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
     indexData->indexState = IS_BUILDING; // wl3600_todo ??
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
   AlterIndxImplConf * const conf =  
     (AlterIndxImplConf *)signal->getDataPtrSend();
@@ -17391,7 +17390,7 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false); // No other request should reach TC
+    ndbabort(); // No other request should reach TC
   }
 
   releaseSections(handle);
@@ -17719,7 +17718,7 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -18287,9 +18286,9 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
         ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize buffer for TRANSID_AI\n");
 #endif
         indexOp->transIdAIState= ITAS_WAIT_KEY_FAIL;
-        /* Fall through to ITAS_WAIT_KEY_FAIL state handling */
       }
     }
+      // Fall through to ITAS_WAIT_KEY_FAIL state handling
 
     case ITAS_WAIT_KEY_FAIL:
     {
@@ -19342,7 +19341,7 @@ bool Dbtc::executeTrigger(Signal* signal,
                                            transPtr, opPtr);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
   }
   return true;
@@ -19376,7 +19375,7 @@ void Dbtc::executeIndexTrigger(Signal* signal,
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -19537,7 +19536,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   setnull:
   {
     op = ZUPDATE;
@@ -19570,7 +19569,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
   else
   {
     jam();
-    fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr,
+    fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr->i,
                           fkPtr.p, op, attrValuesPtrI);
   }
   return;
@@ -19861,7 +19860,7 @@ void
 Dbtc::fk_scanFromChildTable(Signal* signal,
                             TcFiredTriggerData* firedTriggerData,
                             ApiConnectRecordPtr* transPtr,
-                            TcConnectRecordPtr* opPtr,
+                            const Uint32 opPtrI,
                             TcFKData* fkData,
                             Uint32 op,
                             Uint32 attrValuesPtrI)
@@ -19896,13 +19895,14 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   seizeTcConnect(0);
   TcConnectRecordPtr tcPtr = tcConnectptr;
 
+  // Reuse the ApiConnectRecordPtr, set this TC as (internal) 'API-client' 
   ApiConnectRecordPtr scanApiConnectPtr = apiConnectptr;
   scanApiConnectPtr.p->ndbapiBlockref = reference();
   scanApiConnectPtr.p->ndbapiConnect = tcPtr.i;
 
   tcPtr.p->apiConnect = scanApiConnectPtr.i;
-  tcPtr.p->triggeringOperation = opPtr->i;
-  ndbrequire(hasOp(* transPtr, opPtr->i));
+  ndbrequire(hasOp(* transPtr, opPtrI));
+  tcPtr.p->triggeringOperation = opPtrI;
   tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
@@ -20010,6 +20010,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   signal->m_sectionPtrI[0] = ptr[0].i;
   signal->m_sectionPtrI[1] = ptr[1].i;
   signal->m_sectionPtrI[2] = ptr[2].i;
+
+  signal->header.theSendersBlockRef = reference();
   execSCAN_TABREQ(signal);
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
@@ -20475,7 +20477,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   if (opPtr.p->apiConnect != orgApiConnectPtr.i)
   {
     jam();
-    ndbrequire(false);
+    ndbabort();
     /**
      * this should not happen :-)
      *
@@ -20658,7 +20660,7 @@ Dbtc::executeFKChildTrigger(Signal* signal,
     fk_readFromParentTable(signal, firedTriggerData, transPtr, opPtr, fkPtr.p);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -21246,7 +21248,7 @@ void Dbtc::executeReorgTrigger(Signal* signal,
     sendAttrInfo= false;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Ptr<TableRecord> tablePtr;
@@ -21434,7 +21436,7 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
     sendAttrInfo = false;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Ptr<TableRecord> tablePtr;

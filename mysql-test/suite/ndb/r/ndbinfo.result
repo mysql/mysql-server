@@ -581,7 +581,7 @@ secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL
 secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
 secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
 total_restart_secs	int(10) unsigned	YES		NULL	
-select * from restart_info;
+select * from restart_info where node_restart_status <> 'Restart completed';
 node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc tc_time_track_stats;
@@ -994,18 +994,23 @@ create unique index ix2 on t1(b) using hash;
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
 select type, state, parent_obj_type,
-  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  replace(replace(fq_name,
+                  concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
+          concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
   if(parent_obj_id=@t1_id, "child_of_t1",
     if(parent_obj_id=0, "root", "error!")) as  nesting
   from ndbinfo.ndb$dict_obj_info
-  where id >= @t1_id and id < @t1_id + 5 and type <= 6
-  order by type, id;
+  where type <= 6
+  and (id = @t1_id or
+       instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
+       instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
+  order by type, state, parent_obj_type, fq_name;
 type	state	parent_obj_type	fq_name	nesting
 2	4	0	ndbinfo/def/t1	root
 2	4	2	ndbinfo/def/NDB$BLOB_<t1 id>_4	child_of_t1
 3	4	2	sys/def/<t1 id>/ix2$unique	child_of_t1
-6	4	2	sys/def/<t1 id>/PRIMARY	child_of_t1
 6	4	2	sys/def/<t1 id>/ix1	child_of_t1
+6	4	2	sys/def/<t1 id>/PRIMARY	child_of_t1
 
 
 create view frag_sum as 
@@ -1061,11 +1066,11 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	2000	292	1.0	1	2000	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
-sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+ndbinfo/def/t1	NULL	User table	2000	292	1.0	1	2000	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	2000	28	1.0	1	0	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 
 delete from t1 where a%10=0;
 
@@ -1093,11 +1098,11 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
-sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 
 update t1 set vc1=repeat('x', a%300), tx1=repeat('y', a*2);
 
@@ -1125,11 +1130,11 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1568	36	1.0	1	1568	1
-sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 
 drop table t1;
 drop view l2p_frag_sum;
@@ -1173,10 +1178,10 @@ create view frag_ops as select
   #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
-  from ndbinfo.operations_per_fragment
+  from ndbinfo.operations_per_fragment opf
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
-  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
-  order by table_id;
+  group by table_id, type, opf.fq_name, parent_fq_name
+  order by ifnull(parent_fq_name, opf.fq_name), opf.fq_name;
 
 create table t1 (
   a int not null,
@@ -1214,6 +1219,30 @@ insert into t2 values (2, 3);
 insert into t2 values (3, 1);
 
 select * from frag_ops;;
+fq_name	ndbinfo/def/NDB$BLOB_
+parent_fq_name	ndbinfo/def/t1
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	200
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	2400
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_qd_frag_scans	0
+tot_commits	200
 fq_name	ndbinfo/def/t1
 parent_fq_name	NULL
 type	User table
@@ -1238,9 +1267,9 @@ tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
 tot_commits	400
-fq_name	ndbinfo/def/NDB$BLOB_
+fq_name	ix1$unique
 parent_fq_name	ndbinfo/def/t1
-type	User table
+type	Unique hash index
 frag_count	16
 tot_key_reads	0
 tot_key_inserts	200
@@ -1248,8 +1277,8 @@ tot_key_updates	0
 tot_key_writes	0
 tot_key_deletes	0
 tot_key_refs	0
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	2400
+log_tot_key_attrinfo_bytes	12
+tot_key_keyinfo_bytes	800
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
@@ -1286,30 +1315,6 @@ tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
 tot_commits	0
-fq_name	ix1$unique
-parent_fq_name	ndbinfo/def/t1
-type	Unique hash index
-frag_count	16
-tot_key_reads	0
-tot_key_inserts	200
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	12
-tot_key_keyinfo_bytes	800
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	0
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	0
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	200
 fq_name	ndbinfo/def/t2
 parent_fq_name	NULL
 type	User table
@@ -1370,6 +1375,8 @@ update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
 
 delete from t1 where a%30=0;
 
+
+
 explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	#	ALL	NULL	NULL	NULL	NULL	97	100.00	Parent of 2 pushed join@1
@@ -1380,40 +1387,9 @@ select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 count(*)
 1
 
-select 
-  if ((select version() like '%debug'),
-      sum(tot_qd_frag_scans),
-      4) as tot_qd_frag_scans
-  from ndbinfo.operations_per_fragment
-  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
 tot_qd_frag_scans
 4
-
 select * from frag_ops;;
-fq_name	ndbinfo/def/t1
-parent_fq_name	NULL
-type	User table
-frag_count	16
-tot_key_reads	19
-tot_key_inserts	205
-tot_key_updates	236
-tot_key_writes	0
-tot_key_deletes	10
-tot_key_refs	4
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	3760
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	4220
-tot_frag_scans	56
-tot_scan_rows_examined	306
-tot_scan_rows_returned	215
-tot_scan_bytes_returned	5468
-tot_scan_prog_bytes	288
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	305
-conc_qd_frag_scans	0
-tot_commits	450
 fq_name	ndbinfo/def/NDB$BLOB_
 parent_fq_name	ndbinfo/def/t1
 type	User table
@@ -1438,30 +1414,30 @@ tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
 tot_commits	246
-fq_name	PRIMARY
-parent_fq_name	ndbinfo/def/t1
-type	Ordered index
+fq_name	ndbinfo/def/t1
+parent_fq_name	NULL
+type	User table
 frag_count	16
-tot_key_reads	0
-tot_key_inserts	0
-tot_key_updates	0
+tot_key_reads	19
+tot_key_inserts	205
+tot_key_updates	236
 tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	0
-tot_key_keyinfo_bytes	0
+tot_key_deletes	10
+tot_key_refs	4
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	3760
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	32
-tot_scan_rows_examined	20
-tot_scan_rows_returned	20
-tot_scan_bytes_returned	588
-tot_scan_prog_bytes	576
-tot_scan_bound_bytes	9888
-tot_scan_inst_exec	58
+tot_key_bytes_returned	4220
+tot_frag_scans	56
+tot_scan_rows_examined	306
+tot_scan_rows_returned	215
+tot_scan_bytes_returned	5468
+tot_scan_prog_bytes	288
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	305
 conc_qd_frag_scans	0
-tot_commits	0
+tot_commits	450
 fq_name	ix1$unique
 parent_fq_name	ndbinfo/def/t1
 type	Unique hash index
@@ -1486,6 +1462,30 @@ tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
 tot_commits	250
+fq_name	PRIMARY
+parent_fq_name	ndbinfo/def/t1
+type	Ordered index
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	0
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	0
+tot_key_keyinfo_bytes	0
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	32
+tot_scan_rows_examined	20
+tot_scan_rows_returned	20
+tot_scan_bytes_returned	588
+tot_scan_prog_bytes	576
+tot_scan_bound_bytes	9888
+tot_scan_inst_exec	58
+conc_qd_frag_scans	0
+tot_commits	0
 fq_name	ndbinfo/def/t2
 parent_fq_name	NULL
 type	User table
@@ -1567,10 +1567,10 @@ new.tot_key_updates - old.tot_key_updates	0
 new.tot_key_writes - old.tot_key_writes	0
 new.tot_key_deletes - old.tot_key_deletes	0
 new.tot_key_refs - old.tot_key_refs	1
-new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	1
 new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
-new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
-new.tot_key_inst_exec - old.tot_key_inst_exec	7
+new.tot_key_prog_bytes - old.tot_key_prog_bytes	0
+new.tot_key_inst_exec - old.tot_key_inst_exec	0
 new.tot_key_bytes_returned - old.tot_key_bytes_returned	56
 new.tot_frag_scans - old.tot_frag_scans	0
 new.tot_scan_rows_examined - old.tot_scan_rows_examined	0

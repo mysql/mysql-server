@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
+
 #include <ndb_global.h>
+#include "m_ctype.h"
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbIndexStat.hpp>
@@ -31,11 +34,6 @@
 #include <NDBT_Stats.hpp>
 #include <math.h>
 #include <NdbHost.h>
-
-#undef min
-#undef max
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
 
 struct Opts {
   int loglevel;
@@ -154,6 +152,9 @@ static int& g_loglevel = g_opts.loglevel; // default log level
 
 #define chkrc(x) \
   do { if (likely(x)) break; ndbout << "line " << __LINE__ << " FAIL " << #x << endl; if (g_opts.abort) abort(); return -1; } while (0)
+
+#define chkrc_break(x) \
+  if (unlikely(!(x))) { ndbout << "line " << __LINE__ << " FAIL " << #x << endl; break; }
 
 #define llx(n, x) \
   do { if (likely(g_loglevel < n)) break; ndbout << x << endl; } while (0)
@@ -1133,13 +1134,13 @@ Rng::Rng()
 uint
 Rng::minattrs() const
 {
-  return min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 uint
 Rng::maxattrs() const
 {
-  return max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 bool
@@ -1231,8 +1232,8 @@ Rng::rowcount() const
 
   // verify is expensive due to makeranges() multiple tries
   const bool verify = (urandom(10) == 0);
-  const int lo = max(lim[0], 0);
-  const int hi = min(lim[1], (int)g_opts.rows - 1);
+  const int lo = std::max(lim[0], 0);
+  const int hi = std::min(lim[1], (int)g_opts.rows - 1);
   if (verify) {
     int pos = -1; // before, within, after
     for (i = 0; i < (int)g_opts.rows; i++) {
@@ -2117,15 +2118,15 @@ runtest()
       srand(seed);
     }
     makekeys();
-    chkrc(loaddata(g_loop != 0) == 0);
+    chkrc_break(loaddata(g_loop != 0) == 0);
     makeranges();
-    chkrc(scanranges() == 0);
-    chkrc(updatestat() == 0);
-    chkrc(runlistener() == 0);
-    chkrc(readstat() == 0);
-    chkrc(queryranges() == 0);
+    chkrc_break(scanranges() == 0);
+    chkrc_break(updatestat() == 0);
+    chkrc_break(runlistener() == 0);
+    chkrc_break(readstat() == 0);
+    chkrc_break(queryranges() == 0);
     loopstats();
-    chkrc(loopdumps() == 0);
+    chkrc_break(loopdumps() == 0);
   }
   finalstats();
 
@@ -2233,7 +2234,7 @@ checkoptions()
   chkrc(g_opts.rows != 0);
   chkrc(g_opts.nullkeys <= 100);
   chkrc(g_opts.rpk != 0);
-  g_opts.rpk = min(g_opts.rpk, g_opts.rows);
+  g_opts.rpk = std::min(g_opts.rpk, g_opts.rows);
   chkrc(g_opts.rpkvar != 0);
   chkrc(g_opts.scanpct <= 100);
   chkrc(g_opts.eqscans <= 100);

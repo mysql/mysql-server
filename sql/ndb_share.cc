@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -502,6 +502,7 @@ NDB_SHARE::debug_print(std::string& out, const char* line_separator) const
   ss << "NDB_SHARE { " << line_separator
      << "  db: '" << db << "'," << line_separator
      << "  table_name: '" << table_name << "', " << line_separator
+     << "  key: '" << key_string() << "', " << line_separator
      << "  use_count: " << use_count() << ", " << line_separator
      << "  state: " << share_state_string() << ", " << line_separator;
 
@@ -679,7 +680,8 @@ NDB_SHARE::deinitialize(void)
 {
   {
     mysql_mutex_lock(&ndbcluster_mutex);
-    uint save = ndbcluster_open_tables->size(); (void)save;
+    auto save = ndbcluster_open_tables->size();
+    (void)save;
     while (!ndbcluster_open_tables->empty())
     {
       NDB_SHARE *share= ndbcluster_open_tables->begin()->second;
@@ -701,7 +703,8 @@ NDB_SHARE::deinitialize(void)
 
   {
     mysql_mutex_lock(&ndbcluster_mutex);
-    uint save = ndbcluster_dropped_tables->size(); (void)save;
+    auto save = ndbcluster_dropped_tables->size();
+    (void)save;
     while (!ndbcluster_dropped_tables->empty())
     {
       NDB_SHARE *share= ndbcluster_dropped_tables->begin()->second;

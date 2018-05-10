@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -818,9 +818,10 @@ void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid, int connect_retries, int connect_delay)
+         unsigned allocated_nodeid, int connect_retries, int connect_delay,
+         size_t logbuffer_size)
 {
-  LogBuffer* logBuf = new LogBuffer(32768); // 32kB
+  LogBuffer* logBuf = new LogBuffer(logbuffer_size);
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
   // Make ndbout point to the BufferedOutputStream.

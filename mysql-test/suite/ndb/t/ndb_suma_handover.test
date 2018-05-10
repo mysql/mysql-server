@@ -1,7 +1,10 @@
 --source include/have_ndb.inc
 --source suite/ndb/t/have_ndb_error_insert.inc
 
+--disable_query_log
 call mtr.add_suppression(".*Node failure caused abort of transaction.*");
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+--enable_query_log
 
 # Restart half cluster, but without starting nodes
 --exec $NDB_MGM --no-defaults --verbose=0 -e "2 restart -n"

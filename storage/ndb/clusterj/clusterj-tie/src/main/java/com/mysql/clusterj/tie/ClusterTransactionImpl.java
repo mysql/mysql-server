@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -477,7 +477,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
     public NdbIndexScanOperation scanIndex(NdbRecordConst key_record, NdbRecordConst result_record,
             byte[] result_mask, ScanOptions scanOptions) {
         enlist();
-        return ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
+        NdbIndexScanOperation operation =
+                ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
     }
 
     /** Create an NdbOperation for delete using NdbRecord.

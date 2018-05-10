@@ -1,0 +1,1102 @@
+SHOW GLOBAL STATUS LIKE 'ndb\_%';
+Variable_name	Value
+Ndb_api_adaptive_send_deferred_count	#
+Ndb_api_adaptive_send_deferred_count_session	#
+Ndb_api_adaptive_send_deferred_count_slave	#
+Ndb_api_adaptive_send_forced_count	#
+Ndb_api_adaptive_send_forced_count_session	#
+Ndb_api_adaptive_send_forced_count_slave	#
+Ndb_api_adaptive_send_unforced_count	#
+Ndb_api_adaptive_send_unforced_count_session	#
+Ndb_api_adaptive_send_unforced_count_slave	#
+Ndb_api_bytes_received_count	#
+Ndb_api_bytes_received_count_session	#
+Ndb_api_bytes_received_count_slave	#
+Ndb_api_bytes_sent_count	#
+Ndb_api_bytes_sent_count_session	#
+Ndb_api_bytes_sent_count_slave	#
+Ndb_api_event_bytes_count	#
+Ndb_api_event_bytes_count_injector	#
+Ndb_api_event_data_count	#
+Ndb_api_event_data_count_injector	#
+Ndb_api_event_nondata_count	#
+Ndb_api_event_nondata_count_injector	#
+Ndb_api_pk_op_count	#
+Ndb_api_pk_op_count_session	#
+Ndb_api_pk_op_count_slave	#
+Ndb_api_pruned_scan_count	#
+Ndb_api_pruned_scan_count_session	#
+Ndb_api_pruned_scan_count_slave	#
+Ndb_api_range_scan_count	#
+Ndb_api_range_scan_count_session	#
+Ndb_api_range_scan_count_slave	#
+Ndb_api_read_row_count	#
+Ndb_api_read_row_count_session	#
+Ndb_api_read_row_count_slave	#
+Ndb_api_scan_batch_count	#
+Ndb_api_scan_batch_count_session	#
+Ndb_api_scan_batch_count_slave	#
+Ndb_api_table_scan_count	#
+Ndb_api_table_scan_count_session	#
+Ndb_api_table_scan_count_slave	#
+Ndb_api_trans_abort_count	#
+Ndb_api_trans_abort_count_session	#
+Ndb_api_trans_abort_count_slave	#
+Ndb_api_trans_close_count	#
+Ndb_api_trans_close_count_session	#
+Ndb_api_trans_close_count_slave	#
+Ndb_api_trans_commit_count	#
+Ndb_api_trans_commit_count_session	#
+Ndb_api_trans_commit_count_slave	#
+Ndb_api_trans_local_read_row_count	#
+Ndb_api_trans_local_read_row_count_session	#
+Ndb_api_trans_local_read_row_count_slave	#
+Ndb_api_trans_start_count	#
+Ndb_api_trans_start_count_session	#
+Ndb_api_trans_start_count_slave	#
+Ndb_api_uk_op_count	#
+Ndb_api_uk_op_count_session	#
+Ndb_api_uk_op_count_slave	#
+Ndb_api_wait_exec_complete_count	#
+Ndb_api_wait_exec_complete_count_session	#
+Ndb_api_wait_exec_complete_count_slave	#
+Ndb_api_wait_meta_request_count	#
+Ndb_api_wait_meta_request_count_session	#
+Ndb_api_wait_meta_request_count_slave	#
+Ndb_api_wait_nanos_count	#
+Ndb_api_wait_nanos_count_session	#
+Ndb_api_wait_nanos_count_slave	#
+Ndb_api_wait_scan_result_count	#
+Ndb_api_wait_scan_result_count_session	#
+Ndb_api_wait_scan_result_count_slave	#
+Ndb_cluster_node_id	#
+Ndb_config_from_host	#
+Ndb_config_from_port	#
+Ndb_conflict_epoch_delete_delete_count	#
+Ndb_conflict_fn_epoch	#
+Ndb_conflict_fn_epoch2	#
+Ndb_conflict_fn_epoch2_trans	#
+Ndb_conflict_fn_epoch_trans	#
+Ndb_conflict_fn_max	#
+Ndb_conflict_fn_max_del_win	#
+Ndb_conflict_fn_old	#
+Ndb_conflict_last_conflict_epoch	#
+Ndb_conflict_last_stable_epoch	#
+Ndb_conflict_reflected_op_discard_count	#
+Ndb_conflict_reflected_op_prepare_count	#
+Ndb_conflict_refresh_op_count	#
+Ndb_conflict_trans_conflict_commit_count	#
+Ndb_conflict_trans_detect_iter_count	#
+Ndb_conflict_trans_reject_count	#
+Ndb_conflict_trans_row_conflict_count	#
+Ndb_conflict_trans_row_reject_count	#
+Ndb_connect_count	#
+Ndb_execute_count	#
+Ndb_index_stat_cache_clean	#
+Ndb_index_stat_cache_query	#
+Ndb_index_stat_status	#
+Ndb_last_commit_epoch_server	#
+Ndb_last_commit_epoch_session	#
+Ndb_number_of_data_nodes	#
+Ndb_number_of_ready_data_nodes	#
+Ndb_pruned_scan_count	#
+Ndb_pushed_queries_defined	#
+Ndb_pushed_queries_dropped	#
+Ndb_pushed_queries_executed	#
+Ndb_pushed_reads	#
+Ndb_scan_count	#
+Ndb_schema_locks_count	#
+Ndb_slave_max_replicated_epoch	#
+Ndb_sorted_scan_count	#
+Ndb_system_name	#
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
+Variable_name NOT LIKE 'ndb_dbg\_%';
+Variable_name	Value
+ndb_allow_copying_alter_table	#
+ndb_autoincrement_prefetch_sz	#
+ndb_batch_size	#
+ndb_blob_read_batch_bytes	#
+ndb_blob_write_batch_bytes	#
+ndb_clear_apply_status	#
+ndb_cluster_connection_pool	#
+ndb_cluster_connection_pool_nodeids	#
+ndb_connectstring	#
+ndb_data_node_neighbour	#
+ndb_default_column_format	#
+ndb_deferred_constraints	#
+ndb_distribution	#
+ndb_eventbuffer_free_percent	#
+ndb_eventbuffer_max_alloc	#
+ndb_extra_logging	#
+ndb_force_send	#
+ndb_fully_replicated	#
+ndb_index_stat_enable	#
+ndb_index_stat_option	#
+ndb_join_pushdown	#
+ndb_log_apply_status	#
+ndb_log_bin	#
+ndb_log_binlog_index	#
+ndb_log_empty_epochs	#
+ndb_log_empty_update	#
+ndb_log_exclusive_reads	#
+ndb_log_orig	#
+ndb_log_transaction_id	#
+ndb_log_update_as_write	#
+ndb_log_update_minimal	#
+ndb_log_updated_only	#
+ndb_mgmd_host	#
+ndb_nodeid	#
+ndb_optimization_delay	#
+ndb_optimized_node_selection	#
+ndb_read_backup	#
+ndb_recv_thread_activation_threshold	#
+ndb_recv_thread_cpu_mask	#
+ndb_report_thresh_binlog_epoch_slip	#
+ndb_report_thresh_binlog_mem_usage	#
+ndb_show_foreign_key_mock_tables	#
+ndb_slave_conflict_role	#
+ndb_table_no_logging	#
+ndb_table_temporary	#
+ndb_use_copying_alter_table	#
+ndb_use_exact_count	#
+ndb_use_transactions	#
+ndb_version	#
+ndb_version_string	#
+ndb_wait_connected	#
+ndb_wait_setup	#
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES
+INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
+t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES
+SELECT pk1 FROM t1 ORDER BY pk1;
+pk1
+9410
+9411
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+9410	9412	NULL	9412
+9411	9413	17	9413
+SELECT t1.* FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+9410	9412	NULL	9412
+9411	9413	17	9413
+UPDATE t1 SET attr1=1 WHERE pk1=9410;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+9410	1	NULL	9412
+9411	9413	17	9413
+UPDATE t1 SET pk1=2 WHERE attr1=1;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+2	1	NULL	9412
+9411	9413	17	9413
+UPDATE t1 SET pk1=pk1 + 1;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+3	1	NULL	9412
+9412	9413	17	9413
+UPDATE t1 SET pk1=4 WHERE pk1 = 3;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+4	1	NULL	9412
+9412	9413	17	9413
+DELETE FROM t1;
+SELECT * FROM t1;
+pk1	attr1	attr2	attr3
+INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9408, 8765, NULL, '8765'),
+(7,8, NULL, NULL), (8,9, NULL, NULL), (9,10, NULL, NULL), (10,11, NULL, NULL), (11,12, NULL, NULL), (12,13, NULL, NULL), (13,14, NULL, NULL);
+UPDATE t1 SET attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+7	9999	NULL	NULL
+8	9999	NULL	NULL
+9	9999	NULL	NULL
+10	9999	NULL	NULL
+11	9999	NULL	NULL
+12	9999	NULL	NULL
+13	9999	NULL	NULL
+9408	9999	NULL	8765
+9410	9999	NULL	9412
+UPDATE t1 SET attr1 = 9998 WHERE pk1 < 1000;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+7	9998	NULL	NULL
+8	9998	NULL	NULL
+9	9998	NULL	NULL
+10	9998	NULL	NULL
+11	9998	NULL	NULL
+12	9998	NULL	NULL
+13	9998	NULL	NULL
+9408	9999	NULL	8765
+9410	9999	NULL	9412
+UPDATE t1 SET attr1 = 9997 WHERE attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+7	9998	NULL	NULL
+8	9998	NULL	NULL
+9	9998	NULL	NULL
+10	9998	NULL	NULL
+11	9998	NULL	NULL
+12	9998	NULL	NULL
+13	9998	NULL	NULL
+9408	9997	NULL	8765
+9410	9997	NULL	9412
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1	attr2	attr3
+7	9998	NULL	NULL
+8	9998	NULL	NULL
+9	9998	NULL	NULL
+10	9998	NULL	NULL
+11	9998	NULL	NULL
+12	9998	NULL	NULL
+13	9998	NULL	NULL
+9408	9997	NULL	8765
+DELETE FROM t1;
+SELECT * FROM t1;
+pk1	attr1	attr2	attr3
+INSERT INTO t1 values (1, 4, NULL, NULL), (2, 4, NULL, NULL), (3, 5, NULL, NULL), (4, 4, NULL, NULL), (5, 5, NULL, NULL);
+DELETE FROM t1 WHERE attr1=4;
+SELECT * FROM t1 order by pk1;
+pk1	attr1	attr2	attr3
+3	5	NULL	NULL
+5	5	NULL	NULL
+DELETE FROM t1;
+INSERT INTO t1 VALUES (9410,9412, NULL, NULL), (9411, 9413, NULL, NULL);
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1;
+pk1	attr1	attr2	attr3
+9411	9413	NULL	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, id2 int) engine=ndbcluster;
+INSERT INTO t1 values(3456, 7890);
+SELECT * FROM t1;
+id	id2
+3456	7890
+UPDATE t1 SET id=2 WHERE id2=12;
+SELECT * FROM t1;
+id	id2
+3456	7890
+UPDATE t1 SET id=1234 WHERE id2=7890;
+SELECT * FROM t1;
+id	id2
+1234	7890
+DELETE FROM t1;
+INSERT INTO t1 values(3456, 7890), (3456, 7890), (3456, 7890), (3454, 7890);
+SELECT * FROM t1 ORDER BY id;
+id	id2
+3454	7890
+3456	7890
+3456	7890
+3456	7890
+DELETE FROM t1 WHERE id = 3456;
+SELECT * FROM t1 ORDER BY id;
+id	id2
+3454	7890
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL
+) ENGINE=NDBCLUSTER;
+INSERT INTO t1 values(1, 9999);
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL
+) ENGINE=NDB;
+INSERT INTO t1 values(1, 9999);
+DROP TABLE t1;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+CREATE TABLE t3 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned,
+PRIMARY KEY(a)
+) engine=ndbcluster;
+CREATE TABLE t4 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned NOT NULL,
+d int unsigned,
+PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+select * from t2 where a = 7 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by 2;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by c;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 17 order by a;
+a	b	c
+select * from t2 where a = 7 and b != 16 order by b;
+a	b	c
+select * from t2 where a = 7 and b = 16 and c = 5 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 and c = 5 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 and c = 6 order by a;
+a	b	c
+select * from t2 where a = 7 and b != 16 and c = 5 order by b;
+a	b	c
+select * from t3 where a = 7 order by b;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by a;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by 2;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by c;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 16 order by b;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 16 order by a;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 17 order by a;
+a	b	c
+select * from t3 where a = 7 and b != 16 order by b;
+a	b	c
+select * from t4 where a = 7 order by b;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by a;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by 2;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by c;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 16 order by b;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 16 order by a;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 17 order by a;
+a	b	c	d
+select * from t4 where a = 7 and b != 16 order by b;
+a	b	c	d
+delete from t2 where a > 5;
+select x1.a, x1.b from t2 x1, t2 x2 where x1.b = x2.b order by x1.a;
+a	b
+1	10
+3	12
+5	14
+select a, b FROM t2 outer_table where
+a = (select a from t2 where b = outer_table.b ) order by a;
+a	b
+1	10
+3	12
+5	14
+delete from t2;
+delete from t3;
+delete from t4;
+drop table t2;
+drop table t3;
+drop table t4;
+CREATE TABLE t5 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned NOT NULL,
+d int unsigned,
+PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+insert into t5 values(10, 19, 5, 26010);
+delete from t5 where a=10 and b=19 and c=5;
+select * from t5;
+a	b	c	d
+insert into t5 values(10, 19, 5, 26010);
+update t5 set d=21997 where a=10 and b=19 and c=5;
+select * from t5;
+a	b	c	d
+10	19	5	21997
+delete from t5;
+drop table t5;
+CREATE TABLE t6 (
+adress char(255),
+a int NOT NULL PRIMARY KEY,
+b int
+) engine = NDB;
+insert into t6 values
+("Nice road 3456", 1, 23),
+("Street Road 78", 3, 92),
+("Road street 89C", 5, 71),
+(NULL, 7, NULL);
+select * from t6 order by a;
+adress	a	b
+Nice road 3456	1	23
+Street Road 78	3	92
+Road street 89C	5	71
+NULL	7	NULL
+select a, b from t6 order by a;
+a	b
+1	23
+3	92
+5	71
+7	NULL
+update t6 set adress="End of road 09" where a=3;
+update t6 set b=181, adress="Street 76" where a=7;
+select * from t6 order by a;
+adress	a	b
+Nice road 3456	1	23
+End of road 09	3	92
+Road street 89C	5	71
+Street 76	7	181
+select * from t6 where a=1;
+adress	a	b
+Nice road 3456	1	23
+delete from t6 where a=1;
+select * from t6 order by a;
+adress	a	b
+End of road 09	3	92
+Road street 89C	5	71
+Street 76	7	181
+delete from t6 where b=71;
+select * from t6 order by a;
+adress	a	b
+End of road 09	3	92
+Street 76	7	181
+drop table t6;
+CREATE TABLE t7 (
+adress char(255),
+a int NOT NULL,
+b int,
+c int NOT NULL,
+PRIMARY KEY(a, c)	
+) engine = NDB;
+insert into t7 values
+("Highway 3456", 1, 23, 2),
+("Street Road 78", 3, 92, 3),
+("Main street 89C", 5, 71, 4),
+(NULL, 8, NULL, 12);
+select * from t7 order by a;
+adress	a	b	c
+Highway 3456	1	23	2
+Street Road 78	3	92	3
+Main street 89C	5	71	4
+NULL	8	NULL	12
+select a, b from t7 order by a;
+a	b
+1	23
+3	92
+5	71
+8	NULL
+update t7 set adress="End of road 09" where a=3;
+update t7 set adress="Gatuvägen 90C" where a=5 and c=4;
+update t7 set adress="No adress" where adress is NULL;
+select * from t7 order by a;
+adress	a	b	c
+Highway 3456	1	23	2
+End of road 09	3	92	3
+Gatuvägen 90C	5	71	4
+No adress	8	NULL	12
+select * from t7 where a=1 and c=2;
+adress	a	b	c
+Highway 3456	1	23	2
+delete from t7 where a=1;
+delete from t7 where a=3 and c=3;
+delete from t7 where a=5 and c=4;
+select * from t7;
+adress	a	b	c
+No adress	8	NULL	12
+delete from t7 where b=23;
+select * from t7;
+adress	a	b	c
+No adress	8	NULL	12
+drop table t7;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL,
+attr2 INT,
+attr3 VARCHAR(10)
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
+create database mysqltest;
+use mysqltest;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+insert into t2 select pk1,attr1,attr2 from test.t1;
+select * from t2 order by a;
+a	b	c
+9410	9412	NULL
+9411	9413	17
+select b from test.t1, t2 where c = test.t1.attr2;
+b
+9413
+select b,test.t1.attr1 from test.t1, t2 where test.t1.pk1 < a;
+b	attr1
+9413	9412
+drop table test.t1, t2;
+drop database mysqltest;
+drop database if exists ndbtest1;
+create database ndbtest1;
+use ndbtest1;
+create table t1(id int) engine=ndbcluster;
+drop database ndbtest1;
+drop database ndbtest1;
+ERROR HY000: Can't drop database 'ndbtest1'; database doesn't exist
+use test;
+create table t1 (a int primary key, b char(0));
+insert into t1 values (1,"");
+insert into t1 values (2,NULL);
+select * from t1 order by a;
+a	b
+1	
+2	NULL
+select * from t1 order by b;
+a	b
+2	NULL
+1	
+select * from t1 where b IS NULL;
+a	b
+2	NULL
+select * from t1 where b IS NOT NULL;
+a	b
+1	
+drop table t1;
+create table t1 ( c511 int, c510 int, c509 int, c508 int, c507 int, c506 int, c505 int, c504 int, c503 int, c502 int, c501 int, c500 int, c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c493 int, c492 int, c491 int, c490 int, c489 int, c488 int, c487 int, c486 int, c485 int, c484 int, c483 int, c482 int, c481 int, c480 int, c479 int, c478 int, c477 int, c476 int, c475 int, c474 int, c473 int, c472 int, c471 int, c470 int, c469 int, c468 int, c467 int, c466 int, c465 int, c464 int, c463 int, c462 int, c461 int, c460 int, c459 int, c458 int, c457 int, c456 int, c455 int, c454 int, c453 int, c452 int, c451 int, c450 int, c449 int, c448 int, c447 int, c446 int, c445 int, c444 int, c443 int, c442 int, c441 int, c440 int, c439 int, c438 int, c437 int, c436 int, c435 int, c434 int, c433 int, c432 int, c431 int, c430 int, c429 int, c428 int, c427 int, c426 int, c425 int, c424 int, c423 int, c422 int, c421 int, c420 int, c419 int, c418 int, c417 int, c416 int, c415 int, c414 int, c413 int, c412 int, c411 int, c410 int, c409 int, c408 int, c407 int, c406 int, c405 int, c404 int, c403 int, c402 int, c401 int, c400 int, c399 int, c398 int, c397 int, c396 int, c395 int, c394 int, c393 int, c392 int, c391 int, c390 int, c389 int, c388 int, c387 int, c386 int, c385 int, c384 int, c383 int, c382 int, c381 int, c380 int, c379 int, c378 int, c377 int, c376 int, c375 int, c374 int, c373 int, c372 int, c371 int, c370 int, c369 int, c368 int, c367 int, c366 int, c365 int, c364 int, c363 int, c362 int, c361 int, c360 int, c359 int, c358 int, c357 int, c356 int, c355 int, c354 int, c353 int, c352 int, c351 int, c350 int, c349 int, c348 int, c347 int, c346 int, c345 int, c344 int, c343 int, c342 int, c341 int, c340 int, c339 int, c338 int, c337 int, c336 int, c335 int, c334 int, c333 int, c332 int, c331 int, c330 int, c329 int, c328 int, c327 int, c326 int, c325 int, c324 int, c323 int, c322 int, c321 int, c320 int, c319 int, c318 int, c317 int, c316 int, c315 int, c314 int, c313 int, c312 int, c311 int, c310 int, c309 int, c308 int, c307 int, c306 int, c305 int, c304 int, c303 int, c302 int, c301 int, c300 int, c299 int, c298 int, c297 int, c296 int, c295 int, c294 int, c293 int, c292 int, c291 int, c290 int, c289 int, c288 int, c287 int, c286 int, c285 int, c284 int, c283 int, c282 int, c281 int, c280 int, c279 int, c278 int, c277 int, c276 int, c275 int, c274 int, c273 int, c272 int, c271 int, c270 int, c269 int, c268 int, c267 int, c266 int, c265 int, c264 int, c263 int, c262 int, c261 int, c260 int, c259 int, c258 int, c257 int, c256 int, c255 int, c254 int, c253 int, c252 int, c251 int, c250 int, c249 int, c248 int, c247 int, c246 int, c245 int, c244 int, c243 int, c242 int, c241 int, c240 int, c239 int, c238 int, c237 int, c236 int, c235 int, c234 int, c233 int, c232 int, c231 int, c230 int, c229 int, c228 int, c227 int, c226 int, c225 int, c224 int, c223 int, c222 int, c221 int, c220 int, c219 int, c218 int, c217 int, c216 int, c215 int, c214 int, c213 int, c212 int, c211 int, c210 int, c209 int, c208 int, c207 int, c206 int, c205 int, c204 int, c203 int, c202 int, c201 int, c200 int, c199 int, c198 int, c197 int, c196 int, c195 int, c194 int, c193 int, c192 int, c191 int, c190 int, c189 int, c188 int, c187 int, c186 int, c185 int, c184 int, c183 int, c182 int, c181 int, c180 int, c179 int, c178 int, c177 int, c176 int, c175 int, c174 int, c173 int, c172 int, c171 int, c170 int, c169 int, c168 int, c167 int, c166 int, c165 int, c164 int, c163 int, c162 int, c161 int, c160 int, c159 int, c158 int, c157 int, c156 int, c155 int, c154 int, c153 int, c152 int, c151 int, c150 int, c149 int, c148 int, c147 int, c146 int, c145 int, c144 int, c143 int, c142 int, c141 int, c140 int, c139 int, c138 int, c137 int, c136 int, c135 int, c134 int, c133 int, c132 int, c131 int, c130 int, c129 int, c128 int, c127 int, c126 int, c125 int, c124 int, c123 int, c122 int, c121 int, c120 int, c119 int, c118 int, c117 int, c116 int, c115 int, c114 int, c113 int, c112 int, c111 int, c110 int, c109 int, c108 int, c107 int, c106 int, c105 int, c104 int, c103 int, c102 int, c101 int, c100 int, c99 int, c98 int, c97 int, c96 int, c95 int, c94 int, c93 int, c92 int, c91 int, c90 int, c89 int, c88 int, c87 int, c86 int, c85 int, c84 int, c83 int, c82 int, c81 int, c80 int, c79 int, c78 int, c77 int, c76 int, c75 int, c74 int, c73 int, c72 int, c71 int, c70 int, c69 int, c68 int, c67 int, c66 int, c65 int, c64 int, c63 int, c62 int, c61 int, c60 int, c59 int, c58 int, c57 int, c56 int, c55 int, c54 int, c53 int, c52 int, c51 int, c50 int, c49 int, c48 int, c47 int, c46 int, c45 int, c44 int, c43 int, c42 int, c41 int, c40 int, c39 int, c38 int, c37 int, c36 int, c35 int, c34 int, c33 int, c32 int, c31 int, c30 int, c29 int, c28 int, c27 int, c26 int, c25 int, c24 int, c23 int, c22 int, c21 int, c20 int, c19 int, c18 int, c17 int, c16 int, c15 int, c14 int, c13 int, c12 int, c11 int, c10 int, c9 int, c8 int, c7 int, c6 int, c5 int, c4 int, c3 int, c2 int, c1 int, c512 varchar(10000), primary key using hash(c1)) engine=ndb charset=latin1 partition by key(c1);
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
+select c1, length(c512) from t1 order by 1;
+c1	length(c512)
+1	10000
+2	10000
+3	10000
+delete from t1;
+drop table t1;
+create table t1 ( c511 int column_format dynamic, c510 int column_format dynamic, c509 int column_format dynamic, c508 int column_format dynamic, c507 int column_format dynamic, c506 int column_format dynamic, c505 int column_format dynamic, c504 int column_format dynamic, c503 int column_format dynamic, c502 int column_format dynamic, c501 int column_format dynamic, c500 int column_format dynamic, c499 int column_format dynamic, c498 int column_format dynamic, c497 int column_format dynamic, c496 int column_format dynamic, c495 int column_format dynamic, c494 int column_format dynamic, c493 int column_format dynamic, c492 int column_format dynamic, c491 int column_format dynamic, c490 int column_format dynamic, c489 int column_format dynamic, c488 int column_format dynamic, c487 int column_format dynamic, c486 int column_format dynamic, c485 int column_format dynamic, c484 int column_format dynamic, c483 int column_format dynamic, c482 int column_format dynamic, c481 int column_format dynamic, c480 int column_format dynamic, c479 int column_format dynamic, c478 int column_format dynamic, c477 int column_format dynamic, c476 int column_format dynamic, c475 int column_format dynamic, c474 int column_format dynamic, c473 int column_format dynamic, c472 int column_format dynamic, c471 int column_format dynamic, c470 int column_format dynamic, c469 int column_format dynamic, c468 int column_format dynamic, c467 int column_format dynamic, c466 int column_format dynamic, c465 int column_format dynamic, c464 int column_format dynamic, c463 int column_format dynamic, c462 int column_format dynamic, c461 int column_format dynamic, c460 int column_format dynamic, c459 int column_format dynamic, c458 int column_format dynamic, c457 int column_format dynamic, c456 int column_format dynamic, c455 int column_format dynamic, c454 int column_format dynamic, c453 int column_format dynamic, c452 int column_format dynamic, c451 int column_format dynamic, c450 int column_format dynamic, c449 int column_format dynamic, c448 int column_format dynamic, c447 int column_format dynamic, c446 int column_format dynamic, c445 int column_format dynamic, c444 int column_format dynamic, c443 int column_format dynamic, c442 int column_format dynamic, c441 int column_format dynamic, c440 int column_format dynamic, c439 int column_format dynamic, c438 int column_format dynamic, c437 int column_format dynamic, c436 int column_format dynamic, c435 int column_format dynamic, c434 int column_format dynamic, c433 int column_format dynamic, c432 int column_format dynamic, c431 int column_format dynamic, c430 int column_format dynamic, c429 int column_format dynamic, c428 int column_format dynamic, c427 int column_format dynamic, c426 int column_format dynamic, c425 int column_format dynamic, c424 int column_format dynamic, c423 int column_format dynamic, c422 int column_format dynamic, c421 int column_format dynamic, c420 int column_format dynamic, c419 int column_format dynamic, c418 int column_format dynamic, c417 int column_format dynamic, c416 int column_format dynamic, c415 int column_format dynamic, c414 int column_format dynamic, c413 int column_format dynamic, c412 int column_format dynamic, c411 int column_format dynamic, c410 int column_format dynamic, c409 int column_format dynamic, c408 int column_format dynamic, c407 int column_format dynamic, c406 int column_format dynamic, c405 int column_format dynamic, c404 int column_format dynamic, c403 int column_format dynamic, c402 int column_format dynamic, c401 int column_format dynamic, c400 int column_format dynamic, c399 int column_format dynamic, c398 int column_format dynamic, c397 int column_format dynamic, c396 int column_format dynamic, c395 int column_format dynamic, c394 int column_format dynamic, c393 int column_format dynamic, c392 int column_format dynamic, c391 int column_format dynamic, c390 int column_format dynamic, c389 int column_format dynamic, c388 int column_format dynamic, c387 int column_format dynamic, c386 int column_format dynamic, c385 int column_format dynamic, c384 int column_format dynamic, c383 int column_format dynamic, c382 int column_format dynamic, c381 int column_format dynamic, c380 int column_format dynamic, c379 int column_format dynamic, c378 int column_format dynamic, c377 int column_format dynamic, c376 int column_format dynamic, c375 int column_format dynamic, c374 int column_format dynamic, c373 int column_format dynamic, c372 int column_format dynamic, c371 int column_format dynamic, c370 int column_format dynamic, c369 int column_format dynamic, c368 int column_format dynamic, c367 int column_format dynamic, c366 int column_format dynamic, c365 int column_format dynamic, c364 int column_format dynamic, c363 int column_format dynamic, c362 int column_format dynamic, c361 int column_format dynamic, c360 int column_format dynamic, c359 int column_format dynamic, c358 int column_format dynamic, c357 int column_format dynamic, c356 int column_format dynamic, c355 int column_format dynamic, c354 int column_format dynamic, c353 int column_format dynamic, c352 int column_format dynamic, c351 int column_format dynamic, c350 int column_format dynamic, c349 int column_format dynamic, c348 int column_format dynamic, c347 int column_format dynamic, c346 int column_format dynamic, c345 int column_format dynamic, c344 int column_format dynamic, c343 int column_format dynamic, c342 int column_format dynamic, c341 int column_format dynamic, c340 int column_format dynamic, c339 int column_format dynamic, c338 int column_format dynamic, c337 int column_format dynamic, c336 int column_format dynamic, c335 int column_format dynamic, c334 int column_format dynamic, c333 int column_format dynamic, c332 int column_format dynamic, c331 int column_format dynamic, c330 int column_format dynamic, c329 int column_format dynamic, c328 int column_format dynamic, c327 int column_format dynamic, c326 int column_format dynamic, c325 int column_format dynamic, c324 int column_format dynamic, c323 int column_format dynamic, c322 int column_format dynamic, c321 int column_format dynamic, c320 int column_format dynamic, c319 int column_format dynamic, c318 int column_format dynamic, c317 int column_format dynamic, c316 int column_format dynamic, c315 int column_format dynamic, c314 int column_format dynamic, c313 int column_format dynamic, c312 int column_format dynamic, c311 int column_format dynamic, c310 int column_format dynamic, c309 int column_format dynamic, c308 int column_format dynamic, c307 int column_format dynamic, c306 int column_format dynamic, c305 int column_format dynamic, c304 int column_format dynamic, c303 int column_format dynamic, c302 int column_format dynamic, c301 int column_format dynamic, c300 int column_format dynamic, c299 int column_format dynamic, c298 int column_format dynamic, c297 int column_format dynamic, c296 int column_format dynamic, c295 int column_format dynamic, c294 int column_format dynamic, c293 int column_format dynamic, c292 int column_format dynamic, c291 int column_format dynamic, c290 int column_format dynamic, c289 int column_format dynamic, c288 int column_format dynamic, c287 int column_format dynamic, c286 int column_format dynamic, c285 int column_format dynamic, c284 int column_format dynamic, c283 int column_format dynamic, c282 int column_format dynamic, c281 int column_format dynamic, c280 int column_format dynamic, c279 int column_format dynamic, c278 int column_format dynamic, c277 int column_format dynamic, c276 int column_format dynamic, c275 int column_format dynamic, c274 int column_format dynamic, c273 int column_format dynamic, c272 int column_format dynamic, c271 int column_format dynamic, c270 int column_format dynamic, c269 int column_format dynamic, c268 int column_format dynamic, c267 int column_format dynamic, c266 int column_format dynamic, c265 int column_format dynamic, c264 int column_format dynamic, c263 int column_format dynamic, c262 int column_format dynamic, c261 int column_format dynamic, c260 int column_format dynamic, c259 int column_format dynamic, c258 int column_format dynamic, c257 int column_format dynamic, c256 int column_format dynamic, c255 int column_format dynamic, c254 int column_format dynamic, c253 int column_format dynamic, c252 int column_format dynamic, c251 int column_format dynamic, c250 int column_format dynamic, c249 int column_format dynamic, c248 int column_format dynamic, c247 int column_format dynamic, c246 int column_format dynamic, c245 int column_format dynamic, c244 int column_format dynamic, c243 int column_format dynamic, c242 int column_format dynamic, c241 int column_format dynamic, c240 int column_format dynamic, c239 int column_format dynamic, c238 int column_format dynamic, c237 int column_format dynamic, c236 int column_format dynamic, c235 int column_format dynamic, c234 int column_format dynamic, c233 int column_format dynamic, c232 int column_format dynamic, c231 int column_format dynamic, c230 int column_format dynamic, c229 int column_format dynamic, c228 int column_format dynamic, c227 int column_format dynamic, c226 int column_format dynamic, c225 int column_format dynamic, c224 int column_format dynamic, c223 int column_format dynamic, c222 int column_format dynamic, c221 int column_format dynamic, c220 int column_format dynamic, c219 int column_format dynamic, c218 int column_format dynamic, c217 int column_format dynamic, c216 int column_format dynamic, c215 int column_format dynamic, c214 int column_format dynamic, c213 int column_format dynamic, c212 int column_format dynamic, c211 int column_format dynamic, c210 int column_format dynamic, c209 int column_format dynamic, c208 int column_format dynamic, c207 int column_format dynamic, c206 int column_format dynamic, c205 int column_format dynamic, c204 int column_format dynamic, c203 int column_format dynamic, c202 int column_format dynamic, c201 int column_format dynamic, c200 int column_format dynamic, c199 int column_format dynamic, c198 int column_format dynamic, c197 int column_format dynamic, c196 int column_format dynamic, c195 int column_format dynamic, c194 int column_format dynamic, c193 int column_format dynamic, c192 int column_format dynamic, c191 int column_format dynamic, c190 int column_format dynamic, c189 int column_format dynamic, c188 int column_format dynamic, c187 int column_format dynamic, c186 int column_format dynamic, c185 int column_format dynamic, c184 int column_format dynamic, c183 int column_format dynamic, c182 int column_format dynamic, c181 int column_format dynamic, c180 int column_format dynamic, c179 int column_format dynamic, c178 int column_format dynamic, c177 int column_format dynamic, c176 int column_format dynamic, c175 int column_format dynamic, c174 int column_format dynamic, c173 int column_format dynamic, c172 int column_format dynamic, c171 int column_format dynamic, c170 int column_format dynamic, c169 int column_format dynamic, c168 int column_format dynamic, c167 int column_format dynamic, c166 int column_format dynamic, c165 int column_format dynamic, c164 int column_format dynamic, c163 int column_format dynamic, c162 int column_format dynamic, c161 int column_format dynamic, c160 int column_format dynamic, c159 int column_format dynamic, c158 int column_format dynamic, c157 int column_format dynamic, c156 int column_format dynamic, c155 int column_format dynamic, c154 int column_format dynamic, c153 int column_format dynamic, c152 int column_format dynamic, c151 int column_format dynamic, c150 int column_format dynamic, c149 int column_format dynamic, c148 int column_format dynamic, c147 int column_format dynamic, c146 int column_format dynamic, c145 int column_format dynamic, c144 int column_format dynamic, c143 int column_format dynamic, c142 int column_format dynamic, c141 int column_format dynamic, c140 int column_format dynamic, c139 int column_format dynamic, c138 int column_format dynamic, c137 int column_format dynamic, c136 int column_format dynamic, c135 int column_format dynamic, c134 int column_format dynamic, c133 int column_format dynamic, c132 int column_format dynamic, c131 int column_format dynamic, c130 int column_format dynamic, c129 int column_format dynamic, c128 int column_format dynamic, c127 int column_format dynamic, c126 int column_format dynamic, c125 int column_format dynamic, c124 int column_format dynamic, c123 int column_format dynamic, c122 int column_format dynamic, c121 int column_format dynamic, c120 int column_format dynamic, c119 int column_format dynamic, c118 int column_format dynamic, c117 int column_format dynamic, c116 int column_format dynamic, c115 int column_format dynamic, c114 int column_format dynamic, c113 int column_format dynamic, c112 int column_format dynamic, c111 int column_format dynamic, c110 int column_format dynamic, c109 int column_format dynamic, c108 int column_format dynamic, c107 int column_format dynamic, c106 int column_format dynamic, c105 int column_format dynamic, c104 int column_format dynamic, c103 int column_format dynamic, c102 int column_format dynamic, c101 int column_format dynamic, c100 int column_format dynamic, c99 int column_format dynamic, c98 int column_format dynamic, c97 int column_format dynamic, c96 int column_format dynamic, c95 int column_format dynamic, c94 int column_format dynamic, c93 int column_format dynamic, c92 int column_format dynamic, c91 int column_format dynamic, c90 int column_format dynamic, c89 int column_format dynamic, c88 int column_format dynamic, c87 int column_format dynamic, c86 int column_format dynamic, c85 int column_format dynamic, c84 int column_format dynamic, c83 int column_format dynamic, c82 int column_format dynamic, c81 int column_format dynamic, c80 int column_format dynamic, c79 int column_format dynamic, c78 int column_format dynamic, c77 int column_format dynamic, c76 int column_format dynamic, c75 int column_format dynamic, c74 int column_format dynamic, c73 int column_format dynamic, c72 int column_format dynamic, c71 int column_format dynamic, c70 int column_format dynamic, c69 int column_format dynamic, c68 int column_format dynamic, c67 int column_format dynamic, c66 int column_format dynamic, c65 int column_format dynamic, c64 int column_format dynamic, c63 int column_format dynamic, c62 int column_format dynamic, c61 int column_format dynamic, c60 int column_format dynamic, c59 int column_format dynamic, c58 int column_format dynamic, c57 int column_format dynamic, c56 int column_format dynamic, c55 int column_format dynamic, c54 int column_format dynamic, c53 int column_format dynamic, c52 int column_format dynamic, c51 int column_format dynamic, c50 int column_format dynamic, c49 int column_format dynamic, c48 int column_format dynamic, c47 int column_format dynamic, c46 int column_format dynamic, c45 int column_format dynamic, c44 int column_format dynamic, c43 int column_format dynamic, c42 int column_format dynamic, c41 int column_format dynamic, c40 int column_format dynamic, c39 int column_format dynamic, c38 int column_format dynamic, c37 int column_format dynamic, c36 int column_format dynamic, c35 int column_format dynamic, c34 int column_format dynamic, c33 int column_format dynamic, c32 int column_format dynamic, c31 int column_format dynamic, c30 int column_format dynamic, c29 int column_format dynamic, c28 int column_format dynamic, c27 int column_format dynamic, c26 int column_format dynamic, c25 int column_format dynamic, c24 int column_format dynamic, c23 int column_format dynamic, c22 int column_format dynamic, c21 int column_format dynamic, c20 int column_format dynamic, c19 int column_format dynamic, c18 int column_format dynamic, c17 int column_format dynamic, c16 int column_format dynamic, c15 int column_format dynamic, c14 int column_format dynamic, c13 int column_format dynamic, c12 int column_format dynamic, c11 int column_format dynamic, c10 int column_format dynamic, c9 int column_format dynamic, c8 int column_format dynamic, c7 int column_format dynamic, c6 int column_format dynamic, c5 int column_format dynamic, c4 int column_format dynamic, c3 int column_format dynamic, c2 int column_format dynamic, c1 int column_format dynamic, c512 varchar(10000), primary key using hash(c1)) engine=ndb charset=latin1 partition by key(c1);
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 = concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
+select c1, length(c512) from t1 order by 1;
+c1	length(c512)
+1	10000
+2	10000
+3	10000
+delete from t1;
+drop table t1;
+create table t1 (
+a int primary key,
+b varchar(13000)
+) engine = ndb charset=latin1;
+insert into t1 values (1,@v13000), (2,@v13000);
+select length(b) from t1 order by 1;
+length(b)
+13000
+13000
+drop table t1;
+create table t1 ( c50 char(255) column_format fixed, c49 char(255) column_format fixed, c48 char(255) column_format fixed, c47 char(255) column_format fixed, c46 char(255) column_format fixed, c45 char(255) column_format fixed, c44 char(255) column_format fixed, c43 char(255) column_format fixed, c42 char(255) column_format fixed, c41 char(255) column_format fixed, c40 char(255) column_format fixed, c39 char(255) column_format fixed, c38 char(255) column_format fixed, c37 char(255) column_format fixed, c36 char(255) column_format fixed, c35 char(255) column_format fixed, c34 char(255) column_format fixed, c33 char(255) column_format fixed, c32 char(255) column_format fixed, c31 char(255) column_format fixed, c30 char(255) column_format fixed, c29 char(255) column_format fixed, c28 char(255) column_format fixed, c27 char(255) column_format fixed, c26 char(255) column_format fixed, c25 char(255) column_format fixed, c24 char(255) column_format fixed, c23 char(255) column_format fixed, c22 char(255) column_format fixed, c21 char(255) column_format fixed, c20 char(255) column_format fixed, c19 char(255) column_format fixed, c18 char(255) column_format fixed, c17 char(255) column_format fixed, c16 char(255) column_format fixed, c15 char(255) column_format fixed, c14 char(255) column_format fixed, c13 char(255) column_format fixed, c12 char(255) column_format fixed, c11 char(255) column_format fixed, c10 char(255) column_format fixed, c9 char(255) column_format fixed, c8 char(255) column_format fixed, c7 char(255) column_format fixed, c6 char(255) column_format fixed, c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed, primary key using hash(c1)) engine=ndb charset=latin1;
+ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+ERROR HY000: Duplicate partition field name 'a'
+create table t1 (
+a1234567890123456789012345678901234567890 int primary key,
+a12345678901234567890123456789a1234567890 int,
+index(a12345678901234567890123456789a1234567890)
+) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+show tables;
+Tables_in_test
+t1
+insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
+explain select * from t1 where a12345678901234567890123456789a1234567890=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ref	a12345678901234567890123456789a1234567890	a12345678901234567890123456789a1234567890	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1234567890123456789012345678901234567890` AS `a1234567890123456789012345678901234567890`,`test`.`t1`.`a12345678901234567890123456789a1234567890` AS `a12345678901234567890123456789a1234567890` from `test`.`t1` where (`test`.`t1`.`a12345678901234567890123456789a1234567890` = 2)
+select * from t1 where a12345678901234567890123456789a1234567890=2;
+a1234567890123456789012345678901234567890	a12345678901234567890123456789a1234567890
+5	2
+drop table t1;
+create table t1
+(a bigint, b bigint, c bigint, d bigint, 
+primary key (a,b,c,d)) 
+engine=ndb
+max_rows=800000000;
+Warnings:
+Warning	1105	Ndb might have problems storing the max amount of rows specified
+insert into t1 values
+(1,2,3,4),(2,3,4,5),(3,4,5,6),
+(3,2,3,4),(1,3,4,5),(2,4,5,6),
+(1,2,3,5),(2,3,4,8),(3,4,5,9),
+(3,2,3,5),(1,3,4,8),(2,4,5,9),
+(1,2,3,6),(2,3,4,6),(3,4,5,7),
+(3,2,3,6),(1,3,4,6),(2,4,5,7),
+(1,2,3,7),(2,3,4,7),(3,4,5,8),
+(3,2,3,7),(1,3,4,7),(2,4,5,8),
+(1,3,3,4),(2,4,4,5),(3,5,5,6),
+(3,3,3,4),(1,4,4,5),(2,5,5,6),
+(1,3,3,5),(2,4,4,8),(3,5,5,9),
+(3,3,3,5),(1,4,4,8),(2,5,5,9),
+(1,3,3,6),(2,4,4,6),(3,5,5,7),
+(3,3,3,6),(1,4,4,6),(2,5,5,7),
+(1,3,3,7),(2,4,4,7),(3,5,5,8),
+(3,3,3,7),(1,4,4,7),(2,5,5,8);
+select count(*) from t1;
+count(*)
+48
+select count(*) into @cnt_big
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
+drop table t1;
+create table t1
+(a bigint, b bigint, c bigint, d bigint, 
+primary key (a,b,c,d))
+engine=ndb
+max_rows=1;
+insert into t1 values
+(1,2,3,4),(2,3,4,5),(3,4,5,6),
+(3,2,3,4),(1,3,4,5),(2,4,5,6),
+(1,2,3,5),(2,3,4,8),(3,4,5,9),
+(3,2,3,5),(1,3,4,8),(2,4,5,9),
+(1,2,3,6),(2,3,4,6),(3,4,5,7),
+(3,2,3,6),(1,3,4,6),(2,4,5,7),
+(1,2,3,7),(2,3,4,7),(3,4,5,8),
+(3,2,3,7),(1,3,4,7),(2,4,5,8),
+(1,3,3,4),(2,4,4,5),(3,5,5,6),
+(3,3,3,4),(1,4,4,5),(2,5,5,6),
+(1,3,3,5),(2,4,4,8),(3,5,5,9),
+(3,3,3,5),(1,4,4,8),(2,5,5,9),
+(1,3,3,6),(2,4,4,6),(3,5,5,7),
+(3,3,3,6),(1,4,4,6),(2,5,5,7),
+(1,3,3,7),(2,4,4,7),(3,5,5,8),
+(3,3,3,7),(1,4,4,7),(2,5,5,8);
+select count(*) into @cnt_small
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't1';
+drop table t1;
+select @cnt_big > @cnt_small;
+@cnt_big > @cnt_small
+1
+create table t1
+(counter int(64) NOT NULL auto_increment,
+datavalue char(40) default 'XXXX',
+primary key (counter)
+) ENGINE=ndbcluster;
+insert into t1 (datavalue) values ('newval');
+insert into t1 (datavalue) values ('newval');
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+3	newval
+4	newval
+5	newval
+6	newval
+7	newval
+8	newval
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+insert into t1 (datavalue) select datavalue from t1 where counter < 100;
+select * from t1 order by counter;
+counter	datavalue
+1	newval
+2	newval
+3	newval
+4	newval
+5	newval
+6	newval
+7	newval
+8	newval
+9	newval
+10	newval
+11	newval
+12	newval
+13	newval
+14	newval
+15	newval
+16	newval
+17	newval
+18	newval
+19	newval
+20	newval
+21	newval
+22	newval
+23	newval
+24	newval
+25	newval
+26	newval
+27	newval
+28	newval
+29	newval
+30	newval
+31	newval
+32	newval
+drop table t1;
+create table t1 (a int primary key auto_increment) engine = ndb;
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+insert into t1(a) values (20),(28);
+insert into t1() values (),(),(),(),(),(),(),(),(),(),(),();
+insert into t1() values (21), (22);
+drop table t1;
+CREATE TABLE t1 ( b INT ) PACK_KEYS = 0 ENGINE = ndb;
+select * from t1;
+b
+drop table t1;
+create table t1 (a int) engine=ndb;
+create table t2 (a int) engine=ndb;
+insert into t1 values (1);
+insert into t2 values (1);
+delete t1.* from t1, t2 where t1.a = t2.a;
+select * from t1;
+a
+select * from t2;
+a
+1
+drop table t1;
+drop table t2;
+CREATE TABLE t1 (
+i   INT,
+j   INT,
+x   INT,
+y   INT,
+z   INT
+) engine=ndb;
+CREATE TABLE t2 (
+i   INT,
+k   INT,
+x   INT,
+y   INT,
+z   INT
+) engine=ndb;
+CREATE TABLE t3 (
+j   INT,
+k   INT,
+x   INT,
+y   INT,
+z   INT
+) engine=ndb;
+INSERT INTO t1 VALUES ( 1, 2,13,14,15);
+INSERT INTO t2 VALUES ( 1, 3,23,24,25);
+INSERT INTO t3 VALUES ( 2, 3, 1,34,35), ( 2, 3, 1,34,36);
+UPDATE      t1 AS a
+INNER JOIN  t2 AS b
+ON a.i = b.i
+INNER JOIN  t3 AS c
+ON a.j = c.j  AND  b.k = c.k
+SET         a.x = b.x,
+a.y = b.y,
+a.z = (
+SELECT  sum(z)
+FROM    t3
+WHERE   y = 34
+)
+WHERE       b.x = 23;
+select * from t1;
+i	j	x	y	z
+1	2	23	24	71
+drop table t1;
+drop table t2;
+drop table t3;
+create table atablewithareallylongandirritatingname (a int);
+insert into atablewithareallylongandirritatingname values (2);
+select * from atablewithareallylongandirritatingname;
+a
+2
+drop table atablewithareallylongandirritatingname;
+create table t1 (f1 varchar(50), f2 text,f3 int, primary key(f1)) engine=NDB;
+insert into t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from t1 order by f1;
+f1	f2	f3
+111111	aaaaaa	1
+222222	bbbbbb	2
+select * from t1 order by f2;
+f1	f2	f3
+111111	aaaaaa	1
+222222	bbbbbb	2
+select * from t1 order by f3;
+f1	f2	f3
+111111	aaaaaa	1
+222222	bbbbbb	2
+drop table t1;
+Warning: using '--ndb' with 'perror' is deprecated and this functionality may not be available in the future versions, please use 'ndb_perror' instead
+Illegal ndb error code: 123456
+CREATE TABLE t1 (
+a VARBINARY(40) NOT NULL,
+b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,
+c VARCHAR(256) CHARACTER SET UTF8 NOT NULL,
+PRIMARY KEY (b,c))  ENGINE=ndbcluster;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES
+("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+a	ab	abc
+b	abc	abcd
+c	abc	ab
+d	ab	ab
+e	abc	abc
+DROP TABLE t1;
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+create table t2 (a int not null primary key, b int not null) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t2 values (1,10), (2,20), (3,30);
+select * from t1 order by a;
+a	b
+1	10
+2	20
+3	30
+delete from t1 where a > 0 order by a desc limit 1;
+select * from t1 order by a;
+a	b
+1	10
+2	20
+delete from t1,t2 using t1,t2 where t1.a = t2.a;
+select * from t2 order by a;
+a	b
+3	30
+drop table t1,t2;
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,30);
+insert into t1 set a=1, b=100;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+insert ignore into t1 set a=1, b=100;
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+select * from t1 order by a;
+a	b
+1	10
+2	20
+3	30
+insert into t1 set a=1, b=1000 on duplicate key update b=b+1;
+select * from t1 order by a;
+a	b
+1	11
+2	20
+3	30
+drop table t1;
+create table t1 (a int not null primary key, b int not null) engine=ndb;
+create table t2 (c int not null primary key, d int not null) engine=ndb;
+insert into t1 values (1,10), (2,10), (3,30), (4, 30);
+insert into t2 values (1,10), (2,10), (3,30), (4, 30);
+update t1 set a = 1 where a = 3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select * from t1 order by a;
+a	b
+1	10
+2	10
+3	30
+4	30
+update t1 set b = 1 where a > 1 order by a desc limit 1;
+select * from t1 order by a;
+a	b
+1	10
+2	10
+3	30
+4	1
+update t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select * from t1 order by a;
+a	b
+1	10
+2	10
+3	30
+4	1
+update ignore t1,t2 set a = 1, c = 1 where a = 3 and c = 3;
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+select * from t1 order by a;
+a	b
+1	10
+2	10
+3	30
+4	1
+drop table t1,t2;
+create table t1 (a varchar(100) primary key, b varchar(100)) engine = NDB;
+insert into t1 values
+('a', 'a'),('b','b'),('c', 'c'),('aa', 'aa'),('bb', 'bb'),('cc', 'cc');
+replace into t1 values ('a', '-a');
+replace into t1 values ('b', '-b');
+replace into t1 values ('c', '-c');
+replace into t1 values ('aa', '-aa');
+replace into t1 values ('bb', '-bb');
+replace into t1 values ('cc', '-cc');
+replace into t1 values ('aaa', '-aaa');
+replace into t1 values ('bbb', '-bbb');
+replace into t1 values ('ccc', '-ccc');
+select * from t1 order by 1,2;
+a	b
+a	-a
+aa	-aa
+aaa	-aaa
+b	-b
+bb	-bb
+bbb	-bbb
+c	-c
+cc	-cc
+ccc	-ccc
+drop table t1;
+CREATE TABLE t1 (a VARCHAR(255) NOT NULL,
+CONSTRAINT pk_a PRIMARY KEY (a))engine=ndb;
+CREATE TABLE t2(a VARCHAR(255) NOT NULL,
+b VARCHAR(255) NOT NULL,
+c VARCHAR(255) NOT NULL,
+CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
+CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
+drop table t2, t1;
+create table t1 (a int not null primary key, b int) engine=ndb;
+insert into t1 values(1,1),(2,2),(3,3);
+create table t2 like t1;
+insert into t2 select * from t1;
+select * from t1 order by a;
+a	b
+1	1
+2	2
+3	3
+select * from t2 order by a;
+a	b
+1	1
+2	2
+3	3
+drop table t1, t2;
+create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table if not exists t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+create table t2 like t1;
+rename table t1 to t10, t2 to t20;
+drop table t10,t20;
+#
+# bug #39872 - explain causes segv
+# (ndb_index_stat_enable=1 must be set to trigger bug)
+# index stats v4: do not set, the v2 setting was local
+#
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `t2` (
+`id` int(11) NOT NULL,
+`obj_id` int(11) DEFAULT NULL,
+UNIQUE KEY `id` (`id`),
+KEY `obj_id` (`obj_id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+# here we used to segv
+explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	p0,p1	ref	id,obj_id	obj_id	5	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1	eq_ref	PRIMARY	PRIMARY	4	test.t2.id	#	#	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`obj_id` = 1))
+drop table t1, t2;
+#
+# Bug #47054 Cluster only deletes first matched row in delete with left join
+#
+CREATE TABLE child
+( id INT AUTO_INCREMENT PRIMARY KEY
+, parent_id INT
+) ENGINE=ndb;
+CREATE TABLE parent 
+( id INT AUTO_INCREMENT PRIMARY KEY
+) ENGINE=ndb;
+INSERT INTO parent VALUES (NULL),(NULL),(NULL);
+INSERT INTO child VALUES (NULL, 1),(NULL,2),(NULL,3),(NULL,4),(NULL,5);
+SELECT * FROM child ORDER BY id;
+id	parent_id
+1	1
+2	2
+3	3
+4	4
+5	5
+SELECT * 
+FROM child AS c 
+LEFT JOIN parent AS p ON c.parent_id = p.id 
+WHERE p.id IS NULL AND c.id < 100  ORDER BY c.id;
+id	parent_id	id
+4	4	NULL
+5	5	NULL
+DELETE c.* 
+FROM child AS c 
+LEFT JOIN parent AS p ON c.parent_id = p.id 
+WHERE p.id IS NULL AND c.id < 100;
+SELECT * FROM child ORDER BY id;
+id	parent_id
+1	1
+2	2
+3	3
+DROP TABLE child, parent;
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 1224 'Too many fragments' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Warning	1296	Got error 1224 'Too many fragments' from NDB
+Error	1031	Table storage engine for 't1' doesn't have this option
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb;
+show warnings;
+Level	Code	Message
+drop table t1;
+create table
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
+primary key) engine=ndb;
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+show warnings;
+Level	Code	Message
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1031	Table storage engine for 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' doesn't have this option

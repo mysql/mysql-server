@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1290,7 +1290,6 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      * Select set to choose parent from, prefer a 'common'
      * parent if available.
      */
-    uint parent_no;
     ndb_table_access_map const &parents=
        table.m_common_parents.is_clear_all()
        ? table.m_extend_parents
@@ -1300,34 +1299,16 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     DBUG_ASSERT(!parents.contain(tab_no)); // No circular dependency!
 
     /**
-     * In order to take advantage of the parallelism in the SPJ block;
-     * Initial parent candidate is the first possible among 'parents'.
-     * Will result in the most 'bushy' query plan (aka: star-join)
-     */
-    parent_no= parents.first_table(root_no);
-
-    /**
-     * Push optimization for execution of child operations:
+     * In order to possibly take advantage of the parallelism in the
+     * SPJ block; Choose parent to be the first possible among 'parents'.
+     * Will result in the most 'bushy' query plan (aka: star-join).
      *
-     * To take advantage of the selectivity of parent operations we 
-     * execute any parent operations with fanout <= 1 before this
-     * child operation. By making them depending on parent 
-     * operations with high selectivity, child will be eliminated when
-     * the parent returns no matching rows.
-     *
-     * -> Execute child operation after any such parents
+     * The SPJ block may on its own choose to sequentialize the
+     * execution order of the star-joined children. Thereby eliminating
+     * some operations on its sibling, where INNER_JOIN'ed results could
+     * never be produced.
      */
-    for (uint candidate= parent_no+1; candidate<tab_no; candidate++)
-    {
-      if (parents.contain(candidate))
-      {
-        if (m_tables[candidate].m_fanout > 1.0)
-          break;
-
-        parent_no= candidate;     // Parent candidate is selective, eval after
-      }
-    }
-
+    const uint parent_no= parents.first_table(root_no);
     DBUG_ASSERT(parent_no < tab_no);
     table.m_parent= parent_no;
     m_tables[parent_no].m_child_fanout*= table.m_fanout*table.m_child_fanout;
@@ -1612,8 +1593,29 @@ ndb_pushed_builder_ctx::build_query()
         DBUG_RETURN(error);
     }
 
+    /**
+     * Generate the 'pushed condition' code:
+     *
+     * Note that we simply ignore pushed conditions for lookup type (EQ_REF)
+     * operations. This is identical to what we do for non-pushed join.
+     * The rational seems to be:
+     *
+     * 1) A lookup operation returns at most a single row, so the gain
+     *    of adding a filter is limited.
+     * 2) The filter could be big (Large IN-lists...) and have to be
+     *    included in the AttrInfo of every LQH_KEYREQ. So the overhead
+     *    could exceed the gain.
+     * .. Possibly we should let 'small' filters be pushed for EQ_REF's?
+     *
+     * Also note that the explain of such an EQ_REF will show the condition
+     * as being pushed, this is questionable at best. However, we have at
+     * least a consistent behaviour between pushed and non-pushed joins.
+     *
+     * Bug#27429615 QUERY EXPLAIN SHOWS PUSHED CONDITIONS WHICH ARE NOT PUSHED,
+     * was filed for the above issue.
+     */
     NdbQueryOptions options;
-    if (handler->m_cond)
+    if (handler->m_cond && !ndbcluster_is_lookup_operation(access_type))
     {
       NdbInterpretedCode code(handler->m_table);
       if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)

@@ -50,11 +50,11 @@ insert into test.t1 values
  (9, "Initial data 9", 9, 9),
  (10, "Initial data 10", 10, 10);
 
+create table test.synch(x int primary key) engine=ndb;
+
 -- echo Test 1: Testing logging of pk reads
 
 reset master;
-
-create table test.synch(x int primary key) engine=ndb;
 
 connection mysqld2;
 --disable_result_log
@@ -98,7 +98,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld1:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 drop table raw_binlog_rows;
 --enable_query_log
 
@@ -125,7 +125,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld2:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -153,7 +153,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld3:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -181,7 +181,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld4:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -239,7 +239,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld1:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 drop table raw_binlog_rows;
 --enable_query_log
 
@@ -266,7 +266,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld2:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -294,7 +294,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld3:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -322,7 +322,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld4:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -380,7 +380,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld1:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 drop table raw_binlog_rows;
 --enable_query_log
 
@@ -407,7 +407,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld2:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -435,7 +435,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld3:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -463,7 +463,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld4:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -521,7 +521,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld1:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld1:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 drop table raw_binlog_rows;
 --enable_query_log
 
@@ -548,7 +548,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a WRITE_ROW since ndb-log-update-as-write=1"
-select "mysqld2:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld2:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -576,7 +576,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld3:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld3:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -604,7 +604,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the AnyValue bit set in extra row data for a UPDATE_ROW since ndb-log-update-as-write=0"
-select "mysqld4:",replace(txt,'\r', '') as txt from raw_binlog_rows where txt like "### %`test`.`t1`%" or txt like "### Extra row data %";
+select "mysqld4:",replace(txt, '\r', '') as txt from raw_binlog_rows where replace(txt, '\r', '') like "### % `test`.`t1`" or txt like "### Extra row data %";
 
 drop table raw_binlog_rows;
 --enable_query_log
@@ -612,3 +612,4 @@ drop table raw_binlog_rows;
 connection mysqld1;
 SET ndb_log_exclusive_reads= 0;
 drop table test.synch, test.t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

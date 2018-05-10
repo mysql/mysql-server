@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,9 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
             // no need to run test if CPU bind is not supported
             return;
         }
+        // use a custom dummy database to force creation of new session factory
+        testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb1");
+        // create a session factory with default cpu locking properties
         createSessionFactoryAndVerify();
         // test locking the receive threads to cpu
         errorIfNotEqual("Failure in getting the default cpu id", new short[]{-1},
@@ -99,7 +102,9 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
             // no need to run test if CPU bind is not supported
             return;
         }
-        // create session factory with modified properties
+        // use a custom dummy database to force creation of new session factory
+        testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb2");
+        // create session factory with modified cpu locking properties
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "0");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, 4);
         createSessionFactoryAndVerify();
@@ -114,6 +119,8 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         }
         destroySessionFactory();
 
+        // use a custom dummy database to force creation of new session factory
+        testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb3");
         // create a session factory with a connection pool and test
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 2);
         createSessionFactoryAndVerify();
@@ -126,6 +133,8 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         }
         destroySessionFactory();
 
+        // use a custom dummy database to force creation of new session factory
+        testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb4");
         // negative tests with invalid property settings
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS, "999");
         createSessionFactoryAndFail("(?s).*The cpuid .* is not valid.*");
@@ -135,6 +144,8 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         createSessionFactoryAndFail("The cpuids property .* is invalid.*");
         destroySessionFactory();
 
+        // use a custom dummy database to force creation of new session factory
+        testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb5");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, -1);
         createSessionFactoryAndFail("(?s).*The activation threshold .* is not valid.*");
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD, "8,8");

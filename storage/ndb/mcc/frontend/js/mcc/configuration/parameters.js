@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -336,6 +336,27 @@ var processParameterDefaults= {
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
                 defaultValueType: 2,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false,
+                advancedLevel: true
+            },
+            ServerPort: {
+                label: "ServerPort",
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
+                    "-ndbd-definition.html#ndbparam-ndbd-ServerPort", 
+                tooltip: "If you need to be able to open specific ports in a " + 
+                    "firewall to permit communication between data nodes and API " + 
+                    "nodes (including SQL nodes), you can set this parameter to " + 
+                    "the number of the desired port",
+                constraints: {min: 0, max: 65535, places: 0, pattern: "#"},
+                attribute: "ServerPort",
+                destination: "config.ini",
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.NumberSpinner,
+                width: "50%",
+                defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1334,7 +1355,7 @@ var processParameterDefaults= {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
-                defaultValueType: 0,
+                defaultValueType: 1,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1420,7 +1441,7 @@ var processParameterDefaults= {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
-                defaultValueType: 128,
+                defaultValueType: 64,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -1440,7 +1461,7 @@ var processParameterDefaults= {
                 overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
-                defaultValueType: 64,
+                defaultValueType: 128,
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
@@ -2737,7 +2758,7 @@ var processParameterDefaults= {
                 label: "<br><b>Various NDB parameters for MYSQLD</b>",
                 heading: true,
                 visibleType: true,
-                visibleInstance: true,
+                visibleInstance: false,
                 advancedLevel: false
             },
             /*
@@ -2749,6 +2770,23 @@ var processParameterDefaults= {
             
             Same goes for ndb-default-column-format (FIXED|DYNAMIC, global) and ndb-distribution ([KEYHASH|LINHASH], global).
             */
+            ndbwaitsetup: {
+                label: "ndb-wait-setup",
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
+                    "-options-variables.html#option_mysqld_ndb-wait-setup",
+                tooltip: "Size (in bytes) to use for NDB transaction batches",
+                constraints: {min: 30, max: 31536000, places: 0, pattern: "#"},
+                attribute: "ndb-wait-setup",
+                destination: "my.cnf",
+                overridableType: true,
+                overridableInstance: true,
+                widget: dijit.form.NumberSpinner,
+                width: "50%",
+                defaultValueType: 120,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: true
+            },
             ndbbatchsize: {
                 label: "ndb-batch-size",
                 docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
@@ -2764,8 +2802,7 @@ var processParameterDefaults= {
                 defaultValueType: 32768,
                 defaultValueInstance: [],
                 visibleType: true,
-                visibleInstance: true,
-                advancedLevel: true
+                visibleInstance: true
             },
             ndbblobreadbatchbytes: {
                 label: "ndb-blob-read-batch-bytes",

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1171,7 +1171,7 @@ TupTriggerData_pool c_triggerPool;
     State tableStatus;
     Local_key m_default_value_location;
   };  
-  Uint32 m_read_ctl_file_data[BackupFormat::NDB_LCP_CTL_FILE_SIZE / 4];
+  Uint32 m_read_ctl_file_data[BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG / 4];
   /*
     It is more space efficient to store dynamic fixed-size attributes
     of more than about 16 words as variable-sized internally.
@@ -3187,7 +3187,7 @@ private:
   bool get_last_lcp_state(Uint32 *prev_ptr);
   bool get_lcp_scanned_bit(Fragrecord*, Uint32);
   bool get_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  //void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   void reset_lcp_scanned_bit(Uint32 *next_ptr);
 
   Uint32 getNoOfPages(Fragrecord* regFragPtr);

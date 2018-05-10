@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>
+
 #include <ndb_global.h>
 #include <Ndb.hpp>
 #include <NdbTransaction.hpp>
@@ -33,11 +35,7 @@
 #include <NdbEventOperation.hpp>
 #include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
-
-#undef min
-#undef max
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
+#include "m_ctype.h"
 
 static const char* const g_headtable_name = NDB_INDEX_STAT_HEAD_TABLE;
 static const char* const g_sampletable_name = NDB_INDEX_STAT_SAMPLE_TABLE;
@@ -1282,10 +1280,13 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   switch (m_addrLen) {
   case 4:
     addr += src[3] << 24;
+    // Fall through
   case 3:
     addr += src[2] << 16;
+    // Fall through
   case 2:
     addr += src[1] << 8;
+    // Fall through
   case 1:
     addr += src[0] << 0;
     break;
@@ -1305,10 +1306,13 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   switch (m_addrLen) {
   case 4:
     dst[3] = (addr >> 24) & 0xFF;
+    // Fall through
   case 3:
     dst[2] = (addr >> 16) & 0xFF;
+    // Fall through
   case 2:
     dst[1] = (addr >> 8) & 0xFF;
+    // Fall through
   case 1:
     dst[0] = (addr >> 0) & 0xFF;
     break;
@@ -2164,7 +2168,7 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
   const uint posH2 = stat2.m_pos;
   const uint cnt1 = bound1.m_data.get_cnt();
   const uint cnt2 = bound2.m_data.get_cnt();
-  const uint mincnt = min(cnt1, cnt2);
+  const uint mincnt = std::min(cnt1, cnt2);
   Uint32 numEq = 0; // of bound1,bound2
 
   if (bound1.m_data.is_empty())

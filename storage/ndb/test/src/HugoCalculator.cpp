@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+     Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
 #include "HugoCalculator.hpp"
+#include "my_byteorder.h"
 #include <NDBT.hpp>
 
 static
@@ -263,6 +263,7 @@ HugoCalculator::calcValue(int record,
     * outlen = len + 2;
     int2store(buf, len);
     dst += 2;
+    // Fall through
 write_char:
   case NdbDictionary::Column::Char:
   {

@@ -29,7 +29,7 @@ a INT STORAGE DISK
 )
 STORAGE DISK
 ENGINE NDB;
-ERROR HY000: Table storage engine 'NDBCLUSTER' found required create option missing
+ERROR HY000: Table storage engine 'ndbcluster' found required create option missing
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;

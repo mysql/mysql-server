@@ -1750,6 +1750,34 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   c_start.m_lastGci = conf->latest_gci;
   c_start.m_lastLcpId = conf->latest_lcp_id;
 
+  /* Check for 'nothing read' values from local sysfile */
+  if (unlikely((c_local_sysfile.m_restorable_flag ==
+                ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN) &&
+               (c_local_sysfile.m_max_restorable_gci == 1)))
+  {
+    jam();
+    /**
+     * In this case, we were unable to read a local sysfile at all,
+     * but the distributed sysfile was readable.
+     * This looks like an upgrade scenario, and we require an
+     * explicit --initial for that.
+     * Tell user via a process exit code, they must decide
+     * themselves whether or not to use --initial.
+     */
+    if (!m_ctx.m_config.getInitialStart()) // TODO : Always?
+    {
+      jam();
+      g_eventLogger->error("Upgrading to a newer version with a newer "
+                           "LCP file format. Data node needs to be started "
+                           "with --initial");
+      // in debug mode crash rather than exit
+      CRASH_INSERTION(1007);
+      progError(__LINE__, NDBD_EXIT_UPGRADE_INITIAL_REQUIRED);
+      /* Never reach here */
+      return;
+    }
+  }
+
   if (unlikely(ctypeOfStart == NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE &&
                c_local_sysfile.m_max_restorable_gci < c_start.m_lastGci))
   {
@@ -1835,7 +1863,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   sendSttorry(signal);
 }
@@ -1893,7 +1921,7 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   return;
 }
@@ -2026,7 +2054,7 @@ Ndbcntr::execCNTR_START_REF(Signal * signal)
     jam();
     progError(__LINE__, NDBD_EXIT_RESTART_DURING_SHUTDOWN);
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2097,8 +2125,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
     }
     default:
     {
-      ndbrequire(false);
-      break;
+      ndbabort();
     }
   }
   ph2GLab(signal);
@@ -2187,7 +2214,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   case NodeState::SL_NOTHING:
   case NodeState::SL_CMVMI:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case NodeState::SL_STARTING:
   case NodeState::SL_STARTED:
     jam();
@@ -2272,7 +2299,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   case NodeState::ST_NODE_RESTART:
   case NodeState::ST_INITIAL_NODE_RESTART:
   case NodeState::ST_ILLEGAL_TYPE:
-    ndbrequire(false);
+    ndbabort();
   }
 
   const bool startInProgress = !c_start.m_starting.isclear();
@@ -2510,7 +2537,7 @@ Ndbcntr::trySystemRestart(Signal* signal){
         }
         case CheckNodeGroups::Lose:
         {
-          ndbrequire(false); //Cannot happen
+          ndbabort(); //Cannot happen
         }
         case CheckNodeGroups::Partitioning:
         {
@@ -2539,14 +2566,14 @@ Ndbcntr::trySystemRestart(Signal* signal){
         }
         default:
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }
       break;
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
     }
     }
     
@@ -2907,7 +2934,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
       jam();
       break;
     }
-    ndbrequire(false);
+    ndbabort();
   }
   
   /**
@@ -2957,7 +2984,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }//Ndbcntr::ph5ALab()
 
@@ -3588,7 +3615,6 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
 void Ndbcntr::systemErrorLab(Signal* signal, int line) 
 {
   progError(line, NDBD_EXIT_NDBREQUIRE); /* BUG INSERTION */
-  return;
 }//Ndbcntr::systemErrorLab()
 
 /*###########################################################################*/
@@ -3627,7 +3653,7 @@ void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -3650,7 +3676,7 @@ Ndbcntr::execCREATE_HASH_MAP_REF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -3699,7 +3725,6 @@ void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
                        "Failed to commit schema trans, err: %u",
                        ref->errorCode);
   progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
-  ndbrequire(false);
 }
 
 void
@@ -4543,7 +4568,7 @@ Ndbcntr::StopRecord::checkTimeout(Signal* signal){
   case NodeState::SL_SINGLEUSER:
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -4813,7 +4838,7 @@ Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal)
 void Ndbcntr::execSTOP_ME_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 
@@ -5071,7 +5096,7 @@ Ndbcntr::clearFilesystem(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
@@ -5318,6 +5343,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
               break;
             case NodeState::ST_INITIAL_START:
               g_eventLogger->info("Phase 5 Created the System Table");
+              // Fall through
             case NodeState::ST_SYSTEM_RESTART:
               g_eventLogger->info("Phase 5 waited for local checkpoint to"
                                   " complete");
@@ -5559,7 +5585,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
      * same thing at the same time.
      */
     jam();
-    ndbrequire(false);
+    ndbabort();
     sendSignalWithDelay(reference(),
                         GSN_READ_LOCAL_SYSFILE_REQ,
                         signal,
@@ -5741,7 +5767,7 @@ Ndbcntr::execFSOPENREF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5784,7 +5810,7 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 #define ZLIST_OF_PAIRS 0
@@ -5829,7 +5855,7 @@ Ndbcntr::execFSREADREF(Signal *signal)
     handle_read_refuse(signal);
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 const char*
@@ -5877,7 +5903,7 @@ Ndbcntr::execFSREADCONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5885,7 +5911,7 @@ Ndbcntr::execFSWRITEREF(Signal *signal)
 {
   jamEntry();
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5909,7 +5935,7 @@ Ndbcntr::execFSWRITECONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5927,7 +5953,7 @@ Ndbcntr::handle_read_refuse(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   close_local_sysfile(signal);
 }
@@ -5947,7 +5973,7 @@ void
 Ndbcntr::execFSCLOSEREF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -6058,7 +6084,7 @@ Ndbcntr::execFSCLOSECONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -6157,7 +6183,11 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
   DEB_UNDO(("UNDO log level = %u", levelUsed));
   if (m_copy_fragment_in_progress &&
       !c_local_sysfile.m_initial_write_local_sysfile_ongoing &&
-      levelUsed >= START_LCP_LEVEL)
+      (levelUsed >= START_LCP_LEVEL
+#ifdef ERROR_INSERT
+      || (ERROR_INSERTED(1011))
+#endif
+     ))
   {
     /**
      * If no local LCP is ongoing we need to start one.
@@ -6169,6 +6199,9 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
      * are right now spinning up the first local LCP. We will be back
      * here within 2 seconds to start a full local LCP later.
      */
+#ifdef ERROR_INSERT
+    CLEAR_ERROR_INSERT_VALUE;
+#endif
     if (m_full_local_lcp_started)
     {
       jam();
@@ -6284,7 +6317,7 @@ void Ndbcntr::execSET_LOCAL_LCP_ID_REQ(Signal *signal)
     send_to_all_lqh(signal, GSN_SET_LOCAL_LCP_ID_CONF, 2);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Ndbcntr::write_local_sysfile_start_lcp_done(Signal *signal)

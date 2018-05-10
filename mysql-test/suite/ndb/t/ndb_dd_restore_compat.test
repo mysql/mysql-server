@@ -1,10 +1,11 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 
 --replace_column 19 #
 select * from information_schema.columns
@@ -36,3 +37,4 @@ drop tablespace ts;
 
 drop logfile group lg
 engine ndb;
+--source suite/ndb/include/backup_restore_cleanup.inc

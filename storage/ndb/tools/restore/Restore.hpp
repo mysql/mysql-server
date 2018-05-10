@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include "my_byteorder.h"
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
@@ -388,7 +389,17 @@ public:
                AttributeData * attr_data);
 
   Uint64 get_file_size() const { return m_file_size; }
-  Uint64 get_file_pos() const { return m_file_pos; }
+  /**
+   * get_file_size() and get_file_pos() are used to calculate restore
+   * progress percentage and works fine in normal mode.
+   *
+   * But, when compressed backup is enabled, m_file_pos gives the current file
+   * position in uncompressed state and m_file_size gives the backup file size
+   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
+   * parameter is used to get current position in compressed state.This
+   * parameter also works when compressed backup is disabled.
+   */
+  Uint64 get_file_pos() const { return m_file.in; }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif

@@ -3,7 +3,7 @@ The --upgrade-system-tables option was used, databases won't be touched.
 Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
-The sys schema is already up to date (version 1.6.0).
+The sys schema is already up to date (version 2.0.0).
 Upgrade process completed successfully.
 Checking if update is needed.
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
@@ -11,7 +11,7 @@ The --upgrade-system-tables option was used, databases won't be touched.
 Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
-The sys schema is already up to date (version 1.6.0).
+The sys schema is already up to date (version 2.0.0).
 Upgrade process completed successfully.
 Checking if update is needed.
 First initialize the binlog

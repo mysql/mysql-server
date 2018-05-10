@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,11 @@
 */
 
 #include <NdbSqlUtil.hpp>
-#include <ndb_version.h>
+
 #include <math.h>
+
+#include "my_byteorder.h"
+#include "m_ctype.h"
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -897,12 +900,30 @@ NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if(cs != 0 &&
          cs->cset != 0 &&
-         cs->coll != 0 &&
-         cs->coll->strnxfrm != 0 &&
-         cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
-        return 0;
-      else
-        return 743;
+         cs->coll != 0)
+      {
+	/**
+         * Check that we can produce a hash value
+         * - NO_PAD collations use the builtin hash_sort function
+         *   creating a single 'ulong' value.
+         */
+        if (cs->pad_attribute == NO_PAD)
+        {
+          if (cs->coll->hash_sort != NULL)
+            return 0;
+        }
+        /**
+         * 'Old' NO_PAD collations will 'multiply' the size of the
+         * frm'ed result. Check that it is within supported limits.
+         */
+        else if (cs->strxfrm_multiply > 0 &&
+                 cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+        {
+          return 0;
+        }
+      }
+      // Fall through; can't 'hash' this charset. 
+      return 743;
     }
     break;
   case Type::Undefined:
@@ -933,13 +954,12 @@ NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
   case Type::Varchar:
   case Type::Longvarchar:
     {
+      // Note: Only strnncollsp used for compare - no strnxfrm! 
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if (cs != 0 &&
           cs->cset != 0 &&
           cs->coll != 0 &&
-          cs->coll->strnxfrm != 0 &&
-          cs->coll->strnncollsp != 0 &&
-          cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+          cs->coll->strnncollsp != 0)
         return 0;
       else
         return 743;
@@ -991,6 +1011,19 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
 }
 
 /**
+ * Normalize string for **hashing**. 
+ * To compare strings, use the NdbSqlUtil::cmp*() methods.
+ *
+ * xfrm'ed strings are guaranteed to be binary equal for
+ * strings defined as equal by the specified charset collation.
+ *
+ * However, the opposite is not true: unequal strings may
+ * be xfrm'ed into the same binary representation.
+ */
+
+/**
+ * Backward bug compatible implementation of strnxfrm.
+ *
  * Even if bug#7284: 'strnxfrm generates different results for equal strings'
  * is fixed long ago, we still have to keep this method:
  * The suggested fix for that bug was:
@@ -1004,10 +1037,18 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
  *
  * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
  */
-int
-NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
-                             unsigned char* dst, unsigned dstLen,
-                             const unsigned char*src, unsigned srcLen)
+
+/**
+ * Used to verify that the strnxfrm is only used for hashing:
+ * zero-fill xfrm'ed string, which will give a valid hash pattern,
+ * but break any misuse in strings compare
+ */
+static const bool verify_hash_only_usage = false;
+
+static inline int
+strnxfrm_bug7284(const CHARSET_INFO* cs,
+                 uchar* dst, unsigned dstLen,
+                 const uchar*src, unsigned srcLen)
 {
   // strxfrm argument string - returns no error indication
   const int n3 = (int)(*cs->coll->strnxfrm)(cs,
@@ -1043,8 +1084,93 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
     }
   }
 
+  if (verify_hash_only_usage)
+    memset(dst, 0, dstLen);
+
   // no check for partial last
   return dstLen;
+}
+
+int
+NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
+                          uchar* dst, unsigned bufLen,
+                          const uchar* src, unsigned srcLen,
+                          unsigned maxLen)
+{
+  /**
+   * The NO_PAD Unicode-9.0 collations were introduced in MySQL-9.0.
+   * As we dont have to be bug-compatible when these (new) collations
+   * are used, we use the hash function provided by the collation
+   * directly, and use the calculated hash value as our contribution
+   * to the xfrm'ed hash string.
+   */
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
+  {
+    // Hash the string using the collations hash function.
+    ulong hash = 0, n2 = 0;
+    (*cs->coll->hash_sort)(cs, src, srcLen, &hash, &n2);
+
+    if (verify_hash_only_usage)  //Debug only
+      hash = 0;
+
+    // Store the hash as part of the normalized hash string:
+    if (likely(sizeof(hash) <= bufLen))
+    {
+      memcpy(dst, &hash, sizeof(hash));
+      return sizeof(hash);
+    }
+  }
+  /**
+   * Need to be bug- and feature-compatible with older collations.
+   * Produce the fully xfrm'ed and space padded string.
+   * May unfortunately become quite huge, adding significant
+   * overhead when later md5_hash'ing (the space padding)
+   */
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    /**
+     * Old transformation, pre-8.0 unicode-9.0 charset:
+     *
+     * Varchar end-spaces are ignored in comparisons.  To get same hash
+     * we blank-pad to maximum 'dstLen' via strnxfrm.
+     */
+    const Uint32 dstLen = cs->strxfrm_multiply * maxLen;
+
+    // Sufficient buffer space should always be provided.
+    if (likely(dstLen <= bufLen))
+    {
+      return strnxfrm_bug7284(cs, dst, dstLen, src, srcLen);
+    }
+  }
+
+  // Fall through, should never happen
+  return -1;
+}
+
+/**
+ * Get maximum length needed by the xfrm'ed string
+ * as produced by strnxfrm_hash().
+ *
+ *  cs:     The Character set definition
+ *  maxLen: The maximim (padded) length of the string
+ */
+Uint32
+NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,
+                              unsigned maxLen)
+{
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
+  {
+    //The hash_sort() value, see strnxfrm_hash
+    return sizeof(ulong);
+  }
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    // The full space-padded string will be produced
+    return cs->strxfrm_multiply * maxLen;
+  }
+
+  // Fall through, should never happen.
+  return 0;
 }
 
 #if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
@@ -1107,8 +1233,8 @@ void determineParams(Uint32 typeId,
       convLen = 1;
       break;
     }
-    // Fall through for Blob v2
   }
+  // Fall through - for Blob v2
   default:
     /* Default determined by meta-info */
     convSize = 1 << typeLog2Size;

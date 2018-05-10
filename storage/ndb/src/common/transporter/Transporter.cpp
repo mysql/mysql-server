@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,18 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
+    reportFreq(4096),
+    receiveCount(0),
+    receiveSize(0),
+    sendCount(0),
+    sendSize(0),
     m_transporter_registry(t_reg)
 {
   DBUG_ENTER("Transporter::Transporter");
+
+  // Initialize member variables
+  ndb_socket_invalidate(&theSocket);
+
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
   }
@@ -114,7 +123,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 }
 
-Transporter::~Transporter(){
+Transporter::~Transporter()
+{
   delete m_socket_client;
 }
 
@@ -138,6 +148,12 @@ Transporter::configure(const TransporterConfiguration* conf)
   return false; // Can't reconfigure
 }
 
+void
+Transporter::update_connect_state(bool connected)
+{
+  assert(connected != m_connected);
+  m_connected  = connected;
+}
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
@@ -163,18 +179,21 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   m_connect_count++;
   resetCounters();
 
-  m_connected  = true;
+  update_connect_state(true);
   DBUG_RETURN(true);
 }
 
 
 bool
-Transporter::connect_client() {
+Transporter::connect_client()
+{
   NDB_SOCKET_TYPE sockfd;
   DBUG_ENTER("Transporter::connect_client");
 
   if(m_connected)
+  {
     DBUG_RETURN(true);
+  }
 
   int port = m_s_port;
   if (port<0)
@@ -194,15 +213,21 @@ Transporter::connect_client() {
   else
   {
     if (!m_socket_client->init())
+    {
       DBUG_RETURN(false);
+    }
 
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
+    {
       DBUG_RETURN(false);
+    }
 
     if (strlen(localHostName) > 0)
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
+      {
         DBUG_RETURN(false);
+      }
     }
 
     sockfd= m_socket_client->connect(remoteHostName,
@@ -214,8 +239,8 @@ Transporter::connect_client() {
 
 
 bool
-Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
-
+Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
+{
   DBUG_ENTER("Transporter::connect_client(sockfd)");
 
   if(m_connected)
@@ -299,22 +324,25 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   ndb_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_client_impl(sockfd))
+  {
     DBUG_RETURN(false);
+  }
 
   m_connect_count++;
   resetCounters();
 
-  m_connected = true;
+  update_connect_state(true);
   DBUG_RETURN(true);
 }
 
 void
-Transporter::doDisconnect() {
-
+Transporter::doDisconnect()
+{
   if(!m_connected)
+  {
     return;
-
-  m_connected = false;
+  }
+  update_connect_state(false);
   disconnectImpl();
 }
 
@@ -389,5 +417,38 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       fprintf(stderr, "0x%08x\n", word);
     }
     fprintf(stderr, "\n\n");
+  }
+}
+
+void
+Transporter::set_get(NDB_SOCKET_TYPE fd,
+                     int level,
+                     int optval,
+                     const char *optname, 
+                     int val)
+{
+  int actual = 0, defval = 0;
+  socket_len_t len = sizeof(actual);
+
+  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
+
+  if (ndb_setsockopt(fd, level, optval,
+                    (char*)&val, sizeof(val)) < 0)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
+                         optname, val, errno, strerror(errno));
+#endif
+  }
+  
+  len = sizeof(actual);
+  if ((ndb_getsockopt(fd, level, optval,
+                     (char*)&actual, &len) == 0) &&
+      actual != val)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
+                         optname, val, actual, defval);
+#endif
   }
 }

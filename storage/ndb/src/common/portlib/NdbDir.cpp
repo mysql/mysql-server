@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #include <ndb_global.h>
 #include <NdbDir.hpp>
 
-#include <util/basestring_vsnprintf.h>
 
 #ifndef _WIN32
 
@@ -44,8 +43,8 @@ class DirIteratorImpl {
       return (dp->d_type == DT_REG);
 #endif
     /* Using stat to read more info about the file */
-    basestring_snprintf(m_buf, PATH_MAX, 
-                        "%s/%s", m_path, dp->d_name);
+    snprintf(m_buf, PATH_MAX,
+             "%s/%s", m_path, dp->d_name);
 
     struct stat buf;
     if (lstat(m_buf, &buf)) // Use lstat to not follow symlinks
@@ -119,7 +118,7 @@ public:
   int open(const char* path){
     char path_buf[PATH_MAX+2];
     m_first = true;
-    basestring_snprintf(path_buf, sizeof(path_buf), "%s\\*", path);
+    snprintf(path_buf, sizeof(path_buf), "%s\\*", path);
     m_find_handle = FindFirstFile(path_buf, &m_find_data);
     if(m_find_handle == INVALID_HANDLE_VALUE)
     {
@@ -285,8 +284,8 @@ bool
 NdbDir::remove_recursive(const char* dir, bool only_contents)
 {
   char path[PATH_MAX];
-  if (basestring_snprintf(path, sizeof(path),
-                          "%s%s", dir, DIR_SEPARATOR) < 0) {
+  if (snprintf(path, sizeof(path),
+               "%s%s", dir, DIR_SEPARATOR) < 0) {
     fprintf(stderr, "Too long path to remove: '%s'\n", dir);
     return false;
   }
@@ -309,8 +308,8 @@ loop:
         continue;
 
       int end_len, len = (int)strlen(path);
-      if ((end_len = basestring_snprintf(path + len, sizeof(path) - len,
-                                         "%s", name)) < 0)
+      if ((end_len = snprintf(path + len, sizeof(path) - len,
+                              "%s", name)) < 0)
       {
         fprintf(stderr, "Too long path detected: '%s'+'%s'\n",
                 path, name);
@@ -327,8 +326,8 @@ loop:
 
       // Append ending slash to the string
       int pos = len + end_len;
-      if (basestring_snprintf(path + pos, sizeof(path) - pos,
-                              "%s", DIR_SEPARATOR) < 0)
+      if (snprintf(path + pos, sizeof(path) - pos,
+                   "%s", DIR_SEPARATOR) < 0)
       {
         fprintf(stderr, "Too long path detected: '%s'+'%s'\n",
                 path, DIR_SEPARATOR);
@@ -390,18 +389,18 @@ build_tree(const char* path)
 
   // Create files in path/
   for (int i = 8; i < 14; i++){
-    basestring_snprintf(tmp, sizeof(tmp), "%s%sfile%d", path, DIR_SEPARATOR, i);
+    snprintf(tmp, sizeof(tmp), "%s%sfile%d", path, DIR_SEPARATOR, i);
     fclose(fopen(tmp, "w"));
   }
 
   // Create directories
   for (int i = 8; i < 14; i++){
-    basestring_snprintf(tmp, sizeof(tmp), "%s%sdir%d", path, DIR_SEPARATOR, i);
+    snprintf(tmp, sizeof(tmp), "%s%sdir%d", path, DIR_SEPARATOR, i);
     CHECK(NdbDir::create(tmp));
 
     // Create files in dir
     for (int j = 0; j < 6; j++){
-      basestring_snprintf(tmp, sizeof(tmp), "%s%sdir%d%sfile%d",
+      snprintf(tmp, sizeof(tmp), "%s%sdir%d%sfile%d",
 	       path, DIR_SEPARATOR, i, DIR_SEPARATOR, j);
       fclose(fopen(tmp, "w"));
     }
@@ -410,7 +409,7 @@ build_tree(const char* path)
 #ifndef _WIN32
   // Symlink the last file created to path/symlink
   char tmp2[PATH_MAX];
-  basestring_snprintf(tmp2, sizeof(tmp2), "%s%ssymlink", path, DIR_SEPARATOR);
+  snprintf(tmp2, sizeof(tmp2), "%s%ssymlink", path, DIR_SEPARATOR);
   CHECK(symlink(tmp, tmp2) == 0);
 #endif
 }
@@ -424,7 +423,7 @@ TAPTEST(DirIterator)
 {
   NdbDir::Temp tempdir;
   char path[PATH_MAX];
-  basestring_snprintf(path, sizeof(path),"%s%s%s",
+  snprintf(path, sizeof(path),"%s%s%s",
                       tempdir.path(), DIR_SEPARATOR, "ndbdir_test");
 
   printf("Using directory '%s'\n", path);

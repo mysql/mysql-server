@@ -1,0 +1,66 @@
+Backup from 7.5 restored
+Restart server 1 to trigger schema distribution synchronization
+# restart
+Restart server 2 to trigger schema distribution synchronization
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int(10) unsigned NOT NULL,
+  `c3` float DEFAULT NULL,
+  `c4` varchar(255) DEFAULT NULL,
+  `c5` time DEFAULT NULL,
+  `c6` date DEFAULT NULL,
+  `c7` datetime DEFAULT NULL,
+  `c8` blob,
+  `c9` char(30) DEFAULT NULL,
+  `c10` varbinary(255) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `xc2` (`c2`)
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	c	d
+ALTER TABLE t1 DROP COLUMN c9;
+INSERT INTO t1 VALUES (2,2,2.5,'a','23:59:59','2018-01-30','2018-01-30 13:46:00','b','d');
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c10
+1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	d
+2	2	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	d
+DROP TABLE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+c1	c2
+2	4
+ALTER TABLE t2 RENAME t4;
+INSERT INTO t4(c1) VALUES (3);
+SELECT * FROM t4;
+c1	c2
+2	4
+3	9
+DROP TABLE t4;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` varchar(100) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=0,PARTITION_BALANCE=FOR_RP_BY_NODE'
+SELECT * FROM t3;
+c1	c2	c3
+1	a	a
+ALTER TABLE t3 ALGORITHM=COPY, ADD COLUMN c4 int;
+INSERT INTO t3 VALUES (2,'b','b',2);
+SELECT * FROM t3;
+c1	c2	c3	c4
+1	a	a	NULL
+2	b	b	2
+DROP TABLE t3;

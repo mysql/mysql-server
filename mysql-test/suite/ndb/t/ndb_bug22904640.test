@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --let $ndb_desc_file= $MYSQLTEST_VARDIR/tmp/ndb_desc_out.txt
 
@@ -26,8 +27,8 @@ select * from t1 order by b;
 
 --source include/ndb_backup.inc
 drop table t1;
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 # --exec $NDB_DESC --no-defaults -d test t1 | grep 'Max Rows'
 --exec $NDB_DESC --no-defaults -d test t1 > $ndb_desc_file
@@ -44,4 +45,5 @@ select * from t1 order by b;
 ALTER TABLE t1 algorithm=inplace, REORGANIZE PARTITION;
 
 DROP TABLE t1;
-
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $ndb_desc_file

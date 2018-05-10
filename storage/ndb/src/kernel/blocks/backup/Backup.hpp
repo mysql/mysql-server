@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,6 +201,7 @@ protected:
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
+  void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
 
 public:
   struct Node {
@@ -217,7 +218,6 @@ public:
                                 Uint32 filePtrI,
                                 Uint32 scanned_pages,
                                 Uint32 & scanGCI,
-                                bool & skip_flag,
                                 bool & changed_row_page_flag);
 
   bool is_partial_lcp_enabled()
@@ -230,8 +230,22 @@ public:
     return m_recovery_work;
   }
 
+  void init_extended_lcp_stat();
+  void print_extended_lcp_stat();
+  void alloc_page_after_lcp_start(Uint32 page_no);
+  void alloc_dropped_page_after_lcp_start(bool is_change_page);
+  void dropped_page_after_lcp_start(bool is_change_page,
+                                    bool is_last_lcp_state_A);
+  void skip_page_lcp_scanned_bit();
+  void skip_empty_page_lcp();
+  void record_dropped_empty_page_lcp();
+  void record_late_alloc_page_lcp();
+  void page_to_skip_lcp(bool is_last_lcp_state_A);
+  void lcp_keep_row();
+  void lcp_keep_delete_row();
+  void lcp_keep_delete_by_page_id();
+
   void init_lcp_scan(Uint32 & scanGCI,
-                     bool & skip_page,
                      bool & changed_row_page_flag);
   void end_lcp_scan(Uint32 number_of_pages);
 
@@ -396,7 +410,11 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   };
@@ -518,7 +536,11 @@ public:
     
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   private:
@@ -650,6 +672,33 @@ public:
     Uint32 m_current_data_file_ptr;
     Uint32 m_working_data_file_ptr;
     Uint64 m_current_lcp_lsn;
+
+    Uint32 m_save_error_code;
+    Uint32 m_change_page_alloc_after_start;
+    Uint32 m_all_page_alloc_after_start;
+    Uint32 m_change_page_alloc_dropped_after_start;
+    Uint32 m_all_page_alloc_dropped_after_start;
+    Uint32 m_change_page_dropped_A_after_start;
+    Uint32 m_all_page_dropped_A_after_start;
+    Uint32 m_change_page_dropped_D_after_start;
+    Uint32 m_all_page_dropped_D_after_start;
+    Uint32 m_skip_change_page_lcp_scanned_bit;
+    Uint32 m_skip_all_page_lcp_scanned_bit;
+    Uint32 m_skip_empty_change_page;
+    Uint32 m_skip_empty_all_page;
+    Uint32 m_record_empty_change_page_A;
+    Uint32 m_record_late_alloc_change_page_A;
+    Uint32 m_skip_late_alloc_change_page_D;
+    Uint32 m_skip_late_alloc_all_page_A;
+    Uint32 m_skip_late_alloc_all_page_D;
+    Uint64 m_lcp_keep_row_change_pages;
+    Uint64 m_lcp_keep_row_all_pages;
+    Uint64 m_lcp_keep_delete_row_change_pages;
+    Uint64 m_lcp_keep_delete_row_all_pages;
+    Uint32 m_lcp_keep_delete_change_pages;
+    Uint32 m_lcp_keep_delete_all_pages;
+    bool m_any_lcp_page_ops;
+
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
 
@@ -807,7 +856,11 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   };
@@ -1119,12 +1172,14 @@ public:
   void lcp_write_ctl_file(Signal*, BackupRecordPtr);
   void lcp_write_ctl_file_to_disk(Signal*, BackupFilePtr, Page32Ptr);
   void lcp_init_ctl_file(Page32Ptr pagePtr);
-  Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
+  Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*,
+                             Uint32 numPartPairs,
+                             Uint32 file_size);
   Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*,
                                Uint32,
                                struct BackupFormat::PartPair*);
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
-  void convert_ctl_page_to_network(Uint32*);
+  void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
   Uint32 calculate_min_parts(Uint64 row_count,
                              Uint64 row_change_count,
@@ -1240,7 +1295,6 @@ public:
   void get_page_info(BackupRecordPtr,
                      Uint32 part_id,
                      Uint32 & scanGCI,
-                     bool & skip_flag,
                      bool & changed_row_page_flag);
   void set_working_file(BackupRecordPtr,
                         Uint32 part_id,

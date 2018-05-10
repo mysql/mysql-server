@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "m_ctype.h"
 #include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <decimal_utils.hpp>
@@ -29,10 +30,6 @@
 #include "NdbImportCsvGram.hpp"
 // STL
 #include <cmath>
-// legacy
-#include <BaseString.hpp>
-
-#define snprintf BaseString::snprintf
 
 extern int NdbImportCsv_yyparse(NdbImportCsv::Parse& csvparse);
 #ifdef VM_TRACE
@@ -2603,8 +2600,12 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
 {
   const Table& table = m_input.m_table;
   const Attrs& attrs = table.m_attrs;
-  const uint lineno = m_input.m_startlineno + line->m_lineno;
+  // internal counts file lines and fields from 0
+  const uint64 lineno = m_input.m_startlineno + line->m_lineno;
   const uint fieldno = field->m_fieldno;
+  // user wants the counts from 1
+  const uint64 linenr = 1 + lineno;
+  const uint fieldnr = 1 + fieldno;
   const Attr& attr = attrs[fieldno];
   Error error;  // local error
   do
@@ -2613,8 +2614,8 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
     {
       m_util.set_error_data(
         error, __LINE__, 0,
-        "line %u field %u: setting non-nullable attr to NULL",
-        lineno, fieldno);
+        "line %llu field %u: setting non-nullable attr to NULL",
+        linenr, fieldnr);
       break;
     }
   } while (0);

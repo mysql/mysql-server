@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->init(2048)){
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
+    ndbout << "pNdb.init() failed" << endl;      
     return NDBT_FAILED;
   }
 
@@ -236,6 +237,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
        
     if (hugoOps.startTransaction(pNdb) != NDBT_OK){
       delete pNdb;
+      ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -247,6 +249,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
       const int rowNo = (i % 256);
       if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
         errors++;
+        ndbout << "ReadRecord failed at line: " << __LINE__ << ", row: " << rowNo << endl;
         if (errors >= maxErrors){
           result = NDBT_FAILED;
           maxOpsLimit = i;
@@ -268,11 +271,14 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
       default:
         result = NDBT_FAILED;
-        // Fallthrough to '233' which also terminate test, but not 'FAILED'
+        // Fall through - to '233' which also terminate test, but not 'FAILED'
       case 233:  // Out of operation records in transaction coordinator  
+      case 1217: // Out of operation records in local data manager
         // OK - end test
         endTest = true;
-        maxOpsLimit = i;
+        maxOpsLimit = i;		
+        ndbout << "execute failed at line: " << __LINE__
+	       << ", with execResult: " << execResult << endl;
         break;
       }
     } while (i < maxOpsLimit);
@@ -313,6 +319,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
     if (hugoOps.startTransaction(pNdb) != NDBT_OK){
       delete pNdb;
+      ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -320,6 +327,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     {
       if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
         errors++;
+        ndbout << "ReadRecord failed at line: " << __LINE__ << ", row: " << rowNo << endl;
         if (errors >= maxErrors){
           result = NDBT_FAILED;
           break;
@@ -330,6 +338,8 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     const int execResult = hugoOps.execute_Commit(pNdb);
     if (execResult != NDBT_OK)
     {
+      ndbout << "execute failed at line: " << __LINE__
+	     << ", with execResult: " << execResult << endl;
       result = NDBT_FAILED;
     }
     hugoOps.closeTransaction(pNdb);
@@ -359,9 +369,11 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Cool down periode didn't shrink NdbOperation free-list" << endl;
     result = NDBT_FAILED;
   }
-
+  
+  if (result != NDBT_OK)
+    ndbout << "Test case failed with result: " << result << endl;
+  
   delete pNdb;
-
   return result;
 }
 
@@ -4982,6 +4994,11 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
     if (con.connect(retries, retry_delay, verbose) != 0)
     {
       g_err << "Ndb_cluster_connection.connect failed" << endl;
+      g_err << "Error code: "
+            << con.get_latest_error()
+            << " message: "
+            << con.get_latest_error_msg()
+            << endl;
       return NDBT_FAILED;
     }
 
@@ -4994,6 +5011,11 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
     {
       g_err << "Cluster connection was not ready, nodeid: "
             << con.node_id() << endl;
+      g_err << "Error code: "
+            << con.get_latest_error()
+            << " message: "
+            << con.get_latest_error_msg()
+            << endl;
       abort();
       return NDBT_FAILED;
     }
@@ -5026,6 +5048,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 sr = ctx->getProperty("ClusterRestart", (unsigned)0);
   Uint32 master = ctx->getProperty("Master", (unsigned)0);
   Uint32 slow = ctx->getProperty("SlowNR", (unsigned)0);
+  Uint32 slowNoStart = ctx->getProperty("SlowNoStart", (unsigned)0);
   NdbRestarter restarter;
 
   if (restarter.waitClusterStarted() != 0)
@@ -5070,6 +5093,22 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
         g_err << "Failed to waitNodesNoStart" << endl;
         result = NDBT_FAILED;
         break;
+      }
+
+      if (slowNoStart)
+      {
+        /**
+         * Spend some time in the NOT_STARTED state, as opposed
+         * to some substate of STARTING
+         */
+        Uint32 blockTime = 3 * 60 * 1000;
+        Uint64 end = NdbTick_CurrentMillisecond() + blockTime;
+        while (ctx->getProperty("runNdbClusterConnect_FINISHED") < threads
+               && !ctx->isTestStopped() &&
+               NdbTick_CurrentMillisecond() < end)
+        {
+          NdbSleep_MilliSleep(100);
+        }
       }
 
       if (slow)
@@ -7109,6 +7148,63 @@ runTestColumnNameLookupPerf(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runMaybeRestartMaster(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Psuedo-randomly restart the current master node
+   * Often in test runs the Master node is the lowest
+   * numbered node id due to nodes being iterated.
+   *
+   * Randomly restarting the Master prior to running a
+   * test is one way to avoid tests with do [not] restart
+   * the master for always [never] restarting the
+   * lowest node id
+   */
+  NdbRestarter restarter;
+  int masterNodeId = restarter.getMasterNodeId();
+  const bool restartMaster = ((rand() % 2) == 0);
+
+  if (restartMaster)
+  {
+    ndbout << "Restarting Master node "
+           << masterNodeId
+           << endl;
+
+    if (restarter.restartOneDbNode(masterNodeId,
+                                   false,        // Initial
+                                   true) != 0)   // NOSTART
+    {
+      g_err << "Failed to restart node" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (restarter.waitNodesNoStart(&masterNodeId, 1) != 0)
+    {
+      g_err << "Failed to wait for NoStart" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (restarter.startNodes(&masterNodeId, 1) != 0)
+    {
+      g_err << "Failed to start node" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (restarter.waitClusterStarted() != 0)
+    {
+      g_err << "Failed waiting for node to start" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Master node restarted" << endl;
+  }
+  else
+  {
+    ndbout << "Not restarting Master node "
+           << masterNodeId
+           << endl;
+  }
+  return NDBT_OK;
+}
 
 void
 asyncCallback(int res, NdbTransaction* trans, void* obj)
@@ -7767,6 +7863,24 @@ TESTCASE("NdbClusterConnectSR",
          "Make sure that every Ndb_cluster_connection get a unique nodeid")
 {
   TC_PROPERTY("ClusterRestart", (Uint32)1);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
+TESTCASE("NdbClusterConnectNR_slow_nostart",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  // Test ability for APIs to connect while some node in NOT_STARTED state
+  // Limit to non-master nodes due to uniqueness failing when master
+  // restarted
+  // (Bug #27484475 NDB : NODEID ALLOCATION UNIQUENESS NOT GUARANTEED
+  //  OVER MASTER NODE FAILURE)
+  // Use randomised initial master restart to avoid always testing
+  // the same node id restart behaviour
+  TC_PROPERTY("Master", 2);
+  TC_PROPERTY("TimeoutAfterFirst", (Uint32)0);
+  TC_PROPERTY("SlowNoStart", 1);
+  INITIALIZER(runMaybeRestartMaster);
   INITIALIZER(runNdbClusterConnectInit);
   STEPS(runNdbClusterConnect, MAX_NODES);
   STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong

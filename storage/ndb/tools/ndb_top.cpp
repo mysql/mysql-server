@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 #include <ndb_config.h>
 #ifdef HAVE_NCURSESW_CURSES_H
 #include <ncursesw/curses.h>
-#elif HAVE_NCURSESW_H
+#elif defined HAVE_NCURSESW_H
 #include <ncursesw.h>
-#elif HAVE_NCURSES_CURSES_H
+#elif defined HAVE_NCURSES_CURSES_H
 #include <ncurses/curses.h>
 #elif HAVE_NCURSES_H
 #include <ncurses.h>
@@ -43,6 +43,8 @@
 #include <signal.h>
 #include "../../../client/client_priv.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "my_default.h"
+#include "map_helpers.h"
 
 
 #define BLUE_COLOR 1
@@ -75,6 +77,7 @@ unsigned int opt_port_number = 0;
 char *opt_host = (char*)"localhost";
 char *opt_user = (char*)"root";
 char *opt_password = 0;
+char *opt_socket = 0;
 bool tty_password = 0;
 char *db_name = (char *)"ndbinfo";
 unsigned int opt_node_id = 0;
@@ -88,6 +91,7 @@ bool opt_sort = 0;
 bool opt_help = 0;
 
 static char percentage_sign = '%';
+const char *load_default_groups[] = {"ndb_top", "client", 0};
 
 void
 handle_error()
@@ -118,8 +122,9 @@ cleanup(bool in_screen)
 
 int connect_mysql()
 {
-  enum mysql_protocol_type prot_type= MYSQL_PROTOCOL_TCP;
-  mysql_options(con, MYSQL_OPT_PROTOCOL, (void*)&prot_type);
+  const mysql_protocol_type connect_protocol =
+      opt_socket != 0 ? MYSQL_PROTOCOL_SOCKET : MYSQL_PROTOCOL_TCP;
+  mysql_options(con, MYSQL_OPT_PROTOCOL, (void*)&connect_protocol);
 
   MYSQL *loc = mysql_real_connect(con,
                                   opt_host,
@@ -127,7 +132,7 @@ int connect_mysql()
                                   opt_password,
                                   db_name,
                                   opt_port_number,
-                                  NULL,
+                                  opt_socket,
                                   0);
   return loc == NULL ? 1 : 0;
 }
@@ -267,54 +272,57 @@ my_long_options[] =
   {"host", 'h',
    "Hostname of MySQL Server",
    (uchar**) &opt_host, (uchar**) &opt_host, 0, GET_STR,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"port", 't',
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P',
    "Port of MySQL Server",
    &opt_port_number, &opt_port_number, 0, GET_UINT,
-   OPT_ARG, 3306, 0, 0, 0, 0, 0},
+   REQUIRED_ARG, 3306, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &opt_socket, &opt_socket, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u',
    "Username to log into MySQL Server",
    (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to log into MySQL Server (default is NULL)",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"node_id", 'n',
    "Node id of data node to watch",
    &opt_node_id, &opt_node_id, 0, GET_UINT,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
+   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"sleep_time", 's',
    "Sleep time between each refresh of statistics",
    &opt_sleep_time, &opt_sleep_time, 0, GET_UINT,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
+   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"measured_load", 'm',
    "Show measured load by thread",
    &opt_measured_load, &opt_measured_load, 0, GET_BOOL,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"os_load", 'o',
    "Show load measured by OS",
    &opt_os_load, &opt_os_load, 0, GET_BOOL,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"color", 'c',
    "Use color in ASCII graphs",
    &opt_color, &opt_color, 0, GET_BOOL,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"text", 'x',
+   NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"text", 't',
    "Use text to represent data",
    &opt_text, &opt_text, 0, GET_BOOL,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"graph", 'g',
    "Use ASCII graphs to represent data",
    &opt_graph, &opt_graph, 0, GET_BOOL,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"sort", 'r',
    "Sort threads after highest measured usage",
    &opt_sort, &opt_sort, 0, GET_BOOL,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"help", '?',
    "Print usage",
    &opt_help, &opt_help, 0, GET_BOOL,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 
 };
@@ -366,6 +374,7 @@ static void usage(void)
   puts("");
   short_usage_sub();
   my_print_help(my_long_options);
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   my_print_variables(my_long_options);
 } /* usage */
 
@@ -407,7 +416,8 @@ get_one_option(int optid,
     print_version();
     exit(0);
   }
-  case 't':
+  case 'P':
+  case 'S':
   case 'n':
   case 'u':
   case 'h':
@@ -415,7 +425,7 @@ get_one_option(int optid,
   case 'm':
   case 'o':
   case 'c':
-  case 'x':
+  case 't':
   case 'g':
   case 'r':
   {
@@ -490,6 +500,8 @@ int main(int argc, char **argv)
   WINDOW *win;
   unsigned int sort_order[SORT_ORDER_ENTRIES];
   MY_INIT("ndb_top");
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &alloc, NULL);
 
   ret = handle_options(&argc, &argv, my_long_options, get_one_option);
   if (ret != 0)

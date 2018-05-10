@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,62 +23,30 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_EXECUTABLE(hugoFill hugoFill.cpp)
+NDB_ADD_EXECUTABLE(hugoFill hugoFill.cpp NDBTEST)
 
-ADD_EXECUTABLE(hugoLoad hugoLoad.cpp)
-ADD_EXECUTABLE(hugoLockRecords hugoLockRecords.cpp)
-ADD_EXECUTABLE(hugoPkDelete hugoPkDelete.cpp)
-ADD_EXECUTABLE(hugoPkRead hugoPkRead.cpp)
+NDB_ADD_EXECUTABLE(hugoLoad hugoLoad.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoLockRecords hugoLockRecords.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoPkDelete hugoPkDelete.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoPkRead hugoPkRead.cpp NDBTEST)
 
-ADD_EXECUTABLE(hugoPkReadRecord hugoPkReadRecord.cpp)
-ADD_EXECUTABLE(hugoPkUpdate hugoPkUpdate.cpp)
-ADD_EXECUTABLE(hugoScanRead hugoScanRead.cpp)
-ADD_EXECUTABLE(hugoScanUpdate hugoScanUpdate.cpp)
-ADD_EXECUTABLE(restart restart.cpp)
-ADD_EXECUTABLE(verify_index verify_index.cpp)
-ADD_EXECUTABLE(copy_tab copy_tab.cpp)
-ADD_EXECUTABLE(create_index create_index.cpp)
-ADD_EXECUTABLE(hugoJoin hugoJoin.cpp)
-ADD_EXECUTABLE(ndb_connect connect.cpp)
+NDB_ADD_EXECUTABLE(hugoPkReadRecord hugoPkReadRecord.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoPkUpdate hugoPkUpdate.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoScanRead hugoScanRead.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoScanUpdate hugoScanUpdate.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(restart restart.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(verify_index verify_index.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(copy_tab copy_tab.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(create_index create_index.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(hugoJoin hugoJoin.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(ndb_connect connect.cpp NDBTEST)
 
-ADD_EXECUTABLE(create_fk create_fk.cpp)
-ADD_EXECUTABLE(drop_fk drop_fk.cpp)
+NDB_ADD_EXECUTABLE(create_fk create_fk.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(drop_fk drop_fk.cpp NDBTEST)
 
-SET(BINS
-    hugoFill
-    hugoLoad
-    hugoLockRecords
-    hugoPkDelete
-    hugoPkRead
-    hugoPkReadRecord
-    hugoPkUpdate
-    hugoScanRead
-    hugoScanUpdate
-    restart
-    verify_index
-    copy_tab
-    create_index
-    hugoJoin
-    ndb_connect
-    create_fk
-    drop_fk)
-
-FOREACH(B ${BINS})
-  TARGET_LINK_LIBRARIES(${B} ndbNDBT)
-  TARGET_LINK_LIBRARIES(${B} ndbclient_so)
-ENDFOREACH()
-
-INSTALL(TARGETS ${BINS} DESTINATION bin)
-
-ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
-TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT)
-TARGET_LINK_LIBRARIES(ndb_cpcc ndbclient_static)
-INSTALL(TARGETS ndb_cpcc DESTINATION bin)
+NDB_ADD_EXECUTABLE(ndb_cpcc cpcc.cpp NDBTEST)
 
 IF(NOT WIN32)
-  ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp)
-  TARGET_LINK_LIBRARIES(spj_performance_test ndbNDBT)
-  TARGET_LINK_LIBRARIES(spj_performance_test ndbclient_so)
-  TARGET_LINK_LIBRARIES(spj_performance_test mysqlclient)
-  INSTALL(TARGETS spj_performance_test DESTINATION bin)
+  NDB_ADD_EXECUTABLE(spj_performance_test spj_performance_test.cpp
+                     NDBTEST MYSQLCLIENT)
 ENDIF()

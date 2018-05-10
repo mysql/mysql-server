@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,7 @@ void getValueObjectConstructor(const Arguments &args) {
   */
   Local<Object> jsFields = args[1]->ToObject();
   for(unsigned int i = 0 ; i < ncol; i++) {
-    Local<Value> fieldNumber = Number::New(args.GetIsolate(), i);
+    Local<Value> fieldNumber = v8::Number::New(args.GetIsolate(), i);
     Handle<String> fieldName = jsFields->Get(i)->ToString();
     nroEnvelope->addAccessor(fieldName, nroGetter, nroSetter, fieldNumber);
   }

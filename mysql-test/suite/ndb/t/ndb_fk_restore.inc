@@ -46,30 +46,30 @@ if ($rebuild_indexes) {
 if (!$disable_indexes2) {
 
 -- echo # restore meta
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 1 -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 1 -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 -- echo # restore data
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 }
 
 if ($disable_indexes2) {
 
 -- echo # restore meta (disable indexes)
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 1 -m --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 1 -m --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 # option --disable-indexes should have no effect here but we imitate MCM
 -- echo # restore data (disable indexes)
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 1 -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 2 -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 1 -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 2 -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 }
 
 if ($rebuild_indexes) {
 
 -- echo # rebuild indexes
--- exec $NDB_RESTORE --no-defaults --skip-core-file --verbose=255 -b $the_backup_id -n 1 --print_meta --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+-- exec $NDB_RESTORE --skip-core-file --verbose=255 -b $the_backup_id -n 1 --print_meta --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 }
 

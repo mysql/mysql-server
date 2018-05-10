@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,6 +105,7 @@ protected:
     unsigned m_thread_prio; // Between 0 and 10, 11 means not used
     unsigned m_realtime; //0 = no realtime, 1 = realtime
     unsigned m_spintime; //0 = no spinning, > 0 spintime in microseconds
+    unsigned m_nosend; //0 = assist send thread, 1 = cannot assist send thread
   };
   bool m_classic;
   SparseBitmask m_LockExecuteThreadToCPU;
@@ -169,6 +170,8 @@ public:
   int do_bind_watchdog(NdbThread*);
   int do_bind_send(NdbThread*, unsigned);
   int do_unbind(NdbThread*);
+  bool do_get_nosend(const unsigned short list[],
+                     unsigned cnt) const;
   bool do_get_realtime_io() const;
   bool do_get_realtime_wd() const;
   bool do_get_realtime_send(unsigned) const;

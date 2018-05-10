@@ -128,6 +128,19 @@ struct DABits
      */
     NI_REPEAT_SCAN_RESULT = 0x200,
 
+    /**
+     * If INNER_JOIN is set, we need only to return rows if there
+     * is a (equality-) match on both tables.
+     * For non-matches the parent tuple will eventually be removed from the
+     * result set. This implies that other join-siblings of this parent
+     * tuple also will effectively be eliminated. Thus, producing further
+     * results having this tuple as a parent could be skipped.
+     *
+     * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN 
+     * is similar to 'LEFT OUTER JOIN' result being produced.
+     */ 
+    NI_INNER_JOIN = 0x400,
+
     NI_END = 0
   };
 

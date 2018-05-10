@@ -740,7 +740,7 @@ STOP SLAVE;
 --echo Setup warning suppression
 --disable_query_log
 call mtr.add_suppression("Transaction conflict handling on table t5 failed as table has Blobs which cannot be refreshed");
-call mtr.add_suppression("NDBCLUSTER Error_code: 1296");
+call mtr.add_suppression("NDBCLUSTER Error_code: MY-001296");
 --enable_query_log
 
 

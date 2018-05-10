@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -789,10 +788,11 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
         }
         else
         {
-          tOp = void2rec_op(tFirstDataPtr);
+          tOp = (NdbOperation*)(receiver->getOwner());
           /* NB! NdbOperation::checkMagicNumber() returns 0 if it *is* 
            * an NdbOperation.*/
-          assert(tOp->checkMagicNumber()==0); 
+          if (tOp->checkMagicNumber() != 0)
+            goto InvalidSignal;
           tReturnCode = tOp->receiveTCKEYREF(aSignal);
           if (tReturnCode != -1)
           {
@@ -812,7 +812,12 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     {
       goto InvalidSignal;
     }
-    tIndexOp = void2rec_iop(tFirstDataPtr);
+    const NdbReceiver* const receiver = void2rec(tFirstDataPtr);
+    if (!receiver->checkMagicNumber())
+    {
+      goto InvalidSignal;
+    }
+    tIndexOp = (NdbIndexOperation*)(receiver->getOwner());
     if (tIndexOp->checkMagicNumber() == 0)
     {
       tCon = tIndexOp->theNdbCon;
@@ -1005,7 +1010,12 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     const BlockReference aTCRef = aSignal->theSendersBlockRef;
     if (tFirstDataPtr != 0)
     {
-      tOp = void2rec_op(tFirstDataPtr);
+      const NdbReceiver* const receiver = void2rec(tFirstDataPtr);
+      if (!receiver->checkMagicNumber())
+      {
+        goto InvalidSignal;
+      }
+      tOp = (NdbOperation*)(receiver->getOwner());
       if (tOp->checkMagicNumber(false) == 0)
       {
         tCon = tOp->theNdbCon;
@@ -1054,7 +1064,12 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   {
     if (tFirstDataPtr != 0)
     {
-      tOp = void2rec_op(tFirstDataPtr);
+      const NdbReceiver* const receiver = void2rec(tFirstDataPtr);
+      if (!receiver->checkMagicNumber())
+      {
+        goto InvalidSignal;
+      }
+      tOp = (NdbOperation*)(receiver->getOwner());
       if (tOp->checkMagicNumber(false) == 0)
       {
         tCon = tOp->theNdbCon;

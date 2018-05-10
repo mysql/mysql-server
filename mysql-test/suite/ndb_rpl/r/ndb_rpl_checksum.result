@@ -7,7 +7,7 @@ call mtr.add_suppression('Slave can not handle replication events with the check
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
-call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
+call mtr.add_suppression('Slave SQL for channel \'\': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117');
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;
@@ -66,7 +66,7 @@ set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave can not handle replication events with the checksum that master is configured to log; the first event 'master-bin.000009' at XXX, the last event read from './master-bin.000010' at XXX, the last byte read from './master-bin.000010' at XXX.''
 select count(*) as zero from t1;
 zero
@@ -84,14 +84,14 @@ include/stop_slave.inc
 create table t2 (a int) engine=ndb;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
-include/wait_for_slave_io_error.inc [errno=1595, 1743]
+include/wait_for_slave_io_error.inc [errno=13122, 13115]
 set @@global.debug='';
 start slave io_thread;
 include/sync_slave_io_with_master.inc
 set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
-include/wait_for_slave_sql_error.inc [errno=1593]
+include/wait_for_slave_sql_error.inc [errno=13117]
 Last_SQL_Error = 'Error initializing relay log position: I/O error reading event at position 4'
 include/stop_slave.inc
 set @@global.debug='';

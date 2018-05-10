@@ -29,7 +29,8 @@
 #include "my_rapidjson_size_t.h"    // IWYU pragma: keep
 
 #include <rapidjson/document.h>     // rapidjson::Document
-#include <rapidjson/writer.h>       // rapidjson::Write
+#include <rapidjson/writer.h>       // rapidjson::Writer
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
 #include <rapidjson/stringbuffer.h>
 
 #include "sql/dd/impl/sdi.h"
@@ -39,6 +40,9 @@
 typedef rapidjson::Writer<dd::RJ_StringBuffer, dd::RJ_Encoding, dd::RJ_Encoding,
                           dd::RJ_Allocator, 0>
     MinifyWriter;
+typedef rapidjson::PrettyWriter<dd::RJ_StringBuffer, dd::RJ_Encoding,
+                                dd::RJ_Encoding, dd::RJ_Allocator, 0>
+    PrettyWriter;
 
 /*
   @brief minify a JSON formatted SDI. Remove whitespace and other
@@ -72,6 +76,22 @@ static dd::sdi_t minify(dd::sdi_t sdi)
   return buf.GetString();
 }
 
+dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
+  dd::RJ_Document doc;
+  doc.Parse<0>(sdi.c_str());
+
+  if (doc.HasParseError()) {
+    return "";
+  }
+
+  dd::RJ_StringBuffer buf;
+  PrettyWriter w(buf);
+  if (!doc.Accept(w)) {
+    return "";
+  }
+
+  return buf.GetString();
+}
 
 bool
 ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)

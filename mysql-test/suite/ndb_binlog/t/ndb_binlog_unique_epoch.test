@@ -125,3 +125,4 @@ alter table mysql.ndb_binlog_index add primary key (epoch, orig_server_id, orig_
 
 drop procedure ins;
 drop table t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

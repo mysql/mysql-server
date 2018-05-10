@@ -1,22 +1,27 @@
 -- source include/have_ndb.inc
---result_format 2
+--source include/not_windows.inc
 
-# Avoid check for result file
---source include/ndb_no_result_file.inc
 
 --echo "Create nodegroup with out-of-range node ID"
 --error 255
---exec $NDB_MGM -e "create nodegroup 112,113"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 112,113"
 --error 255
---exec $NDB_MGM -e "create nodegroup 4,112"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 4,112"
 
 --echo "Create nodegroup with in-range but inactive node ID"
 --error 255
---exec $NDB_MGM -e "create nodegroup 48,3"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 48,3"
 --error 255
---exec $NDB_MGM -e "create nodegroup 4,48"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 4,48"
 
---exec $NDB_MGM -e show
+--source ndb_mgm_show_table.inc
+
+let $non_windows = 0;
+if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+{
+  let $non_windows = 1;
+}
+
 
 CREATE LOGFILE GROUP lg_1
     ADD UNDOFILE 'undo_1.dat'
@@ -43,32 +48,59 @@ let ndb_database= test;
 let ndb_table= t6;
 --source suite/ndb/include/ndb_get_blob_tables.inc
 
-load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n';
+
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' (id, @data) set data = @data, id2 = repeat(@data,10);
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' (id, @data) set dat = repeat(@data, 100), txt = repeat(@data,100);
 
-select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
-select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
-select @init_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
-select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+## Check details of t1 partitioning
+--echo "Table t1 Partition info"
+let ndb_table= t1;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t2 partitioning
+--echo "Table t2 Partition info"
+let ndb_table= t2;
+--source ndb_desc_show_partition_info.inc
 
 ## Check details of t5 partitioning
---exec $NDB_DESC -dtest -p -n t5
+--echo "Table t5 Partition info"
+let ndb_table= t5;
+--source ndb_desc_show_partition_info.inc
 
 ## Check details of t6 partitioning
---exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+--echo "Table t6 Partition info"
+let ndb_table= t6;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t6 blob table partitioning
+--echo "Table t6 blob dat Partition info"
+let ndb_table= $bt_test_t6_dat;
+if($non_windows)
+{
+  let ndb_table= '$bt_test_t6_dat';
+}
+--source ndb_desc_show_partition_info.inc
+
+--echo "Table t6 blob txt Partition info"
+let ndb_table= $bt_test_t6_txt;
+if($non_windows)
+{
+  let ndb_table= '$bt_test_t6_txt';
+}
+--source ndb_desc_show_partition_info.inc
 
 ## Create nodegroup for "new" nodes
---exec $NDB_MGM -e "create nodegroup 3,4"
-
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 3,4"
+--sleep 5
 # Cluster running after adding two ndbd nodes
---exec $NDB_MGM -e show
+--source ndb_mgm_show_table.inc
 
 ## Drop
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
 ## and create
---exec $NDB_MGM -e "create nodegroup 3,4"
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 3,4"
 
 set @@new = 1;
 
@@ -103,59 +135,78 @@ if (!$DISABLE_BLOB_REORG)
   alter table t6 reorganize partition;
 }
 
-select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
-select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
-select count(1) as t3_part_count from information_schema.partitions where table_schema='test' and table_name='t3';
-select count(1) as t4_part_count from information_schema.partitions where table_schema='test' and table_name='t4';
-select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
-select count(1) as t6_part_count from information_schema.partitions where table_schema='test' and table_name='t6';
+## Check details of t1 partitioning
+--echo "Table t1 Partition info"
+let ndb_table= t1;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t2 partitioning
+--echo "Table t2 Partition info"
+let ndb_table= t2;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t3 partitioning
+--echo "Table t3 Partition info"
+let ndb_table= t3;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t4 partitioning
+--echo "Table t4 Partition info"
+let ndb_table= t4;
+--source ndb_desc_show_partition_info.inc
 
 ## Check details of t5 partitioning
---exec $NDB_DESC -dtest -p -n t5
-
-
-let $t5_part_diff=`select @reorg_t5_part_count-@init_t5_part_count`;
-
-# Skip checking "t5 reorganized" until "Bug#26794953 INCORRECT PARTITIONS
-# INFORMATION IN INFORMATION_SCHEMA.PARTITIONS" has been fixed
-if (!$t5_part_diff)
-{
-  echo no change in count of partitions detected, skip check;
-  let $t5_part_diff = 1;
-}
-
-if (!$t5_part_diff)
-{
-  --die Table t5 was not reorganised
-}
+--echo "Table t5 Partition info"
+let ndb_table= t5;
+--source ndb_desc_show_partition_info.inc
 
 ## Simple blob usage of t6
-select count(0) as row_count, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+select count(0) as row_count from t6;
 
 ## Check details of t6 partitioning
---exec $NDB_DESC -dtest -p -n t6 '$bt_test_t6_dat' '$bt_test_t6_txt'
+--echo "Table t6 Partition info"
+let ndb_table= t6;
+--source ndb_desc_show_partition_info.inc
+
+## Check details of t6 blob table partitioning
+--echo "Table t6 blob dat Partition info"
+let ndb_table= $bt_test_t6_dat;
+if($non_windows)
+{
+  let ndb_table= '$bt_test_t6_dat';
+}
+--source ndb_desc_show_partition_info.inc
+
+--echo "Table t6 blob txt Partition info"
+let ndb_table= $bt_test_t6_txt;
+if($non_windows)
+{
+  let ndb_table= '$bt_test_t6_txt';
+}
+--source ndb_desc_show_partition_info.inc
 
 # Check that main table and blob tables have same hashmap.
 let ndb_database= test;
 let ndb_table= t6;
 let ndb_die_on_error= 1;
+--replace_regex /.* BT=.*//
 --source suite/ndb/include/ndb_check_blob_tables.inc
 
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze
 --error 0,255
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
 
 ## Nodegroup with "new" nodes still exist after dropping it as shown:
---exec $NDB_MGM -e show
+--source ndb_mgm_show_table.inc
 
 drop table t1,t2,t3,t4,t5,t6;
 
 ## Drop nodegroup with "new" nodes
---exec $NDB_MGM -e "drop nodegroup 1"
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
 
 ## Nodegroup with "new" nodes still exists after dropping it as shown:
---exec $NDB_MGM -e show
+--source ndb_mgm_show_table.inc
 
 # Cleanup
 ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';

@@ -94,6 +94,7 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
 #define DEBUG_LCP_STAT 1
+#define DEBUG_EXTENDED_LCP_STAT 1
 #endif
 
 #ifdef DEBUG_LCP
@@ -1098,7 +1099,7 @@ Backup::execCONTINUEB(Signal* signal)
     return;
   }
   default:
-    ndbrequire(0);
+    ndbabort();
   }//switch
 }
 
@@ -1153,7 +1154,7 @@ Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1161,7 +1162,7 @@ void
 Backup::execBACKUP_LOCK_TAB_REF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false /* Not currently possible. */);
+  ndbabort(); /* Not currently possible. */
 }
 
 Uint64 Backup::get_new_speed_val64(Signal *signal)
@@ -1994,6 +1995,69 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::LOGBUFFERS_TABLEID:
+  {
+    jam();
+    BackupRecordPtr ptr;
+    ndbrequire(c_backups.first(ptr));
+
+    jam();
+
+    if (isNdbMtLqh() && instance() != UserBackupInstanceKey)
+    {
+      // only LDM1 participates in backup, so other threads
+      // always have buffer usage = 0
+      break;
+    }
+    Uint32 files[2] = { ptr.p->dataFilePtr[0], ptr.p->logFilePtr };
+    for (Uint32 i=0; i<NDB_ARRAY_SIZE(files); i++)
+    {
+      jam();
+      Uint32 usableBytes, freeLwmBytes, freeSizeBytes;
+      usableBytes = freeLwmBytes = freeSizeBytes = 0;
+      Uint32 logtype = Ndbinfo::BACKUP_DATA_BUFFER;
+
+      switch(i){
+      case 0:
+        logtype = Ndbinfo::BACKUP_DATA_BUFFER;
+        usableBytes = c_defaults.m_dataBufferSize;
+        break;
+      case 1:
+        logtype = Ndbinfo::BACKUP_LOG_BUFFER;
+        usableBytes = c_defaults.m_logBufferSize;
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      };
+
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, files[i]);
+      if (ptr.p->logFilePtr != RNIL)
+      {
+        freeSizeBytes = filePtr.p->operation.dataBuffer.getFreeSize() << 2;
+        freeLwmBytes = filePtr.p->operation.dataBuffer.getFreeLwm() << 2;
+      }
+      else
+      {
+        freeSizeBytes = usableBytes;
+        freeLwmBytes = usableBytes;
+      }
+
+      Ndbinfo::Row data_row(signal, req);
+      data_row.write_uint32(getOwnNodeId());
+      data_row.write_uint32(logtype);
+      data_row.write_uint32(0);   // log id, always 0
+      data_row.write_uint32(instance());     // log part, instance for ndbmtd
+
+      data_row.write_uint64(usableBytes);        // total allocated
+      data_row.write_uint64(usableBytes - freeSizeBytes); // currently in use
+      data_row.write_uint64(usableBytes - freeLwmBytes);  // high water mark
+      // only 2 rows to send in total, so ignore ratelimit
+      ndbinfo_send_row(signal, req, data_row, rl);
+    }
+    break;
+  }
   default:
     break;
   }
@@ -2077,7 +2141,7 @@ Backup::removeTableMap(TablePtr &tabPtr,
     prevTabPtr = locTabPtr;
     locTabPtr.i = locTabPtr.p->nextMapTable;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 static Uint32 xps(Uint64 x, Uint64 ms)
@@ -2529,7 +2593,7 @@ Backup::checkNodeFail(Signal* signal,
     case GSN_UTIL_LOCK_REQ:
       return;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
     
     for(Uint32 i = 0; (i = mask.find(i+1)) != NdbNodeBitmask::NotFound; )
@@ -2727,7 +2791,6 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
                utilRef->errorCode,
                utilRef->TCErrorCode);
 
-  ndbrequire(false); //Temporary to get crash to analyse problem
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
 }//execUTIL_SEQUENCE_REF()
 
@@ -2935,7 +2998,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   /**
    * Not implemented
    */
-  ndbrequire(0);
+  ndbabort();
 }
 
 void
@@ -4135,8 +4198,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
     return;
   case GSN_UTIL_SEQUENCE_REQ:
   case GSN_UTIL_LOCK_REQ:
-    ndbrequire(false);
-    return;
+    ndbabort();
   case GSN_DROP_TRIG_IMPL_REQ:
   case GSN_STOP_BACKUP_REQ:
     return;
@@ -4311,7 +4373,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #endif
     if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
-      ndbrequire(false); // If master has succeeded slave should succed
+      ndbabort(); // If master has succeeded slave should succed
     }//if
     c_backups.addFirst(ptr);
   }//if
@@ -4511,7 +4573,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       if (msg != 0)
       {
         ndbout_c("setup msg = %s, i = %u", msg, i);
-        ndbrequire(false);
+        ndbabort();
       }
       files[i].p->operation.m_bytes_total = 0;
       files[i].p->operation.m_records_total = 0;
@@ -4607,7 +4669,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   /**
    * Not implemented
    */
-  ndbrequire(0);
+  ndbabort();
 }
 
 void
@@ -5098,7 +5160,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     Uint32 dstLen = len + 3;
     if(!buf.getWritePtr(&dst, dstLen)) {
       jam();
-      ndbrequire(false);
+      ndbabort();
       ptr.p->setErrorCode(DefineBackupRef::FailedAllocateTableMem);
       releaseSections(handle);
       defineBackupRef(signal, ptr);
@@ -6427,7 +6489,7 @@ Backup::execTRANSID_AI(Signal* signal)
                           dataLen, op.maxRecordSize, header);
       jamLine(dataLen);
       jamLine(op.maxRecordSize);
-      ndbrequire(false);
+      ndbabort();
     }
     filePtr.p->m_sent_words_in_scan_batch += dataLen;
     op.finished(dataLen);
@@ -6582,7 +6644,6 @@ void
 Backup::get_page_info(BackupRecordPtr ptr,
                       Uint32 part_id,
                       Uint32 & scanGCI,
-                      bool & skip_flag,
                       bool & changed_row_page_flag)
 {
   if (is_all_rows_page(ptr, part_id))
@@ -6594,7 +6655,6 @@ Backup::get_page_info(BackupRecordPtr ptr,
      */
     jam();
     scanGCI = 0;
-    skip_flag = false;
     changed_row_page_flag = false;
   }
   else
@@ -6606,7 +6666,6 @@ Backup::get_page_info(BackupRecordPtr ptr,
     ndbassert(is_partial_lcp_enabled());
     scanGCI = ptr.p->m_scan_change_gci;
     ndbrequire(scanGCI != 0);
-    skip_flag = false;
     changed_row_page_flag = true;
   }
 }
@@ -6642,7 +6701,6 @@ Backup::restore_current_page(BackupRecordPtr ptr)
 
 void
 Backup::init_lcp_scan(Uint32 & scanGCI,
-                      bool & skip_page,
                       bool & changed_row_page_flag)
 {
   /**
@@ -6679,7 +6737,6 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
   get_page_info(ptr,
                 part_id,
                 scanGCI,
-                skip_page,
                 changed_row_page_flag);
   set_working_file(ptr, part_id, !changed_row_page_flag);
   ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
@@ -6699,9 +6756,261 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
           0,
           part_id,
           0,
-          skip_page ? "SKIP page" :
-            changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
+          changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
 #endif
+}
+
+void
+Backup::alloc_page_after_lcp_start(Uint32 page_no)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_change_part_state(page_no))
+    ptr.p->m_change_page_alloc_after_start++;
+  else
+    ptr.p->m_all_page_alloc_after_start++;
+}
+
+void
+Backup::alloc_dropped_page_after_lcp_start(bool is_change_page)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_change_page)
+  {
+    ptr.p->m_change_page_alloc_dropped_after_start++;
+  }
+  else
+  {
+    ptr.p->m_all_page_alloc_dropped_after_start++;
+  }
+}
+
+void
+Backup::dropped_page_after_lcp_start(bool is_change_page,
+                                     bool is_last_lcp_state_A)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_last_lcp_state_A)
+  {
+    if (is_change_page)
+      ptr.p->m_change_page_dropped_A_after_start++;
+    else
+      ptr.p->m_all_page_dropped_A_after_start++;
+  }
+  else
+  {
+    if (is_change_page)
+      ptr.p->m_change_page_dropped_D_after_start++;
+    else
+      ptr.p->m_all_page_dropped_D_after_start++;
+  }
+}
+
+void
+Backup::skip_page_lcp_scanned_bit()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_skip_change_page_lcp_scanned_bit++;
+  else
+    ptr.p->m_skip_all_page_lcp_scanned_bit++;
+}
+
+void
+Backup::skip_empty_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_skip_empty_change_page++;
+  else
+    ptr.p->m_skip_empty_all_page++;
+}
+
+void
+Backup::record_dropped_empty_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ndbrequire(ptr.p->m_working_changed_row_page_flag)
+  ptr.p->m_any_lcp_page_ops = true;
+  ptr.p->m_record_empty_change_page_A++;
+}
+
+void
+Backup::record_late_alloc_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ndbrequire(ptr.p->m_working_changed_row_page_flag)
+  ptr.p->m_any_lcp_page_ops = true;
+  ptr.p->m_record_late_alloc_change_page_A++;
+}
+
+void
+Backup::page_to_skip_lcp(bool is_last_lcp_state_A)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+  {
+    ndbrequire(!is_last_lcp_state_A);
+    ptr.p->m_skip_late_alloc_change_page_D++;
+  }
+  else
+  {
+    if (is_last_lcp_state_A)
+      ptr.p->m_skip_late_alloc_all_page_A++;
+    else
+      ptr.p->m_skip_late_alloc_all_page_D++;
+  }
+}
+
+void
+Backup::lcp_keep_delete_by_page_id()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_delete_change_pages++;
+  else
+    ptr.p->m_lcp_keep_delete_all_pages++;
+}
+
+void
+Backup::lcp_keep_delete_row()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_delete_row_change_pages++;
+  else
+    ptr.p->m_lcp_keep_delete_row_all_pages++;
+}
+
+void
+Backup::lcp_keep_row()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_row_change_pages++;
+  else
+    ptr.p->m_lcp_keep_row_all_pages++;
+}
+
+void
+Backup::print_extended_lcp_stat()
+{
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  if (!ptr.p->m_any_lcp_page_ops)
+    return;
+  g_eventLogger->info("(%u)change_page_alloc_after_start: %u, "
+                      "all_page_alloc_after_start: %u, "
+                      "change_page_alloc_dropped_after_start: %u, "
+                      "all_page_alloc_dropped_after_start: %u",
+                      instance(),
+                      ptr.p->m_change_page_alloc_after_start,
+                      ptr.p->m_all_page_alloc_after_start,
+                      ptr.p->m_change_page_alloc_dropped_after_start,
+                      ptr.p->m_all_page_alloc_dropped_after_start);
+  g_eventLogger->info("(%u)change_page_dropped_A_after_start: %u, "
+                      "all_page_dropped_A_after_start: %u, "
+                      "change_page_dropped_D_after_start: %u, "
+                      "all_page_dropped_D_after_start: %u",
+                      instance(),
+                      ptr.p->m_change_page_dropped_A_after_start,
+                      ptr.p->m_all_page_dropped_A_after_start,
+                      ptr.p->m_change_page_dropped_D_after_start,
+                      ptr.p->m_all_page_dropped_D_after_start);
+  g_eventLogger->info("(%u)skip_change_page_lcp_scanned_bit: %u, "
+                      "skip_all_page_lcp_scanned_bit: %u, "
+                      "skip_empty_change_page: %u, "
+                      "skip_empty_all_page: %u",
+                      instance(),
+                      ptr.p->m_skip_change_page_lcp_scanned_bit,
+                      ptr.p->m_skip_all_page_lcp_scanned_bit,
+                      ptr.p->m_skip_empty_change_page,
+                      ptr.p->m_skip_empty_all_page);
+  g_eventLogger->info("(%u)record_empty_change_page_A: %u, "
+                      "record_late_alloc_change_page_A: %u, "
+                      "skip_late_alloc_change_page_D: %u, "
+                      "skip_late_alloc_all_page_A: %u, "
+                      "skip_late_alloc_all_page_D: %u",
+                      instance(),
+                      ptr.p->m_record_empty_change_page_A,
+                      ptr.p->m_record_late_alloc_change_page_A,
+                      ptr.p->m_skip_late_alloc_change_page_D,
+                      ptr.p->m_skip_late_alloc_all_page_A,
+                      ptr.p->m_skip_late_alloc_all_page_D);
+  g_eventLogger->info("(%u)lcp_keep_row_change_pages: %llu, "
+                      "lcp_keep_row_all_pages: %llu, "
+                      "lcp_keep_delete_row_change_pages: %llu, "
+                      "lcp_keep_delete_row_all_pages: %llu, "
+                      "lcp_keep_delete_change_pages: %u, "
+                      "lcp_keep_delete_all_pages: %u",
+                      instance(),
+                      ptr.p->m_lcp_keep_row_change_pages,
+                      ptr.p->m_lcp_keep_row_all_pages,
+                      ptr.p->m_lcp_keep_delete_row_change_pages,
+                      ptr.p->m_lcp_keep_delete_row_all_pages,
+                      ptr.p->m_lcp_keep_delete_change_pages,
+                      ptr.p->m_lcp_keep_delete_all_pages);
+}
+
+void
+Backup::init_extended_lcp_stat()
+{
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_change_page_alloc_after_start = 0;
+  ptr.p->m_all_page_alloc_after_start = 0;
+  ptr.p->m_change_page_alloc_dropped_after_start = 0;
+  ptr.p->m_all_page_alloc_dropped_after_start = 0;
+  ptr.p->m_change_page_dropped_A_after_start = 0;
+  ptr.p->m_all_page_dropped_A_after_start = 0;
+  ptr.p->m_change_page_dropped_D_after_start = 0;
+  ptr.p->m_all_page_dropped_D_after_start = 0;
+  ptr.p->m_skip_change_page_lcp_scanned_bit = 0;
+  ptr.p->m_skip_all_page_lcp_scanned_bit = 0;
+  ptr.p->m_skip_empty_change_page = 0;
+  ptr.p->m_skip_empty_all_page = 0;
+  ptr.p->m_record_empty_change_page_A = 0;
+  ptr.p->m_record_late_alloc_change_page_A = 0;
+  ptr.p->m_skip_late_alloc_change_page_D = 0;
+  ptr.p->m_skip_late_alloc_all_page_A = 0;
+  ptr.p->m_skip_late_alloc_all_page_D = 0;
+  ptr.p->m_lcp_keep_delete_row_change_pages = 0;
+  ptr.p->m_lcp_keep_delete_row_all_pages = 0;
+  ptr.p->m_lcp_keep_delete_change_pages = 0;
+  ptr.p->m_lcp_keep_delete_all_pages = 0;
+  ptr.p->m_lcp_keep_row_change_pages = 0;
+  ptr.p->m_lcp_keep_row_all_pages = 0;
+  ptr.p->m_any_lcp_page_ops = false;
 }
 
 /**
@@ -6758,7 +7067,6 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                                  Uint32 filePtrI,
                                  Uint32 scanned_pages,
                                  Uint32 & scanGCI,
-                                 bool & skip_page,
                                  bool & changed_row_page_flag)
 {
   BackupFilePtr filePtr;
@@ -6781,7 +7089,6 @@ Backup::update_lcp_pages_scanned(Signal *signal,
   get_page_info(ptr,
                 part_id,
                 scanGCI,
-                skip_page,
                 changed_row_page_flag);
   set_working_file(ptr, part_id, !changed_row_page_flag);
   ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
@@ -6799,8 +7106,7 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                  scanned_pages,
                  part_id,
                  0,
-                 skip_page ? "SKIP page" :
-                   changed_row_page_flag ?
+                 changed_row_page_flag ?
                      "CHANGED ROWS page" : " ALL ROWS page"));
 #endif
 }
@@ -7250,12 +7556,6 @@ Backup::fragmentCompleted(Signal* signal,
   OperationRecord & op = filePtr.p->operation;
   if (ptr.p->is_lcp())
   {
-    /**
-     * Check if we completed last part or if there are still
-     * parts to be done. If more parts are needed to be done
-     * then wait for file to be closed before starting up
-     * the next file part.
-     */
     jam();
     ptr.p->m_is_lcp_scan_active = false;
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
@@ -7285,49 +7585,13 @@ Backup::fragmentCompleted(Signal* signal,
                ptr.p->noOfBytes,
                ptr.p->m_num_lcp_files,
                ptr.p->m_first_data_file_number));
+#ifdef DEBUG_LCP_EXTENDED_STAT
+      print_extended_lcp_stat();
+#endif
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
-    /**
-     * Ensure that we didn't find more rows in LCP than what was
-     * in fragment at start of LCP.
-     *
-     * If we run a full LCP we should always find as many rows as was
-     * present in the row count at the start of the LCP.
-     * If we run a partial LCP we should never find more rows in this
-     * LCP file than was present at the start of the LCP, this is the
-     * sum of rows from ALL pages and changed rows in CHANGE pages.
-     *
-     * This check is important such that we find inconsistencies as
-     * soon as they occur, rather than at the time when we recover
-     * when it is very difficult to trace back the source of the
-     * problem.
-     *
-     * Error means that the table was dropped during LCP and in this
-     * case these numbers are not consistent, we're simply closing
-     * the LCP scan in an orderly manner with no rows read. So we
-     * should not crash in this case.
-     */
-    if (!(errCode != 0 ||
-          ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-          ((ptr.p->m_num_parts_in_this_lcp !=
-            BackupFormat::NDB_MAX_LCP_PARTS) &&
-           (ptr.p->m_row_count >=
-            (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes)))))
-    {
-      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
-                          ", writes: %llu, parts: %u",
-                          errCode,
-                          ptr.p->m_row_count,
-                          filePtr.p->m_lcp_inserts,
-                          filePtr.p->m_lcp_writes,
-                          ptr.p->m_num_parts_in_this_lcp);
-      ndbrequire(errCode != 0 ||
-                 ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-         (ptr.p->m_row_count >=
-          (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
-    }
-
+    /* Save errCode for later checks */
+    ptr.p->m_save_error_code = errCode;
     ptr.p->slaveState.setState(STOPPING);
 
     /**
@@ -7612,9 +7876,19 @@ Backup::execFSAPPENDREF(Signal* signal)
 
   CRASH_INSERTION(10044);
   CRASH_INSERTION(10045);
-  g_eventLogger->info("Crashing after FSAPPENDREF: error code: %u",
-                      errCode);
-  ndbrequire(false);
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  if (ptr.p->is_lcp())
+  {
+    /**
+     * Log in this case for LCPs, Backups should be able to
+     * handle out of disk space. LCPs could potentially survive for
+     * a while, but will eventually crash or they will hit the
+     * infamous 410 condition.
+     */
+    g_eventLogger->info("LCP got FSAPPENDREF, serious error: error code: %u",
+                        errCode);
+  }
   checkFile(signal, filePtr);
 }
 
@@ -7956,7 +8230,7 @@ Backup::get_log_buffer(Signal* signal,
     logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
   else {
     ndbout << "Bad Event: " << trigPtr.p->event << endl;
-    ndbrequire(false);
+    ndbabort();
   }
 
   return logEntry;
@@ -8217,7 +8491,59 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   ptr.p->stopGCP= stopGCP;
 
   /**
-   * Destroy the triggers in local DBTUP we created
+   * Ensure that any in-flight changes are
+   * included in the backup log before
+   * dropping the triggers
+   *
+   * This is necessary as the trigger-drop
+   * signals are routed :
+   *
+   *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
+   * 
+   * While the trigger firing signals are
+   * routed :
+   *
+   *   TUP Worker 1..n   -> Backup Worker 1
+   *
+   * So the arrival of signal-drop acks
+   * does not imply that all fired 
+   * triggers have been seen.
+   *
+   *  Backup Worker 1
+   *
+   *        |             SYNC_PATH_REQ
+   *        V
+   *     TUP Proxy
+   *    |  | ... |
+   *    V  V     V
+   *    1  2 ... n        (Workers)
+   *    |  |     |
+   *    |  |     |
+   *   
+   *   Backup Worker 1
+   */
+
+  Uint32 path[] = { DBTUP, 0 };
+  Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
+  synchronize_path(signal,
+                   path,
+                   cb);
+}
+
+void
+Backup::startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal)
+{
+  jamEntry();
+  /**
+   * Get backup record
+   */
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, ptrI);
+  
+  ndbrequire(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ);
+  
+  /**
+   * Now drop the triggers
    */
   sendDropTrig(signal, ptr);
 }
@@ -8362,7 +8688,7 @@ Backup::execFSCLOSEREF(Signal* signal)
       file_type_str = "ctl";
     else
     {
-      ndbrequire(false);
+      ndbabort();
       file_type_str = NULL;
     }
   }
@@ -8377,7 +8703,7 @@ Backup::execFSCLOSEREF(Signal* signal)
       file_type_str = "log";
     else
     {
-      ndbrequire(false);
+      ndbabort();
       file_type_str = NULL;
     }
   }
@@ -8500,7 +8826,7 @@ Backup::execFSCLOSECONF(Signal* signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
   /* Backup closing files */
@@ -9772,7 +10098,9 @@ Backup::execFSREMOVECONF(Signal* signal)
  * This is recorded using the following variables in the LCP control file.
  *
  * MaxPartPairs:
- * This is the number of parts used in LCPs.
+ * This is the maximum number of LCPs that can constitute a recoverable
+ * checkpoints. Thus an LCP control file can write at most this many
+ * parts. Currently this number is set to 2048.
  *
  * NumPartPairs:
  * This is the number of files used in the restore of this LCP, there is
@@ -10447,7 +10775,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;
     ptr.p->m_current_lcp_lsn = Uint64(0);
-    DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
+    DEB_LCP_STAT(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
     ndbrequire(queue.isEmpty())
@@ -10578,7 +10906,7 @@ Backup::lcp_open_ctl_file_done(Signal* signal,
   Uint32 mem_offset = Uint32((char*)pagePtr.p - (char*)c_startOfPages);
   req->data.memoryAddress.memoryOffset = mem_offset;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -10598,7 +10926,7 @@ Backup::execFSREADREF(Signal *signal)
    * Since we create the file if it doesn't exist, this should not occur
    * unless something is completely wrong with the file system.
    */
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -10625,7 +10953,10 @@ Backup::execFSREADCONF(Signal *signal)
   if (ptr.p->deleteFilePtr == filePtr.i)
   {
     jam();
-    ndbrequire(filePtr.p->bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+    ndbrequire(filePtr.p->bytesRead ==
+                 BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
+               filePtr.p->bytesRead ==
+                 BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
     lcp_read_ctl_file_for_rewrite_done(signal, filePtr);
     return;
   }
@@ -10899,15 +11230,18 @@ Backup::copy_prev_lcp_info(BackupRecordPtr ptr,
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
   ptr.p->m_prepare_max_parts_in_lcp = lcpCtlFilePtr->MaxPartPairs;
   ptr.p->m_prepare_num_parts_in_lcp = lcpCtlFilePtr->NumPartPairs;
+  jam();
+  Uint32 total_parts = 0;
   for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
   {
-    jam();
     Uint32 start_part = lcpCtlFilePtr->partPairs[i].startPart;
     Uint32 num_parts = lcpCtlFilePtr->partPairs[i].numParts;
     next_start_part = get_part_add(start_part, num_parts);
     ptr.p->m_prepare_part_info[i].startPart = start_part;
     ptr.p->m_prepare_part_info[i].numParts = num_parts;
+    total_parts += num_parts;
   }
+  ndbrequire(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
   ptr.p->m_prepare_first_start_part_in_lcp = next_start_part;
   ptr.p->m_prepare_scan_change_gci = lcpCtlFilePtr->MaxGciCompleted;
   ptr.p->preparePrevLcpId = lcpCtlFilePtr->LcpId;
@@ -10957,7 +11291,8 @@ Backup::lcp_read_ctl_file(Page32Ptr pagePtr,
    * This information is used to decide which header file to close (the most
    * recent one) and which header file to use for the next LCP.
    */
-  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE == bytesRead);
+  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL == bytesRead ||
+             BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG == bytesRead);
   if (!convert_ctl_page_to_host(lcpCtlFilePtr))
   {
     jam();
@@ -10973,24 +11308,41 @@ Backup::lcp_read_ctl_file(Page32Ptr pagePtr,
   }
 }
 
+/**
+ * We compress before writing LCP control and after reading it we will
+ * decompress the part information. In compressed format we use 3 bytes
+ * to store two numbers that can at most be 2048. In uncompressed
+ * format each part is a 16-bit unsigned integer.
+ */
+#define BYTES_PER_PART 3
+/**
+ * Define the LCP Control file header size, remove the one part pair
+ * defined in the common header.
+ */
+#define LCP_CTL_FILE_HEADER_SIZE (sizeof(BackupFormat::LCPCtlFile) - \
+                                  sizeof(BackupFormat::PartPair))
+
 bool
 Backup::convert_ctl_page_to_host(
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr)
 {
   Uint32 *pageData = (Uint32*)lcpCtlFilePtr;
   Uint32 numPartPairs = ntohl(lcpCtlFilePtr->NumPartPairs);
-  Uint32 real_bytes_read = (sizeof(*lcpCtlFilePtr) +
-                           (sizeof(struct BackupFormat::PartPair) *
-                            (numPartPairs - 1)));
+  Uint32 real_bytes_read = LCP_CTL_FILE_HEADER_SIZE +
+                           (BYTES_PER_PART * numPartPairs);
 
-  /* Checksum is calculated on network byte order */
+  /* Checksum is calculated on compressed network byte order */
   if (numPartPairs > BackupFormat::NDB_MAX_LCP_PARTS)
   {
     DEB_LCP(("(%u)numPartPairs: %x", instance(), numPartPairs));
     ndbassert(false);
     return false;
   }
-  Uint32 words = real_bytes_read / sizeof(Uint32);
+  /**
+   * Add 3 to ensure that we get also the last word with anything not
+   * equal to 0 when changing to word count.
+   */
+  Uint32 words = (real_bytes_read + 3) / sizeof(Uint32);
   Uint32 chksum = 0;
   for (Uint32 i = 0; i < words; i++)
   {
@@ -11038,48 +11390,37 @@ Backup::convert_ctl_page_to_host(
   lcpCtlFilePtr->MaxPartPairs = ntohl(lcpCtlFilePtr->MaxPartPairs);
   lcpCtlFilePtr->NumPartPairs = ntohl(lcpCtlFilePtr->NumPartPairs);
 
-  ndbrequire((2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE) >= real_bytes_read);
+  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG >= real_bytes_read);
   ndbrequire(lcpCtlFilePtr->fileHeader.FileType ==
              BackupFormat::LCP_CTL_FILE);
   ndbrequire(memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) == 0);
   ndbrequire(lcpCtlFilePtr->NumPartPairs <= lcpCtlFilePtr->MaxPartPairs);
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
   Uint32 total_parts;
-  if (lcpCtlFilePtr->fileHeader.BackupVersion == NDBD_USE_PARTIAL_LCP_v2)
-  {
-    lcpCtlFilePtr->RowCountLow = ntohl(lcpCtlFilePtr->RowCountLow);
-    lcpCtlFilePtr->RowCountHigh = ntohl(lcpCtlFilePtr->RowCountHigh);
-    total_parts = decompress_part_pairs(lcpCtlFilePtr,
-                                        lcpCtlFilePtr->NumPartPairs,
-                                        &lcpCtlFilePtr->partPairs[0]);
-  }
-  else
-  {
-    struct BackupFormat::LCPCtlFile *oldLcpCtlFilePtr =
-      (struct BackupFormat::LCPCtlFile*)lcpCtlFilePtr;
-    lcpCtlFilePtr->RowCountLow = 0;
-    lcpCtlFilePtr->RowCountHigh = 0;
-    ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion ==
-               NDBD_USE_PARTIAL_LCP_v1);
-    total_parts = decompress_part_pairs(lcpCtlFilePtr,
-                                        lcpCtlFilePtr->NumPartPairs,
-                                        &oldLcpCtlFilePtr->partPairs[0]);
-  }
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion >= NDBD_USE_PARTIAL_LCP_v2)
+  lcpCtlFilePtr->RowCountLow = ntohl(lcpCtlFilePtr->RowCountLow);
+  lcpCtlFilePtr->RowCountHigh = ntohl(lcpCtlFilePtr->RowCountHigh);
+  total_parts = decompress_part_pairs(lcpCtlFilePtr,
+                                      lcpCtlFilePtr->NumPartPairs,
+                                      &lcpCtlFilePtr->partPairs[0]);
   ndbrequire(total_parts <= lcpCtlFilePtr->MaxPartPairs);
   return true;
 }
 
 void
-Backup::convert_ctl_page_to_network(Uint32 *page)
+Backup::convert_ctl_page_to_network(Uint32 *page, Uint32 file_size)
 {
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)page;
   Uint32 numPartPairs = lcpCtlFilePtr->NumPartPairs;
-  Uint32 real_bytes_read = (sizeof(*lcpCtlFilePtr) +
-                           (sizeof(struct BackupFormat::PartPair) *
-                            (numPartPairs - 1)));
+  Uint32 compressed_bytes_written = LCP_CTL_FILE_HEADER_SIZE +
+                                    (BYTES_PER_PART * numPartPairs);
 
-  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE >= real_bytes_read);
+  /**
+   * Add 3 to ensure that we take into account the last word that might
+   * filled with only 1 byte of information.
+   */
+  ndbrequire(file_size >= (compressed_bytes_written + 3));
 
   ndbrequire(memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) == 0);
   ndbrequire(lcpCtlFilePtr->fileHeader.FileType ==
@@ -11128,17 +11469,21 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   lcpCtlFilePtr->RowCountLow = htonl(lcpCtlFilePtr->RowCountLow);
   lcpCtlFilePtr->RowCountHigh = htonl(lcpCtlFilePtr->RowCountHigh);
 
-  Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr, numPartPairs);
+  Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr,
+                                           numPartPairs,
+                                           file_size);
   ndbrequire(total_parts <= maxPartPairs);
 
   /**
-   * Checksum is calculated on network byte order.
+   * Checksum is calculated on compressed network byte order.
    * The checksum is calculated without regard to size decreasing due to
    * compression. This is not a problem since we fill the remainder with
    * zeroes and XOR doesn't change the checksum with extra zeroes.
+   *
+   * Add 3 to ensure that we move to word count in a correct manner.
    */
   lcpCtlFilePtr->Checksum = 0;
-  Uint32 words = real_bytes_read / sizeof(Uint32);
+  Uint32 words = (compressed_bytes_written + 3) / sizeof(Uint32);
   Uint32 chksum = 0;
   for (Uint32 i = 0; i < words; i++)
   {
@@ -11149,7 +11494,8 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
 
 Uint32
 Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
-                            Uint32 num_parts)
+                            Uint32 num_parts,
+                            Uint32 file_size)
 {
   Uint32 total_parts = 0;
   unsigned char *part_array =
@@ -11166,6 +11512,7 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
      */
     Uint32 startPart = lcpCtlFilePtr->partPairs[part].startPart;
     Uint32 numParts = lcpCtlFilePtr->partPairs[part].numParts;
+    ndbrequire(numParts <= BackupFormat::NDB_MAX_LCP_PARTS);
     Uint32 startPart_bit0_3 = (startPart & 0xF);
     Uint32 startPart_bit4_11 = (startPart >> 4) & 0xFF;
     Uint32 numParts_bit0_3 = (numParts & 0xF);
@@ -11184,10 +11531,10 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
                    numParts));
   }
   ndbrequire(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
-  unsigned char *start_page = (unsigned char*)lcpCtlFilePtr;
-  unsigned char *end_page = start_page + BackupFormat::NDB_LCP_CTL_FILE_SIZE;
-  Uint64 remaining_size_64 = end_page - part_array;
-  ndbrequire(remaining_size_64 < BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+  unsigned char *start_pos = (unsigned char*)lcpCtlFilePtr;
+  unsigned char *end_pos = start_pos + file_size;
+  Uint64 remaining_size_64 = end_pos - part_array;
+  ndbrequire(remaining_size_64 < file_size);
   Uint32 remaining_size = Uint32(remaining_size_64);
   memset(part_array, 0, remaining_size);
   return total_parts;
@@ -11210,6 +11557,7 @@ Uint32 Backup::decompress_part_pairs(
     Uint32 part_2 = c_part_array[j+2];
     Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
     Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    ndbrequire(numParts <= BackupFormat::NDB_MAX_LCP_PARTS);
     partPairs[part].startPart = startPart;
     partPairs[part].numParts = numParts;
     total_parts += numParts;
@@ -11440,9 +11788,38 @@ Backup::lcp_copy_ctl_page(BackupRecordPtr ptr)
   c_backupFilePool.getPtr(recent_file_ptr, ptr.p->prepareCtlFilePtr[recent]);
   file_ptr.p->pages.getPtr(page_ptr, 0);
   recent_file_ptr.p->pages.getPtr(recent_page_ptr, 0);
-  memcpy(page_ptr.p,
-         recent_page_ptr.p,
-         BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+  /**
+   * Important to consider here that the page is currently in expanded
+   * format. So before we copy it we calculate how much to copy.
+   */
+  {
+    struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+      (struct BackupFormat::LCPCtlFile*)recent_page_ptr.p;
+    Uint32 num_parts = lcpCtlFilePtr->NumPartPairs;
+    Uint32 size_to_copy = LCP_CTL_FILE_HEADER_SIZE;
+    size_to_copy += (num_parts * sizeof(struct BackupFormat::PartPair));
+    memcpy(page_ptr.p,
+           recent_page_ptr.p,
+           size_to_copy);
+  }
+#ifdef VM_TRACE
+  {
+    struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+      (struct BackupFormat::LCPCtlFile*)page_ptr.p;
+    jam();
+    Uint32 total_parts = 0;
+    Uint32 num_parts = lcpCtlFilePtr->NumPartPairs;
+    jamLine(num_parts);
+    for (Uint32 i = 0; i < num_parts; i++)
+    {
+      Uint32 parts = lcpCtlFilePtr->partPairs[i].numParts;
+      total_parts += parts;
+      jamLine(parts);
+    }
+    jam();
+    ndbassert(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+  }
+#endif
 }
 
 void
@@ -11733,8 +12110,10 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
   }
 
   /* Insert the new parts at the end */
+  jamLineDebug(ptr.p->m_num_lcp_files);
   for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
   {
+    jamDebug();
     ptr.p->m_part_info[old_num_parts + i].startPart =
       ptr.p->m_scan_info[i].m_start_all_part;
     ptr.p->m_part_info[old_num_parts + i].numParts =
@@ -11744,8 +12123,19 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
     ndbrequire(ptr.p->m_part_info[old_num_parts + i].numParts <=
                BackupFormat::NDB_MAX_LCP_PARTS);
   }
+  jamLineDebug(remaining_files);
   ptr.p->m_num_parts_in_lcp = ptr.p->m_num_lcp_files + remaining_files;
   ptr.p->m_max_parts_in_lcp = BackupFormat::NDB_MAX_LCP_PARTS;
+#ifdef VM_TRACE
+  Uint32 total_parts = 0;
+  jam();
+  for (Uint32 i = 0; i < ptr.p->m_num_parts_in_lcp; i++)
+  {
+    Uint32 numParts = ptr.p->m_part_info[i].numParts;
+    total_parts += numParts;
+  }
+  ndbassert(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+#endif
 }
 
 Uint32
@@ -12115,6 +12505,17 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                      MAX(min_parts_rule3,
                      MAX(min_parts_rule4, min_parts_rule5)));
 
+  if (ERROR_INSERTED(10048) && min_parts_rule4 == 0)
+  {
+    /**
+     * We need this in test cases to ensure that we can create a situation
+     * with 1 part per LCP and having more than 980 parts and even close to
+     * 2048 LCPs to restore a LCP.
+     */
+    jam();
+    g_eventLogger->info("Set to 1 part by ERROR 10048 injection");
+    parts = 1;
+  }
 #ifdef DEBUG_LCP_STAT
   TablePtr debTabPtr;
   FragmentPtr fragPtr;
@@ -12221,11 +12622,16 @@ void
 Backup::copy_lcp_info_from_prepare(BackupRecordPtr ptr)
 {
   ptr.p->m_scan_change_gci = ptr.p->m_prepare_scan_change_gci;
+  Uint32 total_parts = 0;
   for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
   {
-    jam();
+    Uint32 num_parts = ptr.p->m_prepare_part_info[i].numParts;
+    total_parts += num_parts;
     ptr.p->m_part_info[i] = ptr.p->m_prepare_part_info[i];
   }
+  ndbrequire(total_parts == 0 || /* First LCP */
+             total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+
   ptr.p->m_num_parts_in_lcp = ptr.p->m_prepare_num_parts_in_lcp;
   ptr.p->m_max_parts_in_lcp = ptr.p->m_prepare_max_parts_in_lcp;
   ptr.p->m_first_start_part_in_lcp =
@@ -12285,6 +12691,7 @@ Backup::start_execute_lcp(Signal *signal,
                           TablePtr & tabPtr,
                           Uint32 tableId)
 {
+  init_extended_lcp_stat();
   ptr.p->slaveState.setState(STARTED);
   ndbrequire(ptr.p->prepareState == PREPARED);
   ptr.p->prepareState = NOT_ACTIVE;
@@ -12529,7 +12936,7 @@ Backup::execSYNC_PAGE_WAIT_REP(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -12678,6 +13085,58 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
     return;
   }
 
+  /**
+   * Ensure that we didn't find more rows in LCP than what was
+   * in fragment at start of LCP.
+   *
+   * If we run a full LCP we should always find as many rows as was
+   * present in the row count at the start of the LCP.
+   * If we run a partial LCP we should never find more rows in this
+   * LCP file than was present at the start of the LCP, this is the
+   * sum of rows from ALL pages and changed rows in CHANGE pages.
+   *
+   * This check is important such that we find inconsistencies as
+   * soon as they occur, rather than at the time when we recover
+   * when it is very difficult to trace back the source of the
+   * problem.
+   *
+   * Error means that the table was dropped during LCP and in this
+   * case these numbers are not consistent, we're simply closing
+   * the LCP scan in an orderly manner with no rows read. So we
+   * should not crash in this case.
+   *
+   * We wait until we come here to check the numbers, this means
+   * that the data file exists when we crash and can be used for
+   * analysis.
+   */
+  {
+    BackupFilePtr dataFilePtr;
+    c_backupFilePool.getPtr(dataFilePtr,
+                            ptr.p->dataFilePtr[0]);
+    if (!(ptr.p->m_save_error_code != 0 ||
+          ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+          ((ptr.p->m_num_parts_in_this_lcp !=
+             BackupFormat::NDB_MAX_LCP_PARTS) &&
+           (ptr.p->m_row_count >=
+            (dataFilePtr.p->m_lcp_inserts +
+             dataFilePtr.p->m_lcp_writes)))))
+    {
+      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
+                          ", writes: %llu, parts: %u",
+                          ptr.p->m_save_error_code,
+                          ptr.p->m_row_count,
+                          dataFilePtr.p->m_lcp_inserts,
+                          dataFilePtr.p->m_lcp_writes,
+                          ptr.p->m_num_parts_in_this_lcp);
+      print_extended_lcp_stat();
+      ndbrequire(ptr.p->m_save_error_code != 0 ||
+                 ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+         (ptr.p->m_row_count >=
+          (dataFilePtr.p->m_lcp_inserts + dataFilePtr.p->m_lcp_writes))));
+    }
+  }
+
   Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
 
   /**
@@ -12800,21 +13259,20 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)pagePtr.p;
   Uint32 num_parts = lcpCtlFilePtr->NumPartPairs;
-  Uint32 size_written = (sizeof(BackupFormat::LCPCtlFile) -
-                         sizeof(BackupFormat::PartPair)) +
-                        (3 * num_parts + 3);
-  if (size_written > BackupFormat::NDB_LCP_CTL_FILE_SIZE)
+  Uint32 file_size = LCP_CTL_FILE_HEADER_SIZE +
+                     (3 * num_parts + 3);
+  if (file_size > BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL)
   {
     jam();
     DEB_LCP(("(%u)Writing 8192 byte control file", instance()));
-    size_written = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
+    file_size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
   }
   else
   {
     jam();
-    size_written = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+    file_size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL;
   }
-  convert_ctl_page_to_network((Uint32*)pagePtr.p);
+  convert_ctl_page_to_network((Uint32*)pagePtr.p, file_size);
   filePtr.p->m_flags |= BackupFile::BF_WRITING;
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
   req->userPointer = filePtr.i;
@@ -12830,7 +13288,7 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
   Uint32 mem_offset = Uint32((char*)pagePtr.p - (char*)c_startOfPages);
   req->data.memoryAddress.memoryOffset = mem_offset;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = size_written;
+  req->data.memoryAddress.size = file_size;
 
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -12839,7 +13297,7 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
 void
 Backup::execFSWRITEREF(Signal *signal)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -12868,7 +13326,7 @@ Backup::execFSWRITECONF(Signal *signal)
     lcp_update_ctl_file_for_rewrite_done(signal, ptr, filePtr);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -12915,8 +13373,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       backupFragmentRef(signal, filePtr);
       return;
     }
-    ndbrequire(false);
-    return;
+    ndbabort();
   }
 
   /**
@@ -13236,8 +13693,7 @@ Backup::sync_log_lcp_lsn(Signal *signal,
     case -1:
     {
       g_eventLogger->info("(%u)Failed to Sync LCP lsn", instance());
-      ndbrequire(false);
-     return; //Will never reach here
+      ndbabort();
     }
     default:
     {
@@ -13332,7 +13788,7 @@ Backup::lcp_read_ctl_file_for_rewrite(Signal *signal,
   Uint32 mem_offset = Uint32(((char*)pagePtr.p) - ((char*)c_startOfPages));
   req->data.memoryAddress.memoryOffset = mem_offset;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -13673,8 +14129,7 @@ Backup::openFilesReplyLCP(Signal* signal,
                                 " errCode: %u",
                                 i,
                                 ptr.p->errorCode);
-        ndbrequire(false);
-        return;
+        ndbabort();
       }
     }
     if (ptr.p->deleteFilePtr == filePtr.i)
@@ -13683,8 +14138,7 @@ Backup::openFilesReplyLCP(Signal* signal,
       g_eventLogger->critical("Fatal: Reopen LCP control file failed,"
                               " errCode: %u",
                               ptr.p->errorCode);
-      ndbrequire(false);
-      return;
+      ndbabort();
     }
     defineBackupRef(signal, ptr);
     return;
@@ -14191,7 +14645,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false); // Impossible state
+          ndbabort(); // Impossible state
         }
       }
       else if (state == LcpStatusConf::LCP_WAIT_END_LCP)

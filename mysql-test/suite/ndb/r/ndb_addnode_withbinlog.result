@@ -1,0 +1,178 @@
+Starting up background churn to create
+concurrent binlogging activity
+create table background_noise (a int primary key, b varchar(100)) engine=ndb;
+insert into background_noise values
+(1, repeat("BJC",33)),
+(2, repeat("BJC",33)),
+(3, repeat("BJC",33)),
+(4, repeat("BJC",33)),
+(5, repeat("BJC",33)),
+(6, repeat("BJC",33)),
+(7, repeat("BJC",33)),
+(8, repeat("BJC",33)),
+(9, repeat("BJC",33)),
+(10, repeat("BJC",33));
+create procedure busy(iterations int)
+begin
+set @i=0;
+repeat
+update test.background_noise set b=repeat("SSSG", 25);
+update test.background_noise set b=repeat("YSFMMOT", 9);
+set @i = @i + 1;
+until @i = iterations
+end repeat;
+end%
+call busy(10000);;
+Call the normal ndb_addnode test
+"Create nodegroup with out-of-range node ID"
+*   325: Error
+*        325-Invalid node(s) specified for new nodegroup, node ID invalid or undefined: Permanent error: Application error
+*   325: Error
+*        325-Invalid node(s) specified for new nodegroup, node ID invalid or undefined: Permanent error: Application error
+"Create nodegroup with in-range but inactive node ID"
+*   322: Error
+*        322-Invalid node(s) specified for new nodegroup, node already in nodegroup: Permanent error: Application error
+*   322: Error
+*        322-Invalid node(s) specified for new nodegroup, node already in nodegroup: Permanent error: Application error
+ndbd(s)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, no nodegroup)
+id=4	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, no nodegroup)
+ndb_mgmd(s)
+id=5	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+mysqld(s)
+id=16	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+CREATE LOGFILE GROUP lg_1
+ADD UNDOFILE 'undo_1.dat'
+    INITIAL_SIZE 4M
+UNDO_BUFFER_SIZE 2M
+ENGINE NDB;
+CREATE TABLESPACE ts_1
+ADD DATAFILE 'data_1.dat'
+    USE LOGFILE GROUP lg_1
+INITIAL_SIZE 16M
+ENGINE NDB;
+create table t1(id int, data char(8), id2 binary(80), primary key (id, id2)) engine=ndb;
+create table t2(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
+create table t6(id int not null primary key, dat blob, txt text) engine=ndb;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' (id, @data) set data = @data, id2 = repeat(@data,10);
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t6 fields terminated by ' ' lines terminated by '\n' (id, @data) set dat = repeat(@data, 100), txt = repeat(@data,100);
+"Table t1 Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t2 Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t5 Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t6 Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t6 blob dat Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t6 blob txt Partition info"
+TABLE_INFO
+PartitionCount: 8
+Nodegroup 1 created
+ndbd(s)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+id=4	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+ndb_mgmd(s)
+id=5	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+mysqld(s)
+id=16	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+Drop Node Group 1 done
+Nodegroup 1 created
+set @@new = 1;
+create table t7(id int primary key, uk int) engine=ndb
+partition by list(id) (
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3),
+partition p4 values in (4)
+);
+drop table t7;
+create table t3(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+create table t4(id int NOT NULL PRIMARY KEY, data char(8))
+TABLESPACE ts_1 STORAGE DISK engine=ndb;
+insert into t3(id, data) VALUES 
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+insert into t4(id, data) VALUES
+(1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
+(6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
+alter table t1 algorithm=inplace, add column c int unsigned default null;
+Warnings:
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+alter table t1 reorganize partition;
+alter table t2 reorganize partition;
+alter table t5 algorithm=inplace, max_rows=300000000;
+"Table t1 Partition info"
+TABLE_INFO
+PartitionCount: 16
+"Table t2 Partition info"
+TABLE_INFO
+PartitionCount: 16
+"Table t3 Partition info"
+TABLE_INFO
+PartitionCount: 16
+"Table t4 Partition info"
+TABLE_INFO
+PartitionCount: 16
+"Table t5 Partition info"
+TABLE_INFO
+PartitionCount: 16
+select count(0) as row_count from t6;
+row_count
+10000
+"Table t6 Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t6 blob dat Partition info"
+TABLE_INFO
+PartitionCount: 8
+"Table t6 blob txt Partition info"
+TABLE_INFO
+PartitionCount: 8
+Table: test.t6
+HashMap: DEFAULT-HASHMAP-3840-8
+HashMap: DEFAULT-HASHMAP-3840-8
+HashMap: DEFAULT-HASHMAP-3840-8
+*  1006: Illegal reply from server
+*        error: -2
+ndbd(s)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+id=4	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 1)
+ndb_mgmd(s)
+id=5	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+mysqld(s)
+id=16	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+drop table t1,t2,t3,t4,t5,t6;
+Drop Node Group 1 done
+ndbd(s)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, no nodegroup)
+id=4	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, no nodegroup)
+ndb_mgmd(s)
+id=5	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+mysqld(s)
+id=16	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+ALTER TABLESPACE ts_1 DROP DATAFILE 'data_1.dat';
+DROP TABLESPACE ts_1;
+DROP LOGFILE GROUP lg_1 ENGINE NDB;
+Waiting for background noise to end
+DROP TABLE background_noise;
+DROP PROCEDURE busy;

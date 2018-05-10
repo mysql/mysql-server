@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -518,7 +518,7 @@
   
    There are four conditions leading to the transfer of database 
    operations from Ndb object buffers to the NDB kernel:
-   -# The NDB Transporter (TCP/IP, SCI or shared memory)
+   -# The NDB Transporter (TCP/IP or shared memory)
       decides that a buffer is full and sends it off. 
       The buffer size is implementation-dependent and
       may change between MySQL Cluster releases.
@@ -601,7 +601,6 @@
    The default method is to select the transaction co-ordinator (TC) determined to be
    the "closest" storage node, using a heuristic for proximity based on
    the type of transporter connection. In order of closest to most distant, these are
-   - SCI 
    - SHM
    - TCP/IP (localhost)
    - TCP/IP (remote host)
@@ -679,17 +678,8 @@
 
    This means that if we can ensure that we use "popular" links we increase
    buffering and thus drastically reduce the communication cost.
-   The same system using SCI has a different cost model:
-
-     <code>[5 microseconds] + ([10 nanoseconds] * [<var>number of bytes</var>])</code>
-
-   Thus, the efficiency of an SCI system is much less dependent on selection of 
-   transaction co-ordinators. 
-   Typically, TCP/IP systems spend 30-60% of their working time on communication,
-   whereas for SCI systems this figure is closer to 5-10%. 
-   Thus, employing SCI for data transport means that less care from the NDB API 
-   programmer is required and greater scalability can be achieved, even for 
-   applications using data from many different parts of the database.
+ 
+   Typically, TCP/IP systems spend 30-60% of their working time on communication.
 
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record. 

@@ -79,4 +79,33 @@ bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
  */
 bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
 
+
+/**
+ * @brief check if the NDB table has tablespace
+ * @param ndbtab
+ * @return true if the table has a tablespace
+ *
+ * @note This is indicated either by the table having a tablespace name
+ *       or id+version of the tablespace
+ */
+bool ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab);
+
+
+/**
+ * @brief check if the NDB table has tablespace name indicating
+ *        that is has a tablespace
+ * @param ndbtab
+ * @return nullptr or tablespace name
+ *
+ * @note The NdbApi function getTablespaceName() is peculiar as it
+ *       returns the empty string to indicate that tablespace name
+ *       is not available, normally you'd expect NULL to be returned
+ *       from a function returning "const char*"
+ *
+ */
+const char* ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab);
+
+
+
+
 #endif

@@ -16,12 +16,12 @@ master-bin.000002	#	Rotate	#	#	master-bin.000003;pos=POS
 drop table if exists t1;
 Get IO thread to reconnect to Master
 start slave;
-include/wait_for_slave_sql_error.inc [errno=1590]
-Last_SQL_Error = 'The incident LOST_EVENTS occured on the master. Message: mysqld startup'
+include/wait_for_slave_sql_error.inc [errno=13119]
+Last_SQL_Error = 'The incident LOST_EVENTS occurred on the master. Message: mysqld startup'
 Slave_IO_Running = 'Yes'
 Slave_SQL_Running = 'No'
-Last_Errno = '1590'
-Last_Error = 'The incident LOST_EVENTS occured on the master. Message: mysqld startup'
+Last_Errno = '13119'
+Last_Error = 'The incident LOST_EVENTS occurred on the master. Message: mysqld startup'
 drop table if exists t1;
 include/stop_slave_io.inc
 RESET SLAVE;

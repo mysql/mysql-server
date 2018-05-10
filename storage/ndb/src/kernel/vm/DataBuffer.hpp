@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -488,7 +488,6 @@ inline
 bool
 DataBuffer<sz, Pool>::first(DataBufferIterator & it){
   ConstDataBufferIterator tmp;
-  tmp.assign(it);
   bool ret = first(tmp);
   it.assign(tmp);
   return ret;

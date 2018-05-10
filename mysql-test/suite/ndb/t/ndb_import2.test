@@ -62,12 +62,14 @@ create table t2ver like t2;
 
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t1.csv'
-into table t1ver;
+into table t1ver
+lines terminated by '\n';
 --enable_query_log
 
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t2.csv'
-into table t2ver;
+into table t2ver
+lines terminated by '\n';
 --enable_query_log
 
 # crash node 2 in 5-25 seconds, may hit t1 or t2
@@ -78,7 +80,7 @@ exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
 --echo # import t1, t2
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
-     --temperrors=1000
+     --temperrors=1000 --csvopt=n
      test
      $MYSQLTEST_VARDIR/tmp/t1.csv
      $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
@@ -101,3 +103,8 @@ where x.b = y.b;
 drop table t1, t1ver, t2, t2ver;
 
 --enable_warnings
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res

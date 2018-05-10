@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 
 # Build the standard command used for running "ndb_mgm"
@@ -259,3 +260,4 @@ exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
 --echo # Test for Bug #18421338: SUPPORT SETTING THE PROMPT IN NDB_MGM
 --exec $mgm_cmd -e "prompt test-prompt>";
 --exec $mgm_cmd -e "prompt"
+-- source suite/ndb/include/backup_restore_cleanup.inc

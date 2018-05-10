@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include "sql/ndb_thd.h"
 
 #include "my_dbug.h"
-#include "sql/mysqld.h"     // opt_server_id_mask
+#include "mysql/thread_type.h"
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"
 
@@ -80,6 +80,7 @@ applying_binlog(const THD* thd)
   return false;
 }
 
+extern ulong opt_server_id_mask;
 
 uint32
 thd_unmasked_server_id(const THD* thd)
@@ -87,4 +88,13 @@ thd_unmasked_server_id(const THD* thd)
   const uint32 unmasked_server_id = thd->unmasked_server_id;
   assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
   return unmasked_server_id;
+}
+
+const char* ndb_thd_query(const THD* thd) { return thd->query().str; }
+
+size_t ndb_thd_query_length(const THD* thd) { return thd->query().length; }
+
+bool ndb_thd_is_binlog_thread(const THD* thd)
+{
+  return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 }

@@ -73,3 +73,4 @@ select * from test.t1;
 
 drop table test.t1;
 drop table test.notes;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

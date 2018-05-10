@@ -38,3 +38,4 @@ $F->close();
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/ndb_error_reporter_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_error_reporter_result.inc

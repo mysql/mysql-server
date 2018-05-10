@@ -38,7 +38,8 @@ extern EventLogger *g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
-//#define DEBUG_ROW_COUNT 1
+//#define DEBUG_ROW_COUNT_DEL 1
+//#define DEBUG_ROW_COUNT_INS 1
 //#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
 //#define DEBUG_DELETE_EXTRA 1
 //#define DEBUG_INSERT_EXTRA 1
@@ -268,7 +269,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   case Dbtup::ScanOp::Current:
   {
     /* Impossible state for LCP scans */
-    ndbrequire(false);
+    ndbabort();
   }
   case Dbtup::ScanOp::Next:
   {
@@ -321,7 +322,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   }
   /* Will never arrive here */
   jamLine(Uint16(op.m_state));
-  ndbrequire(false);
+  ndbabort();
   return true;
 }
 
@@ -474,7 +475,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   {
     ndbrequire(regFragPtr->m_row_count > 0);
     regFragPtr->m_row_count--;
-#ifdef DEBUG_ROW_COUNT
+#ifdef DEBUG_ROW_COUNT_DEL
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
@@ -522,7 +523,6 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
   Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
   Tuple_header * dst = get_copy_tuple(copytuple);
   Tuple_header * org = req_struct->m_tuple_ptr;
-  Uint32 old_header_bits = org->m_header_bits;
   if (regTabPtr->need_expand(disk))
   {
     jam();
@@ -542,8 +542,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
   }
   dst->m_header_bits |= Tuple_header::COPY_TUPLE;
 
-  updateChecksum(dst, regTabPtr, old_header_bits, dst->m_header_bits);
-
+  setChecksum(dst, regTabPtr);
   /**
    * Link it to list
    */
@@ -969,7 +968,6 @@ Dbtup::commit_operation(Signal* signal,
       }
     }
   }
-  
 
   /**
    * Here we are copying header bits from the copy row to the main row.
@@ -1035,7 +1033,7 @@ Dbtup::commit_operation(Signal* signal,
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
     regFragPtr->m_row_count++;
-#ifdef DEBUG_ROW_COUNT
+#ifdef DEBUG_ROW_COUNT_INS
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
@@ -1600,7 +1598,7 @@ Dbtup::commit_refresh(Signal* signal,
     return;
 
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Local_key key = regOperPtr->m_tuple_location;

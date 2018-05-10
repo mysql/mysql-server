@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1200,8 +1200,19 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
+static void
+free_include_excludes_vector()
+{
+  for (unsigned i = 0; i < g_include_exclude.size(); i++)
+  {
+    delete g_include_exclude[i];
+  }
+  g_include_exclude.clear();
+}
+
 static void exitHandler(int code)
 {
+  free_include_excludes_vector();
   NDBT_ProgramExit(code);
   if (opt_core)
     abort();
@@ -1263,6 +1274,7 @@ check_data_truncations(const TableS * table)
 int
 main(int argc, char** argv)
 {
+  NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
   Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
 
@@ -1882,6 +1894,7 @@ main(int argc, char** argv)
       table_output[i] = NULL;
     }
   }
+  free_include_excludes_vector();
 
   if (opt_verbose)
     return NDBT_ProgramExit(NDBT_OK);

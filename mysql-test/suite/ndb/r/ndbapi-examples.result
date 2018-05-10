@@ -35,10 +35,6 @@ Column id: 3, name: ATTR4, size: 342, type: Longvarchar, stored string length: 3
 Column id: 4, name: ATTR5, size: 20, type: Binary, stored bytes length: 20, sum of byte array: 136
 Column id: 5, name: ATTR6, size: 18, type: Varbinary, stored bytes length: 17, sum of byte array: 136
 Column id: 6, name: ATTR7, size: 342, type: Longvarbinary, stored bytes length: 340, sum of byte array: 3358
-Verify values stored in the table
-select count(ATTR1) from api_array_simple;
-count(ATTR1)
-21
 drop table api_array_simple;
 Running ndb_ndbapi_array_using_adapter
 CREATE TABLE api_array_using_adapter(
@@ -57,8 +53,4 @@ Column id: 3, name: ATTR4, size: 342, type: Longvarchar, stored string length: 3
 Column id: 4, name: ATTR5, size: 20, type: Binary, stored bytes length: 20, sum of byte array: 136
 Column id: 5, name: ATTR6, size: 18, type: Varbinary, stored bytes length: 17, sum of byte array: 136
 Column id: 6, name: ATTR7, size: 342, type: Longvarbinary, stored bytes length: 340, sum of byte array: 3358
-Verify values stored in the table
-select count(ATTR1) from api_array_using_adapter;
-count(ATTR1)
-21
 drop table api_array_using_adapter;

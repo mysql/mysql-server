@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,8 +94,7 @@ public:
         m_twiddle_array_size = 1;
         break;
       }
-      // Fallthrough for blob/text with ArrayTypeVar
-
+      // Fall through - for blob/text with ArrayTypeVar
     default:
       // Default twiddling parameters
       m_twiddle_size = attr_desc->size;
@@ -272,7 +271,60 @@ RestoreMetaData::~RestoreMetaData(){
       delete table->m_fragmentInfo[j];
     delete table;
   }
-  allTables.clear();
+
+  for (Uint32 i = 0; i < m_objects.size(); i++)
+  {
+    switch (m_objects[i].m_objType)
+    {
+    case DictTabInfo::Tablespace:
+    {
+      NdbDictionary::Tablespace * dst =
+        (NdbDictionary::Tablespace *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    case DictTabInfo::LogfileGroup:
+    {
+      NdbDictionary::LogfileGroup * dst =
+        (NdbDictionary::LogfileGroup *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    case DictTabInfo::Datafile:
+    {
+      NdbDictionary::Datafile * dst =
+        (NdbDictionary::Datafile *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    case DictTabInfo::Undofile:
+    {
+      NdbDictionary::Undofile * dst =
+        (NdbDictionary::Undofile *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    case DictTabInfo::HashMap:
+    {
+      NdbDictionary::HashMap * dst =
+        (NdbDictionary::HashMap *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    case DictTabInfo::ForeignKey:
+    {
+      NdbDictionary::ForeignKey * dst =
+        (NdbDictionary::ForeignKey *)m_objects[i].m_objPtr;
+      delete dst;
+      break;
+    }
+    default:
+      err << "Unsupported table type!! " << endl;
+      assert(false);
+      break;
+    }
+  }
+  m_objects.clear();
 }
 
 TableS * 
@@ -743,7 +795,6 @@ RestoreMetaData::readFragmentInfo()
 TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   : m_dictTable(tableImpl)
 {
-  m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
   m_auto_val_attrib = 0;
   m_max_auto_val= 0;
@@ -771,6 +822,7 @@ TableS::~TableS()
       free(allAttributesDesc[i]->parameter);
     delete allAttributesDesc[i];
   }
+  delete m_dictTable;
 }
 
 

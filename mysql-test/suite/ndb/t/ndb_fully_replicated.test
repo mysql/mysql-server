@@ -40,9 +40,9 @@ insert into t1 values
 --sorted_result
 select * from t1;
 
-select partition_name, table_rows > 0
-from information_schema.partitions
-where table_name = 't1';
+SELECT PARTITION_NAME, TABLE_ROWS > 0
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 't1';
 
 #
 # Check single row lookups, these should always be local reads

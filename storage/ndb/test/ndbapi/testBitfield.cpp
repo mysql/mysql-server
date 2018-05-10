@@ -1,5 +1,5 @@
  /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@ static int testBitmask();
 
 int 
 main(int argc, char** argv){
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
 
   if (opts.handle_options())
@@ -608,7 +609,7 @@ testRanges(Uint32 bitmask_size)
     /* Verify range setting method works correctly */
     for(Uint32 j = 0; j<sz; j++)
     {
-      bool expect = (j >= start && j<stop);
+      bool expect = (j >= start && j<= stop);
       if(expect)
 	BitmaskImpl::set(sz32, check.getBase(), j);
     }
@@ -644,21 +645,6 @@ testRanges(Uint32 bitmask_size)
 	BitmaskImpl::clear(sz32, check.getBase(), j);
     }
 
-    BitmaskImpl::clear_range(sz32, map.getBase(), start, stop);
-    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
-    {
-      ndbout_c(" FAIL 2 sz: %d [ %d %d ]", sz, start, stop);
-      printf("check: ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", check[j]);
-      printf("\n");
-
-      printf("map  : ");
-      for(Uint32 j = 0; j<sz32; j++)
-	printf("%.8x ", map[j]);
-      printf("\n");
-      return -1;
-    }
   }
 #endif
 

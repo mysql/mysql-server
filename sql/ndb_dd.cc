@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017,2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,16 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/types/table.h"
 
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_index.h"
+
 bool ndb_sdi_serialize(THD *thd,
                        const dd::Table *table_def,
-                       const char* schema_name,
+                       const char* schema_name_str,
                        dd::sdi_t& sdi)
 {
+  const dd::String_type schema_name(schema_name_str);
   // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
   // or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
@@ -55,6 +60,11 @@ bool ndb_sdi_serialize(THD *thd,
   // be modified before serialization
   std::unique_ptr<dd::Table> table_def_clone(table_def->clone());
 
+  // Check that dd::Table::clone() properly clones the table definition
+  // by comparing the serialized table def before and after clone()
+  DBUG_ASSERT(ndb_dd_sdi_serialize(thd, *table_def, schema_name) ==
+              ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name));
+
   // Don't include the se_private_id in the serialized table def.
   table_def_clone->set_se_private_id(dd::INVALID_OBJECT_ID);
 
@@ -62,11 +72,10 @@ bool ndb_sdi_serialize(THD *thd,
   // serialized table def.
   table_def_clone->se_private_data().clear();
 
-  sdi = ndb_dd_sdi_serialize(thd, *table_def_clone,
-                             dd::String_type(schema_name));
-  if (sdi.empty())
-    return false; // Failed to serialize
-
+  sdi = ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name);
+  if (sdi.empty()) {
+    return false;  // Failed to serialize
+  }
   return true; // OK
 }
 
@@ -106,8 +115,14 @@ bool ndb_dd_remove_table(THD *thd, const char *schema_name,
   DBUG_ENTER("ndb_dd_remove_table");
 
   Ndb_dd_client dd_client(thd);
+  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
 
-  if (!dd_client.remove_table(schema_name, table_name))
+  if (!dd_client.remove_table(schema_name, table_name, &invalidator))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (!invalidator.invalidate())
   {
     DBUG_RETURN(false);
   }
@@ -130,10 +145,17 @@ ndb_dd_rename_table(THD *thd,
                        new_schema_name, new_table_name));
 
   Ndb_dd_client dd_client(thd);
+  Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
 
   if (!dd_client.rename_table(old_schema_name, old_table_name,
                               new_schema_name, new_table_name,
-                              new_table_id, new_table_version))
+                              new_table_id, new_table_version,
+                              &invalidator))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (!invalidator.invalidate())
   {
     DBUG_RETURN(false);
   }

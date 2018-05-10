@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -393,7 +393,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
     break;
   case SEND_MESSAGE_TOO_BIG:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
-                               "Message to big in sendSignal", "");
+                               "Message too big in sendSignal", "");
     break;
   case SEND_UNKNOWN_NODE:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
@@ -404,7 +404,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
   case SEND_DISCONNECTED:
     break;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 static void
@@ -450,14 +450,17 @@ getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
     p = g_sectionSegmentPool.getPtr(tSec2);
     ptr[2].p = p;
     ptr[2].sz = p->m_sz;
+    // Fall through
   case 2:
     p = g_sectionSegmentPool.getPtr(tSec1);
     ptr[1].p = p;
     ptr[1].sz = p->m_sz;
+    // Fall through
   case 1:
     p = g_sectionSegmentPool.getPtr(tSec0);
     ptr[0].p = p;
     ptr[0].sz = p->m_sz;
+    // Fall through
   case 0:
     return;
   }
@@ -509,14 +512,17 @@ releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz2), tSec2,
 				     ptr[2].p->m_lastSegment);
+    // Fall through
   case 2:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz1), tSec1,
 				     ptr[1].p->m_lastSegment);
+    // Fall through
   case 1:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz0), tSec0,
 				     ptr[0].p->m_lastSegment);
+    // Fall through
   case 0:
     return;
   }
@@ -2297,7 +2303,7 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -2340,7 +2346,7 @@ SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 // MT LQH callback CONF via signal
@@ -2511,7 +2517,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2634,7 +2640,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2688,7 +2694,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2756,7 +2762,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2941,7 +2947,7 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
       return elementsCleaned;
     }
     default:
-      ndbrequire(false);
+      ndbabort();
     }
 
     /* Did we complete cleaning up this resource? */
@@ -3065,10 +3071,12 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_sectionPtr[2].m_segmented.i = ptr[2].i;
     info.m_sectionPtr[2].m_segmented.p = ptr[2].p;
     totalSize += ptr[2].sz;
+    // Fall through
   case 2:
     info.m_sectionPtr[1].m_segmented.i = ptr[1].i;
     info.m_sectionPtr[1].m_segmented.p = ptr[1].p;
     totalSize += ptr[1].sz;
+    // Fall through
   case 1:
     info.m_sectionPtr[0].m_segmented.i = ptr[0].i;
     info.m_sectionPtr[0].m_segmented.p = ptr[0].p;
@@ -3422,9 +3430,11 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   case 3:
     info.m_sectionPtr[2].m_linear = ptr[2];
     totalSize += ptr[2].sz;
+    // Fall through
   case 2:
     info.m_sectionPtr[1].m_linear = ptr[1];
     totalSize += ptr[1].sz;
+    // Fall through
   case 1:
     info.m_sectionPtr[0].m_linear = ptr[0];
     totalSize += ptr[0].sz;
@@ -3978,8 +3988,52 @@ SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
 
 #endif
 
+int
+SimulatedBlock::cmp_key(Uint32 tab, const Uint32 *s1, const Uint32 *s2) const
+{
+  const KeyDescriptor * desc = g_key_descriptor_pool.getPtr(tab);
+  const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
+
+  for (Uint32 i = 0; i < noOfKeyAttr; i++)
+  {
+    const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
+    const Uint32 attrDesc = keyAttr.attributeDescriptor;
+    const Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDesc);
+
+    const int res = cmp_attr(attrDesc, keyAttr.charsetInfo,
+			     s1, srcBytes, s2, srcBytes);    
+    if (res != 0)
+      return res;
+
+    if (i+1 < noOfKeyAttr) //Optimization; skip if last keyAttr
+    {
+      const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+      Uint32 lb, len;
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s1, srcBytes, lb, len));
+      s1 += ((len+lb+3) >> 2);
+
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s2, srcBytes, lb, len));
+      s2 += ((len+lb+3) >> 2);
+    }
+  }
+  // Fall through: Compared equal
+  return 0;
+}
+
+int
+SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+			 const Uint32 *s1, Uint32 s1Len,
+			 const Uint32 *s2, Uint32 s2Len) const
+{
+  const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+  const NdbSqlUtil::Cmp *cmp = NdbSqlUtil::getType(typeId).m_cmp;
+  return (*cmp)(cs, s1, s1Len, s2, s1Len);
+}
+
+
 Uint32
-SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src, 
+SimulatedBlock::xfrm_key_hash(
+                         Uint32 tab, const Uint32* src,
 			 Uint32 *dst, Uint32 dstSize,
 			 Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const
 {
@@ -3993,7 +4047,7 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
   {
     const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
     Uint32 dstWords =
-      xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+      xfrm_attr_hash(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
                 src, srcPos, dst, dstPos, dstSize);
     keyPartLen[i++] = dstWords;
     if (unlikely(dstWords == 0))
@@ -4012,7 +4066,8 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
 }
 
 Uint32
-SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+SimulatedBlock::xfrm_attr_hash(
+                          Uint32 attrDesc, const CHARSET_INFO* cs,
                           const Uint32* src, Uint32 & srcPos,
                           Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const
 {
@@ -4067,16 +4122,16 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
     bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
     if (unlikely(!ok))
       return 0;
-    Uint32 xmul = cs->strxfrm_multiply;
-    if (xmul == 0)
-      xmul = 1;
-    /*
-     * Varchar end-spaces are ignored in comparisons.  To get same hash
-     * we blank-pad to maximum length via strnxfrm.
-     */
-    Uint32 dstLen = xmul * (srcBytes - lb);
-    ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+
+    // remLen: Remaining dst-buffer length
+    // len:    Actual length of 'src'
+    // defLen: Max defined length of src data 
+    const unsigned remLen = ((dstSize - dstPos) << 2);
+    const unsigned defLen = srcBytes - lb;
+    int n = NdbSqlUtil::strnxfrm_hash(cs,
+                                 dstPtr, remLen, 
+                                 srcPtr + lb, len, defLen);
+    
     if (unlikely(n == -1))
       return 0;
     while ((n & 3) != 0) 
@@ -4464,7 +4519,7 @@ SimulatedBlock::synchronize_path(Signal * signal,
   if (blocks[0] == 0)
   {
     jam();
-    ndbrequire(false); // TODO
+    ndbabort(); // TODO
   }
   else
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,6 +314,8 @@ struct view {
     " CASE log_type"
     "  WHEN 0 THEN \"REDO\""
     "  WHEN 1 THEN \"DD-UNDO\""
+    "  WHEN 2 THEN \"BACKUP-DATA\""
+    "  WHEN 3 THEN \"BACKUP-LOG\""
     "  ELSE \"<unknown>\" "
     " END AS log_type, "
     "log_id, log_part, total, used "

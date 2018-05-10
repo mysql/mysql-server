@@ -1,0 +1,261 @@
+include/master-slave.inc
+[connection master]
+SET @@session.default_storage_engine = 'ndbcluster';
+# Case 1. All non-stored columns.
+create  table t1 (a int generated always as (2+3) virtual);
+insert into t1 values (default);
+select * from t1;
+a
+5
+insert into t1 values (default);
+select * from t1;
+a
+5
+5
+drop table t1;
+# Case 2. CREATE
+#  - Column1: "real"
+#  - Column 2: virtual non-stored
+create  table t1 (a int, b int generated always as (-a) virtual);
+insert into t1 values (1,default);
+select * from t1;
+a	b
+1	-1
+insert into t1 values (2,default);
+select * from t1 order by a;
+a	b
+1	-1
+2	-2
+drop table t1;
+# Case 3. CREATE
+#  - Column1: "real"
+#  - Column 2: virtual stored
+create  table t1 (a int, b int generated always as (-a) stored);
+insert into t1 values (1,default);
+select * from t1;
+a	b
+1	-1
+insert into t1 values (2,default);
+select * from t1 order by a;
+a	b
+1	-1
+2	-2
+drop table t1;
+# Case 4. CREATE
+#  - Column1: virtual non-stored
+#  - Column2: "real"
+create  table t1 (a int generated always as (-b) virtual, b int);
+insert into t1 values (default,1);
+select * from t1;
+a	b
+-1	1
+insert into t1 values (default,2);
+select * from t1 order by a;
+a	b
+-2	2
+-1	1
+drop table t1;
+# Case 5. CREATE
+#  - Column1: virtual stored
+#  - Column2: "real"
+create  table t1 (a int generated always as (-b) stored, b int);
+insert into t1 values (default,1);
+select * from t1;
+a	b
+-1	1
+insert into t1 values (default,2);
+select * from t1 order by a;
+a	b
+-2	2
+-1	1
+drop table t1;
+# Case 6. CREATE
+#  - Column1: "real"
+#  - Column2: virtual non-stored
+#  - Column3: virtual stored
+create  table t1 (a int, b int generated always as (-a), c int generated always as (-a) stored);
+insert into t1 values (1,default,default);
+select * from t1;
+a	b	c
+1	-1	-1
+insert into t1 values (2,default,default);
+select * from t1 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+drop table t1;
+# Case 7. ALTER. Modify virtual stored -> virtual non-stored
+create  table t1 (a int, b int generated always as (a % 2) stored);
+alter table t1 modify b int generated always as (a % 2) virtual;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 8. ALTER. Modify virtual non-stored -> virtual stored
+create  table t1 (a int, b int generated always as (a % 2) virtual);
+alter table t1 modify b int generated always as (a % 2) stored;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 9. CREATE LIKE
+#  - Column1: "real"
+#  - Column2: virtual non-stored
+#  - Column3: virtual stored
+create  table t1 (a int, b int generated always as (-a), c int generated always as (-a) stored);
+create  table t2 like t1;
+insert into t2 values (1,default,default);
+select * from t2;
+a	b	c
+1	-1	-1
+insert into t2 values (2,default,default);
+select * from t2 order by a;
+a	b	c
+1	-1	-1
+2	-2	-2
+drop table t2;
+drop table t1;
+# Case 10. ALTER. Dropping a virtual non-stored column.
+#  - Column1: virtual non-stored
+#  - Column2: "real"
+create  table t1 (a int generated always as (-b) virtual, b int, c varchar(5));
+insert into t1 values (default,1,'v1');
+insert into t1 values (default,2,'v2');
+select * from t1 order by b;
+a	b	c
+-1	1	v1
+-2	2	v2
+alter table t1 drop column a;
+select * from t1 order by b;
+b	c
+1	v1
+2	v2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) DEFAULT NULL,
+  `c` varchar(5) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 11. ALTER. Dropping a virtual stored column.
+#  - Column1: virtual stored
+#  - Column2: "real"
+create  table t1 (a int generated always as (-b) stored, b int, c char(5));
+insert into t1 values (default,1,'v1');
+insert into t1 values (default,2,'v2');
+select * from t1 order by b;
+a	b	c
+-1	1	v1
+-2	2	v2
+alter table t1 drop column a;
+select * from t1 order by b;
+b	c
+1	v1
+2	v2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) DEFAULT NULL,
+  `c` char(5) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 12. ALTER. Adding a new virtual non-stored column.
+create  table t1 (a int, b datetime);
+insert into t1 values (1,'2008-09-04');
+insert into t1 values (2,'2008-09-05');
+select * from t1 order by a;
+a	b
+1	2008-09-04 00:00:00
+2	2008-09-05 00:00:00
+alter table t1 add column c int generated always as (dayofyear(b)) virtual after a;
+select * from t1 order by a;
+a	c	b
+1	248	2008-09-04 00:00:00
+2	249	2008-09-05 00:00:00
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
+  `b` datetime DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 13. ALTER. Adding a new virtual stored column.
+create  table t1 (a int, b datetime);
+insert into t1 values (1,'2008-09-04');
+insert into t1 values (2,'2008-09-05');
+select * from t1 order by a;
+a	b
+1	2008-09-04 00:00:00
+2	2008-09-05 00:00:00
+alter table t1 add column c int generated always as (dayofyear(b)) stored after a;
+select * from t1 order by a;
+a	c	b
+1	248	2008-09-04 00:00:00
+2	249	2008-09-05 00:00:00
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
+  `b` datetime DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 14. ALTER. Changing the expression of a virtual stored column.
+create  table t1 (a int, b datetime, c int generated always as (week(b)) stored);
+insert into t1 values (1,'2008-09-04',default);
+insert into t1 values (2,'2008-09-05',default);
+select * from t1 order by a;
+a	b	c
+1	2008-09-04 00:00:00	35
+2	2008-09-05 00:00:00	35
+alter table t1 change column c c int generated always as (week(b,1)) stored;
+select * from t1 order by a;
+a	b	c
+1	2008-09-04 00:00:00	36
+2	2008-09-05 00:00:00	36
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` datetime DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) STORED
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+# Case 15. ALTER. Changing the expression of a virtual non-stored column.
+create  table t1 (a int, b datetime, c int generated always as (week(b)) virtual);
+insert into t1 values (1,'2008-09-04',default);
+insert into t1 values (2,'2008-09-05',default);
+select * from t1 order by a;
+a	b	c
+1	2008-09-04 00:00:00	35
+2	2008-09-05 00:00:00	35
+alter table t1 change column c c int generated always as (week(b,1)) virtual;
+select * from t1 order by a;
+a	b	c
+1	2008-09-04 00:00:00	36
+2	2008-09-05 00:00:00	36
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` datetime DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+drop table t1;
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;
+include/rpl_end.inc

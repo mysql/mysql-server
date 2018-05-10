@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ private:
   void check_waiter(const MY_BITMAP &new_participants);
 };
 
-NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
+NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *db, const char* table_name,
                                          bool create_if_not_exists);
 
 void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object);

@@ -1,6 +1,6 @@
 --source include/have_ndb.inc
 --source suite/ndb/include/ndb_find_tools.inc
--- source have_ndb_error_insert.inc
+--source have_ndb_error_insert.inc
 
 # WL-8478 : Undo log speedup - parallel LGMAN applying
 
@@ -91,7 +91,7 @@ while($mysql_errno)
   UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
 }
 # UNDO_TUP_DROP
---exec $NDB_DROP_TABLE -d test dt_2 >> $NDB_TOOLS_OUTPUT
+DROP TABLE dt_2;
 let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
 
 
@@ -135,6 +135,25 @@ DELETE FROM dt_1 WHERE member_id = 1;
 --error 1
 --exec $NDB_SHOW_TABLES -d test dt_2 >> $NDB_TOOLS_OUTPUT
 
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+--echo "Wait reconnect"
+--source include/ndb_not_readonly.inc
+
 # Cleanup
---exec $NDB_DROP_TABLE -d test dt_1 >> $NDB_TOOLS_OUTPUT
+DROP TABLE dt_1;
+
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_2.dat';
+
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_1.dat';
+
+DROP TABLESPACE ts_1;
+
+DROP LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;
+
 enable_query_log;

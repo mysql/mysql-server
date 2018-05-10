@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #define DBTUP_C
 #define DBTUP_TAB_DES_MAN_CPP
@@ -154,7 +153,7 @@ void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal)
     if(list == 0 || list > 16)
     {
       verifytabdes();
-      ndbrequire(false);
+      ndbabort();
     }
 
     list--;	/* RETURN TO NEXT LOWER LIST    */
@@ -165,7 +164,7 @@ void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal)
     if(retNo < sizeOfChunk)
     {
       verifytabdes();
-      ndbrequire(false);
+      ndbabort();
     }
 
     retNo -= sizeOfChunk;
@@ -192,12 +191,12 @@ void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list)
   if(tabDesRef >= cnoOfTabDescrRec)
   {
     verifytabdes();
-    ndbrequire(false);
+    ndbabort();
   }
   if(list >= 16)
   {
     verifytabdes();
-    ndbrequire(false);
+    ndbabort();
   }
 
   RSS_OP_FREE_X(cnoOfFreeTabDescrRec, 1 << list);
@@ -260,7 +259,7 @@ void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
   if((retRef + retNo) > cnoOfTabDescrRec)
   {
     verifytabdes();
-    ndbrequire(false);
+    ndbabort();
   }
 }//Dbtup::itdaMergeTabDescr()
 
@@ -280,12 +279,12 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
   if(tabDesRef >= cnoOfTabDescrRec)
   {
     verifytabdes();
-    ndbrequire(false);
+    ndbabort();
   }
   if(list >= 16)
   {
     verifytabdes();
-    ndbrequire(false);
+    ndbabort();
   }
 
   RSS_OP_ALLOC_X(cnoOfFreeTabDescrRec, 1 << list);

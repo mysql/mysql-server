@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,7 @@ int ndbd_exit_string(int err_no, char *str, unsigned int size);
 
 int main(int argc, char** argv)
 {
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
   opts.set_usage_funcs(short_usage_sub);
 

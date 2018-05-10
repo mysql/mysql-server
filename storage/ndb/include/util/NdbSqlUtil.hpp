@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,10 +136,15 @@ public:
    */
   static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
 
-  /**
-   * Temporary workaround for bug#7284.
-   */
-  static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
+  static int strnxfrm_hash(const CHARSET_INFO* cs,
+                           uchar* dst, unsigned dstLen,
+                           const uchar* src, unsigned srcLen,
+                           unsigned maxLen);
+
+  static Uint32 strnxfrm_hash_len(
+                           const CHARSET_INFO* cs,
+                           unsigned maxLen);
+  
 
   /**
    * Convert attribute data to/from network byte order

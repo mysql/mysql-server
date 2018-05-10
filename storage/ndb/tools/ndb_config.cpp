@@ -1,5 +1,5 @@
- /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,12 +223,27 @@ static int print_diff(const Iter&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
+typedef std::unique_ptr<ndb_mgm_configuration,
+  decltype(&ndb_mgm_destroy_configuration)> ndb_mgm_config_unique_ptr;
+
+
+static ndb_mgm_config_unique_ptr get_config()
+{
+  ndb_mgm_configuration* conf;
+  if (g_config_file || g_mycnf)
+    conf = load_configuration();
+  else
+    conf = fetch_configuration(g_config_from_node);
+  return ndb_mgm_config_unique_ptr({conf, ndb_mgm_destroy_configuration});
+}
 
 int
 main(int argc, char** argv){
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   bool print_headers = false;
+
   if (opts.handle_options())
     exit(255);
 
@@ -277,12 +292,7 @@ main(int argc, char** argv){
   else if (g_system)
     g_section = CFG_SECTION_SYSTEM;
 
-  ndb_mgm_configuration * conf = 0;
-
-  if (g_config_file || g_mycnf)
-    conf = load_configuration();
-  else
-    conf = fetch_configuration(g_config_from_node);
+  ndb_mgm_config_unique_ptr conf = get_config();
 
   if (conf == 0)
   {
@@ -347,6 +357,15 @@ main(int argc, char** argv){
     }
   }
   printf("\n");
+  for (unsigned i = 0; i < select_list.size(); i++)
+  {
+    delete select_list[i];
+  }
+
+  for (unsigned i = 0; i < where_clause.size(); i++)
+  {
+    delete where_clause[i];
+  }
   return 0;
 }
 
@@ -358,7 +377,7 @@ print_diff(const Iter& iter)
   Uint32 val32;
   Uint64 val64;
   const char* config_value;
-  const char* node_type;
+  const char* node_type = nullptr;
   char str[300] = {0};
 
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
@@ -388,7 +407,6 @@ print_diff(const Iter& iter)
   {
     if ((g_section == CFG_SECTION_CONNECTION &&
         (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
         strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
         ||
         (g_section == CFG_SECTION_NODE &&
@@ -525,7 +543,6 @@ helper(Vector<Apply*>& select, const char * str)
           ConfigInfo::m_ParamInfo[p]._fname);
       if ((g_section == CFG_SECTION_CONNECTION &&
         (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
           strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
         ||
         (g_section == CFG_SECTION_NODE &&
@@ -763,9 +780,6 @@ ConnectionTypeApply::apply(const Iter& iter)
     case CONNECTION_TYPE_TCP:
       printf("tcp");
       break;
-    case CONNECTION_TYPE_SCI:
-      printf("sci");
-      break;
     case CONNECTION_TYPE_SHM:
       printf("shm");
       break;
@@ -869,7 +883,14 @@ load_configuration()
     
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
-      return conf->m_configValues;
+    {
+      ndb_mgm_configuration* mgm_config = conf->m_configValues;
+      conf->m_configValues = nullptr;
+      //mgm_config is moved out of config. It has to be freed by caller.
+      delete conf;
+
+      return mgm_config;
+    }
     return 0;
   }
   
@@ -878,7 +899,14 @@ load_configuration()
   
   Config* conf = parser.parse_mycnf();
   if (conf)
-    return conf->m_configValues;
+  {
+    ndb_mgm_configuration* mgm_config = conf->m_configValues;
+    conf->m_configValues = nullptr;
+    //mgm_config is moved out of config. It has to be freed by caller.
+    delete conf;
+
+    return mgm_config;
+  }
 
   return 0;
 }

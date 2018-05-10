@@ -1,5 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
+--source suite/ndb/include/backup_restore_setup.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -88,3 +89,4 @@ connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
 connection mysqld2;
 --disable_query_log ONCE
 call mtr.add_suppression("cluster disconnect An incident event has been written");
+--source suite/ndb/include/backup_restore_cleanup.inc

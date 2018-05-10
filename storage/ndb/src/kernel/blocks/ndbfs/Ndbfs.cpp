@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -470,7 +470,7 @@ Ndbfs::execSTTOR(Signal* signal)
     sendSignal(NDBCNTR_REF, GSN_STTORRY, signal,4, JBB);
     return;
   }
-  ndbrequire(0);
+  ndbabort();
 }
 
 int
@@ -1127,7 +1127,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
     file->m_page_ptr.setNull();
     file->m_page_cnt = 0;
 
-    ndbrequire(false); // TODO
+    ndbabort(); // TODO
     return;
   }
 

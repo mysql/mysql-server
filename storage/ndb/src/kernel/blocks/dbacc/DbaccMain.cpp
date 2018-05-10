@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@
 #ifdef ACC_SAFE_QUEUE
 #define vlqrequire(x) do { if (unlikely(!(x))) {\
    dump_lock_queue(loPtr); \
-   ndbrequire(false); } } while(0)
+   ndbabort(); } } while(0)
 #else
 #define vlqrequire(x) ndbrequire(x)
 #define dump_lock_queue(x)
@@ -118,8 +118,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
       break;
     }
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   return;
 }//Dbacc::execCONTINUEB()
@@ -248,8 +247,7 @@ void Dbacc::initialiseRecordsLab(Signal* signal,
     return;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 
   signal->theData[0] = ZINITIALISE_RECORDS;
@@ -847,7 +845,7 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 {
-  register Uint32 Treqinfo;
+  Uint32 Treqinfo;
 
   Treqinfo = signal->requestInfo;
 
@@ -953,9 +951,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
 
   initOpRec(req, signal->getLength());
-  // normalize key if any char attr
-  if (operationRecPtr.p->tupkeylen && fragrecptr.p->hasCharAttr)
-    xfrmKeyData(req);
 
   /*---------------------------------------------------------------*/
   /*                                                               */
@@ -1080,14 +1075,14 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       return;
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   } else if (found == ZFALSE) {
     switch (op){
     case ZWRITE:
       opbits &= ~(Uint32)Operationrec::OP_MASK;
       opbits |= (op = ZINSERT);
+      // Fall through
     case ZINSERT:
       jam();
       opbits |= Operationrec::OP_INSERT_IS_DONE;
@@ -1104,10 +1099,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       jam();
       acckeyref1Lab(signal, ZREAD_ERROR);
       return;
-      break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   } else {
     jam();
@@ -1145,7 +1138,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
   }
 
   ndbout_c("bits: %.8x state: %.8x", opbits, opstate);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1407,19 +1400,6 @@ ref:
   return;
 }
 
-void
-Dbacc::xfrmKeyData(AccKeyReq* signal)const
-{
-  Uint32 table = fragrecptr.p->myTableId;
-  Uint32 dst[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
-  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32* const src = signal->keyInfo;
-  Uint32 len = xfrm_key(table, src, dst, sizeof(dst) >> 2, keyPartLen);
-  ndbrequire(len); // 0 means error
-  memcpy(src, dst, len << 2);
-  operationRecPtr.p->xfrmtupkeylen = len;
-}
-
 void 
 Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
 {
@@ -1463,7 +1443,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       acckeyref1Lab(signal, return_result);
       return;
     }//if
-    ndbrequire(false);
+    ndbabort();
   } 
   else 
   {
@@ -2250,7 +2230,7 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ulkPageidptr.p->word32[tulkLocalPtr] = localkey.m_page_no;
     return;
   }//if
-  ndbrequire(false);
+  ndbabort();
 }//Dbacc::execACCMINUPDATE()
 
 void
@@ -2412,6 +2392,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal)
     {
       return;
     }
+    // Fall through
   case 1:
     sendSignal(operationRecPtr.p->userblockref, GSN_ACC_ABORTCONF, 
 	       signal, 1, JBB);
@@ -2542,7 +2523,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     *sig = *req;
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -2896,7 +2877,7 @@ void Dbacc::insertElement(const Element   elem,
         jam();
         isforward = false;
       } else {
-        ndbrequire(false);
+        ndbabort();
         return;
       }//if
       if (!containerhead.isNextOnSamePage()) {
@@ -3109,7 +3090,7 @@ void Dbacc::insertContainer(const Element          elem,
     tidrNextConLen = conhead.getLength();
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
-      ndbrequire(false);
+      ndbabort();
       /* --------------------------------------------------------------------------------- */
       /*       THE BUFFERS ARE PLACED ON TOP OF EACH OTHER. THIS SHOULD NEVER OCCUR.       */
       /* --------------------------------------------------------------------------------- */
@@ -3436,15 +3417,16 @@ Dbacc::readTablePk(Uint32 localkey1,
                    Uint32 localkey2,
                    Uint32 eh,
                    Ptr<Operationrec> opPtr,
-                   Uint32 *keys)
+                   Uint32 *keys,
+                   bool xfrm)
 {
   int ret;
   Uint32 tableId = fragrecptr.p->myTableId;
   Uint32 fragId = fragrecptr.p->myfid;
-  bool xfrm = fragrecptr.p->hasCharAttr;
 
 #ifdef VM_TRACE
-  memset(keys, 0x1f, (fragrecptr.p->keyLength * MAX_XFRM_MULTIPLY) << 2);
+  const int xfrm_multiply = (xfrm) ? MAX_XFRM_MULTIPLY : 1;
+  memset(keys, 0x1f, (fragrecptr.p->keyLength * xfrm_multiply) << 2);
 #endif
   
   if (likely(! Local_key::isInvalid(localkey1, localkey2)))
@@ -3454,7 +3436,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                            localkey1,
                            localkey2,
                            keys,
-                           true);
+                           xfrm);
   }
   else
   {
@@ -3479,7 +3461,7 @@ Dbacc::readTablePk(Uint32 localkey1,
  * Find element.
  *
  * Method scan the bucket given by hashValue from operationRecPtr and look for
- * the element with primary key given in signal.  If element found return
+ * the element with primary key given in signal.  If element found, return
  * pointer to element, if not found return only bucket information.
  *
  * @param[in]   signal         Signal containing primary key to look for.
@@ -3507,14 +3489,14 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 tgeElemStep;
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
-  register Uint32 tgeRemLen;
+  Uint32 tgeRemLen;
   const Uint32 TelemLen = fragrecptr.p->elementLength;
-  register const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
+  const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
   union {
-  Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
-  Uint64 keys_align;
+    Uint32 keys[2048];
+    Uint64 keys_align;
   };
   (void)keys_align;
 
@@ -3590,13 +3572,24 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
+            const bool xfrm = false;
             Uint32 len = readTablePk(localkey.m_page_no,
                                      localkey.m_page_idx,
                                      tgeElementHeader,
                                      lockOwnerPtr,
-                                     &keys[0]);
-            found = (len == operationRecPtr.p->xfrmtupkeylen) &&
-	      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+                                     &keys[0],
+                                     xfrm);
+
+            if (fragrecptr.p->hasCharAttr)  //Need to consult charset library
+            {
+              const Uint32 table = fragrecptr.p->myTableId;
+              found = (cmp_key(table, Tkeydata, &keys[0]) == 0);
+            }
+            else
+            {
+              found = (len == operationRecPtr.p->tupkeylen) &&
+                      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+            }
           } else {
             jam();
             found = (localkey.m_page_no == Tkeydata[0] && Uint32(localkey.m_page_idx) == Tkeydata[1]);
@@ -5672,11 +5665,13 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
     (void)keys_align;
     Local_key localkey;
     localkey = oprec.p->localdata;
+    const bool xfrm = fragrecptr.p->hasCharAttr;
     Uint32 len = readTablePk(localkey.m_page_no,
                               localkey.m_page_idx,
                               ElementHeader::setLocked(oprec.i),
                               oprec,
-                              &keys[0]);
+                              &keys[0],
+                              xfrm);
     if (len > 0)
       oprec.p->hashValue = LHBits32(md5_hash((Uint64*)&keys[0], len));
   }
@@ -5701,11 +5696,13 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   localkey.m_page_idx = ElementHeader::getPageIdx(elemhead);
   OperationrecPtr oprec;
   oprec.i = RNIL;
+  const bool xfrm = fragrecptr.p->hasCharAttr;
   Uint32 len = readTablePk(localkey.m_page_no,
                            localkey.m_page_idx,
                            elemhead,
                            oprec,
-                           &keys[0]);
+                           &keys[0],
+                           xfrm);
   if (len > 0)
   {
     jam();
@@ -6546,7 +6543,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgeNextptrtype;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
-  register Uint32 tgeRemLen;
+  Uint32 tgeRemLen;
   const Uint32 TelemLen = fragrecptr.p->elementLength;
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
 
@@ -6584,7 +6581,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     {
       jam();
       jamLine(tgeNextptrtype);
-      ndbrequire(false);
+      ndbabort();
     }//if
     if (tgeRemLen >= Container::HEADER_SIZE + TelemLen)
     {
@@ -6940,8 +6937,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     releaseScanLab(signal);
     return;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   scanPtr.p->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr.i;
@@ -7443,11 +7439,14 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   //---------------------------------------------------------------------------
     signal->theData[0] = scanPtr.p->scanUserptr;
     signal->theData[1] =
-                    ((scanPtr.p->scanLockHeld >= ZSCAN_MAX_LOCK) ||
-                     (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED));
+      (((scanPtr.p->scanLockHeld >= ZSCAN_MAX_LOCK) ||
+        (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED)) ?
+       CheckLcpStop::ZSCAN_RESOURCE_WAIT:
+       CheckLcpStop::ZSCAN_RUNNABLE);
+
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
     jamEntry();
-    if (signal->theData[0] == RNIL) {
+    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
       jam();
       scanPtr.p->scan_lastSeen = __LINE__;
       return;
@@ -7709,7 +7708,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   ndbrequire(localkeylen == 1)
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-  operationRecPtr.p->xfrmtupkeylen = 0; // not used
+  operationRecPtr.p->xfrmtupkeylen = 0; // not used for a scanOp
   NdbTick_Invalidate(&operationRecPtr.p->m_lockTime);
 }//Dbacc::initScanOpRec()
 

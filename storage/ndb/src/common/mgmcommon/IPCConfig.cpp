@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,14 +188,17 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     conf.remoteHostName = remoteHostName;
     conf.serverNodeId   = nodeIdServer;
 
+    Uint32 spintime = 0;
+    Uint32 shm_send_buffer_size = 2 * 1024 * 1024;
     switch(type){
     case CONNECTION_TYPE_SHM:
       if(iter.get(CFG_SHM_KEY, &conf.shm.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shm.shmSize)) break;
 
-      Uint32 signum;
-      if(iter.get(CFG_SHM_SIGNUM, &signum)) break;
-      conf.shm.signum= signum;
+      if(iter.get(CFG_SHM_SPINTIME, &spintime)) break;
+      conf.shm.shmSpintime= spintime;
+      if(iter.get(CFG_SHM_SEND_BUFFER_SIZE, &shm_send_buffer_size)) break;
+      conf.shm.sendBufferSize= shm_send_buffer_size;
 
       conf.type = tt_SHM_TRANSPORTER;
 
@@ -207,48 +210,14 @@ IPCConfig::configureTransporters(Uint32 nodeId,
                 conf.remoteNodeId);
         result = false;
       }
+#ifdef NDB_WIN32
+      ndbout_c("Shared memory transporters not supported on Windows");
+      result = false;
+#else
       DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
+#endif
       break;
-
-    case CONNECTION_TYPE_SCI:
-      if(iter.get(CFG_SCI_SEND_LIMIT, &conf.sci.sendLimit)) break;
-      if(iter.get(CFG_SCI_BUFFER_MEM, &conf.sci.bufferSize)) break;
-      if (nodeId == nodeId1) {
-        if(iter.get(CFG_SCI_HOST2_ID_0, &conf.sci.remoteSciNodeId0)) break;
-        if(iter.get(CFG_SCI_HOST2_ID_1, &conf.sci.remoteSciNodeId1)) break;
-      } else {
-        if(iter.get(CFG_SCI_HOST1_ID_0, &conf.sci.remoteSciNodeId0)) break;
-        if(iter.get(CFG_SCI_HOST1_ID_1, &conf.sci.remoteSciNodeId1)) break;
-      }
-      if (conf.sci.remoteSciNodeId1 == 0) {
-        conf.sci.nLocalAdapters = 1;
-      } else {
-        conf.sci.nLocalAdapters = 2;
-      }
-      conf.type = tt_SCI_TRANSPORTER;
-      if(!tr.configureTransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to configure SCI Transporter "
-                             "from %d to %d",
-	           conf.localNodeId, conf.remoteNodeId));
-	ndbout_c("Failed to configure SCI Transporter to node %d",
-                 conf.remoteNodeId);
-        result = false;
-      } else {
-        DBUG_PRINT("info", ("Configured SCI Transporter: Adapters = %d, "
-			    "remote SCI node id %d",
-                   conf.sci.nLocalAdapters, conf.sci.remoteSciNodeId0));
-        DBUG_PRINT("info", ("Host 1 = %s, Host 2 = %s, sendLimit = %d, "
-			    "buf size = %d", conf.localHostName,
-			    conf.remoteHostName, conf.sci.sendLimit,
-			    conf.sci.bufferSize));
-        if (conf.sci.nLocalAdapters > 1) {
-          DBUG_PRINT("info", ("Fault-tolerant with 2 Remote Adapters, "
-			      "second remote SCI node id = %d",
-			      conf.sci.remoteSciNodeId1)); 
-        }
-      }
-     break;
 
     case CONNECTION_TYPE_TCP:
       if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.tcp.sendBufferSize)) break;
@@ -294,6 +263,15 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.remoteHostName = "localhost";
     loopback_conf.localHostName = "localhost";
     loopback_conf.s_port = 1; // prevent asking ndb_mgmd for port...
+    loopback_conf.type = tt_TCP_TRANSPORTER;
+    loopback_conf.checksum = 0;
+    loopback_conf.signalId = 0;
+    loopback_conf.tcp.sendBufferSize = 1024*1024;
+    loopback_conf.tcp.maxReceiveSize = 1024*1024;
+    loopback_conf.tcp.tcpSndBufSize = 0;
+    loopback_conf.tcp.tcpRcvBufSize = 0;
+    loopback_conf.tcp.tcpMaxsegSize = 256*1024;
+    loopback_conf.tcp.tcpOverloadLimit = 768*1024;
     if (!tr.configureTransporter(&loopback_conf))
     {
       ndbout_c("Failed to configure Loopback Transporter");

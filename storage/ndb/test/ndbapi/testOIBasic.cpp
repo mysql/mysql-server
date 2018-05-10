@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/*
- * testOIBasic - ordered index test
- *
- * dummy push to re-created mysql-5.1-telco ...
- */
-
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -39,7 +33,8 @@
 #include <NdbTick.h>
 #include <NdbHost.h>
 #include <NdbSleep.h>
-#include <my_sys.h>
+#include "m_ctype.h"
+#include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
 
@@ -476,27 +471,23 @@ Tmr::over(const Tmr& t1)
 static const uint maxcsnumber = 512;
 static const uint maxcharcount = 32;
 static const uint maxcharsize = 4;
-static const uint maxxmulsize = 8;
 
 // single mb char
 struct Chr {
   uchar m_bytes[maxcharsize];
-  uchar m_xbytes[maxxmulsize * maxcharsize];
-  uint m_size;
+  uint m_size;   //Actual size of m_bytes[]
   Chr();
 };
 
 Chr::Chr()
 {
   memset(m_bytes, 0, sizeof(m_bytes));
-  memset(m_xbytes, 0, sizeof(m_xbytes));
   m_size = 0;
 }
 
 // charset and random valid chars to use
 struct Chs {
   CHARSET_INFO* m_cs;
-  uint m_xmul;
   Chr* m_chr;
   Chs(CHARSET_INFO* cs);
   ~Chs();
@@ -508,72 +499,38 @@ operator<<(NdbOut& out, const Chs& chs);
 Chs::Chs(CHARSET_INFO* cs) :
   m_cs(cs)
 {
-  m_xmul = m_cs->strxfrm_multiply;
-  if (m_xmul == 0)
-    m_xmul = 1;
-  require(m_xmul <= maxxmulsize);
+  require(m_cs->mbmaxlen <= maxcharsize);
+
   m_chr = new Chr [maxcharcount];
   uint i = 0;
   uint miss1 = 0;
-  uint miss2 = 0;
-  uint miss3 = 0;
   uint miss4 = 0;
   while (i < maxcharcount) {
     uchar* bytes = m_chr[i].m_bytes;
-    uchar* xbytes = m_chr[i].m_xbytes;
-    uint& size = m_chr[i].m_size;
-    bool ok;
-    size = m_cs->mbminlen + urandom(m_cs->mbmaxlen - m_cs->mbminlen + 1);
-    require(m_cs->mbminlen <= size && size <= m_cs->mbmaxlen);
-    // prefer longer chars
-    if (size == m_cs->mbminlen && m_cs->mbminlen < m_cs->mbmaxlen && urandom(5) != 0)
-      continue;
-    for (uint j = 0; j < size; j++) {
-      bytes[j] = urandom(256);
-    }
-    int not_used;
-    // check wellformed
-    const char* sbytes = (const char*)bytes;
-    if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + size, 1, &not_used) != size) {
+    uint size = 0;
+    bool ok = false;
+    do {
+      bytes[size++] = urandom(256);
+
+      int not_used;
+      const char* sbytes = (const char*)bytes;
+      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes+size,
+				       size, &not_used) == size) {
+        // Break when a well_formed Chr has been produced.
+	ok = true;
+        break;
+      }
+    } while (size < m_cs->mbmaxlen);
+
+    if (!ok) {  //Chr never became well_formed.
       miss1++;
       continue;
     }
-    // check no proper prefix wellformed
-    ok = true;
-    for (uint j = 1; j < size; j++) {
-      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + j, 1, &not_used) == j) {
-        ok = false;
-        break;
-      }
-    }
-    if (!ok) {
-      miss2++;
-      continue;
-    }
-    // normalize
-    memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
-    // currently returns buffer size always
-    const size_t dstlen = m_xmul * size;
-    const size_t xlen = (*cs->coll->strnxfrm)(
-                                cs, xbytes, dstlen, (uint)dstlen,
-                                bytes, size, 0);
-    // check we got something
-    ok = false;
-    for (uint j = 0; j < (uint)xlen; j++) {
-      if (xbytes[j] != 0) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok) {
-      miss3++;
-      continue;
-    }
-    // check for duplicate (before normalize)
-    ok = true;
+
+    // check for duplicate
     for (uint j = 0; j < i; j++) {
       const Chr& chr = m_chr[j];
-      if (chr.m_size == size && memcmp(chr.m_bytes, bytes, size) == 0) {
+      if ((*cs->coll->strnncollsp)(cs, chr.m_bytes, chr.m_size, bytes, size) == 0) {
         ok = false;
         break;
       }
@@ -582,6 +539,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       miss4++;
       continue;
     }
+    m_chr[i].m_size = size;
     i++;
   }
   bool disorder = true;
@@ -589,9 +547,10 @@ Chs::Chs(CHARSET_INFO* cs) :
   while (disorder) {
     disorder = false;
     for (uint i = 1; i < maxcharcount; i++) {
-      uint len = sizeof(m_chr[i].m_xbytes);
-      if (memcmp(m_chr[i-1].m_xbytes, m_chr[i].m_xbytes, len) > 0) {
-        Chr chr = m_chr[i];
+      if ((*cs->coll->strnncollsp)(cs,
+				   m_chr[i-1].m_bytes, m_chr[i-1].m_size,
+				   m_chr[i].m_bytes,   m_chr[i].m_size) > 0) {
+        const Chr chr = m_chr[i];
         m_chr[i] = m_chr[i-1];
         m_chr[i-1] = chr;
         disorder = true;
@@ -599,7 +558,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       }
     }
   }
-  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss2 << "," << miss3 << "," << miss4 << " bubbles=" << bubbles);
+  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss4 << " bubbles=" << bubbles);
 }
 
 Chs::~Chs()
@@ -611,7 +570,7 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "," << chs.m_xmul << "]";
+  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
   return out;
 }
 
@@ -1986,11 +1945,15 @@ Val::calckeychars(const Par& par, uint i, uint& n, uchar* buf)
   const Chs* chs = col.m_chs;
   n = 0;
   uint len = 0;
+  uint rem = i;
   while (len < col.m_length) {
-    if (i % (1 + n) == 0) {
+    if (rem == 0) {
       break;
     }
-    const Chr& chr = chs->m_chr[i % maxcharcount];
+    uint ix = (rem % maxcharcount);
+    rem = (rem / maxcharcount);
+
+    const Chr& chr = chs->m_chr[ix];
     require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
@@ -3956,6 +3919,61 @@ scanreadindex(const Par& par, const ITab& itab, BSet& bset, bool calc)
     }
     uint i = (uint)-1;
     CHK(set2.getkey(par, &i) == 0);
+
+    // Debug code to track down 'putval()' of duplicate records.
+    if (!par.m_dups && set2.m_row[i] != nullptr) {
+      Row tmp(tab);
+      for (uint k = 0; k < tab.m_cols; k++) {
+        Val& val = *tmp.m_val[k];
+        NdbRecAttr* rec = set2.m_rec[k];
+        require(rec != 0);
+        if (rec->isNULL()) {
+          val.m_null = true;
+          continue;
+        }
+        const char* aRef = rec->aRef();
+        val.copy(aRef);
+        val.m_null = false;
+      }
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+
+      LL0("------------ Set expected -----------");
+      for (uint i=0; i<set1.m_rows; i++) {
+	Row *row = set1.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+
+      LL0("------------ Set read ---------------");
+      for (uint i=0; i<set2.m_rows; i++) {
+	Row *row = set2.m_row[i];
+	if (row != nullptr) {
+	  LL0("Row#" << i << ", " << *row);
+	}
+      }
+      LL0("-------------------------------------");
+
+      LL0("scanreadindex read duplicate, total rows expected in set: " << set1.count());
+      LL0("  read so far: " << set2.count());
+      LL0("  nextScanResult returned: " << ret << ", err: " << err);
+      LL0("");
+
+      LL0("  Row key existed, key=" << i << " row#" << n
+	   << "\n     old=" << *set2.m_row[i]
+           << "\n     new=" << tmp
+      );
+    }
+
     CHK(set2.putval(i, par.m_dups, n) == 0);
     LL4("key " << i << " row " << n << " " << *set2.m_row[i]);
     n++;
@@ -4511,7 +4529,7 @@ readverifyfull(Par par)
   }
   // each thread scans different indexes
   for (uint i = 0; i < tab.m_itabs; i++) {
-    if (i % par.m_usedthreads != par.m_no)
+    if ((i % par.m_usedthreads) != par.m_no)
       continue;
     if (tab.m_itab[i] == 0)
       continue;
@@ -5141,7 +5159,6 @@ struct Thr {
   }
   void join() {
     NdbThread_WaitFor(m_thread, &m_status);
-    m_thread = 0;
   }
 };
 
@@ -6056,7 +6073,7 @@ main(int argc,  char** argv)
     for (uint i = 0; i < tabcount; i++) {
       delete tablist[i];
     }
-    delete tablist;
+    delete [] tablist;
   }
   for (uint i = 0; i < maxcsnumber; i++) {
     delete cslist[i];

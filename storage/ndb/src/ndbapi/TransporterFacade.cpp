@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <NdbSleep.h>
 #include <NdbLockCpuUtil.h>
 #include "my_thread.h"
+#include <NdbGetRUsage.h>
 
 #include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>
@@ -49,6 +50,9 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/AllocNodeId.hpp>
 #include <signaldata/CloseComReqConf.hpp>
+#include <EventLogger.hpp>
+
+extern EventLogger *g_eventLogger;
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -62,6 +66,12 @@ static int indexToNumber(int index)
 {
   return index + MIN_API_BLOCK_NO;
 }
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
@@ -92,6 +102,8 @@ TransporterFacade::reportError(NodeId nodeId,
       ndbout_c("Fatal error on Loopback transporter, aborting.");
       abort();
     }
+    DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n",
+                   ownId(), nodeId, (int)errorCode, info));
     doDisconnect(nodeId);
   }
 }
@@ -135,6 +147,7 @@ TransporterFacade::reportConnect(NodeId nodeId)
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportConnect(%u)\n", ownId(), nodeId));
   reportConnected(nodeId);
 }
 
@@ -143,6 +156,8 @@ TransporterFacade::reportConnect(NodeId nodeId)
  */
 void
 TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
+                         ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
@@ -256,9 +271,9 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        * and to support a special memory structure when executing the
        * signals. Neither of those are interesting when receiving data
        * in the NDBAPI. The NDBAPI will thus read signal data directly as
-       * it was written by the sender (SCI sender is other node, Shared
-       * memory sender is other process and TCP/IP sender is the OS that
-       * writes the TCP/IP message into a message buffer).
+       * it was written by the sender (Shared memory sender is other
+       * process and TCP/IP sender is the OS that writes the TCP/IP
+       * message into a message buffer).
        */
       NdbApiSignal tmpSignal(*header);
       NdbApiSignal * tSignal = &tmpSignal;
@@ -470,6 +485,7 @@ TransporterFacade::start_instance(NodeId nodeId,
 
   assert(theOwnId == 0);
   theOwnId = nodeId;
+  DEBUG_FPRINTF((stderr, "(%u)FAC:start_instance\n", ownId()));
 
 #if defined SIGPIPE && !defined _WIN32
   (void)signal(SIGPIPE, SIG_IGN);
@@ -529,6 +545,12 @@ TransporterFacade::start_instance(NodeId nodeId,
     DBUG_RETURN(-1);
   }
 
+  theWakeupThread = NdbThread_Create(runWakeupThread_C,
+                                     (void**)this,
+                                     0, // Use default stack size
+                                     "ndb_wakeup_thread",
+                                     NDB_THREAD_PRIO_LOW);
+
   theClusterMgr->startThread();
 
   DBUG_RETURN(0);
@@ -538,15 +560,26 @@ void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
 
-  // Stop the send and receive threads
+  DEBUG_FPRINTF((stderr, "(%u)FAC:stop_instance\n", ownId()));
+  // Stop the send, wakeup and receive thread
   void *status;
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  theStopWakeup = 1;
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+  if (theWakeupThread)
+  {
+    NdbThread_WaitFor(theWakeupThread, &status);
+    NdbThread_Destroy(&theWakeupThread);
+  }
   theStopReceive = 1;
-  if (theReceiveThread) {
+  if (theReceiveThread)
+  {
     NdbThread_WaitFor(theReceiveThread, &status);
     NdbThread_Destroy(&theReceiveThread);
   }
   theStopSend = 1;
-  if (theSendThread) {
+  if (theSendThread)
+  {
     NdbThread_WaitFor(theSendThread, &status);
     NdbThread_Destroy(&theSendThread);
   }
@@ -604,6 +637,348 @@ link_buffer(TFBuffer* dst, const TFBuffer * src)
 }
 
 static const Uint32 SEND_THREAD_NO = 0;
+
+extern "C"
+void*
+runWakeupThread_C(void *me)
+{
+  ((TransporterFacade*)me)->threadMainWakeup();
+  return 0;
+}
+
+void TransporterFacade::init_cpu_usage(NDB_TICKS currTime)
+{
+  struct ndb_rusage curr_rusage;
+  Ndb_GetRUsage(&curr_rusage);
+  Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
+  m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+  m_recv_thread_cpu_usage_in_percent = 0;
+  m_last_cpu_usage_check = currTime;
+  calc_recv_thread_wakeup();
+}
+
+void TransporterFacade::check_cpu_usage(NDB_TICKS currTime)
+{
+  struct ndb_rusage curr_rusage;
+  Uint64 expired_time_in_micros =
+      NdbTick_Elapsed(m_last_cpu_usage_check,currTime).microSec();
+  if (expired_time_in_micros < Uint64(1000000))
+    return;
+
+  m_last_cpu_usage_check = currTime;
+  int res = Ndb_GetRUsage(&curr_rusage);
+  Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
+  /**
+   * Initialise when Ndb_GetRUsage isn't working,
+   * when called the first time,
+   * when executed time has gone backwards
+   */
+  if (res != 0 ||
+      m_last_recv_thread_cpu_usage_in_micros > cpu_time)
+  {
+    m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+    m_recv_thread_cpu_usage_in_percent = 0;
+    return;
+  }
+  /**
+   * Calculate amount of time used in executing in receive thread since last
+   * time we called this routine. It is called once per second.
+   * Measure CPU usage in percentage since last call to this method.
+   * This will be used to calculate the boundary when we send wakeup calls
+   * to the wakeup thread.
+   *
+   * We will report 92% when we are in the range 91.5% to 92.5%.
+   * The measurement isn't exact since the get tick calls are not synchronized
+   * exactly with the getRUsage calls, but it should be exact enough.
+   */
+  Uint64 executed_cpu_time = cpu_time - m_last_recv_thread_cpu_usage_in_micros;
+  executed_cpu_time += (expired_time_in_micros / Uint64(200));
+  Uint64 percentage = (Uint64(100) * executed_cpu_time) / expired_time_in_micros;
+  m_last_recv_thread_cpu_usage_in_micros = cpu_time;
+  m_recv_thread_cpu_usage_in_percent = percentage;
+
+  Uint64 spin_cpu_time = (Uint64)theTransporterRegistry->get_total_spintime();
+  theTransporterRegistry->reset_total_spintime();
+  spin_cpu_time += Uint32(expired_time_in_micros / Uint64(200));
+  Uint64 spin_percentage = (Uint64(100) * spin_cpu_time) / expired_time_in_micros;
+#ifdef DEBUG_SHM_TRP
+  fprintf(stderr, "recv_thread_cpu_usage: %u percent, spintime: %u percent\n",
+          m_recv_thread_cpu_usage_in_percent,
+          Uint32(spin_percentage));
+#endif
+  m_recv_thread_cpu_usage_in_percent -= (spin_percentage / Uint64(2));
+  calc_recv_thread_wakeup();
+}
+
+void TransporterFacade::calc_recv_thread_wakeup()
+{
+  /**
+   * This function is an adaptive function that sets the number of threads
+   * to wakeup from the receive thread based on the CPU usage of the receive
+   * thread.
+   *
+   * The problem with the receive thread is that it is most efficient at
+   * executing queries when it also wakes up the waiting threads.
+   * The problem with this approach is that when we get close to the
+   * limit of what one thread can handle the wakeup of threads consumes
+   * CPU resources needed to execute signals and receive messages on the
+   * socket.
+   *
+   * So this method decides once per second how many threads to wakeup in
+   * the receive thread. The rest will be woken up by the wakeup thread
+   * that is specifically only waking up threads when assigned to do so.
+   *
+   * Now CPU usage can go up and down quickly, thus as with every adaptive
+   * algorithm there must be a degree of inertia in changing this value.
+   *
+   * The aim of this algorithm is to either to keep m_recv_thread_wakeup
+   * at fairly high values or go towards 0. 48 and up to max of 128 more
+   * or less means that almost all wakeup work is done by the receive thread.
+   *
+   * When we have reached below 48 and we are in the 88-89% range we will
+   * consider the algorithm stable. If it drops back to 87% and lower we will
+   * start increasing m_recv_thread_wakeup again.
+   *
+   * When we are at 48 and higher values we will consider the range 90-94%
+   * to be a stable area. But if we go above 94% we will start decreasing
+   * the amount of wakeups handled by the receive thread. We decrease faster
+   * the higher the CPU usage is here, similarly we increase the wakeups
+   * faster when the receive CPU usage is lowering.
+   *
+   * When we get close to 0 we will set it to 0 if we were to decrease its
+   * value.
+   *
+   * The algorithm will in a stable algorithm stabilise around 88-94%
+   * CPU usage.
+   *
+   * Sometimes the adaptive algorithm will 
+   * The general idea is to do most all wakeups from receive thread when
+   * we are below 90% in load. At close to 100% load we will do no wakeups
+   * instead.
+   *
+   * We also set some minimum numbers and maximum numbers to ensure that
+   * we can adapt to quick changes in the environment as well.
+   */
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  Uint32 factor = 4;
+  Uint32 min_number = 32;
+  Uint32 max_number = MAX_NUM_WAKEUPS;
+  if (m_recv_thread_cpu_usage_in_percent < 80)
+  {
+    factor = 2;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 83)
+  {
+    factor = 4;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 85)
+  {
+    factor = 5;
+    min_number = 4;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 87)
+  {
+    factor = 6;
+    min_number = 2;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 89)
+  {
+    if (m_recv_thread_wakeup < 48)
+    {
+      factor = 8;
+      min_number = 0;
+    }
+    else
+    {
+      factor = 7;
+      min_number = 1;
+    }
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 94)
+  {
+    if (m_recv_thread_wakeup < 48)
+    {
+      factor = 9;
+    }
+    else
+    {
+      factor = 8;
+    }
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 95)
+  {
+    factor = 12;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 96)
+  {
+    factor = 16;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 97)
+  {
+    factor = 20;
+    min_number = 0;
+  }
+  else if (m_recv_thread_cpu_usage_in_percent <= 98)
+  {
+    factor = 24;
+    min_number = 0;
+  }
+  else
+  {
+    factor = 28;
+    min_number = 0;
+  }
+  Uint32 before = m_recv_thread_wakeup;
+  m_recv_thread_wakeup = (m_recv_thread_wakeup * 8) / factor;
+
+  if (factor != 8 &&
+      m_recv_thread_wakeup == before &&
+      m_recv_thread_wakeup != 0)
+  {
+    if (factor < 8)
+      m_recv_thread_wakeup++;
+    else
+      m_recv_thread_wakeup--;
+  }
+  if (factor > 8 && m_recv_thread_wakeup < 8)
+  {
+   m_recv_thread_wakeup = 0;
+  }
+
+  if (m_recv_thread_wakeup > max_number)
+    m_recv_thread_wakeup = max_number;
+  else if (m_recv_thread_wakeup < min_number)
+    m_recv_thread_wakeup = min_number;
+
+//#define DEBUG_THIS_FUNCTION 1
+#ifdef DEBUG_THIS_FUNCTION
+  fprintf(stderr, "m_recv_thread_wakeup = %u, cpu_usage = %u, factor = %u\n",
+          m_recv_thread_wakeup,
+          m_recv_thread_cpu_usage_in_percent,
+          factor);
+#endif
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
+
+void TransporterFacade::threadMainWakeup()
+{
+  while (theWakeupThread == NULL)
+  {
+    /* Wait until theWakeupThread have been set */
+    NdbSleep_MilliSleep(10);
+  }
+  NdbThread_SetThreadPrio(theWakeupThread, 9);
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  while (!theStopWakeup)
+  {
+    NdbCondition_WaitTimeout(m_wakeup_thread_cond,
+                             m_wakeup_thread_mutex,
+                             100);
+    wakeup_and_unlock_calls();
+  }
+  wakeup_and_unlock_calls();
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
+
+bool
+TransporterFacade::transfer_responsibility(trp_client * const *arr,
+                                           Uint32 cnt_woken,
+                                           Uint32 cnt)
+{
+  trp_client *tmp;
+  /**
+   * This is a deliberate data race, we will avoid grabbing
+   * the mutex if the value is smaller than the wakeup count.
+   * If this has changed a few microseconds ago doesn't really
+   * make any huge difference, so we accept reading it
+   * unprotected here.
+   */
+  if (cnt_woken <= m_recv_thread_wakeup)
+  {
+    return false;
+  }
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  if (theStopWakeup)
+  {
+    NdbMutex_Unlock(m_wakeup_thread_mutex);
+    return false;
+  }
+  Uint32 inx = m_wakeup_clients_cnt;
+  bool wake_wakeup_thread = false;
+  for (Uint32 i = 0; i < cnt_woken; i++)
+  {
+    tmp = arr[i];
+    if (inx + i < m_recv_thread_wakeup ||
+        inx >= MAX_NO_THREADS)
+    {
+      NdbCondition_Signal(tmp->m_poll.m_condition);
+    }
+    else
+    {
+      wake_wakeup_thread = true;
+      m_wakeup_clients[inx++] = tmp;
+    }
+    NdbMutex_Unlock(tmp->m_mutex);
+  }
+  m_wakeup_clients_cnt = inx;
+  for (Uint32 i = cnt_woken; i < cnt; i++)
+  {
+    tmp = arr[i];
+    NdbMutex_Unlock(tmp->m_mutex);
+  }
+  if (wake_wakeup_thread)
+    NdbCondition_Signal(m_wakeup_thread_cond);
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+  return true;
+}
+
+void TransporterFacade::wakeup_and_unlock_calls()
+{
+  trp_client *tmp;
+  Uint32 count_wakeup = 0;
+  while (m_wakeup_clients_cnt > 0)
+  {
+    Uint32 inx = m_wakeup_clients_cnt - 1;
+    tmp = m_wakeup_clients[inx];
+    m_wakeup_clients[inx] = 0;
+    count_wakeup++;
+    m_wakeup_clients_cnt = inx;
+    if (count_wakeup == 4 && inx > 0)
+    {
+      count_wakeup = 0;
+      NdbMutex_Unlock(m_wakeup_thread_mutex);
+    }
+    int ret_val = NdbMutex_Trylock(tmp->m_mutex);
+    if (ret_val == 0 || ret_val == EBUSY)
+      NdbCondition_Signal(tmp->m_poll.m_condition);
+    if (ret_val == 0)
+      NdbMutex_Unlock(tmp->m_mutex);
+    if (count_wakeup == 0)
+    {
+      NdbMutex_Lock(m_wakeup_thread_mutex);
+    }
+  }
+}
+
+void TransporterFacade::remove_trp_client_from_wakeup_list(trp_client *clnt)
+{
+  trp_client *tmp;
+  Uint32 inx = 0;
+  NdbMutex_Lock(m_wakeup_thread_mutex);
+  for (Uint32 i = 0; i < m_wakeup_clients_cnt; i++)
+  {
+    tmp = m_wakeup_clients[i];
+    if (tmp != clnt)
+      m_wakeup_clients[inx++] = tmp;
+  }
+  m_wakeup_clients_cnt = inx;
+  NdbMutex_Unlock(m_wakeup_thread_mutex);
+}
 
 /**
  * Signal the send thread to wake up.
@@ -842,6 +1217,7 @@ class ReceiveThreadClient : public trp_client
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
+  m_is_receiver_thread = true;
   Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
@@ -1053,6 +1429,7 @@ void TransporterFacade::threadMainReceive(void)
   bool stay_active = false;
   NDB_TICKS lastCheck = NdbTick_getCurrentTicks();
   NDB_TICKS receive_activation_time;
+  init_cpu_usage(lastCheck);
 
   while (theReceiveThread == NULL)
   {
@@ -1060,9 +1437,6 @@ void TransporterFacade::threadMainReceive(void)
     NdbSleep_MilliSleep(10);
   }
   theTransporterRegistry->startReceiving();
-#ifdef NDB_SHM_TRANSPORTER
-  NdbThread_set_shm_sigmask(TRUE);
-#endif
   recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
   const bool raised_thread_prio = raise_thread_prio();
@@ -1080,10 +1454,13 @@ void TransporterFacade::threadMainReceive(void)
      * NOTE: We set this flag without mutex, which could result in
      * a 'check' to be missed now and then. 
      */
-    if (NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100)
+    Uint64 expired_time_in_micros =
+      NdbTick_Elapsed(lastCheck,currTime).microSec();
+    if (expired_time_in_micros >= Uint64(100000))
     {
       m_check_connections = true;
       lastCheck = currTime;
+      check_cpu_usage(currTime);
     }
    
     if (!stay_active)
@@ -1204,27 +1581,18 @@ TransporterFacade::external_poll(Uint32 wait_time)
 {
   do
   {
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
-
     /* Long waits are done in short 10ms chunks */
     const Uint32 wait = (wait_time > 10) ? 10 : wait_time;
     const int res = theTransporterRegistry->pollReceive(wait);
-
-#ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
 
     if (m_check_connections)
     {
       m_check_connections = false;
       theTransporterRegistry->update_connections();
+
+      // ::reportDisconnect() may have WOKEN the poll owner
+      if (m_poll_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN)
+        break;
     }
 
     if (res > 0)
@@ -1234,8 +1602,7 @@ TransporterFacade::external_poll(Uint32 wait_time)
     }
 
     wait_time -= wait;
-  }
-  while (wait_time > 0);
+  } while (wait_time > 0);
 }
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
@@ -1257,9 +1624,17 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   dozer(NULL),
   theStopReceive(0),
   theStopSend(0),
+  theStopWakeup(0),
   sendThreadWaitMillisec(10),
   theSendThread(NULL),
   theReceiveThread(NULL),
+  theWakeupThread(NULL),
+  m_last_recv_thread_cpu_usage_in_micros(0),
+  m_recv_thread_cpu_usage_in_percent(0),
+  m_recv_thread_wakeup(MAX_NO_THREADS),
+  m_wakeup_clients_cnt(0),
+  m_wakeup_thread_mutex(NULL),
+  m_wakeup_thread_cond(NULL),
   recv_client(NULL),
   m_enabled_nodes_mask(),
   m_fragmented_signal_id(0),
@@ -1286,6 +1661,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
 
   m_send_thread_cond = NdbCondition_Create();
   m_send_thread_mutex = NdbMutex_CreateWithName("SendThreadMutex");
+
+  m_wakeup_thread_cond = NdbCondition_Create();
+  m_wakeup_thread_mutex = NdbMutex_CreateWithName("WakeupThreadMutex");
 
   for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
     m_fixed2dynamic[i]= RNIL;
@@ -1517,8 +1895,12 @@ TransporterFacade::for_each(trp_client* sender,
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0 && clnt != sender)
+    if (clnt != 0 && clnt != sender && !clnt->is_receiver_thread())
     {
+      /**
+       * We skip sending signal to receive thread. The receive thread
+       * have no interest in signals sent as for_each.
+       */
       bool res = clnt->is_locked_for_poll();
       assert(clnt->check_if_locked() == res);
       if (res)
@@ -1581,8 +1963,13 @@ TransporterFacade::connected()
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0)
+    if (clnt != 0 && !clnt->is_receiver_thread())
     {
+      /**
+       * The receiver thread have no interest in the
+       * ALLOC_NODEID_CONF signal, so will skip sending
+       * it to receive thread client.
+       */
       NdbMutex_Lock(clnt->m_mutex);
       clnt->trp_deliver_signal(&signal, 0);
       NdbMutex_Unlock(clnt->m_mutex);
@@ -1684,6 +2071,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
     } while (not_finished);
     NdbMutex_Unlock(m_open_close_mutex);
   }
+  remove_trp_client_from_wakeup_list(clnt);
   return 0;
 }
 
@@ -1802,7 +2190,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 
   if (unlikely(blockNo != -1))
   {
-    // Using fixed block number, add fixed->dymamic mapping
+    // Using fixed block number, add fixed->dynamic mapping
     Uint32 fixed_index = blockNo - MIN_API_FIXED_BLOCK_NO;
     
     assert(blockNo >= MIN_API_FIXED_BLOCK_NO &&
@@ -1830,6 +2218,8 @@ TransporterFacade::~TransporterFacade()
   NdbMutex_Destroy(m_open_close_mutex);
   NdbMutex_Destroy(m_send_thread_mutex);
   NdbCondition_Destroy(m_send_thread_cond);
+  NdbMutex_Destroy(m_wakeup_thread_mutex);
+  NdbCondition_Destroy(m_wakeup_thread_cond);
 #ifdef API_TRACE
   signalLogger.setOutputStream(0);
 #endif
@@ -1910,8 +2300,6 @@ TransporterFacade::sendSignal(trp_client* clnt,
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
              aSignal->readSignalNumber() == GSN_API_REGREQ ||
-             (aSignal->readSignalNumber() == GSN_CONNECT_REP &&
-              aNode == ownId()) ||
              (aSignal->readSignalNumber() == GSN_CLOSE_COMREQ &&
               aNode == ownId()));
     }
@@ -2489,43 +2877,19 @@ TransporterFacade::doDisconnect(int aNodeId)
 }
 
 /**
- * As ClusterMgr maintains shared global data, updating
- * its connection state needs locking. Depending on
- * whether ClusterMgr already is the poll owner, we
- * should conditionally take that lock now.
+ * ClusterMgr maintains the shared global data.
+ * Notify it about the changed connection state.
  */
 void
 TransporterFacade::reportConnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportConnected(aNodeId);
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportConnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportConnected(aNodeId);
 }
 
 void
 TransporterFacade::reportDisconnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportDisconnected(aNodeId);
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportDisconnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportDisconnected(aNodeId);
 }
 
 NodeId
@@ -3090,18 +3454,21 @@ TransporterFacade::do_poll(trp_client* clnt,
     }
     unlock_poll_mutex();
 
-    /**
-     * Now wake all the woken clients
-     */
-    unlock_and_signal(locked, cnt_woken);
-
-    /**
-     * And unlock the rest that we delivered messages to
-     */
-    for (Uint32 i = cnt_woken; i < locked_cnt-1; i++)
+    if (!transfer_responsibility(locked, cnt_woken, locked_cnt-1))
     {
-      dbg("unlock (%p)", locked[i]);
-      NdbMutex_Unlock(locked[i]->m_mutex);
+      /**
+       * Now wake all the woken clients
+       */
+      unlock_and_signal(locked, cnt_woken);
+
+      /**
+       * And unlock the rest that we delivered messages to
+       */
+      for (Uint32 i = cnt_woken; i < locked_cnt-1; i++)
+      {
+        dbg("unlock (%p)", locked[i]);
+        NdbMutex_Unlock(locked[i]->m_mutex);
+      }
     }
 
     // Terminate polling if we are PQ_WOKEN

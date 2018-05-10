@@ -6,7 +6,7 @@ ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=MYISAM;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
@@ -17,7 +17,7 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE=MYISAM;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 5K
@@ -54,7 +54,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 8 */
 INSERT INTO t1 VALUES (0, 0, 0);
@@ -166,7 +166,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
 SET SESSION information_schema_stats_expiry=0;
-SELECT table_name, 
+SELECT table_name,
 SUM(table_rows),
 SUM(data_length),
 MAX(max_data_length),
@@ -174,7 +174,7 @@ SUM(data_free)
 FROM INFORMATION_SCHEMA.partitions
 WHERE table_name='t1'
 GROUP BY table_name;
-table_name	SUM(table_rows)	SUM(data_length)	MAX(max_data_length)	SUM(data_free)
+TABLE_NAME	SUM(table_rows)	SUM(data_length)	MAX(max_data_length)	SUM(data_free)
 t1	501	262144	1048576	8345820
 SELECT table_name, table_rows, data_length, max_data_length, data_free
 FROM information_schema.tables
@@ -607,21 +607,17 @@ use logfile group lg1
 initial_size 2M
 extent_size 2M
 engine ndb;
-select distinct tablespace_name, file_type, file_name
+select tablespace_name, file_type, file_name
 from information_schema.files
-where engine = 'ndbcluster' and tablespace_name is not null
-order by file_type, file_name;
-tablespace_name	file_type	file_name
-ts1	DATAFILE	datafile.dat
-ts1	TABLESPACE	NULL
+where engine = 'ndbcluster' and file_type = 'DATAFILE';
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+ts1	DATAFILE	./datafile.dat
 alter tablespace ts1
 drop datafile 'datafile.dat';
-select distinct tablespace_name, file_type, file_name
+select tablespace_name, file_type, file_name
 from information_schema.files
-where engine = 'ndbcluster' and tablespace_name is not null
-order by file_type, file_name;
-tablespace_name	file_type	file_name
-ts1	TABLESPACE	NULL
+where engine = 'ndbcluster' and file_type = 'DATAFILE';
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
 drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
@@ -654,30 +650,20 @@ add datafile 'datafile02.dat'
 initial_size 3342335;
 Warnings:
 Warning	24	Datafile size rounded up to extent size
-select logfile_group_name, extra
-from information_schema.files
-where file_type = 'UNDO LOG' and file_name is null;
-logfile_group_name	extra
-lg1	UNDO_BUFFER_SIZE=327680
-select distinct file_name, initial_size
+select file_name, initial_size
 from information_schema.files
 where file_type = 'UNDO LOG' and file_name like '%dat'
 order by file_name;
-file_name	initial_size
-undofile.dat	3276800
-undofile02.dat	3276800
-select tablespace_name, logfile_group_name, extent_size
-from information_schema.files
-where engine = 'ndbcluster' and file_type = 'TABLESPACE';
-tablespace_name	logfile_group_name	extent_size
-ts1	lg1	327680
-select distinct file_name, initial_size, extent_size, total_extents, free_extents
+FILE_NAME	INITIAL_SIZE
+./undofile.dat	3276800
+./undofile02.dat	3276800
+select file_name, initial_size, extent_size, total_extents, free_extents
 from information_schema.files
 where file_type = 'DATAFILE'
 order by file_name;
-file_name	initial_size	extent_size	total_extents	free_extents
-datafile.dat	3276800	327680	10	10
-datafile02.dat	3604480	327680	11	11
+FILE_NAME	INITIAL_SIZE	EXTENT_SIZE	TOTAL_EXTENTS	FREE_EXTENTS
+./datafile.dat	3276800	327680	10	10
+./datafile02.dat	3604480	327680	11	11
 alter tablespace ts1
 drop datafile 'datafile02.dat';
 alter tablespace ts1

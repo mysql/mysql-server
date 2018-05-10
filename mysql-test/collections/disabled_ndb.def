@@ -13,20 +13,12 @@
 
 # gcol_ndb suite tests
 gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 2017-08-10 Bin, PB2 failures.
-gcol_ndb.gcol_non_stored_columns_ndb : BUG#25957586 BINLOGGING OF GENERATED NON STORED COLUMNS FAILS.
 
 # ndb_big suite tests
 ndb_big.smoke : Not ready for automated testing yet.
 
 # ndb_binlog suite tests
 ndb_binlog.ndb_binlog_restore : Need WL#10167 On the fly frm translation.
-
-# ndbcluster suite tests
-# Problem with missing information in information_schema
-ndbcluster.tablespace_datafiles : BUG#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA.
-
-# Problem with incorrect partition information in information_schema
-ndbcluster.information_schema_partitions : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS.
 
 # ndb_ddl suite tests
 # Problem with alter table while MDL lock is held on other mysqld
@@ -78,7 +70,6 @@ ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 # ndb suite tests
 ndb.ndb_alter_table                     : Need WL#10665 Extend size of extra table metadata
 ndb.ndb_alter_table_backup              : Need WL#10167 On the fly frm translation
-ndb.ndb_alter_table_backup              : Need WL#10167 On the fly frm translation
 ndb.ndb_column_properties_compat        : Need WL#10167 On the fly frm translation
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
 ndb.ndb_dd_restore_check_tablespace_mdl : Need WL#10167 On the fly frm translation
@@ -102,10 +93,10 @@ ndb.ndb_alter_table_online     : Need WL#9185 MySQL Cluster support for new DD
 ndb.ndb_fk_restore             : Need WL#9185 MySQL Cluster support for new DD
 ndb.ndb_restore_schema_subsets : Need WL#9185 MySQL Cluster support for new DD
 
-# Test which timeout most likley due to mismatches in shares etc.
+# Test which timeout most likely due to mismatches in shares etc.
 ndb.ndb_spj_dict : Need WL#9185 MySQL Cluster support for new DD.
 
-# Problem with crash, most likley due to mismatches in shares etc
+# Problem with crash, most likely due to mismatches in shares etc
 ndb.ndb_ddl_dml : Need WL#9185 MySQL Cluster support for new DD.
 
 # Inplace alter table and index problem(same problem as above)
@@ -159,35 +150,40 @@ ndb.ndb_alter_table_error : Need WL#9185 MySQL Cluster support for new DD
 # Problem with different metadata in NDB dictionary and DD
 ndb.ndb_dist_priv_bug_13340854 : BUG#26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
 
-# Tests disabled under various bugs pending further investigation
-ndb.ndb_bushy_joins     : BUG#26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
-ndb.ndb_dd_sql_features : BUG#26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOWS
-ndb.ndb_many_fragments  : BUG#26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
-
-# Problem with missing information in information_schema
-ndb.ndb_dd_basic: Bug #26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
-
-# Problem with incorrect information about partitions in information_schema
-ndb.ndb_add_partition          : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb.ndb_fragment_count_addnode : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb.ndb_fully_replicated       : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb.ndb_no_rb_fragment_count   : BUG#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb.ndb_rb_fragment_count      : BUF#26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+# Problem where the conditions pushed down on Windows differ from other
+# platforms
+ndb.ndb_bushy_joins @windows: Bug #26484136 CONDITION PUSHED DOWN ON WINDOWS DIFFERS FROM OTHER PLATFORMS
+ndb.ndb_many_fragments @windows: Bug #26484136 CONDITION PUSHED DOWN ON WINDOWS DIFFERS FROM OTHER PLATFORMS
 
 # mysqldump fails to dump logfilegroups and partitions, thus the dump
 # is incomplete and tables in tablespaces cant be restored by running
 # the dumped sql file. This problem probably need both bug#26794727 as
 # well as WL#9185
-ndb.ndb_dd_dump : BUG#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+ndb.ndb_dd_dump : Needs WL#9185 MySQL Cluster support for new DD
 
 # Problem with table present in DD and not in SE
 ndb.ndb_restore_schema_rewrites : Need WL#9185 MySQL Cluster support for new DD
 
 # Clusterj fails to start since libndbclient.se fails to load
-ndb. clusterj : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb.clusterj : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
 
 # Test fails with varying failures in all versions
 ndb.ndb_truncate_nologging : BUG#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES: Could not acquire global schema lock
+
+# Test fails when the initial logfile group is attempted to be dropped.
+# This is due to the fact that the initial logfile group is created
+# when the data node starts and is not written to the DD causing a
+# mismatch between the NDB Dictionary and DD. This can be solved by
+# installing the initial logfile group into the DD during synchronization
+ndb.ndb_dd_initial_lg: Needs WL#9185 MySQL Cluster support for new DD
+
+# Failure to acquire MDL lock properly during drop database with uppercase
+# database name, affects lower_case_table_names=2 platform
+ndb.ndb_addnode_restart @darwin: Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+
+# Problem with distribution of rows in fully replicated tables where the
+# distribution is not as expected. This occurs only on Windows platforms
+ndb.ndb_fully_replicated @windows: Bug#27924016 INCORRECT DISTRIBUTION OF ROWS IN FULLY REPLICATED TABLES ON WINDOWS
 
 # rpl_ndb suite tests
 rpl_ndb.rpl_ndb_set_null  : BUG#51100

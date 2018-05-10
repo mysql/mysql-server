@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,8 @@ static const struct ParseParams m_params[] =
   { "cpuset_exclusive",   ParseParams::S_BITMASK },
   { "realtime", ParseParams::S_UNSIGNED },
   { "spintime", ParseParams::S_UNSIGNED },
-  { "thread_prio", ParseParams::S_UNSIGNED }
+  { "thread_prio", ParseParams::S_UNSIGNED },
+  { "nosend", ParseParams::S_UNSIGNED }
 };
 
 #define IX_COUNT    0
@@ -76,6 +77,7 @@ static const struct ParseParams m_params[] =
 #define IX_REALTIME 5
 #define IX_SPINTIME 6
 #define IX_THREAD_PRIO 7
+#define IX_NOSEND 8
 
 static
 unsigned
@@ -149,8 +151,9 @@ THRConfig::add(T_Type t, unsigned realtime, unsigned spintime)
   tmp.m_no = m_threads[t].size();
   tmp.m_realtime = realtime;
   tmp.m_thread_prio = NO_THREAD_PRIO_USED;
-  if (spintime > 500)
-    spintime = 500;
+  tmp.m_nosend = 0;
+  if (spintime > 9000)
+    spintime = 9000;
   tmp.m_spintime = spintime;
   m_threads[t].push_back(tmp);
 }
@@ -878,6 +881,15 @@ THRConfig::handle_spec(char *str,
       m_err_msg.assfmt("Cannot set spintime on non-exec threads");
       return -1;
     }
+    if (values[IX_NOSEND].found &&
+        !(type == T_LDM ||
+          type == T_TC ||
+          type == T_MAIN ||
+          type == T_REP))
+    {
+      m_err_msg.assfmt("Can only set nosend on main, ldm, tc and rep threads");
+      return -1;
+    }
     if (values[IX_THREAD_PRIO].found && type == T_IXBLD)
     {
       m_err_msg.assfmt("Cannot set threadprio on idxbld threads");
@@ -962,6 +974,14 @@ THRConfig::handle_spec(char *str,
       {
         m_threads[type][index+i].m_thread_prio =
           values[IX_THREAD_PRIO].unsigned_val;
+      }
+    }
+    if (values[IX_NOSEND].found)
+    {
+      for (unsigned i = 0; i < cnt; i++)
+      {
+        m_threads[type][index+i].m_nosend =
+          values[IX_NOSEND].unsigned_val;
       }
     }
   } while (1);
@@ -1252,6 +1272,14 @@ THRConfigApplier::do_bind_send(NdbThread* thread, unsigned instance)
 {
   const T_Thread* thr = &m_threads[T_SEND][instance];
   return do_bind(thread, thr);
+}
+
+bool
+THRConfigApplier::do_get_nosend(const unsigned short list[],
+                                unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  return (bool)thr->m_nosend;
 }
 
 bool

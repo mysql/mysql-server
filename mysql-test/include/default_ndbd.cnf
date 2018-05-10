@@ -1,5 +1,6 @@
 
 [cluster_config]
+#UseShm= 1
 MaxNoOfSavedMessages=          1000
 MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000

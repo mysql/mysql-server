@@ -348,8 +348,7 @@ Pgman::execCONTINUEB(Signal* signal)
     return;
   }
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -569,11 +568,11 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
 {
   if (m_extra_pgman && tableId != RNIL)
   {
-    ndbrequire(false);
+    ndbabort();
   }
   else if (!m_extra_pgman && isNdbMtLqh() && tableId == RNIL)
   {
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (find_page_entry(ptr, file_no, page_no))
@@ -693,7 +692,7 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
     return true;
   }
 
-  ndbrequire(false);
+  ndbabort();
   
   return false;
 }
@@ -1791,7 +1790,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         (! (state & Page_entry::BOUND)))
     {
       ndbout << ptr << endl;
-      ndbrequire(false);
+      ndbabort();
     }
 
     if (state & Page_entry::PAGEOUT)
@@ -2328,7 +2327,7 @@ Pgman::execFSREADREF(Signal* signal)
 {
   jamEntry();
   SimulatedBlock::execFSREADREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2337,8 +2336,8 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   Ptr<File_entry> file_ptr;
   Ptr<GlobalPage> gptr;
   File_map::ConstDataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, ptr.p->m_file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, ptr.p->m_file_no));
   m_file_entry_pool.getPtr(file_ptr, *it.data);
   Uint32 fd = file_ptr.p->m_fd;
 
@@ -2381,7 +2380,7 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -2422,7 +2421,7 @@ Pgman::execFSWRITEREF(Signal* signal)
 {
   jamEntry();
   SimulatedBlock::execFSWRITEREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 // client methods
@@ -2826,8 +2825,8 @@ Pgman::alloc_data_file(Uint32 file_no, Uint32 version)
   }
 
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   if (* it.data != RNIL)
   {
     D("alloc_data_file: RNIL");
@@ -2848,8 +2847,8 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
 {
   Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   D("map_file_no:" << V(file_no) << V(fd));
 
   m_file_entry_pool.getPtr(file_ptr, *it.data);
@@ -2862,8 +2861,8 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
 {
   Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   m_file_entry_pool.getPtr(file_ptr, *it.data);
   
   if (fd == RNIL)
@@ -2900,8 +2899,7 @@ Pgman::execDATA_FILE_ORD(Signal* signal)
     free_data_file(ord->file_no, ord->fd);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2999,7 +2997,7 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
     return 1;
   }
   
-  ndbrequire(false);
+  ndbabort();
   return -1;
 }
 
@@ -4084,7 +4082,7 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
     return; /* Silence compiler warning */
   }
   ptr.p->m_dirty_state = Pgman::IN_NO_DIRTY_LIST;
@@ -4185,6 +4183,7 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
 void
 Pgman::verify_page_lists()
 {
+#ifdef VERIFY_PAGE_LISTS
   EmulatedJamBuffer *jamBuf = getThrJamBuf();
   const Stats& stats = m_stats;
   const Param& param = m_param;
@@ -4293,7 +4292,6 @@ Pgman::verify_page_lists()
             " %s:%u", get_sublist_name(k), pl.getCount());
   }
   ndbrequire(entry_count == pl_hash.getCount() || dump_page_lists());
-
   Uint32 hit_pct = 0;
   char hit_pct_str[20];
   if (stats.m_page_hits + stats.m_page_faults != 0)
@@ -4321,6 +4319,7 @@ Pgman::verify_page_lists()
     << " to queue:" << to_queue);
 
   D(sublist_info);
+#endif
 }
 
 void

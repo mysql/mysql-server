@@ -635,7 +635,7 @@ bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
       }
       else
       {
-        ndbrequire(false);
+        ndbabort();
       }
       
       if (unlikely(internalVarSize != defValueBytes))
@@ -956,7 +956,7 @@ Dbtup::remove_frag_from_tab(TablerecPtr tabPtr, Uint32 fragId)
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
@@ -1118,7 +1118,7 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   default:
     break;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1387,7 +1387,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
-          ndbrequire(false);
+          ndbabort();
         }
       }
     }
@@ -1430,7 +1430,7 @@ Dbtup::handleAlterTableComplete(Signal *signal,
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
-          ndbrequire(false);
+          ndbabort();
         }
       }
     }
@@ -1909,7 +1909,7 @@ void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId)
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /*
@@ -2336,7 +2336,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2622,7 +2622,7 @@ Dbtup::lcp_read_ctl_file(Signal *signal,
   FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
   req->data.memoryAddress.memoryOffset = 0;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
 }
@@ -2631,7 +2631,7 @@ void
 Dbtup::execFSREADREF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2686,7 +2686,7 @@ void
 Dbtup::execFSCLOSEREF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2723,8 +2723,10 @@ Dbtup::handle_ctl_info(TablerecPtr tabPtr,
 {
   BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
-  ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE);
-  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE ||
+  ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
+            bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
+  if ((bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
+       bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG) ||
       !c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
   {
     jam();

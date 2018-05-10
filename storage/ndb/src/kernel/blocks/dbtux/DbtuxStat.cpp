@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,8 +64,7 @@ Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
     statScanReadValue(statPtr, out);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -397,6 +396,16 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     stat.m_batchCurr = 0;
     return 1;
   }
+  /* Take a break to avoid problems with a long stretch of equal keys */
+  const Uint32 MaxAddRowsWithoutBreak = 16;
+  if (stat.m_rowCount % MaxAddRowsWithoutBreak == 0)
+  {
+    jam();
+    D("Taking a break from stat scan");
+    return 2; // Take a break
+  }
+
+  /* Iterate to next index entry */
   return 0;
 }
 
@@ -456,8 +465,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
 
   switch (rep->requestType) {
   case IndexStatRep::RT_UPDATE_REQ:
-    ndbrequire(false);
-    break;
+    ndbabort();
   case IndexStatRep::RT_UPDATE_CONF:
     {
       Index& index = *c_indexPool.getPtr(rep->indexId);
@@ -470,8 +478,7 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -495,8 +502,7 @@ Dbtux::execINDEX_STAT_IMPL_REQ(Signal* signal)
     statMonStop(signal, mon);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 

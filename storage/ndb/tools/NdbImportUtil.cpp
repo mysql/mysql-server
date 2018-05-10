@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "NdbImportUtil.hpp"
+
+#include "m_ctype.h"
 #include "my_sys.h"
 #include <NdbDictionaryImpl.hpp>
-#include "NdbImportUtil.hpp"
-// legacy
-#include <BaseString.hpp>
-#include <Vector.hpp>
 
-#define snprintf BaseString::snprintf
-#define vsnprintf BaseString::vsnprintf
+#include <Vector.hpp>
+// STL
+#include <cmath>
 
 NdbImportUtil::NdbImportUtil() :
   m_util(*this),
@@ -541,11 +541,55 @@ NdbImportUtil::Attr::set_null(Row* row, bool null) const
     data[m_null_byte] &= ~mask;
 }
 
-const void*
+const uchar*
 NdbImportUtil::Attr::get_value(const Row* row) const
 {
   const uchar* p = &row->m_data[m_offset];
   return p;
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, uint32& value) const
+{
+  const uchar* p = get_value(row);
+  if (m_type == NdbDictionary::Column::Unsigned)
+  {
+    memcpy(&value, p, sizeof(value));
+    return;
+  }
+  require(false);
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, uint64& value) const
+{
+  const uchar* p = get_value(row);
+  if (m_type == NdbDictionary::Column::Bigunsigned)
+  {
+    memcpy(&value, p, sizeof(value));
+    return;
+  }
+  require(false);
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, char* buf, uint bufsz) const
+{
+  const uchar* p = get_value(row);
+  memset(buf, 0, bufsz);
+  if (m_type == NdbDictionary::Column::Varchar) {
+    uint sz = p[0];
+    require(sz < bufsz);
+    memcpy(buf, &p[1], sz);
+    return;
+  }
+  if (m_type == NdbDictionary::Column::Longvarchar) {
+    uint sz = p[0] | (p[1] << 8);
+    require(sz < bufsz);
+    memcpy(buf, &p[2], sz);
+    return;
+  }
+  require(false);
 }
 
 bool
@@ -1857,67 +1901,6 @@ NdbImportUtil::add_rowmap_table()
 }
 
 void
-NdbImportUtil::set_rowmap_row(Row* row,
-                              uint32 runno,
-                              const Range& range)
-{
-  const Table& table = c_rowmap_table;
-  const Attrs& attrs = table.m_attrs;
-  uint id = 0;
-  // runno
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &runno, sizeof(runno));
-    id++;
-  }
-  // start
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_start, sizeof(range.m_start));
-    id++;
-  }
-  // end
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_end, sizeof(range.m_end));
-    id++;
-  }
-  // rows
-  {
-    const Attr& attr = attrs[id];
-    uint64 rows = range.m_end - range.m_start;
-    attr.set_value(row, &rows, sizeof(rows));
-    id++;
-  }
-  // startpos
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_startpos, sizeof(range.m_startpos));
-    id++;
-  }
-  // end
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_endpos, sizeof(range.m_endpos));
-    id++;
-  }
-  // bytes
-  {
-    const Attr& attr = attrs[id];
-    uint64 bytes = range.m_endpos - range.m_startpos;
-    attr.set_value(row, &bytes, sizeof(bytes));
-    id++;
-  }
-  // reject
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_reject, sizeof(range.m_reject));
-    id++;
-  }
-  require(id == attrs.size());
-}
-
-void
 NdbImportUtil::add_stopt_table()
 {
   Table& table = c_stopt_table;
@@ -1960,6 +1943,8 @@ NdbImportUtil::add_stats_table()
   table.add_pseudo_attr("stddev",
                         NdbDictionary::Column::Double);
 }
+
+#include <math.h>
 
 void
 NdbImportUtil::add_error_attrs(Table& table)
@@ -2110,6 +2095,67 @@ NdbImportUtil::set_reject_row(Row* row,
 }
 
 void
+NdbImportUtil::set_rowmap_row(Row* row,
+                              uint32 runno,
+                              const Range& range)
+{
+  const Table& table = c_rowmap_table;
+  const Attrs& attrs = table.m_attrs;
+  uint id = 0;
+  // runno
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &runno, sizeof(runno));
+    id++;
+  }
+  // start
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_start, sizeof(range.m_start));
+    id++;
+  }
+  // end
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_end, sizeof(range.m_end));
+    id++;
+  }
+  // rows
+  {
+    const Attr& attr = attrs[id];
+    uint64 rows = range.m_end - range.m_start;
+    attr.set_value(row, &rows, sizeof(rows));
+    id++;
+  }
+  // startpos
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_startpos, sizeof(range.m_startpos));
+    id++;
+  }
+  // end
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_endpos, sizeof(range.m_endpos));
+    id++;
+  }
+  // bytes
+  {
+    const Attr& attr = attrs[id];
+    uint64 bytes = range.m_endpos - range.m_startpos;
+    attr.set_value(row, &bytes, sizeof(bytes));
+    id++;
+  }
+  // reject
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_reject, sizeof(range.m_reject));
+    id++;
+  }
+  require(id == attrs.size());
+}
+
+void
 NdbImportUtil::set_stopt_row(Row* row,
                              uint32 runno,
                              const char* option,
@@ -2209,6 +2255,8 @@ NdbImportUtil::set_stats_row(Row* row,
     double mean = 0.0;
     if (stat.m_obs != 0)
       mean = sum1 / obsf;
+    if (!std::isfinite(mean))
+      mean = 0.0;
     attr.set_value(row, &mean, sizeof(mean));
     id++;
   }
@@ -2230,6 +2278,8 @@ NdbImportUtil::set_stats_row(Row* row,
     double stddev = 0.0;
     if (stat.m_obs != 0)
       stddev = ::sqrt((obsf * sum2 - (sum1 * sum1)) / (obsf * obsf));
+    if (!std::isfinite(stddev))
+      stddev = 0.0;
     attr.set_value(row, &stddev, sizeof(stddev));
     id++;
   }

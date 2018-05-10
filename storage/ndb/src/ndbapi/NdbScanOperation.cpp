@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,22 +104,10 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   if (NdbOperation::init(tab, myConnection) != 0)
     return -1;
 
-  theNdb->theRemainingStartTransactions++; // will be checked in hupp...
-  NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
-  if (!aScanConnection){
-    theNdb->theRemainingStartTransactions--;
-    setErrorCodeAbort(theNdb->getNdbError().code);
-    return -1;
-  }
-
-  // NOTE! The hupped trans becomes the owner of the operation
-  theNdbCon= aScanConnection;
-
   initInterpreter();
   
   theStatus = GetValue;
   theOperationType = OpenScanRequest;
-  theNdbCon->theMagicNumber = 0xFE11DF;
   theNoOfTupKeyLeft = tab->m_noOfDistributionKeys;
   m_ordered= false;
   m_descending= false;
@@ -136,6 +124,20 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
   assert(m_scan_buffer==NULL);
+  
+  theNdb->theRemainingStartTransactions++; // will be checked in hupp...
+  NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
+  if (!aScanConnection){
+    assert(theNdb->theRemainingStartTransactions > 0);
+    theNdb->theRemainingStartTransactions--;
+    setErrorCodeAbort(theNdb->getNdbError().code);
+    theNdbCon = NULL;
+    return -1;
+  }
+
+  // NOTE! The hupped trans becomes the owner of the operation
+  theNdbCon= aScanConnection;
+  theNdbCon->theMagicNumber = 0xFE11DF;
   return 0;
 }
 
@@ -1582,8 +1584,11 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
       setErrorCodeAbort(4000);
       return -1;
     }
-    // Save old receivers
-    memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
+    if (m_allocated_receivers > 0)
+    {
+      // Save old receivers
+      memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
+    }
     delete[] m_array;
     m_array = (Uint32*)tmp;
     
@@ -2077,7 +2082,8 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
                        (long) m_transConnection, (long) theNdbCon,
                        forceSend, releaseOp));
 
-  if(m_transConnection){
+  if (theNdbCon != NULL)
+  {
     if(DEBUG_NEXT_RESULT)
       ndbout_c("close() theError.code = %d "
                "m_api_receivers_count = %d "
@@ -2141,6 +2147,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   // Close Txn and release all NdbOps owner by it
   tNdb->closeTransaction(tCon);
   tNdb->theImpl->decClientStat(Ndb::TransCloseCount, 1); /* Correct stats */
+  assert(tNdb->theRemainingStartTransactions > 0);
   tNdb->theRemainingStartTransactions--;
   DBUG_VOID_RETURN;
 }
@@ -3179,18 +3186,23 @@ NdbIndexScanOperation::setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
     }
   }
 
-  /* Copy data into correct part of RecAttr */
-  assert(byteOffset + valueLen <= maxKeyRecordBytes);
+  if (aValue != NULL)
+  {
+    /* Copy data into correct part of RecAttr */
+    assert(valueLen > 0);
+    assert(byteOffset + valueLen <= maxKeyRecordBytes);
 
-  memcpy(boundInfo.key + byteOffset,
-         aValue, 
-         valueLen);
-
-  /* Set Null bit */
-  bool nullBit=(aValue == NULL);
-
-  boundInfo.key[nullbit_byte_offset]|= 
-    (nullBit) << nullbit_bit_in_byte;
+    memcpy(boundInfo.key + byteOffset,
+           aValue, 
+           valueLen);
+  }
+  else
+  {
+    /* Set Null bit */
+    assert(valueLen == 0);
+    boundInfo.key[nullbit_byte_offset] |= 
+      (1 << nullbit_bit_in_byte);
+  }
 
   return 0;
 }
@@ -4011,6 +4023,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4081,6 +4094,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;

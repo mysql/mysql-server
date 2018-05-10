@@ -633,6 +633,8 @@ ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use v
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
 Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Duplicate partition field name 'a'
@@ -1080,6 +1082,8 @@ ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
+Warning	1296	Got error 1224 'Too many fragments' from NDB
+Warning	1296	Failed to commit NDB schema transaction
 Warning	1296	Got error 1224 'Too many fragments' from NDB
 Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)

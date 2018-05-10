@@ -1,0 +1,37 @@
+--source setup.inc
+
+# Test RENAME TABLE with more than one table
+# - RENAME TABLE tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
+# - The MySQL Server will call ha_ndbcluster several times to
+#   rename the tables one by one
+let $sql = RENAME TABLE;
+
+# 1. Rename to <tabname>_new_name
+let $sql = $sql t1 to t1_new_name,;
+
+# 2. Rename to same name, skip since expected fail
+
+# 3. Rename to same name but different db
+let $sql = $sql t3 to ndb_ddl_test2.t3,;
+
+# 4. Rename to different name and different db
+let $sql = $sql t4 to ndb_ddl_test2.t4_new_name;
+
+eval $sql;
+
+--source verify_mysql_dd.inc
+
+# Check behaviour of multi RENAME to same name
+# Disabled until ndbcluster has been made more "atomic ddl" compliant,
+# it need to rollback the rename of t1 -> t10 itself when the second
+# rename fails. See WL#9185 and BUG26609059
+if (0)
+{
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLE t5 to t50, t2 to t2;
+
+--source verify_mysql_dd.inc
+
+}
+
+--source cleanup.inc

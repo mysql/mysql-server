@@ -20,6 +20,7 @@
 --source include/have_ndb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source suite/ndb/include/backup_restore_setup.inc
 
 --enable_connect_log
 
@@ -29,8 +30,8 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 --echo #################################################################
 --echo # Test DDL statement 1: ALTER TABLE.
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 SHOW CREATE TABLE t1;
 --enable_warnings
@@ -71,8 +72,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo # Test DDL statement 2: RENAME TABLE.
 --echo # Disabled due to failing assert in ndb.
 
-#--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
-#--exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 #SHOW CREATE TABLE t1;
 #
 #--connect (con1, localhost, root)
@@ -110,8 +111,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo #################################################################
 --echo # Test DDL statement 3: TRUNCATE TABLE.
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 SHOW CREATE TABLE t1;
 --enable_warnings
@@ -151,8 +152,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo #################################################################
 --echo # Test DDL statement 4: DROP TABLE.
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 SHOW CREATE TABLE t1;
 --enable_warnings
@@ -194,8 +195,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo # works too. In this case, we skip the verification of MDL lock
 --echo # acquisition, since it has already been tested above.
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
 
 --disable_warnings
 SHOW CREATE TABLE t1;
@@ -404,3 +405,4 @@ DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg1 ENGINE NDB;
 
+--source suite/ndb/include/backup_restore_cleanup.inc

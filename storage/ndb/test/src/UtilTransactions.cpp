@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,10 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	if(err.status == NdbError::TemporaryError){
 	  NDB_ERR(err);
 	  closeTransaction(pNdb);
-	  NdbSleep_MilliSleep(50);
+          if (err.code == 410 || err.code == 1501)
+	    NdbSleep_MilliSleep(2000);
+          else
+	    NdbSleep_MilliSleep(50);
 	  par = 1;
 	  goto restart;
 	}
@@ -1307,6 +1310,7 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
         abort();
       }
     }
+    return pTrans->getNdbOperation(tab.getName());
   case NdbOperation::InsertRequest:
   case NdbOperation::WriteRequest:
     return pTrans->getNdbOperation(tab.getName());

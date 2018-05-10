@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #include <ndb_global.h>
 
@@ -92,7 +91,7 @@ static RowEntry **row_all_entries = NULL;
 #define ALL_PART 2
 #define CHANGE_PART 3
 
-inline void ndb_end_and_exit(int exitcode)
+[[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
   exit(exitcode);
@@ -1484,6 +1483,7 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::TableDescription & hf){
 	       << " value(" << it.getValueLen() << ") : " 
 	       << "\"" << "<TOO LONG>" << "\"" << endl;
       }
+      break;
     default:
       ndbout << "Unknown type for key: " << it.getKey() 
 	     << " type: " << it.getValueType() << endl;

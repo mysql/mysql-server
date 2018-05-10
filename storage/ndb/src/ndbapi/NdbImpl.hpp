@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,8 +291,6 @@ public:
   void* int2void(Uint32 val);
   static NdbReceiver* void2rec(void* val);
   static NdbTransaction* void2con(void* val);
-  static NdbOperation* void2rec_op(void* val);
-  static NdbIndexOperation* void2rec_iop(void* val);
   NdbTransaction* lookupTransactionFromOperation(const TcKeyConf* conf);
   Uint32 select_node(NdbTableImpl *table_impl, const Uint16 *nodes, Uint32 cnt);
 };
@@ -356,20 +354,6 @@ NdbTransaction*
 NdbImpl::void2con(void* val)
 {
   return (NdbTransaction*)val;
-}
-
-inline
-NdbOperation*
-NdbImpl::void2rec_op(void* val)
-{
-  return (NdbOperation*)(void2rec(val)->getOwner());
-}
-
-inline
-NdbIndexOperation*
-NdbImpl::void2rec_iop(void* val)
-{
-  return (NdbIndexOperation*)(void2rec(val)->getOwner());
 }
 
 inline 

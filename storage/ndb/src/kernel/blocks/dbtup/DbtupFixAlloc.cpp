@@ -293,7 +293,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
                     idx));
     return 0;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   return 0;                                     /* purify: deadcode */
 }

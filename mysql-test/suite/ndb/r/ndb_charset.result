@@ -322,3 +322,44 @@ create table t1(a int) engine = ndbcluster;
 create table T1(a int) engine = ndbcluster;
 drop table T1;
 drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_0900_as_cs,
+primary key(c1)
+) engine = ndbcluster;
+insert into t1 values('ABC_x'), ('ABC_X');
+insert into t1 values('ABCDEF_x'), ('ABCDEF_X');
+insert into t1 values('ABCDEFGH_x'), ('ABCDEFGH_X');
+select * from t1;
+c1
+ABCDEFGH_X
+ABCDEFGH_x
+ABCDEF_X
+ABCDEF_x
+ABC_X
+ABC_x
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+primary key(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+primary key using hash(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+unique key(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) not null collate utf8mb4_ja_0900_as_cs_ks,
+unique key using hash(c1)
+) engine = ndbcluster;
+drop table t1;
+create table t1 (
+c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
+key(c1)
+) engine = ndbcluster;
+drop table t1;

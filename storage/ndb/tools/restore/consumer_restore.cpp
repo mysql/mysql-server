@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -886,6 +886,33 @@ BackupRestore::init(Uint32 tableChangesMask)
 
 void BackupRestore::release()
 {
+  for (unsigned i = 0; i < m_index_per_table.size(); i++)
+  {
+    Vector<NdbDictionary::Index*> & list = m_index_per_table[i];
+    for (unsigned j = 0; j < list.size(); j++)
+      delete list[j];
+    list.clear();
+  }
+  m_index_per_table.clear();
+
+  for (unsigned i = 0; i < m_tablespaces.size(); i++)
+  {
+    delete m_tablespaces[i];
+  }
+  m_tablespaces.clear();
+
+  for (unsigned i = 0; i < m_logfilegroups.size(); i++)
+  {
+    delete m_logfilegroups[i];
+  }
+  m_logfilegroups.clear();
+
+  for (unsigned i = 0; i < m_hashmaps.size(); i++)
+  {
+    delete m_hashmaps[i];
+  }
+  m_hashmaps.clear();
+
   if (m_ndb)
   {
     delete m_ndb;
@@ -2219,6 +2246,13 @@ bool is_array(NDBCOL::Type type)
 bool
 BackupRestore::check_blobs(TableS & tableS)
 {
+   /**
+   * Nothing to check when printing data
+   */
+  if (!m_restore) {
+    return true;
+  }
+
   /**
    * For blob tables, check if there is a conversion on any PK of the main table.
    * If there is, the blob table PK needs the same conversion as the main table PK.

@@ -19,17 +19,13 @@ ALTER TABLESPACE ts1
   ADD DATAFILE 'ts1_datafile2.dat'
   INITIAL_SIZE = 4M;
 
-# Check for LOGFILE GROUP in I_S
-SELECT logfile_group_name, extra FROM information_schema.files
-WHERE file_name IS NULL AND file_type = 'UNDO LOG';
-
 # Check for UNDO LOG file in I_S
-SELECT DISTINCT file_name, file_type FROM information_schema.files
-WHERE file_name LIKE 'lg1_%' AND file_type = 'UNDO LOG';
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'UNDO LOG';
 
 # Check for DATAFILE in I_S
-SELECT DISTINCT file_name, file_type FROM information_schema.files
-WHERE file_type = 'DATAFILE';
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'DATAFILE';
 
 # Drop datafile from tablespace
 ALTER TABLESPACE ts1
@@ -75,3 +71,6 @@ DROP TABLESPACE ts1;
 # Drop logfile group
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;
+
+# Remove empty datafile
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.dat

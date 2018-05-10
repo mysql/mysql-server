@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,11 @@ public:
 
   enum Options
   {
+    /*
+      Don't distribute schema operations for this thread.
+      NOTE! Flag is _only_ set by the binlog injector thread and thus
+      any DDL operations it performs are not distributed.
+    */
     NO_LOG_SCHEMA_OP=  1 << 0,
     /* 
       This Thd_ndb is a participant in a global schema distribution.
@@ -141,7 +146,7 @@ public:
   void reset_trans_options(void);
 
   // Start of transaction check, to automatically detect which
-  // trans options shoudl be enabled
+  // trans options should be enabled
   void transaction_checks(void);
   malloc_unordered_map<const void *, THD_NDB_SHARE *>
     open_tables{PSI_INSTRUMENT_ME};
@@ -207,6 +212,34 @@ public:
   bool recycle_ndb(void);
 
   bool is_slave_thread(void) const { return m_slave_thread; }
+
+  /*
+    @brief Push a warning message onto THD's condition stack.
+           Using default error code.
+
+    @param[in]  fmt    printf-like format string
+    @param[in]  ...    Variable arguments matching format string
+  */
+  void push_warning(const char* fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+
+  /*
+    @brief Push a warning message onto THD's condition stack.
+           Using specified error code.
+
+    @param      code   Error code to use for the warning
+    @param[in]  fmt    printf-like format string
+    @param[in]  ...    Variable arguments matching format string
+  */
+  void push_warning(uint code, const char* fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 3, 4)));
+
+  /*
+    @brief Push an error from NDB as warning message onto THD's condition stack.
+
+    @param      ndberr The NDB error to push as warning
+  */
+  void push_ndb_error_warning(const NdbError &ndberr) const;
 };
 
 #endif

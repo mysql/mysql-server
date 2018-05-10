@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,7 +170,7 @@ DbtuxProxy::sendINDEX_STAT_IMPL_REQ(Signal* signal, Uint32 ssId,
     ndbrequire(req->fragId == ZNIL);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   sendSignal(workerRef(ss.m_worker), GSN_INDEX_STAT_IMPL_REQ,

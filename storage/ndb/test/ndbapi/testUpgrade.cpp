@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <ndb_version.h>
 #include <random.h>
 #include <NdbMutex.h>
+#include <signaldata/DumpStateOrd.hpp>
 
 static Vector<BaseString> table_list;
 
@@ -1649,6 +1650,104 @@ runStartBlockLcp(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+static
+int
+runUpgradeAndFail(NDBT_Context* ctx, NDBT_Step* step)
+{
+  AtrtClient atrt;
+  SqlResultSet clusters;
+
+  if (!atrt.getClusters(clusters))
+    return NDBT_FAILED;
+
+  // Get the first cluster
+  clusters.next();
+
+  uint clusterId= clusters.columnAsInt("id");
+  SqlResultSet tmp_result;
+  if (!atrt.getConnectString(clusterId, tmp_result))
+    return NDBT_FAILED;
+
+  NdbRestarter restarter(tmp_result.column("connectstring"));
+  restarter.setReconnect(true); // Restarting mgmd
+  ndbout << "Cluster '" << clusters.column("name")
+              << "@" << tmp_result.column("connectstring") << "'" << endl;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  // Restart ndb_mgmd(s)
+  SqlResultSet mgmds;
+  if (!atrt.getMgmds(clusterId, mgmds))
+    return NDBT_FAILED;
+
+  uint mgmdCount = mgmds.numRows();
+  uint restartCount = mgmdCount;
+
+  ndbout << "Restarting "
+      << restartCount << " of " << mgmdCount
+      << " mgmds" << endl;
+
+  while (mgmds.next() && restartCount --)
+  {
+    ndbout << "Restart mgmd " << mgmds.columnAsInt("node_id") << endl;
+    if (!atrt.changeVersion(mgmds.columnAsInt("id"), ""))
+      return NDBT_FAILED;
+
+    if (restarter.waitConnected())
+      return NDBT_FAILED;
+    ndbout << "Connected to mgmd"<< endl;
+  }
+
+  ndbout << "Waiting for started"<< endl;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  ndbout << "Started"<< endl;
+
+  // Restart one ndbd
+  SqlResultSet ndbds;
+  if (!atrt.getNdbds(clusterId, ndbds))
+    return NDBT_FAILED;
+
+  //Get the node id of first node
+  ndbds.next();
+  int nodeId = ndbds.columnAsInt("node_id");
+  int processId = ndbds.columnAsInt("id");
+
+  ndbout << "Restart node " << nodeId << endl;
+  if (!atrt.changeVersion(processId, "--initial=0"))
+  {
+    g_err << "Unable to change version of data node" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+  {
+    g_err << "The newer version of the node never came up" << endl;
+    return NDBT_FAILED;
+  }
+
+  /* We need the node to go to NO START after crash.  */
+  int restartDump[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateOneNode(nodeId, restartDump, 2))
+    return NDBT_FAILED;
+
+  /* 1007 forces the node to crash instead of failing with
+   * NDBD_EXIT_UPGRADE_INITIAL_REQUIRED */
+  restarter.insertErrorInNode(nodeId, 1007);
+
+  /* Wait for the node to go to no start */
+  if (restarter.waitNodesNoStart(&nodeId, 1))
+  {
+    g_err << "Node never crashed" << nodeId << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
@@ -1880,6 +1979,15 @@ TESTCASE("Upgrade_NR3_LCP_InProgress",
 //  INITIALIZER(runCheckStarted);
 //  INITIALIZER(runPostUpgradeChecks);
 //}
+TESTCASE("Upgrade_Newer_LCP_FS_Fail",
+         "Try upgrading a data node from any lower version to 7.6.4 and fail."
+         "7.6.4 has a newer LCP file system and requires a upgrade with initial."
+         "(Bug#27308632)")
+{
+  INITIALIZER(runCheckStarted);
+  STEP(runUpgradeAndFail);
+  // No postupgradecheck required as the upgrade is expected to fail
+}
   
 NDBT_TESTSUITE_END(testUpgrade);
 

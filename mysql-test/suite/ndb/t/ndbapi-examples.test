@@ -58,8 +58,6 @@ create table api_array_simple(
   ATTR7 VARBINARY(500)
 ) engine ndb charset latin1;
 --exec $NDB_EXAMPLES_DIR/ndb_ndbapi_array_simple "$NDB_CONNECTSTRING" test
---echo Verify values stored in the table
-select count(ATTR1) from api_array_simple;
 drop table api_array_simple;
 
 --echo Running ndb_ndbapi_array_using_adapter
@@ -73,7 +71,5 @@ CREATE TABLE api_array_using_adapter(
   ATTR7 VARBINARY(500)
 ) engine ndb charset latin1;
 --exec $NDB_EXAMPLES_DIR/ndb_ndbapi_array_using_adapter "$NDB_CONNECTSTRING" test
---echo Verify values stored in the table
-select count(ATTR1) from api_array_using_adapter;
 drop table api_array_using_adapter;
 

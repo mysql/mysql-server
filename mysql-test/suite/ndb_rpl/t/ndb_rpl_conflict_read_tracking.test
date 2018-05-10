@@ -363,6 +363,12 @@ update test.t1 set b="Initial data 1" where a=1;
 update test.t1 set b="Initial data 2" where a=2;
 update test.t2 set b="Initial data 3" where a=3;
 
+--echo Sync all changes
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--sync_slave_with_master master
+delete from test.t1$EX;
+delete from test.t2$EX;
 -- echo Test 4, read-read conflict with read tracking
 
 --connection slave
