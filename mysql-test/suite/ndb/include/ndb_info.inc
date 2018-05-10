@@ -95,3 +95,4 @@ $F->close();
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/ndb_info_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_info_result.inc

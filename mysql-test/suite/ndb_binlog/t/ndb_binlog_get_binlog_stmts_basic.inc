@@ -89,3 +89,4 @@ drop table binlog_stmt_parts_unassoc;
 drop table binlog_stmt_parts_assoc;
 drop table binlog_stmts;
 --enable_query_log
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

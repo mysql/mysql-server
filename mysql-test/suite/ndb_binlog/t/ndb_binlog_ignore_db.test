@@ -81,3 +81,4 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select count(1) > 0 from raw_binlog_rows where txt like '%ndb_apply_status%';
 
 drop table raw_binlog_rows;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

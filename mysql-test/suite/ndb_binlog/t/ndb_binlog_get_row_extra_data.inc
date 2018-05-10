@@ -27,4 +27,4 @@ select count(1) as number_of_transactions from diff_extra_data;
 drop table diff_extra_data;
 drop table raw_binlog_rows;
 --enable_query_log
-
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

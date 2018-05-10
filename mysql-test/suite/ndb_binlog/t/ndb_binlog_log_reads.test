@@ -612,3 +612,4 @@ drop table raw_binlog_rows;
 connection mysqld1;
 SET ndb_log_exclusive_reads= 0;
 drop table test.synch, test.t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql

@@ -26,4 +26,8 @@
 --let JAVA_CLASS=test.MyLoadUnloadTest
 --source suite/ndb/include/run_java.inc
 
+--remove_files_wildcard $MYSQLTEST_VARDIR java_*.log
+--remove_file $MYSQLTEST_VARDIR/tmp/have_java_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/run_java.result
+
 exit;

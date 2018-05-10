@@ -190,4 +190,14 @@ EOF
 --source suite/ndb/include/ndb_find_import_tool.inc
 --source $MYSQLTEST_VARDIR/tmp/ndb_import1.inc
 
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.sto
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.stt
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.dump
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*genrej
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_import1.inc
+
 # vim:set ft=perl:

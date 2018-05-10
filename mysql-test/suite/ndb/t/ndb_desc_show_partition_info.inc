@@ -31,6 +31,7 @@ SELECT a as 'TABLE_INFO' FROM partition_info
   WHERE a like "PartitionCount%";
 
 DROP TABLE partition_info;
+--remove_file $dump_partition
 --enable_query_log
 
 let ndb_table=;

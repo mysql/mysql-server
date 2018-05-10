@@ -38,4 +38,4 @@ SELECT COUNT(*) FROM nodes;
 # to avoid affecting other tests running mysql_upgrade
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/mysql_upgrade_info
-
+--remove_file $log_file

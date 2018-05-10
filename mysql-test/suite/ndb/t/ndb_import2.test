@@ -103,3 +103,8 @@ where x.b = y.b;
 drop table t1, t1ver, t2, t2ver;
 
 --enable_warnings
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.map
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.rej
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.res

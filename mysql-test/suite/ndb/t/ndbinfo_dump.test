@@ -14,3 +14,4 @@ select count(*) from blocks;
 --exec $MYSQL_DUMP --no-data --databases test ndbinfo > $dump_file
 --exec $MYSQL test < $dump_file
 select count(*) from blocks;
+--remove_file $dump_file

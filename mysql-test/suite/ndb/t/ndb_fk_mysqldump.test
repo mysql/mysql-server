@@ -56,3 +56,4 @@ show create table product_order;
 --enable_warnings
 
 drop table product_order, customer, product;
+--remove_file $dump_file
