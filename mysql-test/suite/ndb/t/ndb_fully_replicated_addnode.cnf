@@ -19,6 +19,8 @@ ndb-extra-logging=99
 # Set error log verbosity to max, otherwise info messages
 # are filtered away
 log-error-verbosity=3
+# Switch off mysqlx as default plugin
+mysqlx=OFF
 
 [cluster_config.ndbd.3.1]
 Nodegroup=65536
