@@ -393,10 +393,10 @@ DROP TABLE t1;
 --echo # FK Referencing virtual column
 CREATE TABLE t1(a INT PRIMARY KEY,
                 b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
 CREATE TABLE t2(a INT);
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
 DROP TABLE t1, t2;
 
@@ -458,12 +458,12 @@ DROP TABLE t2, t1;
 --echo # FK on virtual column not supported.
 CREATE TABLE t1(a INT PRIMARY KEY);
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE,
                 FOREIGN KEY(b) REFERENCES t1(a));
 
 CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 ALTER TABLE t2 ADD FOREIGN KEY (b) REFERENCES t1(a);
 DROP TABLE t2;
 
@@ -3154,3 +3154,216 @@ SELECT referenced_table_name, unique_constraint_name FROM
   information_schema.referential_constraints WHERE table_name = 'self'
   ORDER BY referenced_table_name;
 DROP TABLE self, grandparent1, grandparent2;
+
+
+--echo #
+--echo # Bug#25722927 "NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+--echo #
+
+--echo #
+--echo # 1) Check how missing/dropped referencing and referenced columns
+--echo #    are handled.
+--echo #
+
+--echo #
+--echo # 1.a) Missing referencing column. This problem is detected
+--echo #      during generated supported index processing.
+CREATE TABLE parent (pk INT PRIMARY KEY, j INT);
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+CREATE TABLE child (fk INT, FOREIGN KEY (nocol) REFERENCES parent(pk));
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+CREATE TABLE self (pk INT PRIMARY KEY, FOREIGN KEY (nocol) REFERENCES self(pk));
+CREATE TABLE child (fk INT, j INT);
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT);
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE child ADD FOREIGN KEY (nocol) REFERENCES parent(pk);
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE self ADD FOREIGN KEY (nocol) REFERENCES self(pk);
+
+--echo #
+--echo # 1.b) Dropped referencing column.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+--error ER_FK_COLUMN_CANNOT_DROP
+ALTER TABLE child DROP COLUMN fk;
+--echo # Adding column with the same name at the same time should not help.
+--error ER_FK_COLUMN_CANNOT_DROP
+ALTER TABLE child DROP COLUMN fk, ADD COLUMN fk INT;
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+--error ER_FK_COLUMN_CANNOT_DROP
+ALTER TABLE self DROP COLUMN fk;
+--error ER_FK_COLUMN_CANNOT_DROP
+ALTER TABLE self DROP COLUMN fk, ADD COLUMN fk INT;
+
+--echo #
+--echo # 1.c) Missing referenced column.
+DROP TABLE child;
+--error ER_FK_NO_COLUMN_PARENT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(nocol));
+DROP TABLE self;
+--error ER_FK_NO_COLUMN_PARENT
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES self(nocol));
+CREATE TABLE child (fk INT);
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(nocol);
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT);
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(nocol);
+
+--echo #
+--echo # 1.d) Dropped referenced column.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
+ALTER TABLE parent DROP COLUMN pk;
+--echo # Adding column with the same name at the same time should not help.
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
+ALTER TABLE parent DROP COLUMN pk, ADD COLUMN pk INT;
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
+ALTER TABLE self DROP COLUMN pk;
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
+ALTER TABLE self DROP COLUMN pk, ADD COLUMN pk INT;
+
+--echo #
+--echo # 1.e) Special case. Attempt to create parent for orphan
+--echo #      foreign key which doesn't have matching column.
+DROP TABLES child, parent;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(nocol));
+--error ER_FK_NO_COLUMN_PARENT
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE parent0 (pk INT PRIMARY KEY);
+--error ER_FK_NO_COLUMN_PARENT
+RENAME TABLE parent0 TO parent;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE parent0 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent0, self;
+
+--echo #
+--echo # 2) Handling of virtual columns in referencing and referenced
+--echo #    columns lists.
+--echo #
+
+--echo #
+--echo # 2.a) Virtual columns in referencing columns list are not
+--echo #      supported.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) VIRTUAL,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+                   fk INT GENERATED ALWAYS AS (base+1) VIRTUAL,
+                   FOREIGN KEY (fk) REFERENCES self(pk));
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) VIRTUAL);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+                   fk INT GENERATED ALWAYS AS (base+1) VIRTUAL);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+
+--echo #
+--echo # 2.b) One should not be able to get virtual column in referencing
+--echo #      columns list by ALTERing column.
+DROP TABLE child, self;
+CREATE TABLE child (base INT, fk INT GENERATED ALWAYS AS (base+1) STORED,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE child MODIFY fk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+CREATE TABLE self (pk INT PRIMARY KEY, base INT,
+                   fk INT GENERATED ALWAYS AS (base+1) STORED,
+                   FOREIGN KEY (fk) REFERENCES self(pk));
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE self MODIFY fk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+
+--echo #
+--echo # 2.c) Virtual columns in referenced columns list are not
+--echo #      supported.
+DROP TABLE child, parent, self;
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+CREATE TABLE child (fk INT);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, fk INT,
+                   UNIQUE KEY(pk), FOREIGN KEY (fk) REFERENCES self(pk));
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, fk INT,
+                   UNIQUE KEY(pk));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+
+--echo #
+--echo # 2.d) Again, one should not be able to get referenced virtual
+--echo #      column by ALTERing it.
+DROP TABLE child, parent, self;
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) STORED, UNIQUE KEY(pk));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE parent MODIFY pk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+CREATE TABLE self (base INT, pk INT GENERATED ALWAYS AS (base+1) STORED, fk INT,
+                   UNIQUE KEY(pk), FOREIGN KEY (fk) REFERENCES self(pk));
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE self MODIFY pk INT GENERATED ALWAYS AS (base+1) VIRTUAL;
+
+--echo #
+--echo # 2.e) Special case. Attempt to create parent for orphan
+--echo #      foreign key which has virtual column.
+DROP TABLES child, parent, self;
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+CREATE TABLE parent (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+CREATE TABLE parent0 (base INT, pk INT GENERATED ALWAYS AS (base+1) VIRTUAL, UNIQUE KEY(pk));
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+RENAME TABLE parent0 TO parent;
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
+ALTER TABLE parent0 RENAME TO parent;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent0;
+
+--echo #
+--echo # 3) Check how missing/dropped supporting index on referencing table
+--echo #    is handled.
+--echo #
+
+--echo #
+--echo # 3.a) Normally, generated supporting index is automatically added
+--echo #      along with foreign key, so it can be missing only in some rare
+--echo #      corner case, for example, when generated index is automatically
+--echo #      converted to spatial index.
+CREATE TABLE parent (pk POINT SRID 0 NOT NULL, KEY(pk));
+--error ER_FK_NO_INDEX_CHILD
+CREATE TABLE child (fk POINT SRID 0 NOT NULL, FOREIGN KEY(fk) REFERENCES parent(pk));
+CREATE TABLE child (fk POINT SRID 0 NOT NULL);
+--error ER_FK_NO_INDEX_CHILD
+ALTER TABLE child ADD FOREIGN KEY(fk) REFERENCES parent(pk);
+--error ER_FK_NO_INDEX_CHILD
+CREATE TABLE self (pk POINT SRID 0 NOT NULL, fk POINT SRID 0 NOT NULL,
+                   KEY(pk), FOREIGN KEY(fk) REFERENCES self(pk));
+CREATE TABLE self (pk POINT SRID 0 NOT NULL, fk POINT SRID 0 NOT NULL, KEY(pk));
+--error ER_FK_NO_INDEX_CHILD
+ALTER TABLE self ADD FOREIGN KEY(fk) REFERENCES self(pk);
+
+--echo #
+--echo # 3.b) Attempt to drop supporting index should be prohibited.
+DROP TABLES self, child, parent;
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent(pk));
+--error ER_DROP_INDEX_FK
+ALTER TABLE child DROP KEY fk;
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY(fk) REFERENCES self(pk));
+--error ER_DROP_INDEX_FK
+ALTER TABLE self DROP KEY fk;
+--echo # However, we allow automatic dropping of generated index when new
+--echo # explicit supporting index is added.
+ALTER TABLE child ADD KEY fk_s(fk);
+SHOW CREATE TABLE child;
+ALTER TABLE self ADD KEY fk_s(fk);
+SHOW CREATE TABLE self;
+--echo # Also dropping supporting index and providing replacement is fine.
+ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
+ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
+DROP TABLES self, child, parent;

@@ -644,10 +644,10 @@ SHOW INDEX FROM parent;
 --replace_column 7 #
 SHOW INDEX FROM child;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_INDEX_CHILD
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_INDEX_CHILD
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CASCADE ;
 
 #cleanup
@@ -673,7 +673,7 @@ SHOW INDEX FROM parent;
 
 SHOW INDEX FROM child;
 
---error ER_FK_NO_INDEX_PARENT
+--error ER_FK_NO_INDEX_CHILD
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
 #cleanup

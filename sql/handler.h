@@ -1925,6 +1925,9 @@ struct handlerton {
   lock_hton_log_t lock_hton_log;
   unlock_hton_log_t unlock_hton_log;
   collect_hton_log_info_t collect_hton_log_info;
+
+  /** Flags describing details of foreign key support by storage engine. */
+  uint32 foreign_keys_flags;
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */
@@ -1980,6 +1983,12 @@ struct handlerton {
 
 #define HTON_SUPPORTS_ATOMIC_DDL (1 << 12)
 
+inline bool ddl_is_atomic(const handlerton *hton) {
+  return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
+}
+
+/* Bits for handlerton::foreign_keys_flags bitmap. */
+
 /**
   Engine supports both unique and non-unique parent keys for
   foreign keys which contain full foreign key as its prefix.
@@ -1990,11 +1999,31 @@ struct handlerton {
   the foreign key, possibly, in different order.
 */
 
-#define HTON_SUPPORTS_FKS_WITH_PREFIX_PARENT_KEYS (1 << 13)
+static const uint32 HTON_FKS_WITH_PREFIX_PARENT_KEYS = (1 << 0);
 
-inline bool ddl_is_atomic(const handlerton *hton) {
-  return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
-}
+/**
+  Storage engine supports hash keys as supporting keys for foreign
+  keys. Hash key should contain all foreign key columns and only
+  them (altough in any order).
+
+  Storage engines which support foreign keys but do not have this
+  flag set are assumed to not allow hash keys as supporting keys.
+*/
+
+static const uint32 HTON_FKS_WITH_SUPPORTING_HASH_KEYS = (1 << 1);
+
+/**
+  Storage engine supports non-hash keys which have common prefix
+  with the foreign key as supporting keys for it. If there are
+  several such keys, one which shares biggest prefix with FK is
+  chosen.
+
+  Storage engines which support foreign keys but do not have this
+  flag set are assumed to require that supporting key contains full
+  foreign key as its prefix.
+*/
+
+static const uint32 HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS = (1 << 2);
 
 enum enum_tx_isolation : int {
   ISO_READ_UNCOMMITTED,

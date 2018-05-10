@@ -146,7 +146,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'b' for constraint 'fk1' in the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -155,7 +155,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'b' for constraint 'fk1' in the referenced table 't1'
 drop table t2, t1;
 # test: parent key no index
 create table t1 (
@@ -535,7 +535,7 @@ primary key using hash (a),
 unique key xbc (b,c) using hash,
 foreign key fk1 (b) references t1 (a)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the foreign table 't2'
 create table t2 (
 a int not null,
 b int not null,
@@ -600,10 +600,6 @@ alter table t1 drop index t1x1;
 ERROR HY000: Cannot drop index 't1x1': needed in a foreign key constraint
 alter table t2 drop index t2x1;
 ERROR HY000: Cannot drop index 't2x1': needed in a foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21082 'Drop index not allowed in NDB - used as child index of a foreign key' from NDB
-Error	1553	Cannot drop index 't2x1': needed in a foreign key constraint
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10,100),(2,20,200),(3,30,300);
 insert into t2 values (4,40,400);

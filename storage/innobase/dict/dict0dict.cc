@@ -4224,16 +4224,8 @@ col_loop1:
       dict_foreign_find_index(table, NULL, column_names, i, NULL, TRUE, FALSE);
 
   if (!index) {
-    mutex_enter(&dict_foreign_err_mutex);
-    dict_foreign_error_report_low(ef, name);
-    fputs("There is no index in table ", ef);
-    ut_print_name(ef, NULL, name);
-    fprintf(ef,
-            " where the columns appear\n"
-            "as the first columns. Constraint:\n%s\n%s",
-            start_of_latest_foreign, FOREIGN_KEY_CONSTRAINTS_MSG);
-    mutex_exit(&dict_foreign_err_mutex);
-
+    /* SQL-layer already has checked that proper index exists.*/
+    ut_ad(0);
     return (DB_CHILD_NO_INDEX);
   }
   ptr = dict_accept(cs, ptr, "REFERENCES", &success);

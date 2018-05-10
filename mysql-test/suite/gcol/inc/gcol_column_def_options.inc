@@ -178,7 +178,7 @@ create table t2 (a int primary key);
 alter table t1 add constraint foreign key fk(d) references t2(a);
 if ($support_virtual_index)
 {
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 alter table t1 add constraint foreign key fk(b) references t2(a);
 }
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
