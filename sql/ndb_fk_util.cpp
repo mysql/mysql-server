@@ -37,6 +37,8 @@
                         On a successful return, this will point to the database
                         name of the table.
   @param       src      Pointer to the buffer having the internal name.
+  @param       index    Denotes whether the ndb object is an index. True if
+                        the object is an index, false if not.
 
   @return               On success, the actual name of the table, index or
                         the FK is returned.
